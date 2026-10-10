@@ -93,10 +93,12 @@ Other executable builds are refused.
 
 Country Apply replaces the current cosmetic tag. Reset drops the tag rather than
 recovering an earlier cosmetic tag; other mods that use cosmetic tags may conflict.
-Without the native component, the expected behavior is to retain the saved RN1 tag
-and fall back to original localization. Loading the component before loading that
-save is intended to restore custom text without regenerating files. These scenarios
-still require the live save/load and uninstall checks recorded in the test report.
+With the DLL loaded before loading the save, a full game restart preserved the
+custom country name on the map, in diplomacy and in its tooltip without another
+Apply (PID 42732, Polish UI). The saved adjective also remained in the mod panel;
+its native event context is tested separately in the [report](../docs/test-report.md).
+Without the native component, retaining the RN1 tag and falling back to original
+localization remains the expected behavior pending the uninstall/load check.
 
 ## Uninstall and observation
 

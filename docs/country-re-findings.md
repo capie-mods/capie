@@ -32,10 +32,11 @@ to the already-running game process and test user data.
   `0x711260` copies the full `std::string` size to that field and refreshes names;
   no country-tag length truncation appears in these three functions. Generic reader/
   writer limits are not established by this bounded pass. The reader does not directly
-  call UpdateNames in the cosmetic-tag case; later postload refresh needs live proof.
+  call UpdateNames in the cosmetic-tag case; the exact later refresh caller is unknown.
+  A subsequent independent full-restart/load test confirmed the final displayed name.
   [country-save-decompile.txt](evidence/session-20261011/country-save-decompile.txt),
   [read-only Ghidra run](evidence/session-20261011/country-save-ghidra.log).
-- **Bounded static follow-up, load remains inferred:** CCountry vtable slot8 points
+- **Bounded static follow-up, exact postload caller remains unknown:** CCountry vtable slot8 points
   to `0x6FE1D0`, a postload candidate, which does not directly call UpdateNames.
   Separate routines at `0x6FF1F0` (when its mask bit0 is set) and `0x6EAB50`
   call UpdateNames. Their lifecycle roles were not established by this pass.
@@ -80,8 +81,9 @@ suffix selection, decision/focus-key regression cases, Polish UTF-8, length boun
 malformed UTF-8, markup and invalid payloads. The unsupported-process guard returns10.
 
 Build completed successfully using VS2022 x64 and the user-supplied MinHook source.
-The candidate DLL SHA-256 built on 2026-10-11 was
-`2AE7708696C62E8614AF748FBAC376E87FFCE721E95530186BBCEE69D55F2A38`.
+The first candidate DLL had SHA-256
+`2AE7708696C62E8614AF748FBAC376E87FFCE721E95530186BBCEE69D55F2A38`
+and is superseded by the corrected build below.
 Build outputs are excluded from Git. [plugin/README.md](../plugin/README.md) describes
 building, injection, removal, refusal codes and compatibility constraints.
 
@@ -101,7 +103,7 @@ Two reviews found initialization lifetime issues and the source was corrected:
 PID43732 uses the earlier successfully initialized DLL, whose hash is recorded above.
 The corrected build has SHA-256
 `43012D6C0F1A94AE15723515A1AC718F4469812BAF2DBC462C8DE3BC40864CA5`
-and has not been injected. Partial
+and initialized successfully in fresh PID32656 and PID42732. Partial
 activation failure was reviewed from source; it has not been fault-injected into the game.
 
 ## Decision localization regression and cause, 2026-10-11
@@ -124,8 +126,12 @@ The root agent tightened the parser to exact empty/`_ADJ`/`_DEF` suffixes and ad
 regression checks. This makes country-specific decision probes fall through to
 vanilla. Raw assembly and the Localize consumer confirm the lookup return is a raw
 NUL-terminated C string from blob+signed offset, and KeyExists returns bool in AL;
-no wrapper/shared-return-buffer hypothesis is needed. The corrected build still
-requires a fresh in-game decision-title/description regression test before release.
+no wrapper/shared-return-buffer hypothesis is needed. Independent QA applied
+`qaąęłż` / `testowy` in fresh PID32656 and verified the original visible decision
+titles plus the full Looming Peasants' Strike tooltip.
+[Before](evidence/qa-20261011/10-fixed-decision-before.jpg),
+[after](evidence/qa-20261011/13-fixed-decision-after.jpg). This covers the reproduced
+regression; it does not exhaustively test every decision.
 
 Primary static evidence:
 
@@ -137,17 +143,29 @@ Primary static evidence:
 
 ## Verification ledger (updated after live tests)
 
+The independent Polish run loaded the user's unmodified `POL_1936_01_01_12.hoi4`
+after a full game restart, with the corrected DLL already active. No new Apply
+preceded the checks. The custom country name appeared on the map, in diplomacy
+and in its tooltip. The mod panel retained the saved adjective. This proves the
+observed persistence path while leaving the exact postload refresh caller unknown.
+[Map](evidence/qa-20261011/16-pl-load-country-map.jpg),
+[fields](evidence/qa-20261011/17-pl-load-country-fields.jpg),
+[diplomacy/tooltip](evidence/qa-20261011/18-pl-load-diplomacy-tooltip.jpg).
+
 | Question | Current evidence | Status |
 |---|---|---|
-| Exact three function signatures | 42/42 static signatures rescanned; native init0 PID43732 | static and runtime entrypoints confirmed |
-| Custom country name and adjective via UI | user smoke saw name; old DLL corrupted decision text | regression found; corrected build needs QA |
-| Map/diplomacy/tooltips/division/government contexts | vanilla cache path statically observed | runtime pending |
-| Save -> menu -> load | fresh writer/reader/setter decompilation; postload refresh not established | runtime pending |
-| Polish letters | UTF-8 parser checks, earlier script probes | native game path pending |
-| New errors in error.log | native init0; complete action delta still pending QA | pending |
-| Two-client synchronization | normal scripted command architecture only | unverified; no MP claim |
+| Exact three function signatures | 42/42 static signatures rescanned; native init0 in fresh corrected processes | static and runtime entrypoints confirmed |
+| Custom country name via UI | independent QA Apply `qaąęłż`; country map and control decision titles/description | PASS for tested contexts |
+| Adjective | UTF-8 parser; saved `testowy` visible in mod panel | native GetAdjective event context pending |
+| Map/diplomacy/tooltips | independent restart/load screenshots 16–18 | PASS for tested contexts |
+| Division/template/party names | vanilla uses literal names such as Dywizja Piechoty and Sanacja | unchanged by country adjective; documented scope limitation |
+| Save -> restart -> load | unmodified user save, DLL loaded before load, no re-Apply | PASS for country name and stored adjective; other target cases separate |
+| Polish letters | independent EN Apply plus PL restart/load of `qaąęłż` | PASS in observed country contexts; complete font coverage not claimed |
+| New errors in error.log | independent bounded EN and PL deltas both 593 -> 593 | no new errors in those action ranges; complete final run pending |
+| Two-client synchronization | normal scripted command architecture only; user has no second client | unverified; no MP claim |
 | Startup/load without native DLL | vanilla localization fallback inferred | game test pending |
 | Later ideology changes/puppet names | base fallback statically confirmed; arbitrary suffixes rejected | game test pending; puppet-specific names unsupported |
 
-Remaining checks must be recorded as evidence; successful compilation does not
-establish gameplay behavior or multiplayer synchronization.
+Successful compilation alone does not establish gameplay behavior or multiplayer
+synchronization. The full target matrix and action boundaries are maintained in
+[test-report.md](test-report.md).
