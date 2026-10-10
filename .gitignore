@@ -13,6 +13,9 @@ desktop.ini
 dist/
 *.zip
 .gstack/
+__pycache__/
+*.py[cod]
+plugin/build/
 
 # Original oversized probe screenshots; compact JPG evidence is versioned.
 /docs/evidence/probe/00_start.png
