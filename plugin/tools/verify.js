@@ -1,6 +1,6 @@
 // verify.js - READ-ONLY observation of Rename Anything hook candidates in hoi4.exe 1.19.3.0
 // SHA-256 7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5
-// Usage (game already running, attach only):  frida -n hoi4.exe -l verify.js
+// Usage (game already running): python plugin/tools/observe.py --pid PID --out LOG
 // Observational instrumentation: transient instruction hooks, no gameplay-state or disk writes.
 'use strict';
 
@@ -118,4 +118,5 @@ for (const [name, expRva, sig] of C) {
   if (l) Interceptor.attach(at, l);
 }
 setInterval(() => { const k = Object.keys(counters); if (k.length) console.log('[counts] ' + JSON.stringify(counters)); }, 10000);
+
 

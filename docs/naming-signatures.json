@@ -88,7 +88,9 @@
   "sig": "48 89 5C 24 10 48 89 6C 24 18 48 89 74 24 20 57 48 83 EC 30 48 83 7A 18 0F",
   "len": 25,
   "unique": true,
-  "signature_reverified_2026_10_11": true
+  "signature_reverified_2026_10_11": true,
+  "reverified_static_2026_10_11": "docs/evidence/session-20261011/country-save-decompile.txt",
+  "static_note": "copies full std::string size to country+0x1488 then calls UpdateNames"
  },
  {
   "name": "CSetCosmeticTagEffect_Execute",
@@ -332,6 +334,28 @@
   "unique": true,
   "static_evidence": "Capstone eight-byte thunk: mov rcx,[rcx]; jmp0x239D0F0",
   "live_status": "not observed",
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CCountry_Write",
+  "rva": "0x7191B0",
+  "sig": "48 89 5C 24 10 55 56 57 41 54 41 55 41 56 41 57 48 8B EC 48 83 EC 50 48 8B F2",
+  "len": 26,
+  "unique": true,
+  "static_evidence": "docs/evidence/session-20261011/country-save-decompile.txt",
+  "static_note": "writes cosmetic_tag token0x372F from country+0x1488",
+  "live_status": "not observed; no hook installed",
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CCountry_ReadToken",
+  "rva": "0x705CE0",
+  "sig": "48 8B C4 48 89 58 10 48 89 48 08 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 B8 FD FF FF",
+  "len": 29,
+  "unique": true,
+  "static_evidence": "docs/evidence/session-20261011/country-save-decompile.txt",
+  "static_note": "case0x372F reads string into country+0x1488; no direct UpdateNames call in this case",
+  "live_status": "not observed; no hook installed",
   "signature_reverified_2026_10_11": true
  }
 ]

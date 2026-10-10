@@ -22,9 +22,21 @@ to the already-running game process and test user data.
 - **Observed static:** UpdateNames passes the cosmetic tag at `country+0x1488`
   into BuildNameKey, obtains three keys, localizes them into the country's cached
   name/adjective/definite name, and marks map-name data dirty when the texts change.
-- **Inherited static, not reverified in this pass:** the country writer serializes
-  cosmetic_tag as a string and the reader restores it (RVA `0x7191B0` / `0x705CE0`).
-  Live save/load testing is still required.
+- **Observed static, fresh focused Ghidra pass:** the country writer at `0x7191B0`
+  calls `Writer_WriteString(writer,0x372F,country+0x1488,0)`; the reader at `0x705CE0`
+  handles token `0x372F` by reading a string into `country+0x1488`. The setter at
+  `0x711260` copies the full `std::string` size to that field and refreshes names;
+  no country-tag length truncation appears in these three functions. Generic reader/
+  writer limits are not established by this bounded pass. The reader does not directly
+  call UpdateNames in the cosmetic-tag case; later postload refresh needs live proof.
+  [country-save-decompile.txt](evidence/session-20261011/country-save-decompile.txt),
+  [read-only Ghidra run](evidence/session-20261011/country-save-ghidra.log).
+- **Bounded static follow-up, load remains inferred:** CCountry vtable slot8 points
+  to `0x6FE1D0`, a postload candidate, which does not directly call UpdateNames.
+  Separate routines at `0x6FF1F0` (when its mask bit0 is set) and `0x6EAB50`
+  call UpdateNames. Their lifecycle roles were not established by this pass.
+  [country-postload-candidates.txt](evidence/session-20261011/country-postload-candidates.txt)
+  preserves those decompilations with candidate names rather than claiming execution.
 - **REA attempt:** open_binary accepted the original file, provider Ghidra 12.1.4,
   and returned the exact target hash. The first batch_decompile request timed out
   after 300 seconds during default analysis. REA does not expose partial native
@@ -61,7 +73,7 @@ fail closed. The parser passes18 checks covering field splitting, suffix selecti
 Polish UTF-8, length bounds, malformed UTF-8, markup and invalid payloads.
 
 Build completed successfully using VS2022 x64 and the user-supplied MinHook source.
-The candidate DLL SHA-256 at00:49 was
+The candidate DLL SHA-256 built on 2026-10-11 was
 `2AE7708696C62E8614AF748FBAC376E87FFCE721E95530186BBCEE69D55F2A38`.
 Build outputs are excluded from Git. [plugin/README.md](../plugin/README.md) describes
 building, injection, removal, refusal codes and compatibility constraints.
@@ -70,12 +82,12 @@ building, injection, removal, refusal codes and compatibility constraints.
 
 | Question | Current evidence | Status |
 |---|---|---|
-| Exact three function signatures | 40/40 static signatures rescanned; native init0 PID43732 | static and runtime entrypoints confirmed |
+| Exact three function signatures | 42/42 static signatures rescanned; native init0 PID43732 | static and runtime entrypoints confirmed |
 | Custom country name and adjective via UI | native and scripted implementations | runtime pending |
 | Map/diplomacy/tooltips/division/government contexts | vanilla cache path statically observed | runtime pending |
-| Save -> menu -> load | inherited cosmetic_tag serializer analysis | runtime pending |
+| Save -> menu -> load | fresh writer/reader/setter decompilation; postload refresh not established | runtime pending |
 | Polish letters | UTF-8 parser checks, earlier script probes | native game path pending |
-| New errors in error.log | no native initialization yet | pending |
+| New errors in error.log | native init0; complete action delta still pending QA | pending |
 | Two-client synchronization | normal scripted command architecture only | unverified; no MP claim |
 | Startup/load without native DLL | vanilla localization fallback inferred | game test pending |
 | Later ideology changes/puppet names | suffix parser accepts ASCII identifiers | game test pending |
