@@ -5,7 +5,7 @@
 
 namespace rn {
 // The scripted GUI excludes | and engine markup from both buffers.
-// The final | separates the payload from vanilla ideology/DEF/ADJ suffixes.
+// Only the base country key and its DEF/ADJ forms belong to this protocol.
 struct CountryText { std::string name; std::string adjective; bool adjective_key; };
 
 inline bool valid_text(std::string_view s) {
@@ -48,12 +48,10 @@ inline std::optional<CountryText> decode_country_key(std::string_view key) {
     const auto adjective = key.substr(middle + 1, last - middle - 1);
     if (!valid_text(name) || !valid_text(adjective)) return std::nullopt;
     const auto suffix = key.substr(last + 1);
-    // Vanilla country keys append only ASCII identifier suffixes.
-    for (const char c : suffix) {
-        if (!(c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-              (c >= '0' && c <= '9'))) return std::nullopt;
-    }
-    if (suffix.size() > 96) return std::nullopt;
-    return CountryText{std::string(name), std::string(adjective), suffix.ends_with("_ADJ")};
+    // Other systems also probe cosmetic_tag + content-specific suffixes (e.g.
+    // decisions). Claiming arbitrary identifiers corrupts unrelated localization.
+    // BuildNameKey falls back from ideology-specific variants to these base forms.
+    if (!suffix.empty() && suffix != "_DEF" && suffix != "_ADJ") return std::nullopt;
+    return CountryText{std::string(name), std::string(adjective), suffix == "_ADJ"};
 }
 }

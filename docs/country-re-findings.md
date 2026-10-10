@@ -13,9 +13,13 @@ to the already-running game process and test user data.
   `PdxLoc_LookupKeyN` (`0x239EE20`), `PdxLoc_LookupKeyZ` (`0x239ED40`), and
   `PdxLoc_KeyExists` (`0x239D0F0`) from an exact-hash Ghidra project, read-only.
   Retained source output: [country-targeted-decompile.txt](evidence/session-20261011/country-targeted-decompile.txt).
-- **Correction to the inherited notes:** LookupKeyN and LookupKeyZ inline their own
-  FNV-1a hash calculation and binary search. They do not call FindByHash. KeyExists
-  calls FindByHash. A FindByHash-only hook cannot implement this country path.
+- **Correction of the first Ghidra interpretation:** raw Capstone instructions show
+  LookupKeyN/Z calculate FNV-1a and tail-jump to FindByHash (N at `0x239EE6A`, Z at
+  `0x239ED88`); KeyExists calls FindByHash. Ghidra folded the tail-called body into
+  its pseudocode, which initially led to an incorrect inline-search interpretation.
+  A FindByHash hook could cover the lookups if it had a payload-to-hash registry.
+  The implemented N/Z hooks instead access the original payload directly.
+  [localization-abi-capstone.txt](evidence/session-20261011/localization-abi-capstone.txt)
 - **Observed static, bounded Capstone pass:** the BuildNameKey lookup wrapper at
   `0x2244840` is `mov rcx,[rcx]; jmp 0x239D0F0`. Its eight bytes are
   `48 8B 09 E9 A8 88 15 00`. Therefore the KeyExists hook covers those checks.
@@ -58,9 +62,11 @@ to the already-running game process and test user data.
 ## Implemented candidate
 
 `plugin/src/country.cpp` hooks exactly three functions: LookupKeyN, LookupKeyZ,
-and KeyExists. They recognize `RN1|<name>|<adjective>|` followed by vanilla ASCII
-identifier suffixes. Keys ending `_ADJ` yield the adjective; other accepted variants
-yield the name, including `_DEF`. This preserves vanilla cache assignment and map
+and KeyExists. They recognize `RN1|<name>|<adjective>|` with only an empty suffix,
+`_ADJ`, or `_DEF`. `_ADJ` yields the adjective; the other two yield the name.
+BuildNameKey's static fallback checks cosmetic_tag plus the base suffix after
+ideology-specific attempts fail, so claiming ideology-specific keys is unnecessary.
+This preserves vanilla cache assignment and map
 refresh. The plugin does not overwrite CCountry fields and needs neither custom
 network commands nor custom save fields. The raw payload lives in cosmetic_tag,
 which the scripted GUI sets through meta_effect.
@@ -69,8 +75,9 @@ The DLL validates the on-disk EXE hash and unique runtime signatures at exact RV
 before enabling any hook. The injector separately validates the target image,
 loads the DLL outside the game directory, initializes it outside DllMain, and
 bounds each remote call to30seconds. Unsupported binaries or signature changes
-fail closed. The parser passes18 checks covering field splitting, suffix selection,
-Polish UTF-8, length bounds, malformed UTF-8, markup and invalid payloads.
+fail closed. The corrected parser passes31 checks covering field splitting, strict
+suffix selection, decision/focus-key regression cases, Polish UTF-8, length bounds,
+malformed UTF-8, markup and invalid payloads. The unsupported-process guard returns10.
 
 Build completed successfully using VS2022 x64 and the user-supplied MinHook source.
 The candidate DLL SHA-256 built on 2026-10-11 was
@@ -78,19 +85,69 @@ The candidate DLL SHA-256 built on 2026-10-11 was
 Build outputs are excluded from Git. [plugin/README.md](../plugin/README.md) describes
 building, injection, removal, refusal codes and compatibility constraints.
 
+## Native source review, 2026-10-11
+
+Two reviews found initialization lifetime issues and the source was corrected:
+
+- The build links the MSVC runtime with `/MT`; `DllMain` now leaves thread notifications
+  enabled. The installed MSVC 14.44.35207 source at
+  `crt/src/vcruntime/dll_dllmain.cpp:221-222` dispatches CRT thread attach/detach handling.
+- MinHook's `src/hook.c`, `EnableAllHooksLL`, can enable earlier hooks before a later
+  activation fails, then resume threads. Calling `MH_Uninitialize` at that point could
+  free a trampoline used by an in-flight callback. The failure path now disables hooks
+  best-effort but retains trampolines until process exit. Overrides require `active`,
+  so partial initialization forwards to vanilla and cannot display the ACTIVE status.
+
+PID43732 uses the earlier successfully initialized DLL, whose hash is recorded above.
+The corrected build has SHA-256
+`43012D6C0F1A94AE15723515A1AC718F4469812BAF2DBC462C8DE3BC40864CA5`
+and has not been injected. Partial
+activation failure was reviewed from source; it has not been fault-injected into the game.
+
+## Decision localization regression and cause, 2026-10-11
+
+The user reported that the first loaded DLL displayed the custom country name but
+also replaced every decision title/description with that name. This invalidates a
+release claim for that DLL. The cause is the original parser's broad suffix acceptance,
+not a pointer-wrapper ABI mismatch.
+
+Fresh targeted Ghidra evidence identifies `0x72E360` as the decision localization
+resolver. It reads `country+0x1488` (cosmetic tag), appends `_` and the decision key,
+then checks KeyExists. The decision title caller at `0x72D770` passes the title key
+from decision+`0x120` (or alternate+`0x148`). The description path at `0x72BD70`
+appends `_desc` before calling the same resolver. Thus the initial hooks claimed
+`RN1|Name|Adj|_<decision_id>` and `..._<decision_id>_desc`, selected those country
+overrides, and returned Name. Category headings can remain normal because their
+lookup path differs.
+
+The root agent tightened the parser to exact empty/`_ADJ`/`_DEF` suffixes and added
+regression checks. This makes country-specific decision probes fall through to
+vanilla. Raw assembly and the Localize consumer confirm the lookup return is a raw
+NUL-terminated C string from blob+signed offset, and KeyExists returns bool in AL;
+no wrapper/shared-return-buffer hypothesis is needed. The corrected build still
+requires a fresh in-game decision-title/description regression test before release.
+
+Primary static evidence:
+
+- [decision-cosmetic-resolver-decompile.txt](evidence/session-20261011/decision-cosmetic-resolver-decompile.txt)
+- [decision-title-caller-decompile.txt](evidence/session-20261011/decision-title-caller-decompile.txt)
+- [decision-localization-helpers-decompile.txt](evidence/session-20261011/decision-localization-helpers-decompile.txt)
+- [localization-consumers-decompile.txt](evidence/session-20261011/localization-consumers-decompile.txt)
+- [localization-abi-capstone.txt](evidence/session-20261011/localization-abi-capstone.txt)
+
 ## Verification ledger (updated after live tests)
 
 | Question | Current evidence | Status |
 |---|---|---|
 | Exact three function signatures | 42/42 static signatures rescanned; native init0 PID43732 | static and runtime entrypoints confirmed |
-| Custom country name and adjective via UI | native and scripted implementations | runtime pending |
+| Custom country name and adjective via UI | user smoke saw name; old DLL corrupted decision text | regression found; corrected build needs QA |
 | Map/diplomacy/tooltips/division/government contexts | vanilla cache path statically observed | runtime pending |
 | Save -> menu -> load | fresh writer/reader/setter decompilation; postload refresh not established | runtime pending |
 | Polish letters | UTF-8 parser checks, earlier script probes | native game path pending |
 | New errors in error.log | native init0; complete action delta still pending QA | pending |
 | Two-client synchronization | normal scripted command architecture only | unverified; no MP claim |
 | Startup/load without native DLL | vanilla localization fallback inferred | game test pending |
-| Later ideology changes/puppet names | suffix parser accepts ASCII identifiers | game test pending |
+| Later ideology changes/puppet names | base fallback statically confirmed; arbitrary suffixes rejected | game test pending; puppet-specific names unsupported |
 
 Remaining checks must be recorded as evidence; successful compilation does not
 establish gameplay behavior or multiplayer synchronization.

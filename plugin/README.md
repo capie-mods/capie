@@ -27,7 +27,7 @@ MinHook source checkout. Run from PowerShell:
 
 Optional `-VisualStudioDir` selects another VS 2022 installation. The script builds
 MinHook from source into the DLL, links the MSVC runtime statically, and runs the
-18 protocol checks. Outputs are ignored by Git under `plugin/build/`:
+18 field checks and 13 localization-boundary checks. Outputs are ignored by Git under `plugin/build/`:
 
 - `rename_anything_country.dll`
 - `rename_anything_injector.exe`
@@ -60,11 +60,19 @@ Initialization error codes: 10 unsupported executable hash, 11 wrong PE machine/
 31 hook construction failure, 32 hook activation failure. The injector also reports
 process access, DLL loading/export, and remote-thread failures.
 
+If activation fails after enabling only some hooks, the DLL disables them best-effort
+and retains their trampolines until process exit so an in-flight callback remains valid.
+Any residual hook forwards to vanilla while initialization is inactive. Restart after
+any failure. Thread notifications remain enabled for the statically linked MSVC runtime.
+
 ## Persistence, multiplayer and limits
 
 The payload is held in the game's own cosmetic tag, with no external text sidecar.
-The same payload supplies the base name and `_DEF` variants; `_ADJ` variants supply
-the adjective. The supported UI permits 32 Unicode codepoints in each field, using
+Only the exact base key, `_DEF` and `_ADJ` are intercepted; `_ADJ` supplies the adjective.
+Ideology-specific country lookups fall back to these base forms through the vanilla
+country-name resolver. All other suffixes fall through to vanilla, including decision
+titles/descriptions that also probe country cosmetic-tag prefixes. The supported UI
+permits 32 Unicode codepoints in each field, using
 the alphabet documented by the scripted mod. The native parser validates UTF-8 and
 rejects delimiters, control characters and script markup. It accepts the Polish letters.
 

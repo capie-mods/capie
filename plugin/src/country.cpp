@@ -23,6 +23,7 @@ std::mutex cache_mutex;
 std::unordered_map<std::string, std::unique_ptr<const std::string>> cache;
 
 const char* override_value(std::string_view key) {
+    if (!active.load()) return nullptr;
     if (key == "RN_PLUGIN_STATUS") return "DLL: ACTIVE (RN1)";
     auto decoded = rn::decode_country_key(key);
     if (!decoded) return nullptr;
@@ -52,7 +53,7 @@ const char* lookup_z(const char* key) noexcept {
 }
 bool exists(const char* key) noexcept {
     try {
-        if (key && std::strncmp(key, "RN1|", 4) == 0) {
+        if (active.load() && key && std::strncmp(key, "RN1|", 4) == 0) {
             const auto n = strnlen_s(key, 361);
             if (n <= 360 && rn::decode_country_key(std::string_view(key, n))) return true;
         }
@@ -110,14 +111,21 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
             MH_Uninitialize(); return 31;
         }
     }
-    if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) { MH_Uninitialize(); return 32; }
+    if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK) {
+        // Activation can fail after enabling an earlier hook. A callback could
+        // already be in flight, so retain its trampoline until process exit.
+        // Residual hooks only forward to vanilla while active is false.
+        active.store(false);
+        MH_DisableHook(MH_ALL_HOOKS);
+        return 32;
+    }
     active.store(true);
     OutputDebugStringA("Rename Anything: RN1 country localization hooks initialized (pinned 1.19.3.0)\n");
     return 0;
 }
 
-BOOL WINAPI DllMain(HINSTANCE module, DWORD reason, LPVOID) {
-    if (reason == DLL_PROCESS_ATTACH) DisableThreadLibraryCalls(module);
+BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) {
+    // Keep thread notifications: this DLL links the CRT statically with /MT.
     // Game exit releases the module. Unloading hooks in a live process is unsupported.
     return TRUE;
 }

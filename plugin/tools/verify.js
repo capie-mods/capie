@@ -118,5 +118,3 @@ for (const [name, expRva, sig] of C) {
   if (l) Interceptor.attach(at, l);
 }
 setInterval(() => { const k = Object.keys(counters); if (k.length) console.log('[counts] ' + JSON.stringify(counters)); }, 10000);
-
-
