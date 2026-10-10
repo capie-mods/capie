@@ -20,6 +20,8 @@ foreach ($line in $environmentLines) {
 }
 $MinHookDir = (Resolve-Path -LiteralPath $MinHookDir).Path
 if (-not (Test-Path -LiteralPath (Join-Path $MinHookDir 'include\MinHook.h'))) { throw 'MinHook.h not found' }
+$minHookLicensePath = Join-Path $MinHookDir 'LICENSE.txt'
+if (-not (Test-Path -LiteralPath $minHookLicensePath)) { throw 'MinHook LICENSE.txt is required for redistribution.' }
 Push-Location $buildDir
 try {
     $common = @('/nologo', '/O2', '/MT', '/W4', '/utf-8', '/DWIN32_LEAN_AND_MEAN', '/DNOMINMAX')
@@ -35,4 +37,5 @@ try {
     & .\protocol_test.exe
     if ($LASTEXITCODE -ne 0) { throw 'Protocol tests failed' }
 } finally { Pop-Location }
+Copy-Item -LiteralPath $minHookLicensePath -Destination (Join-Path $buildDir 'LICENSE.MinHook.txt') -Force
 Write-Host "Built and tested in $buildDir"

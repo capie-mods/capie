@@ -32,6 +32,7 @@ MinHook from source into the DLL, links the MSVC runtime statically, and runs th
 - `rename_anything_country.dll`
 - `rename_anything_injector.exe`
 - `protocol_test.exe`
+- `LICENSE.MinHook.txt` copied from the MinHook checkout used for this build
 
 The MinHook license, including the bundled HDE notices, is preserved in
 [LICENSE.MinHook.txt](LICENSE.MinHook.txt). Include this complete file with any
@@ -92,9 +93,10 @@ Other executable builds are refused.
 
 Country Apply replaces the current cosmetic tag. Reset drops the tag rather than
 recovering an earlier cosmetic tag; other mods that use cosmetic tags may conflict.
-With the native component absent, a saved RN1 tag remains in the save and the game
-falls back to its original localization. Loading the component before loading that
-save restores the custom text without regenerating files.
+Without the native component, the expected behavior is to retain the saved RN1 tag
+and fall back to original localization. Loading the component before loading that
+save is intended to restore custom text without regenerating files. These scenarios
+still require the live save/load and uninstall checks recorded in the test report.
 
 ## Uninstall and observation
 
