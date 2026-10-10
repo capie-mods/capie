@@ -12,3 +12,16 @@ desktop.ini
 # Build / packaging output
 dist/
 *.zip
+.gstack/
+
+# Original oversized probe screenshots; compact JPG evidence is versioned.
+/docs/evidence/probe/00_start.png
+/docs/evidence/probe/e1_01_set_tag_A_map.png
+/docs/evidence/probe/e1_08_after_reapply_map.png
+/docs/evidence/probe/e1_10_variant_noscope_map.png
+/docs/evidence/probe/e1_11_variant_getdatetext_map.png
+/docs/evidence/probe/e2_03_var2_literal_kept.png
+/docs/evidence/probe/e2_04_dynkey_state88_raw.png
+/docs/evidence/probe/e5_01_commit_lodz.png
+/docs/evidence/probe/e6_02_load_screen.png
+/docs/evidence/probe/e6_03_after_load_full.png
