@@ -1,0 +1,337 @@
+[
+ {
+  "name": "PdxLoc_FindByHash",
+  "rva": "0x239ED90",
+  "sig": "48 63 41 2C 4C 8B D2 85 C0 75 03 33 C0",
+  "len": 13,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "PdxLoc_LookupKeyN",
+  "rva": "0x239EE20",
+  "sig": "48 8B 05 ?? ?? ?? ?? 49 B8 25 23 22 84 E4 9C F2 CB",
+  "len": 17,
+  "unique": true,
+  "reverified_static_2026_10_11": "docs/evidence/session-20261011/country-targeted-decompile.txt",
+  "live_status": "runtime signature exact/unique and hook activated, PID43732; functional UI test pending",
+  "signature_reverified_2026_10_11": true,
+  "live_evidence": "docs/evidence/session-20261011/native-inject-43732.log"
+ },
+ {
+  "name": "PdxLoc_LookupKeyZ",
+  "rva": "0x239ED40",
+  "sig": "48 8B 05 ?? ?? ?? ?? 48 BA 25 23 22 84 E4 9C F2 CB 4C 8B 00 0F B6 01 84 C0 74 2A 49 B9 B3 01 00 00 00 01 00 00",
+  "len": 37,
+  "unique": true,
+  "reverified_static_2026_10_11": "docs/evidence/session-20261011/country-targeted-decompile.txt",
+  "live_status": "runtime signature exact/unique and hook activated, PID43732; functional UI test pending",
+  "signature_reverified_2026_10_11": true,
+  "live_evidence": "docs/evidence/session-20261011/native-inject-43732.log"
+ },
+ {
+  "name": "PdxLoc_LookupHash",
+  "rva": "0x239D150",
+  "sig": "48 8B D1 48 8B 0D ?? ?? ?? ?? 48 8B 09",
+  "len": 13,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "PdxLoc_KeyExists",
+  "rva": "0x239D0F0",
+  "sig": "48 83 EC 28 48 8B 05 ?? ?? ?? ?? 48 BA 25 23 22 84 E4 9C F2 CB",
+  "len": 21,
+  "unique": true,
+  "reverified_static_2026_10_11": "docs/evidence/session-20261011/country-targeted-decompile.txt",
+  "live_status": "runtime signature exact/unique and hook activated, PID43732; functional UI test pending",
+  "signature_reverified_2026_10_11": true,
+  "live_evidence": "docs/evidence/session-20261011/native-inject-43732.log"
+ },
+ {
+  "name": "Localize",
+  "rva": "0x2245E60",
+  "sig": "48 89 6C 24 18 48 89 74 24 20 57 41 56 41 57 48 83 EC 50 45 33 FF",
+  "len": 22,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "Loc_ExpandRecursive",
+  "rva": "0x2245880",
+  "sig": "48 89 5C 24 08 4C 89 4C 24 20 4C 89 44 24 18 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 90",
+  "len": 31,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "PdxLoc_EncodeValue",
+  "rva": "0x23A1100",
+  "sig": "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 48 89 7C 24 20 41 56 41 80 38 00",
+  "len": 26,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CCountry_UpdateNames",
+  "rva": "0x716580",
+  "sig": "48 89 5C 24 18 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 10 FE FF FF",
+  "len": 24,
+  "unique": true,
+  "reverified_static_2026_10_11": "docs/evidence/session-20261011/country-targeted-decompile.txt",
+  "live_status": "pending; guarded Frida attach did not complete",
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CCountry_SetCosmeticTag",
+  "rva": "0x711260",
+  "sig": "48 89 5C 24 10 48 89 6C 24 18 48 89 74 24 20 57 48 83 EC 30 48 83 7A 18 0F",
+  "len": 25,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CSetCosmeticTagEffect_Execute",
+  "rva": "0x361760",
+  "sig": "40 53 48 83 EC 20 83 7A 08 00 48 8B D9 48 8D 4A 08 7E 1D 48 83 7B 68 00",
+  "len": 24,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CDropCosmeticTagEffect_Execute",
+  "rva": "0x355D50",
+  "sig": "48 83 EC 48 48 8D 4A 08 83 39 00 7E 67",
+  "len": 13,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CCountry_BuildNameKey",
+  "rva": "0x6ECFF0",
+  "sig": "48 8B C4 48 89 58 08 4C 89 48 20 4C 89 40 18 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 E8 FE FF FF",
+  "len": 33,
+  "unique": true,
+  "reverified_static_2026_10_11": "docs/evidence/session-20261011/country-targeted-decompile.txt",
+  "live_status": "pending; guarded Frida attach did not complete",
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "IngameIface_OnCountryNameChanged",
+  "rva": "0xA66C50",
+  "sig": "40 57 48 83 EC 20 48 8B 49 08 48 8B FA",
+  "len": 13,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CSetStateNameEffect_Execute",
+  "rva": "0x3111C0",
+  "sig": "4C 8B DC 49 89 5B 08 49 89 6B 18 49 89 73 20 57 41 56 41 57 48 83 EC 50",
+  "len": 24,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CState_GetName",
+  "rva": "0x9D91D0",
+  "sig": "48 83 79 48 00 74 05 48 8D 41 38 C3",
+  "len": 12,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CState_GetNameNoOverride",
+  "rva": "0xE23410",
+  "sig": "48 83 79 48 00 75 09 48 8B 41 30 48 83 C0 20",
+  "len": 15,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CState_Write",
+  "rva": "0x9E0E90",
+  "sig": "48 89 54 24 10 48 89 4C 24 08 53 55 56 57 41 54 41 55 41 56 41 57 48 83 EC 58 0F 29 74 24 40 4C 8B F2",
+  "len": 34,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CState_ReadToken",
+  "rva": "0x9DBE00",
+  "sig": "48 8B C4 48 89 58 08 48 89 70 10 48 89 78 20 55 41 54 41 55 41 56 41 57 48 8D 68 A1 48 81 EC B0 00 00 00 0F 29 70 C8 48 8B DA 4C 8B F1 41 81 F8 61 30 00 00",
+  "len": 52,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "IngameIface_FlushMapUpdates",
+  "rva": "0xB6B050",
+  "sig": "4C 8B DC 49 89 5B 10 49 89 73 18 57 48 83 EC 70 80 3D ?? ?? ?? ?? 00",
+  "len": 23,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "MapNames_SetDirty",
+  "rva": "0xE139C0",
+  "sig": "66 C7 81 81 00 00 00 01 01 C3 CC CC",
+  "len": 12,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CSetNameEffect_Execute",
+  "rva": "0x362D50",
+  "sig": "48 89 5C 24 10 48 89 74 24 18 57 48 81 EC 50 01 00 00 48 8B F2 48 8B D9 48 83 C1 58 80 79 08 00 74 10 45 33 C0 E8 ?? ?? ?? ?? 48 8B F8 48 85 C0 75 0B 48 8B CE E8 ?? ?? ?? ?? 48 8B F8 48 85 FF 0F 85 ?? ?? ?? ?? E8 ?? ?? ?? ?? C7 44 24 20 00 10 00 00 41 B9 36 5C 00 00",
+  "len": 89,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CCharacter_SetName",
+  "rva": "0xFA61E0",
+  "sig": "48 89 5C 24 18 48 89 54 24 10 56 57 41 56 48 83 EC 40 48 8B DA",
+  "len": 21,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CCharacter_PostLoad",
+  "rva": "0xFA43C0",
+  "sig": "40 57 48 83 EC 50 83 79 18 00 48 8B F9",
+  "len": 13,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CCharacter_Write",
+  "rva": "0xFA6520",
+  "sig": "48 89 5C 24 20 56 48 83 EC 50 48 89 7C 24 70",
+  "len": 15,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CountryText_GetProperty",
+  "rva": "0x1A8E6B0",
+  "sig": "48 89 5C 24 10 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 D0 48 81 EC 30 01 00 00 49 63 F0 4C 8B F2",
+  "len": 34,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "ContextLoc_Evaluate",
+  "rva": "0x12CED60",
+  "sig": "48 89 5C 24 08 44 89 4C 24 20 48 89 54 24 10",
+  "len": 15,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CSession_PostCommand",
+  "rva": "0x2250B00",
+  "sig": "48 89 5C 24 08 57 48 81 EC 30 01 00 00 48 8B FA 48 8B D9 45 84 C0",
+  "len": 22,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CEditBox_OnTextInput",
+  "rva": "0x22F40D0",
+  "sig": "48 89 5C 24 08 57 48 83 EC 40 48 8B DA 48 8B F9 48 8D 91 B0 00 00 00",
+  "len": 23,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CTextBuffer_HandleKey",
+  "rva": "0x22F1030",
+  "sig": "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 20 57 41 54 41 55 41 56 41 57 48 83 EC 40 48 8B DA 48 8B F9",
+  "len": 34,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CTextBuffer_SetText",
+  "rva": "0x22F27C0",
+  "sig": "48 83 7A 18 0F 76 03 48 8B 12 E9 ?? ?? ?? ?? CC 48 89 5C 24 10 57 48 83 EC 40",
+  "len": 26,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CTextBuffer_InsertText",
+  "rva": "0x22F30A0",
+  "sig": "40 53 48 83 EC 40 48 8B D9 0F 57 C0 0F 11 44 24 20 66 0F 6F 0D ?? ?? ?? ?? F3 0F 7F 4C 24 30 C7 44 24 20 00 00 00 00",
+  "len": 39,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CEditBox_ctor",
+  "rva": "0x22F3140",
+  "sig": "48 8B C4 48 89 58 10 4C 89 40 18 48 89 48 08 55 56 57 41 54 41 55 41 56 41 57 48 8B EC",
+  "len": 29,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CTextBuffer_NotifyEnter",
+  "rva": "0x22F2050",
+  "sig": "40 53 48 83 EC 20 48 8B 59 08 48 85 DB 74 13 90 48 8B 0B 48 8B 01 FF 50 30",
+  "len": 25,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "Scope_GetCountry",
+  "rva": "0xBB4390",
+  "sig": "48 89 5C 24 10 57 48 83 EC 30 80 3D ?? ?? ?? ?? 00 48 8B D9 0F 84 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 00 75 4F 48 83 3D ?? ?? ?? ?? 00 75 45 48 8D 05 ?? ?? ?? ?? C6 44 24 40 00 48 89 44 24 28 48 8D 15 ?? ?? ?? ?? 48 8D 44 24 40 41 B1 01 41 B8 5C 04 00 00",
+  "len": 83,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "Tag_ToString",
+  "rva": "0xBB4E70",
+  "sig": "40 53 48 83 EC 30 48 83 3D ?? ?? ?? ?? 00 48 8B D9 0F 84 ?? ?? ?? ?? 83 39 00",
+  "len": 26,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "StdString_Assign",
+  "rva": "0x129CA0",
+  "sig": "48 89 5C 24 10 48 89 6C 24 18 56 57 41 57 48 83 EC 20 48 8B 69 18",
+  "len": 22,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "CWriter_WriteString",
+  "rva": "0x24C2EA0",
+  "sig": "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 41 0F B6 E9 49 8B F8 8B DA",
+  "len": 29,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "Token_ToString",
+  "rva": "0x24BC260",
+  "sig": "40 53 48 83 EC 30 48 63 D9 80 3D ?? ?? ?? ?? 00",
+  "len": 16,
+  "unique": true,
+  "signature_reverified_2026_10_11": true
+ },
+ {
+  "name": "LocKeyExists_StringViewThunk",
+  "rva": "0x2244840",
+  "sig": "48 8B 09 E9 A8 88 15 00",
+  "len": 8,
+  "unique": true,
+  "static_evidence": "Capstone eight-byte thunk: mov rcx,[rcx]; jmp0x239D0F0",
+  "live_status": "not observed",
+  "signature_reverified_2026_10_11": true
+ }
+]
