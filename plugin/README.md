@@ -33,8 +33,9 @@ MinHook from source into the DLL, links the MSVC runtime statically, and runs th
 - `rename_anything_injector.exe`
 - `protocol_test.exe`
 
-The MinHook license remains in the supplied checkout. Include that license when
-redistributing a binary containing MinHook. Build warnings from MinHook's upstream
+The MinHook license, including the bundled HDE notices, is preserved in
+[LICENSE.MinHook.txt](LICENSE.MinHook.txt). Include this complete file with any
+redistributed binary containing MinHook. Build warnings from MinHook's upstream
 C code do not indicate warnings in the project's C++ sources.
 
 ## Run
@@ -82,8 +83,12 @@ test; the architecture alone is not evidence that multiplayer works. See
 `../docs/country-re-findings.md` and `../docs/test-report.md` for observed results and gaps.
 Every client needs the identical mod and native component for consistent country text.
 Do not advertise ironman/achievement compatibility; it has not been established.
-Workshop can distribute the scripted mod; this native component requires a separate
-local build and injection on each Windows client. Other executable builds are refused.
+Workshop can distribute the scripted mod; this native component requires explicit
+injection on each Windows client. Steam Workshop generally supports DLL content,
+but acceptance by HOI4's uploader has not been tested. Subscription alone does not
+load this DLL. See the [Workshop research](../docs/workshop-native-research.md) for
+policy sources, EU4/CK2 precedents, and reported compatibility/antivirus problems.
+Other executable builds are refused.
 
 Country Apply replaces the current cosmetic tag. Reset drops the tag rather than
 recovering an earlier cosmetic tag; other mods that use cosmetic tags may conflict.
