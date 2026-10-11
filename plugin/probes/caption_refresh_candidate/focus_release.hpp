@@ -86,6 +86,7 @@ enum class Kind { unrelated, invalid, valid };
 struct Own {
     std::size_t editor{editor_count}; uptr root{}; bool parent_visible{};
     unsigned char parent_flags{}, root_flags{}, desired{}, parent_seen{};  // copied diagnostics
+    bool own_visible{}, parent_present{};
 };
 template <class M> Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
     out = Own{};
@@ -105,11 +106,14 @@ template <class M> Kind inspect(const M& mem, uptr image, uptr window, Own& out)
         !rd(mem, window, rn::caption::off::window_parent, parent)) return Kind::invalid;
     out.root = root;
     unsigned char flags = 0;
-    out.parent_visible = parent && rd(mem, parent, off::parent_flags, flags) && (flags & 8) && !(flags & 4);
+    out.parent_present = parent != 0;
+    // Same hidden criterion as the caption core's own-root check: bit 3 shown, bit 4 or 16 hidden.
+    out.parent_visible = parent && rd(mem, parent, off::parent_flags, flags) && (flags & 8) && !(flags & (4 | 16));
     out.parent_flags = flags;
     rd(mem, root, rn::caption::off::root_flags, out.root_flags);
     rd(mem, window, rn::caption::off::window_desired, out.desired);
     rd(mem, window, off::window_parent_seen, out.parent_seen);
+    out.own_visible = out.desired && (out.root_flags & 8) && !(out.root_flags & (4 | 16));
     return Kind::valid;
 }
 
@@ -119,7 +123,14 @@ template <class M> Kind inspect(const M& mem, uptr image, uptr window, Own& out)
 template <class Env> class Release {
 public:
     explicit Release(Env& environment) noexcept : env_(environment) {}
-    struct Counters { u64 transitions{}, no_own_focus{}, calls{}, released{}, failed{}, text_changed{}; };
+    struct Counters { u64 transitions{}, no_own_focus{}, calls{}, released{}, failed{}, text_changed{}, root_hides{}; };
+    // Classifies an editor-root visible->hidden transition from copied bits only.
+    static const char* hide_source(const Own& own) noexcept {
+        if (!own.parent_present) return "parent-detached";
+        if (!own.parent_visible) return "parent-hidden";        // politics panel closed/hidden
+        if (!own.desired) return "own-trigger-false";            // scripted visible trigger (e.g. flag cleared)
+        return "own-root-flags";                                 // own root hidden with parent shown
+    }
     void on_bind(uptr window) noexcept {
         Own own{};
         if (inspect(env_.mem(), env_.image(), window, own) == Kind::unrelated) return;
@@ -131,13 +142,24 @@ public:
         Own own{};
         const auto kind = inspect(env_.mem(), env_.image(), window, own);
         if (kind == Kind::unrelated) return;
-        bool transition = false;
+        bool transition = false, root_hide = false;
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (kind == Kind::invalid) { known_[own.editor] = false; return; }
             transition = known_[own.editor] && parent_visible_[own.editor] && !own.parent_visible;
-            known_[own.editor] = true; parent_visible_[own.editor] = own.parent_visible;
+            root_hide = known_[own.editor] && own_visible_[own.editor] && !own.own_visible;
+            known_[own.editor] = true; parent_visible_[own.editor] = own.parent_visible; own_visible_[own.editor] = own.own_visible;
             if (transition) ++counters_.transitions;
+            if (root_hide) ++counters_.root_hides;
+        }
+        if (root_hide) {
+            char line[256]{};
+            std::snprintf(line, sizeof(line),
+                          "RN_HIDE event=editor-root-hidden model=%s source=%s desired=%u root_flags=0x%02X parent_flags=0x%02X "
+                          "parent_seen=%u parent_present=%u; draft is dropped on reopen (re-prefill)\r\n",
+                          editors[own.editor].model, hide_source(own), own.desired, own.root_flags, own.parent_flags,
+                          own.parent_seen, own.parent_present ? 1u : 0u);
+            env_.log(line);
         }
         if (!transition) return;  // exactly once per visible->hidden parent transition
         release(own);
@@ -189,7 +211,7 @@ private:
     }
     Env& env_;
     std::mutex mutex_;
-    bool known_[editor_count]{}, parent_visible_[editor_count]{};
+    bool known_[editor_count]{}, parent_visible_[editor_count]{}, own_visible_[editor_count]{};
     Counters counters_{};
 };
 }  // namespace rn::focus

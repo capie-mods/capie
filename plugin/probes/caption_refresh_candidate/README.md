@@ -131,12 +131,15 @@ PID49352 log contains a hide->re-show cycle WITHOUT our focus (see report).
 
 ## Revision 5 (PID3044 runtime)
 
-- Caption `gui-vt` guard was a runtime false-negative: the live GameGui at `[idler+6B8]` is a
-  more-derived singleton whose offset-0 vtable is not the plain CGameGui `294A688` (RTTI-confirmed
-  that `294A688` IS CGameGui). `B6E210`/`B674F0` read only `gui+C8`, so `gui-vt` is now
-  DIAGNOSTIC ONLY; the gui identity is closed by the idler round-trip (`gui+180==idler`) and the
-  politics-view checks (`view` vtable, `view+38==gui`, `view+570==idler`). Every `precall` reject
-  now logs `observed_vt_rva` / `expected_vt_rva` / `slot_rva` / `gui_vt_rva` for the next run.
+- Caption `gui-vt` guard was a runtime false-negative (PID3044). CORRECTED in revision 6 (review
+  R4, RE findings 82CA2D2D): the object at `[idler+6B8]` is NOT a CGameGui and not polymorphic at
+  all. It is a 0x4E0-byte view container built by `B614C0` (offset 0 is a data array, not a vtable);
+  the real CGameGui (`294A688`) is a different object. `Reject::gui_vt` and the CGameGui vtable
+  constant are removed; identity is structural: idler VT `2968FF0` + slot B8 `DCCF30`,
+  `gui=[idler+6B8]`, `[gui+180]==idler` (`B61588`), `view=[gui+128]` with VT `29D9648` and
+  `view+30` VT `29D96F0`, `[view+38]==gui`, `[view+570]==idler`. Precall rejects log
+  `observed_vt_rva`/`expected_vt_rva`/`slot_rva`, the raw `gui_word0` (data) and `gui_b8_rva`
+  (`[obj+B8]`-base; expected `0x3085170`, a structural pin candidate, LOG ONLY).
 - RN3 silent Apply drop on reopen: a panel close hides the editor root with flag/epoch kept and
   the reopen rebuilds the edit widget, so the retained `prefilled` made Apply drop with
   `own-edit-identity-visibility-text`. The generated bridge now clears `attempted`/`prefilled` on a
@@ -147,3 +150,24 @@ PID49352 log contains a hide->re-show cycle WITHOUT our focus (see report).
 - `rn_editor_cap` capability signal: designed, NOT implemented this round (see report) — the useful
   injection point is the Open command, and extending the accepted transport to Open selectors
   (which also executes over MP) requires its own review/runtime.
+
+## Revision 6
+
+- Stale editor: an own Apply whose live editor lifecycle no longer matches (failed re-prefill after
+  a panel reopen, or an unseeded caption field) is forwarded with ONLY the original non-reserved
+  records plus `rn_ip_cmd_epoch = -1` (raw -100000): no payload, no capability. The script guard
+  returns 8 and shows "This editor is out of date. Cancel and open it again." If the own editor
+  window is not live (hidden/invalid/unreadable context) the drop stays, logged.
+- Error codes inside the unchanged record budget: an invalid field has no codes, so its last slot
+  becomes `rn_native_err` / `rn_nativeb_err` = encoder InputError (1 empty, 2 too long,
+  3 invalid scalar, 4 control, 5 render delimiter, 6 unsupported). Valid fields keep slot 31 and
+  have no error record. Both keys (and `rn_ip_cmd_epoch`) are reserved: incoming records with these
+  names are removed before the bridge appends its own, so neither script nor player can spoof them.
+- Focus: parent hidden = bit 4 OR bit 16 (same criterion as the caption core). New `RN_HIDE` log:
+  every editor-root visible->hidden transition with its source classified from copied bits only
+  (`parent-detached`, `parent-hidden`, `own-trigger-false`, `own-root-flags`), so runtime shows
+  whether hides other than a panel close exist (that would make the draft drop a MAJOR).
+- Init log line now states the real fingerprint counts and behaviour (no auto-Apply, no synthetic
+  input, focus only released, Escape not handled, stale sentinel, error records).
+- `RN_PLUGIN_STATUS` is served by the COUNTRY DLL, so the CAPIE text is a SEPARATE candidate:
+  `country-status-candidate/` (patch + build + tests; accepted `plugin/src/country.cpp` untouched).

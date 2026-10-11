@@ -3,6 +3,7 @@
 #include "caption_refresh_bridge.cpp"
 #include <array>
 #include <string>
+#include <vector>
 
 namespace {
 unsigned checks = 0, failures = 0;
@@ -60,7 +61,7 @@ void build_world(World& w) {
     put(img, crva::token_player_context, rn::caption::token_player_context_value);
     for (const auto& pin : rn::caption::slot_pins) put(img, pin.vtable + pin.slot, image_base + pin.target);
     put(w.idler.data(), 0, image_base + crva::vt_ingame_idler); put(w.idler.data(), off::idler_gui, static_cast<void*>(w.gui.data()));
-    put(w.gui.data(), 0, image_base + crva::vt_game_gui); put(w.gui.data(), off::gui_idler, static_cast<void*>(w.idler.data()));
+    put(w.gui.data(), off::gui_idler, static_cast<void*>(w.idler.data()));  // word 0 is data
     put(w.gui.data(), off::gui_views + 8 * 12, static_cast<void*>(w.view.data()));
     put(w.view.data(), 0, image_base + crva::vt_politics_view); put(w.view.data(), off::view_observer, image_base + crva::vt_politics_observer);
     put(w.view.data(), off::view_gui, static_cast<void*>(w.gui.data())); put(w.view.data(), off::view_idler, static_cast<void*>(w.idler.data()));
@@ -93,8 +94,14 @@ void* __fastcall fake_instant(void* root, const MsvcString* name, bool, bool) {
         return world->own[m].revision.data();
     return nullptr;
 }
+unsigned leader_lookups = 0, bump_generation_on_lookup = 0;
 void* __fastcall fake_edit(void* root, const MsvcString* name, bool, bool) {
-    if (own_index_of_root(root) == 0 && name_equals(name, "rn_ip_leader_edit")) return world->leader_edit.data();
+    if (own_index_of_root(root) == 0 && name_equals(name, "rn_ip_leader_edit")) {
+        // B02: simulate a lifecycle change (e.g. a concurrent rebind) on a chosen lookup, AFTER the
+        // prefill's last same-opening check, so prefill completes but readiness is not committed.
+        if (++leader_lookups == bump_generation_on_lookup) ++lifecycle[0].generation;
+        return world->leader_edit.data();
+    }
     return nullptr;
 }
 unsigned set_text_calls = 0;
@@ -124,6 +131,39 @@ void prepare_leader_prefill(World& w) {
 void __fastcall fake_tick(void*, char) { ++tick_originals; }
 void __fastcall fake_bind(void*) { ++bind_originals; }
 void __fastcall fake_dispatch(void*, void*) { ++dispatch_originals; }
+// RN6: a native-like dispatch that runs the (bridged) effect constructor, so the injected record
+// view is observable exactly as the game would copy it.
+struct CapturedRecord { std::string key; std::int64_t raw; };
+std::vector<CapturedRecord> captured;
+unsigned ctor_count = 0;
+alignas(8) unsigned char fake_effect[0x80]{};
+void* __fastcall fake_ctor(void* self, const MsvcString*, const MsvcString*, const void*, const TempVector* view) {
+    ++ctor_count; captured.clear();
+    for (int i = 0; i < view->count; ++i) {
+        char key[129]{};
+        record_key(view->data[i], key);
+        captured.push_back({key, view->data[i].raw_value});
+    }
+    return self;
+}
+void __fastcall fake_dispatch_ctor(void*, void*) {
+    ++dispatch_originals;
+    if (origin) constructor_bridged(fake_effect, origin->model_name, origin->selector, origin->scope, origin->source);
+}
+std::size_t captured_count(const char* key) {
+    std::size_t n = 0;
+    for (const auto& r : captured) if (r.key == key) ++n;
+    return n;
+}
+std::int64_t captured_raw(const char* key) {
+    for (const auto& r : captured) if (r.key == key) return r.raw;
+    return 0x7FFFFFFF;
+}
+Record spoof(const char* key, std::int64_t raw) {
+    Record r{}; const auto n = std::strlen(key);
+    std::memcpy(r.key.data.small, key, n); r.key.size = n; r.key.capacity = 15; r.raw_value = raw;
+    return r;
+}
 void __fastcall fake_refresh(void* gui, int index) {
     ++refresh_calls;
     if (gui != world->gui.data() || index != 12) ++refresh_bad;
@@ -193,7 +233,7 @@ int main() {
     caption_armed.store(true);
     dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
     check(dispatch_originals == 0, "unseeded leader Apply dropped (no original dispatch)");
-    check(count(logs(), "caption-seed-gate-apply-dropped") == 1, "gate rejection logged once");
+    check(count(logs(), "caption-seed-gate-apply-rejected") == 1, "gate rejection logged once");
     check(caption_dispatch_allowed(le_context, 2), "country model never gated");
 
     // 3. The REAL bridge prefill (shared Tick -> observe_tick -> prefill_open) seeds the caption
@@ -204,7 +244,7 @@ int main() {
     check(caption_service.snapshot().state(rn::caption::Field::leader).seeded, "bridge prefill seeds leader");
     check(count(logs(), "event=prefill model=rn_ip_leader_gui detail=seeded") == 1, "seed logged from prefill");
     dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
-    check(count(logs(), "caption-seed-gate-apply-dropped") == 1, "seeded Apply passes caption gate");
+    check(count(logs(), "caption-seed-gate-apply-rejected") == 1, "seeded Apply passes caption gate");
     check(caption_service.snapshot().counters().dispatch_allowed == 1, "gate allowed exactly once");
     set_rev(PE, "4"); show(PE, true);
     caption_prefill(pe, 2);  // a country-model prefill must never seed, whatever the window
@@ -228,7 +268,7 @@ int main() {
     // 5. Party: unseeded Apply dropped, then party flow independent of leader.
     set_rev(PE, "4"); show(PE, true);
     dispatch_observed(pe_context, const_cast<MsvcString*>(&party_apply));
-    check(dispatch_originals == 0 && count(logs(), "caption-seed-gate-apply-dropped") == 2, "unseeded party Apply dropped");
+    check(dispatch_originals == 0 && count(logs(), "caption-seed-gate-apply-rejected") == 2, "unseeded party Apply dropped");
 
     // 6. Bind on the shared hook: forwards once and resets the caption baseline.
     const auto binds = bind_originals;
@@ -270,6 +310,126 @@ int main() {
     show(LE, false); tick_observed(le, 0);          // panel close (visible -> hidden)
     show(LE, true);  tick_observed(le, 0);          // reopen with a fresh widget -> re-prefill
     check(set_text_calls == reopen_before + 1, "editor re-prefills once after hide/show (no silent Apply drop)");
+
+    // 10. R02/R04: a real visible->hidden transition clears BOTH readiness bits and bumps the
+    //     generation (invalidates any in-flight transport bound to the old opening).
+    show(LE, true); tick_observed(le, 0);
+    check(lifecycle[0].prefilled, "leader prefilled before hide");
+    const auto generation_before = lifecycle[0].generation;
+    show(LE, false); tick_observed(le, 0);
+    check(!lifecycle[0].attempted && !lifecycle[0].prefilled, "hide clears attempted AND prefilled");
+    check(lifecycle[0].generation == generation_before + 1, "hide bumps the generation once");
+
+    // 11. R05: the INVALID path (not a hide) keeps the inherited rule: no silent SetText retry
+    //     in the same epoch; a new Open or Bind is required.
+    show(LE, true); tick_observed(le, 0);
+    const auto invalid_before = set_text_calls;
+    put(le, 0x120, static_cast<void*>(nullptr)); tick_observed(le, 0);     // context->window broken
+    put(le, 0x120, static_cast<void*>(le)); tick_observed(le, 0);          // valid again, same epoch
+    check(set_text_calls == invalid_before && !lifecycle[0].prefilled, "invalid path never re-prefills");
+
+    // 12. B02: a FAILED prefill never seeds the caption baseline.
+    bind_observed(le);                                                     // caption + base reset
+    check(!caption_service.snapshot().state(rn::caption::Field::leader).seeded, "bind cleared leader seed");
+    put(w->focus_manager.data(), 0x230, static_cast<void*>(w->leader_edit.data() + 0x1A0));
+    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(1));     // our field holds a draft
+    show(LE, false); tick_observed(le, 0); show(LE, true); tick_observed(le, 0);
+    check(count(logs(), "prefill-focused-draft-preserved") >= 1, "prefill refused over a focused draft");
+    check(!caption_service.snapshot().state(rn::caption::Field::leader).seeded, "failed prefill does not seed");
+
+    // 12b. B02: prefill reached its end but the lifecycle changed => readiness NOT committed and the
+    //      caption baseline NOT seeded (seed only after a committed prefill).
+    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(0));
+    put(w->focus_manager.data(), 0x230, static_cast<void*>(nullptr));
+    show(LE, false); tick_observed(le, 0);
+    leader_lookups = 0; bump_generation_on_lookup = 3;      // edits[0], fresh_edit, rendered_edit
+    show(LE, true); tick_observed(le, 0);
+    bump_generation_on_lookup = 0;
+    check(!lifecycle[0].prefilled, "lifecycle change at the end of prefill: readiness not committed");
+    check(!caption_service.snapshot().state(rn::caption::Field::leader).seeded, "uncommitted prefill never seeds");
+    // restore the focused-draft state expected by step 13 (field still unseeded)
+    put(w->focus_manager.data(), 0x230, static_cast<void*>(w->leader_edit.data() + 0x1A0));
+    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(1));
+
+    // 13. RN6 stale sentinel for an unseeded field + spoof protection: forwarded with ONLY the
+    //     non-reserved originals and rn_ip_cmd_epoch=-1; spoofed reserved keys are removed.
+    original_ctor = fake_ctor; original_dispatch = fake_dispatch_ctor;
+    std::array<Record, 5> spoofed{spoof("user_key", 300000), spoof("rn_native_err", 500000), spoof("rn_nativeb_err", 600000),
+                                  spoof("rn_ip_cmd_epoch", 700000), spoof("rn_native_ok", 100000)};
+    TempVector source{spoofed.data(), 5, 5, nullptr};
+    put(le_context, 0x470, source);
+    const auto stale_before = dispatch_originals;
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    check(dispatch_originals == stale_before + 1 && ctor_count == 1, "stale Apply forwarded once through the ctor");
+    check(captured_count("rn_ip_cmd_epoch") == 1 && captured_raw("rn_ip_cmd_epoch") == -100000, "sentinel epoch = -1");
+    check(captured_count("user_key") == 1 && captured_count("rn_native_ok") == 0, "originals kept, no payload");
+    check(captured_count("rn_native_err") == 0 && captured_count("rn_nativeb_err") == 0, "spoofed error keys removed");
+    check(count(logs(), "stale-sentinel epoch=-1") == 1, "sentinel logged");
+
+    // 14. PID3044 scenario: seeded field, but the reopened editor failed its re-prefill
+    //     (prefilled=false) -> capture fails -> sentinel instead of a silent drop.
+    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(0));
+    put(w->focus_manager.data(), 0x230, static_cast<void*>(nullptr));
+    show(LE, false); tick_observed(le, 0); show(LE, true); tick_observed(le, 0);  // successful prefill seeds
+    check(caption_service.snapshot().state(rn::caption::Field::leader).seeded && lifecycle[0].prefilled, "reopen re-prefilled");
+    put(w->focus_manager.data(), 0x230, static_cast<void*>(w->leader_edit.data() + 0x1A0));
+    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(1));
+    show(LE, false); tick_observed(le, 0); show(LE, true); tick_observed(le, 0);  // re-prefill refused
+    check(!lifecycle[0].prefilled && caption_service.snapshot().state(rn::caption::Field::leader).seeded, "seeded but not prefilled");
+    const auto scenario_before = dispatch_originals;
+    const auto dropped_before = count(logs(), "own-action-dropped-before-dispatch");
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    check(dispatch_originals == scenario_before + 1 && captured_raw("rn_ip_cmd_epoch") == -100000, "failed re-prefill -> sentinel");
+    check(count(logs(), "own-action-dropped-before-dispatch") == dropped_before, "no silent drop");
+
+    // 15. No sentinel when the own editor window is not live: the drop stays (logged).
+    show(LE, false); tick_observed(le, 0);
+    const auto hidden_before = dispatch_originals;
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    check(dispatch_originals == hidden_before && count(logs(), "own-action-dropped-before-dispatch") == dropped_before + 1,
+          "hidden editor: logged drop, no forwarding");
+    put(le_context, 0x470, TempVector{});
+
+    // 16. B03: an unreadable context fails CLOSED (gate false, no sentinel eligibility).
+    void* noaccess = VirtualAlloc(nullptr, 4096, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
+    check(noaccess != nullptr && !caption_dispatch_allowed(noaccess, 0) && !stale_eligible(noaccess, 0), "unreadable context fails closed");
+
+    // 17. RN6 error codes + spoof protection in the real transport builder: invalid A carries
+    //     rn_native_err=InputError in its last slot (budget unchanged); a spoofed one is removed.
+    std::array<Record, 2> spoofed_err{spoof("rn_native_err", 900000), spoof("rn_nativeb_err", 900000)};
+    put(le_context, 0x470, TempVector{spoofed_err.data(), 2, 2, nullptr});
+    {
+        Origin current{}; current.context = le_context; current.model = 0; current.epoch = 7;
+        InputSnapshot inputs[2]{}; inputs[0].size = 33;
+        for (std::size_t i = 0; i < 33; ++i) inputs[0].points[i] = 0x61;
+        check(prepare_transport(current, inputs), "transport built for invalid leader");
+        captured.clear();
+        for (int i = 0; i < current.view.count; ++i) {
+            char key[129]{}; record_key(current.view.data[i], key); captured.push_back({key, current.view.data[i].raw_value});
+        }
+        check(captured_count("rn_native_err") == 1 && captured_raw("rn_native_err") == 200000, "too_long -> rn_native_err=2");
+        check(captured_count("rn_native_31") == 0 && captured_count("rn_native_ok") == 1 && captured_raw("rn_native_ok") == 0, "slot 31 replaced, ok=0");
+        check(current.view.count == 35 && captured_count("rn_nativeb_err") == 0, "leader 34 field records + epoch (unchanged), spoof removed");
+        Origin empty{}; empty.context = le_context; empty.model = 0; empty.epoch = 7;
+        InputSnapshot none[2]{};
+        check(prepare_transport(empty, none), "transport built for empty leader");
+        bool empty_code = false;
+        for (int i = 0; i < empty.view.count; ++i) {
+            char key[129]{}; record_key(empty.view.data[i], key);
+            if (std::strcmp(key, "rn_native_err") == 0) empty_code = empty.view.data[i].raw_value == 100000;
+        }
+        check(empty_code, "empty -> rn_native_err=1");
+        Origin valid{}; valid.context = le_context; valid.model = 0; valid.epoch = 7;
+        InputSnapshot ok[2]{}; ok[0].size = 3; ok[0].points[0] = 'J'; ok[0].points[1] = 'a'; ok[0].points[2] = 'n';
+        check(prepare_transport(valid, ok), "transport built for valid leader");
+        bool has_err = false, has_31 = false;
+        for (int i = 0; i < valid.view.count; ++i) {
+            char key[129]{}; record_key(valid.view.data[i], key);
+            has_err |= std::strcmp(key, "rn_native_err") == 0; has_31 |= std::strcmp(key, "rn_native_31") == 0;
+        }
+        check(!has_err && has_31, "valid field: no error record, slot 31 present");
+    }
+    put(le_context, 0x470, TempVector{});
 
     std::printf("caption refresh bridge integration: %u checks, %u failures\n", checks, failures);
     std::fflush(stdout);

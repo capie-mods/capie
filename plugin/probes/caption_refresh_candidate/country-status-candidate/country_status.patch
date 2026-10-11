@@ -1,0 +1,24 @@
+--- a/plugin/src/country.cpp
++++ b/plugin/src/country.cpp
+@@ -25,7 +25,10 @@
+ 
+ const char* override_value(std::string_view key) {
+     if (!active.load()) return nullptr;
+-    if (key == "RN_PLUGIN_STATUS") return "DLL: ACTIVE (RN1)";
++    // CAPIE status text. Language-specific keys let the mod's localisation pick a language via
++    // $RN_PLUGIN_STATUS_EN$ / $RN_PLUGIN_STATUS_PL$; the bare key keeps the English text.
++    if (key == "RN_PLUGIN_STATUS" || key == "RN_PLUGIN_STATUS_EN") return "CAPIE 1.0 loaded";
++    if (key == "RN_PLUGIN_STATUS_PL") return "CAPIE 1.0 za\u0142adowane";
+     auto decoded = rn::decode_country_key(key);
+     if (!decoded) return nullptr;
+     const auto& value = decoded->adjective_key ? decoded->adjective : decoded->name;
+@@ -45,7 +48,8 @@
+ }
+ const char* lookup_z(const char* key) noexcept {
+     try {
+-        if (key && (std::strncmp(key, "RN1|", 4) == 0 || std::strcmp(key, "RN_PLUGIN_STATUS") == 0)) {
++        if (key && (std::strncmp(key, "RN1|", 4) == 0 || std::strcmp(key, "RN_PLUGIN_STATUS") == 0 ||
++                    std::strcmp(key, "RN_PLUGIN_STATUS_EN") == 0 || std::strcmp(key, "RN_PLUGIN_STATUS_PL") == 0)) {
+             const auto n = strnlen_s(key, 361);
+             if (n <= 360) if (const auto result = override_value(std::string_view(key, n))) return result;
+         }

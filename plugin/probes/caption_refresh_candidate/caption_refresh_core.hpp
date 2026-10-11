@@ -39,7 +39,8 @@ inline constexpr uptr find_instant = 0x22BC600;
 inline constexpr uptr vt_politics_view = 0x29D9648;
 inline constexpr uptr vt_politics_observer = 0x29D96F0;
 inline constexpr uptr vt_ingame_idler = 0x2968FF0;
-inline constexpr uptr vt_game_gui = 0x294A688;
+// No CGameGui vtable constant: [idler+6B8] is a non-polymorphic 0x4E0 container (ctor B614C0;
+// RE findings 82CA2D2D 2.2-2.3, review R4). The real CGameGui (294A688) is a different object.
 inline constexpr uptr vt_sg_model = 0x29DB558;      // runtime-proven by render bridge QA
 inline constexpr uptr vt_sg_context = 0x294E568;    // runtime-proven by render bridge QA
 inline constexpr uptr vt_sg_root = 0x2B45278;       // runtime-proven by render bridge QA
@@ -341,13 +342,13 @@ private:
 // (bounded/SEH in process). All results are copied scalars; pointers live on the stack.
 enum class Reject : unsigned {
     none, window_read, model_vt, token_image, context_token, parent_token, parent_override,
-    parent_sg_window, idler_null, idler_vt, idler_slot, manager_idler, gui_null, gui_vt, gui_idler,
+    parent_sg_window, idler_null, idler_vt, idler_slot, manager_idler, gui_null, gui_idler,
     view_null, view_vt, observer_vt, view_slots, view_gui, view_idler, root_null, parent_root, dirty_read,
 };
 inline const char* reject_name(Reject r) noexcept {
     static constexpr const char* names[] = {"none", "window-read", "model-vt", "token-image", "context-token",
         "parent-token", "parent-override", "parent-sg-window", "idler-null", "idler-vt", "idler-slot", "manager-idler",
-        "gui-null", "gui-vt", "gui-idler", "view-null", "view-vt", "observer-vt", "view-slots", "view-gui", "view-idler",
+        "gui-null", "gui-idler", "view-null", "view-vt", "observer-vt", "view-slots", "view-gui", "view-idler",
         "root-null", "parent-root", "dirty-read"};
     const auto i = static_cast<unsigned>(r);
     return i < sizeof(names) / sizeof(names[0]) ? names[i] : "unknown";
@@ -355,9 +356,13 @@ inline const char* reject_name(Reject r) noexcept {
 struct Target { uptr gui{}, view{}; unsigned char dirty{}; };  // stack-only
 // Bounded diagnostics for a rejecting resolve: RVA (relative to module base) of the observed
 // vtable/slot and the expected value, so a runtime run reveals the real class. observed==0
-// means the field was unreadable. gui_vt_rva is always filled when gui is readable (the gui
-// vtable is logged but NOT a gate; see resolve).
-struct ResolveDiag { Reject reject{Reject::none}; uptr observed_rva{}, expected_rva{}, slot_rva{}, gui_vt_rva{}; };
+// means the field was unreadable.
+// The "gui" object at [idler+6B8] is NOT polymorphic (R4 review: 0x4E0-byte container built by
+// B614C0; offset 0 is data, not a vtable). gui_word0 is that raw data word, logged as-is.
+// gui_b8_rva is [obj+B8]-base: B614C0 stores the global image+3085170 there (B6156C lea /
+// B61573 mov) - a candidate structural pin, LOGGED ONLY until runtime confirms it.
+inline constexpr uptr gui_structural_offset = 0xB8, gui_structural_rva = 0x3085170;
+struct ResolveDiag { Reject reject{Reject::none}; uptr observed_rva{}, expected_rva{}, slot_rva{}, gui_word0{}, gui_b8_rva{}; };
 
 template <class T, class M> bool rd(const M& mem, uptr object, uptr offset, T& out) noexcept {
     if (!object || offset > UINTPTR_MAX - object) return false;
@@ -397,13 +402,18 @@ template <class M> Reject resolve(const M& mem, uptr image, uptr window, Target&
         manager_idler != idler) return Reject::manager_idler;
     // Fresh getter: DCCF30 is exactly `mov rax,[rcx+6B8]; ret` (fingerprinted), so the
     // bounded read below is its exact semantics without executing native code.
-    uptr gui = 0, gui_vt = 0, gui_idler = 0;
+    uptr gui = 0, gui_word0 = 0, gui_idler = 0;
     if (!rd(mem, idler, off::idler_gui, gui) || !gui) return Reject::gui_null;
-    // gui vtable is DIAGNOSTIC ONLY (PID3044: live GameGui is a more-derived singleton whose
-    // offset-0 vtable is not the plain CGameGui 294A688). B6E210/B674F0 read only gui+C8, so
-    // the gui identity is closed by the idler round-trip (gui+180==idler) and the politics-view
-    // checks below (view vtable, view+38==gui, view+570==idler), never by the gui vtable.
-    if (rd(mem, gui, 0, gui_vt) && diag) diag->gui_vt_rva = gui_vt ? gui_vt - image : 0;
+    // No gui vtable gate: the object at [idler+6B8] is a non-polymorphic container (R4 review,
+    // ctor B614C0), so offset 0 is data. B6E210/B674F0 read only gui+C8; the gui identity is
+    // closed by the idler round-trip (gui+180==idler) and the politics-view checks below
+    // (view vtable, view+38==gui, view+570==idler). Word 0 and the +B8 structural candidate are
+    // copied for the log only.
+    uptr gui_b8 = 0;
+    if (diag) {
+        if (rd(mem, gui, 0, gui_word0)) diag->gui_word0 = gui_word0;
+        if (rd(mem, gui, gui_structural_offset, gui_b8)) diag->gui_b8_rva = gui_b8 ? gui_b8 - image : 0;
+    }
     if (!rd(mem, gui, off::gui_idler, gui_idler) || gui_idler != idler) return Reject::gui_idler;
     uptr view = 0, view_vt = 0, observer_vt = 0;
     if (!rd(mem, gui, off::gui_views + 8 * static_cast<uptr>(politics_view_index), view) || !view) return Reject::view_null;
@@ -657,15 +667,16 @@ private:
         env_.log(text);
     }
     // Bounded vtable/slot diagnostic for a rejecting resolve: observed/expected RVA relative to
-    // module base, plus the gui vtable RVA (logged, not a gate), so a run reveals the real class.
+    // module base, plus the raw gui word 0 and the +B8 structural candidate (logged, not gates).
     void reject_line(std::size_t model, const char* detail, u64 serial, const ResolveDiag& diag) noexcept {
-        char text[320]{};
+        char text[400]{};
         std::snprintf(text, sizeof(text),
                       "RN_CAPTION event=precall model=%s detail=%s serial=%llu observed_vt_rva=0x%llX expected_vt_rva=0x%llX "
-                      "slot_rva=0x%llX gui_vt_rva=0x%llX\r\n",
+                      "slot_rva=0x%llX gui_word0=0x%llX gui_b8_rva=0x%llX gui_b8_expected=0x%llX\r\n",
                       model < model_count ? model_specs[model].name : "?", detail, static_cast<unsigned long long>(serial),
                       static_cast<unsigned long long>(diag.observed_rva), static_cast<unsigned long long>(diag.expected_rva),
-                      static_cast<unsigned long long>(diag.slot_rva), static_cast<unsigned long long>(diag.gui_vt_rva));
+                      static_cast<unsigned long long>(diag.slot_rva), static_cast<unsigned long long>(diag.gui_word0),
+                      static_cast<unsigned long long>(diag.gui_b8_rva), static_cast<unsigned long long>(gui_structural_rva));
         env_.log(text);
     }
     Env& env_;
