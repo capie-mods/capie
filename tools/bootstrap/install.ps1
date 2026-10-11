@@ -31,13 +31,21 @@ param(
     [switch]$Yes,
     [string]$PackagePath,
     [string]$SteamRoot,
+    [switch]$CheckUpdate,
+    [switch]$Update,
+    [switch]$Rollback,
+    [string]$ManifestPath,
     [ValidateSet('', 'pl', 'en')][string]$Language = ''
 )
 
 # ---------------------------------------------------------------------------
 # Configuration (single place to change when the repository becomes public)
 # ---------------------------------------------------------------------------
-$script:RaReleaseBaseUrl = 'https://github.com/PLACEHOLDER-OWNER/hoi4-rename-anything/releases/download'
+# GitHub "owner/repo". Release downloads and the (on-demand only) update check derive from it.
+$script:RaGitHubRepo = 'PLACEHOLDER-OWNER/hoi4-rename-anything'
+# RSA public key (XML, >= 2048 bit) that signs release-manifest.json of every later release.
+# Placeholder until the maintainer generates the key (tools/bootstrap/sign-release-manifest.ps1).
+$script:RaUpdatePublicKeyXml = 'TO-BE-GENERATED'
 $script:RaAppId = '394360'
 $script:RaLauncherExeName = 'RenameAnythingLauncher.exe'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
@@ -59,6 +67,8 @@ $script:RaPinnedRelease = [ordered]@{
         'runtime/rename_anything_inline_editor_bridge.dll' = 'B20FBE88756F7F22D989230D6D51953D82BCCD2349CD00BDCC545C382DF8BAF6'
         'runtime/inject_inline_editor_render_bridge.exe' = '31B510BECD5DCBA3588231C8312C32B1F2C2CC49B0CAFC8BBB2A51B18F455AE4'
     }
+    # hoi4.exe builds this release's DLLs support (for -CheckUpdate messages; the launcher enforces it).
+    SupportedGameSha256 = @('7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5')
 }
 
 # Test seams (tests override these after dot-sourcing; normal runs never change them).
@@ -72,6 +82,18 @@ $script:RaDesktopPath = { [Environment]::GetFolderPath('Desktop') }
 $script:RaFolderPicker = $null   # $null = real FolderBrowserDialog
 $script:RaAfterWriteHook = $null # tests: simulate a bad write before verification
 $script:RaQuiet = $false
+# Only network access of this script. Called solely by -Install (ZIP download), -CheckUpdate and
+# -Update. Sends no identifiers: just a fixed User-Agent required by the GitHub API.
+$script:RaHttpGet = {
+    param([string]$Url)
+    try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+    $wc = New-Object System.Net.WebClient
+    try {
+        $wc.Headers['User-Agent'] = 'RenameAnything-Bootstrap'
+        $wc.Headers['Accept'] = 'application/vnd.github+json, application/octet-stream'
+        return , $wc.DownloadData($Url)
+    } finally { $wc.Dispose() }
+}
 
 # ---------------------------------------------------------------------------
 # Messages (PL text is \u-escaped to keep this file ASCII)
@@ -95,6 +117,12 @@ $script:RaMessages = @{
         NotInstalled      = 'The launcher is not installed yet. Run with -Install first.'
         UninstallDone     = 'Uninstalled. Workshop mod and saves were not touched. The log file was kept: {0}'
         Failed            = 'FAILED: {0}'
+        UpdateStatus      = 'Installed version: {0}; latest release: {1}.'
+        UpdateAvailable   = 'A new version {0} is available. Run with -Update to install it (the previous version is kept for -Rollback).'
+        UpToDate          = 'You have the latest version.'
+        GameSupportedInstalled = 'Your hoi4.exe build is supported by the installed version.'
+        GameSupportedLatest = 'Your hoi4.exe build is NOT supported by the installed version, but version {0} supports it: run with -Update.'
+        GameNotSupported  = 'Your hoi4.exe build ({0}...) is not supported yet. The launcher starts the game without the DLL; check again later (release notes / versions.json).'
     }
     pl = @{
         Title             = 'Rename Anything dla Hearts of Iron IV \u2014 bootstrap'
@@ -114,6 +142,12 @@ $script:RaMessages = @{
         NotInstalled      = 'Launcher nie jest jeszcze zainstalowany. Najpierw uruchom z -Install.'
         UninstallDone     = 'Odinstalowano. Mod z Workshop i zapisy nie zosta\u0142y ruszone. Plik logu zachowano: {0}'
         Failed            = 'B\u0141\u0104D: {0}'
+        UpdateStatus      = 'Zainstalowana wersja: {0}; najnowsze wydanie: {1}.'
+        UpdateAvailable   = 'Dost\u0119pna jest nowa wersja {0}. Uruchom z -Update, aby j\u0105 zainstalowa\u0107 (poprzednia zostaje do -Rollback).'
+        UpToDate          = 'Masz najnowsz\u0105 wersj\u0119.'
+        GameSupportedInstalled = 'Twoja wersja hoi4.exe jest wspierana przez zainstalowan\u0105 wersj\u0119.'
+        GameSupportedLatest = 'Twoja wersja hoi4.exe NIE jest wspierana przez zainstalowan\u0105 wersj\u0119, ale wspiera j\u0105 wersja {0}: uruchom z -Update.'
+        GameNotSupported  = 'Twoja wersja hoi4.exe ({0}...) nie jest jeszcze wspierana. Launcher uruchomi gr\u0119 bez DLL; sprawd\u017A p\u00F3\u017Aniej (release notes / versions.json).'
     }
 }
 
@@ -566,11 +600,12 @@ function Get-RaStatePath { return (Join-Path $script:RaRoot 'state.json') }
 
 function Read-RaState {
     $p = Get-RaStatePath
-    $state = [pscustomobject]@{ InstalledVersion = $null; Shortcuts = @(); SteamEntries = @() }
+    $state = [pscustomobject]@{ InstalledVersion = $null; PreviousVersion = $null; Shortcuts = @(); SteamEntries = @() }
     if (Test-Path -LiteralPath $p) {
         try {
             $j = Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json
             if ($j.PSObject.Properties['InstalledVersion']) { $state.InstalledVersion = $j.InstalledVersion }
+            if ($j.PSObject.Properties['PreviousVersion']) { $state.PreviousVersion = $j.PreviousVersion }
             if ($j.PSObject.Properties['Shortcuts']) { $state.Shortcuts = @($j.Shortcuts | Where-Object { $_ }) }
             if ($j.PSObject.Properties['SteamEntries']) { $state.SteamEntries = @($j.SteamEntries | Where-Object { $_ }) }
         } catch { Write-RaLog "state.json unreadable, ignoring: $($_.Exception.Message)" -Level WARN }
@@ -584,15 +619,18 @@ function Save-RaState {
     if (-not (Test-Path -LiteralPath $script:RaRoot)) { New-Item -ItemType Directory -Path $script:RaRoot -Force | Out-Null }
     $json = [pscustomobject]@{
         InstalledVersion = $State.InstalledVersion
+        PreviousVersion  = $State.PreviousVersion
         Shortcuts        = @($State.Shortcuts)
         SteamEntries     = @($State.SteamEntries)
     } | ConvertTo-Json -Depth 5
     [IO.File]::WriteAllText((Get-RaStatePath), $json, (New-Object System.Text.UTF8Encoding($false)))
 }
 
+function Get-RaCurrentLink { return (Join-Path $script:RaRoot 'current') }
+
 function Get-RaLauncherPath {
-    param([string]$Version)
-    return (Join-Path (Join-Path $script:RaRoot $Version) $script:RaLauncherExeName)
+    <# Stable path used by Steam and shortcuts: updates only re-point the 'current' junction. #>
+    return (Join-Path (Get-RaCurrentLink) $script:RaLauncherExeName)
 }
 
 # ---------------------------------------------------------------------------
@@ -698,23 +736,36 @@ function Remove-RaSteamLaunchOption {
 }
 
 # ---------------------------------------------------------------------------
-# Package install
+# Package install, update channel, version switching
 # ---------------------------------------------------------------------------
-function Test-RaPinnedManifest {
+$script:RaVersionPattern = '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$'
+
+function Test-RaManifest {
     param($Manifest)
-    if ($Manifest.Version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$') { throw 'Pinned manifest: invalid version.' }
+    if ($Manifest.Version -notmatch $script:RaVersionPattern) { throw 'Release manifest: invalid version.' }
     if ($Manifest.ZipSha256 -notmatch '^[0-9A-Fa-f]{64}$') { throw 'Pinned release manifest is not configured (ZipSha256 placeholder). No release is published for this script yet; refusing to install.' }
+    if ($Manifest.ZipName -notmatch '^[0-9A-Za-z._-]+\.zip$') { throw 'Release manifest: invalid ZIP name.' }
+    if ($Manifest.Files.Count -lt 1) { throw 'Release manifest: no files.' }
     foreach ($k in $Manifest.Files.Keys) {
-        if ($Manifest.Files[$k] -notmatch '^[0-9A-Fa-f]{64}$') { throw "Pinned manifest: bad hash for $k" }
-        if ($k -match '(^|/)\.\.(/|$)' -or $k.StartsWith('/') -or $k.Contains('\') -or $k.Contains(':')) { throw "Pinned manifest: unsafe path $k" }
+        if ($Manifest.Files[$k] -notmatch '^[0-9A-Fa-f]{64}$') { throw "Release manifest: bad hash for $k" }
+        if ($k -notmatch '^[0-9A-Za-z._-]+(/[0-9A-Za-z._-]+)*$' -or $k -match '(^|/)\.\.?(/|$)') { throw "Release manifest: unsafe path $k" }
     }
-    if (-not $Manifest.Files.Contains($script:RaLauncherExeName)) { throw 'Pinned manifest: launcher missing.' }
+    if (-not $Manifest.Files.Contains($script:RaLauncherExeName)) { throw 'Release manifest: launcher missing.' }
+    if (-not $Manifest.Contains('SupportedGameSha256')) { $Manifest['SupportedGameSha256'] = @() }
+    foreach ($h in @($Manifest.SupportedGameSha256 | Where-Object { $_ })) { if ($h -notmatch '^[0-9A-Fa-f]{64}$') { throw 'Release manifest: bad game hash.' } }
+}
+
+function Compare-RaVersion {
+    <# -1/0/1 on the numeric x.y.z part. #>
+    param([string]$A, [string]$B)
+    $va = [version](($A -split '[-+]')[0]); $vb = [version](($B -split '[-+]')[0])
+    return $va.CompareTo($vb)
 }
 
 function Test-RaInstalledVersion {
     param($Manifest, [string]$Dir)
     if (-not (Test-Path -LiteralPath $Dir -PathType Container)) { return $false }
-    $files = @(Get-ChildItem -LiteralPath $Dir -Recurse -File)
+    $files = @(Get-ChildItem -LiteralPath $Dir -Recurse -File -Force)
     if ($files.Count -ne $Manifest.Files.Count) { return $false }
     foreach ($k in $Manifest.Files.Keys) {
         $p = Join-Path $Dir ($k -replace '/', '\')
@@ -748,18 +799,101 @@ function Expand-RaVerifiedZip {
     foreach ($k in $Manifest.Files.Keys) { if (-not $seen.ContainsKey($k)) { throw "Package is missing $k" } }
 }
 
-function Install-RaPackage {
-    param($State, [string]$LocalZip)
-    $m = $script:RaPinnedRelease
-    Test-RaPinnedManifest $m
-    $dir = Join-Path $script:RaRoot $m.Version
-    if (Test-RaInstalledVersion $m $dir) {
-        Write-RaLog "Version $($m.Version) already installed and verified: $dir"
-        $State.InstalledVersion = $m.Version
+function ConvertTo-RaManifestJson {
+    param($Manifest)
+    return ([pscustomobject]@{
+            schema = 1; version = $Manifest.Version; zipName = $Manifest.ZipName; zipSha256 = $Manifest.ZipSha256
+            files = [pscustomobject]$Manifest.Files; supportedGameSha256 = @($Manifest.SupportedGameSha256)
+        } | ConvertTo-Json -Depth 5)
+}
+
+function ConvertFrom-RaManifestJson {
+    param([string]$Json)
+    $j = $Json | ConvertFrom-Json
+    if ($j.schema -ne 1) { throw 'Release manifest: unsupported schema.' }
+    $files = [ordered]@{}
+    foreach ($p in $j.files.PSObject.Properties) { $files[$p.Name] = [string]$p.Value }
+    $m = [ordered]@{
+        Version = [string]$j.version; ZipName = [string]$j.zipName; ZipSha256 = [string]$j.zipSha256
+        Files = $files; SupportedGameSha256 = @($j.supportedGameSha256 | ForEach-Object { [string]$_ })
+    }
+    Test-RaManifest $m
+    return $m
+}
+
+function Get-RaManifestStorePath { param([string]$Version) return (Join-Path (Join-Path $script:RaRoot 'manifests') "$Version.json") }
+
+function Read-RaStoredManifest {
+    param([string]$Version)
+    if ($Version -eq $script:RaPinnedRelease.Version) { return $script:RaPinnedRelease }
+    $p = Get-RaManifestStorePath $Version
+    if (-not (Test-Path -LiteralPath $p)) { return $null }
+    try { return (ConvertFrom-RaManifestJson ([IO.File]::ReadAllText($p))) } catch { return $null }
+}
+
+function Test-RaSignature {
+    <# RSA PKCS#1 v1.5 / SHA-256 over the exact manifest bytes, public key pinned in this script. #>
+    param([byte[]]$Data, [string]$SignatureBase64, [string]$PublicKeyXml)
+    if ($PublicKeyXml -notmatch '<RSAKeyValue>') { throw 'The update signing key is not configured in this script yet; refusing to trust a downloaded manifest.' }
+    $rsa = New-Object System.Security.Cryptography.RSACryptoServiceProvider
+    try {
+        $rsa.FromXmlString($PublicKeyXml)
+        if ($rsa.KeySize -lt 2048) { throw 'Pinned update key is too small.' }
+        try {
+            $sig = [Convert]::FromBase64String($SignatureBase64.Trim())
+            return [bool]$rsa.VerifyData($Data, 'SHA256', $sig)
+        } catch { return $false }
+    } finally { $rsa.Dispose() }
+}
+
+function Invoke-RaHttpGetBytes {
+    param([string]$Url)
+    if ($Url -notmatch '^https://') { throw "Refusing non-HTTPS URL: $Url" }
+    return , ([byte[]](& $script:RaHttpGet $Url))
+}
+
+function Get-RaRemoteRelease {
+    <# Exactly one API request plus the two small manifest assets; only on explicit user request. #>
+    param([string]$LocalManifestPath)
+    if ($LocalManifestPath) {
+        $bytes = [IO.File]::ReadAllBytes($LocalManifestPath)
+        $sig = [IO.File]::ReadAllText("$LocalManifestPath.sig")
+        if (-not (Test-RaSignature $bytes $sig $script:RaUpdatePublicKeyXml)) { throw 'Release manifest signature is INVALID; nothing was changed.' }
+        $m = ConvertFrom-RaManifestJson ((New-Object System.Text.UTF8Encoding($false, $true)).GetString($bytes))
+        return [pscustomobject]@{ Manifest = $m; ZipUrl = $null }
+    }
+    if ($script:RaGitHubRepo -match 'PLACEHOLDER') { throw 'Update channel is not configured yet (repository placeholder). Use -ManifestPath and -PackagePath for an offline update.' }
+    $api = "https://api.github.com/repos/$($script:RaGitHubRepo)/releases/latest"
+    Write-RaLog "Checking $api (no identifiers are sent)"
+    $rel = (New-Object System.Text.UTF8Encoding($false)).GetString((Invoke-RaHttpGetBytes $api)) | ConvertFrom-Json
+    $assets = @{}
+    foreach ($a in @($rel.assets)) { $assets[[string]$a.name] = [string]$a.browser_download_url }
+    $prefix = "https://github.com/$($script:RaGitHubRepo)/releases/download/"
+    foreach ($n in 'release-manifest.json', 'release-manifest.json.sig') {
+        if (-not $assets.ContainsKey($n)) { throw "Latest release has no $n asset." }
+        if (-not $assets[$n].StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw "Unexpected asset URL: $($assets[$n])" }
+    }
+    $mBytes = Invoke-RaHttpGetBytes $assets['release-manifest.json']
+    $sigText = (New-Object System.Text.UTF8Encoding($false)).GetString((Invoke-RaHttpGetBytes $assets['release-manifest.json.sig']))
+    if (-not (Test-RaSignature $mBytes $sigText $script:RaUpdatePublicKeyXml)) { throw 'Release manifest signature is INVALID; nothing was changed.' }
+    $m = ConvertFrom-RaManifestJson ((New-Object System.Text.UTF8Encoding($false, $true)).GetString($mBytes))
+    if (([string]$rel.tag_name).TrimStart('v') -ne $m.Version) { throw "Release tag $($rel.tag_name) does not match manifest version $($m.Version)." }
+    $zipUrl = $assets[$m.ZipName]
+    if (-not $zipUrl -or -not $zipUrl.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw "Release has no valid $($m.ZipName) asset." }
+    return [pscustomobject]@{ Manifest = $m; ZipUrl = $zipUrl }
+}
+
+function Install-RaVersion {
+    <# Downloads (or takes a local ZIP), verifies ZIP and every file, installs <root>\<version>. #>
+    param($Manifest, [string]$LocalZip, [string]$ZipUrl)
+    Test-RaManifest $Manifest
+    $dir = Join-Path $script:RaRoot $Manifest.Version
+    if (Test-RaInstalledVersion $Manifest $dir) {
+        Write-RaLog "Version $($Manifest.Version) already present and verified: $dir"
         return $dir
     }
     if ($script:RaDry) {
-        Write-RaLog "[dry-run] would download/verify $($m.ZipName) (sha256 $($m.ZipSha256)) and install to $dir" -Level PLAN
+        Write-RaLog "[dry-run] would verify $($Manifest.ZipName) (sha256 $($Manifest.ZipSha256)) and install to $dir" -Level PLAN
         return $dir
     }
     if (-not (Test-Path -LiteralPath $script:RaRoot)) { New-Item -ItemType Directory -Path $script:RaRoot -Force | Out-Null }
@@ -767,22 +901,22 @@ function Install-RaPackage {
     if ($LocalZip) {
         $zipPath = (Resolve-Path -LiteralPath $LocalZip).ProviderPath
     } else {
-        if ($script:RaReleaseBaseUrl -match 'PLACEHOLDER') { throw 'Release URL is still a placeholder; use -PackagePath with a downloaded release ZIP.' }
-        $url = "$($script:RaReleaseBaseUrl)/v$($m.Version)/$($m.ZipName)"
-        $downloaded = Join-Path $script:RaRoot ("download-" + [guid]::NewGuid().ToString('N') + '.zip')
-        Write-RaLog "Downloading $url"
-        try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
-        $oldPref = $ProgressPreference; $ProgressPreference = 'SilentlyContinue'
-        try { Invoke-WebRequest -Uri $url -OutFile $downloaded -UseBasicParsing } finally { $ProgressPreference = $oldPref }
+        if (-not $ZipUrl) {
+            if ($script:RaGitHubRepo -match 'PLACEHOLDER') { throw 'Release URL is still a placeholder; use -PackagePath with a downloaded release ZIP.' }
+            $ZipUrl = "https://github.com/$($script:RaGitHubRepo)/releases/download/v$($Manifest.Version)/$($Manifest.ZipName)"
+        }
+        Write-RaLog "Downloading $ZipUrl"
+        $downloaded = Join-Path $script:RaRoot ('download-' + [guid]::NewGuid().ToString('N') + '.zip')
+        [IO.File]::WriteAllBytes($downloaded, (Invoke-RaHttpGetBytes $ZipUrl))
         $zipPath = $downloaded
     }
     $staging = Join-Path $script:RaRoot ('.staging-' + [guid]::NewGuid().ToString('N'))
     try {
         $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
-        if ($hash -ne $m.ZipSha256.ToUpperInvariant()) { throw "Package SHA256 mismatch: expected $($m.ZipSha256), got $hash. Nothing was installed." }
+        if ($hash -ne $Manifest.ZipSha256.ToUpperInvariant()) { throw "Package SHA256 mismatch: expected $($Manifest.ZipSha256), got $hash. Nothing was installed." }
         New-Item -ItemType Directory -Path $staging | Out-Null
-        Expand-RaVerifiedZip $m $zipPath $staging
-        if (-not (Test-RaInstalledVersion $m $staging)) { throw 'Staged files failed verification.' }
+        Expand-RaVerifiedZip $Manifest $zipPath $staging
+        if (-not (Test-RaInstalledVersion $Manifest $staging)) { throw 'Staged files failed verification.' }
         if (Test-Path -LiteralPath $dir) {
             $broken = "$dir.broken-$(Get-Date -Format 'yyyyMMddHHmmss')"
             Write-RaLog "Existing $dir failed verification; moved to $broken" -Level WARN
@@ -793,9 +927,135 @@ function Install-RaPackage {
         if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
         if ($downloaded -and (Test-Path -LiteralPath $downloaded)) { Remove-Item -LiteralPath $downloaded -Force }
     }
-    $State.InstalledVersion = $m.Version
-    Write-RaLog "Installed version $($m.Version) to $dir"
+    $store = Get-RaManifestStorePath $Manifest.Version
+    New-Item -ItemType Directory -Path (Split-Path -Parent $store) -Force | Out-Null
+    [IO.File]::WriteAllText($store, (ConvertTo-RaManifestJson $Manifest), (New-Object System.Text.UTF8Encoding($false)))
+    Write-RaLog "Installed version $($Manifest.Version) to $dir"
     return $dir
+}
+
+function Get-RaJunctionTarget {
+    param([string]$Path)
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item -or -not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $null }
+    $t = @($item.Target) | Select-Object -First 1
+    if ($t) { return [IO.Path]::GetFullPath(($t -replace '^\\\\\?\\', '')) }
+    return $null
+}
+
+function Remove-RaJunction {
+    param([string]$Path)
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item) { return }
+    if (-not ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "$Path is not a junction; refusing to delete it." }
+    [IO.Directory]::Delete($Path, $false)   # removes the link only, never the target's content
+}
+
+function Switch-RaCurrent {
+    <# Points <root>\current at <root>\<version>. Restores the previous link on failure. #>
+    param([string]$Version)
+    $link = Get-RaCurrentLink
+    $target = Join-Path $script:RaRoot $Version
+    if ($script:RaDry) { Write-RaLog "[dry-run] would point $link -> $target" -Level PLAN; return }
+    if (-not (Test-Path -LiteralPath $target -PathType Container)) { throw "Version folder missing: $target" }
+    $old = Get-RaJunctionTarget $link
+    $tmp = "$link.new-" + [guid]::NewGuid().ToString('N')
+    New-Item -ItemType Junction -Path $tmp -Target $target | Out-Null
+    try {
+        if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
+        [IO.Directory]::Move($tmp, $link)
+    } catch {
+        $err = $_.Exception.Message
+        if (Test-Path -LiteralPath $tmp) { [IO.Directory]::Delete($tmp, $false) }
+        if ($old -and -not (Test-Path -LiteralPath $link)) { New-Item -ItemType Junction -Path $link -Target $old | Out-Null }
+        throw "Could not switch the current version: $err"
+    }
+    if ((Get-RaJunctionTarget $link) -ne [IO.Path]::GetFullPath($target)) { throw 'current junction verification failed.' }
+    Write-RaLog "Active version: $Version ($link)"
+}
+
+function Set-RaActiveVersion {
+    <# Records previous/current and switches the junction (no-op if already active). #>
+    param($State, [string]$Version)
+    $link = Get-RaCurrentLink
+    $already = ($State.InstalledVersion -eq $Version) -and ((Get-RaJunctionTarget $link) -eq [IO.Path]::GetFullPath((Join-Path $script:RaRoot $Version)))
+    if ($already) { return }
+    Switch-RaCurrent $Version
+    if ($State.InstalledVersion -and $State.InstalledVersion -ne $Version) { $State.PreviousVersion = $State.InstalledVersion }
+    $State.InstalledVersion = $Version
+}
+
+function Install-RaPackage {
+    <# Install of the release pinned in this script. #>
+    param($State, [string]$LocalZip)
+    $m = $script:RaPinnedRelease
+    Test-RaManifest $m
+    if ($State.InstalledVersion -and (Compare-RaVersion $State.InstalledVersion $m.Version) -gt 0) {
+        $cur = Read-RaStoredManifest $State.InstalledVersion
+        if ($cur -and (Test-RaInstalledVersion $cur (Join-Path $script:RaRoot $State.InstalledVersion))) {
+            Write-RaLog "A newer version ($($State.InstalledVersion)) is already installed; keeping it."
+            Set-RaActiveVersion $State $State.InstalledVersion
+            return
+        }
+    }
+    [void](Install-RaVersion $m $LocalZip $null)
+    Set-RaActiveVersion $State $m.Version
+}
+
+function Get-RaGameSha256 {
+    param([string]$GameDir)
+    if (-not $GameDir) { return $null }
+    $exe = Join-Path $GameDir 'hoi4.exe'
+    if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { return $null }
+    return (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash   # read-only
+}
+
+function Invoke-RaCheckUpdate {
+    param($State, [string]$GameDir, [string]$LocalManifestPath)
+    $remote = Get-RaRemoteRelease $LocalManifestPath
+    $latest = $remote.Manifest
+    $installed = $State.InstalledVersion
+    $newer = (-not $installed) -or ((Compare-RaVersion $latest.Version $installed) -gt 0)
+    $gameSha = Get-RaGameSha256 $GameDir
+    $curManifest = if ($installed) { Read-RaStoredManifest $installed } else { $null }
+    $installedSupports = $curManifest -and $gameSha -and (@($curManifest.SupportedGameSha256) -contains $gameSha)
+    $latestSupports = $gameSha -and (@($latest.SupportedGameSha256) -contains $gameSha)
+    $iv = if ($installed) { $installed } else { '-' }
+    Write-RaLog (Get-RaText 'UpdateStatus' @($iv, $latest.Version))
+    if ($newer) { Write-RaLog (Get-RaText 'UpdateAvailable' @($latest.Version)) -Level WARN } else { Write-RaLog (Get-RaText 'UpToDate') }
+    if ($gameSha) {
+        if ($installedSupports) { Write-RaLog (Get-RaText 'GameSupportedInstalled') }
+        elseif ($latestSupports) { Write-RaLog (Get-RaText 'GameSupportedLatest' @($latest.Version)) -Level WARN }
+        else { Write-RaLog (Get-RaText 'GameNotSupported' @($gameSha.Substring(0, 16))) -Level WARN }
+    }
+    return [pscustomobject]@{ Remote = $remote; Newer = $newer; GameSha = $gameSha; InstalledSupportsGame = [bool]$installedSupports; LatestSupportsGame = [bool]$latestSupports }
+}
+
+function Invoke-RaUpdate {
+    param($State, [string]$GameDir, [string]$LocalManifestPath, [string]$LocalZip)
+    $check = Invoke-RaCheckUpdate $State $GameDir $LocalManifestPath
+    $m = $check.Remote.Manifest
+    if (-not $check.Newer) {
+        $dir = Join-Path $script:RaRoot $m.Version
+        if (Test-RaInstalledVersion $m $dir) { return $false }
+        Write-RaLog "Installed files of $($m.Version) failed verification; reinstalling." -Level WARN
+    }
+    [void](Install-RaVersion $m $LocalZip $check.Remote.ZipUrl)
+    Set-RaActiveVersion $State $m.Version
+    return $true
+}
+
+function Invoke-RaRollback {
+    param($State)
+    $prev = $State.PreviousVersion
+    if (-not $prev) { throw 'No previous version to roll back to.' }
+    $m = Read-RaStoredManifest $prev
+    if (-not $m -or -not (Test-RaInstalledVersion $m (Join-Path $script:RaRoot $prev))) { throw "Previous version $prev is missing or failed verification; cannot roll back." }
+    $cur = $State.InstalledVersion
+    Switch-RaCurrent $prev
+    $State.InstalledVersion = $prev
+    $State.PreviousVersion = $cur
+    Write-RaLog "Rolled back to $prev (kept $cur as previous)."
 }
 
 # ---------------------------------------------------------------------------
@@ -914,37 +1174,21 @@ function Remove-RaShortcuts {
     $State.Shortcuts = $kept
 }
 
-function Update-RaShortcutTargets {
-    <# After an update, re-point our shortcuts to the new launcher. #>
-    param($State, [string]$LauncherPath)
-    foreach ($p in @($State.Shortcuts)) {
-        if (-not (Test-RaShortcutIsOurs $p)) { continue }
-        if ($script:RaDry) { Write-RaLog "[dry-run] would re-point $p" -Level PLAN; continue }
-        $sh = New-Object -ComObject WScript.Shell
-        try {
-            $s = $sh.CreateShortcut($p)
-            if ($s.TargetPath -ine $LauncherPath) {
-                $s.TargetPath = $LauncherPath; $s.WorkingDirectory = Split-Path -Parent $LauncherPath; $s.Save()
-                Write-RaLog "Shortcut updated to new version: $p"
-            }
-        } finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($sh) }
-    }
-}
-
 function Remove-RaUnusedVersions {
+    <# Keeps only the active and the previous (rollback) version. Never fails the run. #>
     param($State)
-    $keep = @()
-    if ($State.InstalledVersion) { $keep += [string]$State.InstalledVersion }
-    foreach ($e in @($State.SteamEntries)) { $keep += Split-Path -Leaf (Split-Path -Parent $e.LauncherPath) }
-    foreach ($p in @($State.Shortcuts)) {
-        try { $t = (Get-RaShortcutInfo $p).TargetPath; if ($t) { $keep += Split-Path -Leaf (Split-Path -Parent $t) } } catch { }
-    }
+    $keep = @($State.InstalledVersion, $State.PreviousVersion) | Where-Object { $_ }
     if (-not (Test-Path -LiteralPath $script:RaRoot)) { return }
-    foreach ($d in Get-ChildItem -LiteralPath $script:RaRoot -Directory) {
-        if ($d.Name -match '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$' -and $keep -notcontains $d.Name) {
+    foreach ($d in Get-ChildItem -LiteralPath $script:RaRoot -Directory -Force) {
+        if ($d.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+        if ($d.Name -match $script:RaVersionPattern -and $keep -notcontains $d.Name) {
             if ($script:RaDry) { Write-RaLog "[dry-run] would remove old version $($d.FullName)" -Level PLAN; continue }
-            Remove-Item -LiteralPath $d.FullName -Recurse -Force
-            Write-RaLog "Removed unused version $($d.FullName)"
+            try {
+                Remove-Item -LiteralPath $d.FullName -Recurse -Force
+                $mf = Get-RaManifestStorePath $d.Name
+                if (Test-Path -LiteralPath $mf) { Remove-Item -LiteralPath $mf -Force }
+                Write-RaLog "Removed old version $($d.FullName)"
+            } catch { Write-RaLog "Could not remove $($d.FullName) (in use?): $($_.Exception.Message)" -Level WARN }
         }
     }
 }
@@ -964,9 +1208,15 @@ function Invoke-RaUninstall {
     Remove-RaShortcuts $State
     if (-not (Test-Path -LiteralPath $script:RaRoot)) { return }
     $log = Get-RaLogPath
+    # Remove the junction first so nothing can be deleted through it.
+    $link = Get-RaCurrentLink
+    if (Test-Path -LiteralPath $link) {
+        if ($script:RaDry) { Write-RaLog "[dry-run] would delete junction $link" -Level PLAN } else { Remove-RaJunction $link }
+    }
     foreach ($item in Get-ChildItem -LiteralPath $script:RaRoot -Force) {
-        if ($item.FullName -ieq $log) { continue }
+        if ($item.FullName -ieq $log -or $item.FullName -ieq $link) { continue }
         if ($script:RaDry) { Write-RaLog "[dry-run] would delete $($item.FullName)" -Level PLAN; continue }
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { [IO.Directory]::Delete($item.FullName, $false); continue }
         Remove-Item -LiteralPath $item.FullName -Recurse -Force
     }
     Write-RaLog "Removed files in $($script:RaRoot) (kept bootstrap.log)"
@@ -978,7 +1228,7 @@ function Invoke-RaUninstall {
 function Invoke-RaMain {
     param([hashtable]$P)
     $known = 'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
-    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language'
+    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath'
     $P = $P.Clone()
     foreach ($k in $known) { if (-not $P.ContainsKey($k)) { $P[$k] = $null } }
     Set-StrictMode -Version 2.0
@@ -997,6 +1247,7 @@ function Invoke-RaMain {
         $state = Read-RaState
         $steamRootPath = $null
         try { $steamRootPath = Get-RaSteamRoot $P.SteamRoot } catch { if ($P.SteamRoot) { throw } ; Write-RaLog $_.Exception.Message -Level WARN -NoConsole }
+        $gameDirLazy = { if ($steamRootPath) { Get-RaGameDir $steamRootPath } else { $null } }
 
         if ($P.Uninstall) {
             Invoke-RaUninstall $state $steamRootPath
@@ -1011,13 +1262,31 @@ function Invoke-RaMain {
             Write-Host (Get-RaText 'Done') -ForegroundColor Green
             return 0
         }
+        if ($P.CheckUpdate) {
+            [void](Invoke-RaCheckUpdate $state (& $gameDirLazy) $P.ManifestPath)
+            return 0
+        }
+        if ($P.Rollback) {
+            Invoke-RaRollback $state
+            Save-RaState $state
+            Write-Host (Get-RaText 'Done') -ForegroundColor Green
+            return 0
+        }
+        if ($P.Update) {
+            if ((Invoke-RaUpdate $state (& $gameDirLazy) $P.ManifestPath $P.PackagePath)) {
+                Save-RaState $state
+                Remove-RaUnusedVersions $state
+            }
+            Write-Host (Get-RaText 'Done') -ForegroundColor Green
+            return 0
+        }
 
         $doInstall = [bool]$P.Install
         $doSteam = [bool]$P.SteamLaunchOption
         $doShortcut = [bool]$P.Shortcut -or [bool]$P.ShortcutPath
         $interactive = -not ($doInstall -or $doSteam -or $doShortcut)
         if ($interactive) {
-            if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Uninstall.' }
+            if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Uninstall.' }
             $doInstall = Confirm-Ra (Get-RaText 'AskInstall' @($script:RaRoot)) $true
             while ($true) {
                 $mode = Read-RaAnswer (Get-RaText 'AskMode')
@@ -1038,15 +1307,12 @@ function Invoke-RaMain {
             if (-not $P.ShortcutPath -and -not (Confirm-Ra (Get-RaText 'AskConfirmShortcut') $false)) { $doShortcut = $false; Write-RaLog 'Shortcut step declined.' }
         }
 
-        $launcher = $null
         if ($doInstall) {
-            $dir = Install-RaPackage $state $P.PackagePath
-            $launcher = Join-Path $dir $script:RaLauncherExeName
+            Install-RaPackage $state $P.PackagePath
             Save-RaState $state
-        } elseif ($state.InstalledVersion) {
-            $launcher = Get-RaLauncherPath $state.InstalledVersion
         }
-        if (($doSteam -or $doShortcut) -and (-not $launcher -or (-not $script:RaDry -and -not (Test-Path -LiteralPath $launcher -PathType Leaf)))) {
+        $launcher = Get-RaLauncherPath
+        if (($doSteam -or $doShortcut) -and -not $script:RaDry -and -not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
             throw (Get-RaText 'NotInstalled')
         }
 
@@ -1055,27 +1321,12 @@ function Invoke-RaMain {
             if (-not $steamRootPath) { throw 'Steam not found.' }
             try { Set-RaSteamLaunchOption $state $steamRootPath $P.SteamAccount $launcher; Save-RaState $state }
             catch { $steamStepFailed = $true; Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR }
-        } elseif ($doInstall -and @($state.SteamEntries).Count -gt 0 -and $steamRootPath) {
-            # Update: re-point existing Steam entries when Steam is closed; otherwise keep the old version.
-            $stale = @($state.SteamEntries | Where-Object { $_.LauncherPath -ne $launcher })
-            if ($stale.Count -gt 0 -and -not (Test-RaSteamRunning)) {
-                $sel = ($stale | ForEach-Object AccountId) -join ','
-                try { Set-RaSteamLaunchOption $state $steamRootPath $sel $launcher; Save-RaState $state }
-                catch { Write-RaLog "Could not re-point Steam entry: $($_.Exception.Message)" -Level WARN }
-            } elseif ($stale.Count -gt 0) {
-                Write-RaLog 'Steam is running: the Steam entry keeps using the previous version until you run -Install -SteamLaunchOption with Steam closed.' -Level WARN
-            }
         }
         if ($doShortcut) {
-            $gameDir = if ($steamRootPath) { Get-RaGameDir $steamRootPath } else { $null }
-            [void](New-RaShortcut $state $shortcutFolder $launcher $gameDir)
+            [void](New-RaShortcut $state $shortcutFolder $launcher (& $gameDirLazy))
             Save-RaState $state
         }
-        if ($doInstall) {
-            Update-RaShortcutTargets $state $launcher
-            Remove-RaUnusedVersions $state
-            Save-RaState $state
-        }
+        if ($doInstall) { Remove-RaUnusedVersions $state }
         if ($steamStepFailed) { return 1 }
         Write-Host (Get-RaText 'Done') -ForegroundColor Green
         return 0
@@ -1090,6 +1341,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         Install = $Install; Shortcut = $Shortcut; ShortcutPath = $ShortcutPath; SteamLaunchOption = $SteamLaunchOption
         SteamAccount = $SteamAccount; RemoveSteamLaunchOption = $RemoveSteamLaunchOption; Uninstall = $Uninstall
         DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot; Language = $Language
+        CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

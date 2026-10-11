@@ -11,6 +11,10 @@ $scriptPath = Join-Path $here 'install.ps1'
 
 $testRoot = if ($env:RA_BOOTSTRAP_TEST_ROOT) { $env:RA_BOOTSTRAP_TEST_ROOT } else { Join-Path ([IO.Path]::GetTempPath()) 'ra-bootstrap-tests' }
 $script:RaQuiet = $true
+$origRepo = $script:RaGitHubRepo
+$origKey = $script:RaUpdatePublicKeyXml
+$origPinned = $script:RaPinnedRelease
+$signScript = Join-Path $here 'sign-release-manifest.ps1'
 $L = 'C:\Users\Test User\AppData\Local\RenameAnything\0.1.0\RenameAnythingLauncher.exe'
 $LOld = 'C:\Users\Test User\AppData\Local\RenameAnything\0.0.9\RenameAnythingLauncher.exe'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -120,7 +124,7 @@ function New-TestPackage {
         'LICENSE.MinHook.txt'                 = 'license'
         'runtime/rename_anything_country.dll' = 'dll-bytes'
     }
-    $manifest = [ordered]@{ Version = $Version; ZipName = "RA-$Version.zip"; ZipSha256 = ''; Files = [ordered]@{} }
+    $manifest = [ordered]@{ Version = $Version; ZipName = "RA-$Version-$Tamper.zip"; ZipSha256 = ''; Files = [ordered]@{}; SupportedGameSha256 = @() }
     foreach ($k in $files.Keys) {
         $bytes = $utf8.GetBytes($files[$k])
         $manifest.Files[$k] = Get-RaSha256OfBytes $bytes
@@ -160,6 +164,14 @@ function Reset-Env {
     New-Item -ItemType Directory -Force -Path $desk | Out-Null
     $script:RaDesktopPath = [scriptblock]::Create("'$desk'")
     $script:RaReadHost = { param($p) throw "Unexpected prompt: $p" }
+    $script:RaGitHubRepo = $origRepo
+    $script:RaUpdatePublicKeyXml = $origKey
+    $script:RaPinnedRelease = $origPinned
+    $script:RaFolderPicker = $null
+    $script:requested = New-Object System.Collections.ArrayList
+    # Network is always mocked: any unexpected request fails the test.
+    $script:fakeWeb = @{}
+    $script:RaHttpGet = { param($u) [void]$script:requested.Add($u); if (-not $script:fakeWeb.ContainsKey($u)) { throw "no network in tests: $u" }; , $script:fakeWeb[$u] }
     return $dir
 }
 
@@ -204,8 +216,9 @@ Describe 'Script hygiene' {
         (Get-TreeHashes $dir) -join '|' | Should Be ($before -join '|')
     }
     It 'has a single placeholder release URL constant and refuses an unpinned manifest' {
-        $script:RaReleaseBaseUrl | Should Match 'PLACEHOLDER'
-        Assert-RaThrows { Test-RaPinnedManifest $script:RaPinnedRelease } 'not configured'
+        $origRepo | Should Match 'PLACEHOLDER'
+        $origKey | Should Be 'TO-BE-GENERATED'
+        Assert-RaThrows { Test-RaManifest $origPinned } 'not configured'
     }
 }
 
@@ -440,7 +453,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
 
         $code = Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; ShortcutPath = $custom; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }
         $code | Should Be 0
-        $launcher = Join-Path $script:RaRoot '0.1.0\RenameAnythingLauncher.exe'
+        $launcher = Join-Path $script:RaRoot 'current\RenameAnythingLauncher.exe'
         Test-Path $launcher | Should Be $true
         (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value | Should Be "`"$launcher`" %command% -debug_mode"
         $lnk = Join-Path $custom $script:RaShortcutFileName
@@ -495,7 +508,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $pkg = New-TestPackage $dir
         $script:RaPinnedRelease = $pkg.Manifest
         (Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; SteamAccount = 'all'; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-        $launcher = Join-Path $script:RaRoot '0.1.0\RenameAnythingLauncher.exe'
+        $launcher = Join-Path $script:RaRoot 'current\RenameAnythingLauncher.exe'
         foreach ($id in '111', '222') {
             (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam "userdata\$id\config\localconfig.vdf")).Text).Value | Should Be "`"$launcher`" %command%"
         }
@@ -503,23 +516,6 @@ Describe 'Steam process, accounts and end-to-end flows' {
         foreach ($id in '111', '222') {
             (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam "userdata\$id\config\localconfig.vdf")).Text).Value | Should Be ''
         }
-    }
-
-    It 'update to a new version re-points Steam entry and shortcut and prunes the old version' {
-        $dir = Reset-Env 'update'
-        $steam = Join-Path $dir 'Steam'
-        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
-        $p1 = New-TestPackage (Join-Path $dir 'v1') -Version '0.1.0'
-        $script:RaPinnedRelease = $p1.Manifest
-        (Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; Shortcut = $true; Yes = $true; PackagePath = $p1.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-        $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0'
-        $script:RaPinnedRelease = $p2.Manifest
-        (Invoke-RaMain @{ Install = $true; Yes = $true; PackagePath = $p2.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-        $l2 = Join-Path $script:RaRoot '0.2.0\RenameAnythingLauncher.exe'
-        (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam 'userdata\111\config\localconfig.vdf')).Text).Value | Should Be "`"$l2`" %command% -debug_mode"
-        (Get-RaShortcutInfo (Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName)).TargetPath | Should Be $l2
-        Test-Path (Join-Path $script:RaRoot '0.1.0') | Should Be $false
-        @(Read-RaState).SteamEntries[0].OriginalValue | Should Be '-debug_mode'
     }
 
     It 'dry run writes nothing anywhere' {
@@ -571,6 +567,169 @@ Describe 'Steam process, accounts and end-to-end flows' {
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg)) $origCfg | Should Be $true
         (Get-RaShortcutInfo (Join-Path $picked $script:RaShortcutFileName)).Description | Should Match 'wieloosobowym'
         $script:RaFolderPicker = $null
+    }
+}
+
+function New-SignedRelease {
+    <# Builds a package + signed manifest via sign-release-manifest.ps1 and registers fake GitHub URLs. #>
+    param([string]$Dir, [string]$Version, [string]$KeyPath, [string[]]$GameSha = @(), [string]$Tag = $null, [string]$AssetHost = 'https://github.com/test-owner/test-repo/releases/download')
+    $pkg = New-TestPackage (Join-Path $Dir "rel-$Version") -Version $Version
+    $mPath = Join-Path $Dir "rel-$Version\release-manifest.json"
+    [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version $Version -SupportedGameSha256 $GameSha -OutPath $mPath)
+    [void](& $signScript -Sign -ManifestPath $mPath -PrivateKeyPath $KeyPath)
+    if (-not $Tag) { $Tag = "v$Version" }
+    $base = "$AssetHost/$Tag"
+    $zipName = [IO.Path]::GetFileName($pkg.Zip)
+    $rel = [pscustomobject]@{ tag_name = $Tag; assets = @(
+            [pscustomobject]@{ name = 'release-manifest.json'; browser_download_url = "$base/release-manifest.json" },
+            [pscustomobject]@{ name = 'release-manifest.json.sig'; browser_download_url = "$base/release-manifest.json.sig" },
+            [pscustomobject]@{ name = $zipName; browser_download_url = "$base/$zipName" }) }
+    $script:fakeWeb['https://api.github.com/repos/test-owner/test-repo/releases/latest'] = $utf8.GetBytes(($rel | ConvertTo-Json -Depth 5))
+    $script:fakeWeb["$base/release-manifest.json"] = [IO.File]::ReadAllBytes($mPath)
+    $script:fakeWeb["$base/release-manifest.json.sig"] = [IO.File]::ReadAllBytes("$mPath.sig")
+    $script:fakeWeb["$base/$zipName"] = [IO.File]::ReadAllBytes($pkg.Zip)
+    return @{ Zip = $pkg.Zip; ManifestPath = $mPath; Base = $base; ZipName = $zipName }
+}
+
+function Initialize-UpdateEnv {
+    param([string]$Name)
+    $dir = Reset-Env $Name
+    $steam = Join-Path $dir 'Steam'
+    New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+    $key = Join-Path $dir 'update.private.xml'
+    $script:RaUpdatePublicKeyXml = (& $signScript -NewKey -PrivateKeyPath $key -KeySize 2048) | Out-String
+    $script:RaGitHubRepo = 'test-owner/test-repo'
+    $p1 = New-TestPackage (Join-Path $dir 'v1') -Version '0.1.0'
+    $script:RaPinnedRelease = $p1.Manifest
+    (Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; Shortcut = $true; Yes = $true; PackagePath = $p1.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+    return @{ Dir = $dir; Steam = $steam; Key = $key; Cfg = (Join-Path $steam 'userdata\111\config\localconfig.vdf'); GameSha = (Get-FileHash (Join-Path $steam 'steamapps\common\Hearts of Iron IV\hoi4.exe')).Hash }
+}
+
+function Get-CurrentTargetName { return (Split-Path -Leaf (Get-RaJunctionTarget (Get-RaCurrentLink))) }
+
+Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollback)' {
+    It 'install creates the stable current junction; Steam option and shortcut point at it' {
+        $e = Initialize-UpdateEnv 'upd-install'
+        Get-CurrentTargetName | Should Be '0.1.0'
+        $cur = Join-Path $script:RaRoot 'current\RenameAnythingLauncher.exe'
+        Test-Path $cur | Should Be $true
+        (Get-RaAppLaunchInfo (Read-RaTextFile $e.Cfg).Text).Value | Should Be "`"$cur`" %command% -debug_mode"
+        (Get-RaShortcutInfo (Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName)).TargetPath | Should Be $cur
+        $script:requested.Count | Should Be 0
+    }
+    It '-CheckUpdate: one API call + 2 manifest assets, reports newer version and game support, changes nothing' {
+        $e = Initialize-UpdateEnv 'upd-check'
+        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key @($e.GameSha))
+        $before = @(Get-TreeHashes $e.Dir | Where-Object { $_ -notmatch 'bootstrap\.log=' })
+        $r = Invoke-RaCheckUpdate (Read-RaState) (Get-RaGameDir $e.Steam) $null
+        $r.Newer | Should Be $true
+        $r.InstalledSupportsGame | Should Be $false
+        $r.LatestSupportsGame | Should Be $true
+        $script:requested.Count | Should Be 3
+        $script:requested[0] | Should Be 'https://api.github.com/repos/test-owner/test-repo/releases/latest'
+        @(Get-TreeHashes $e.Dir | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' | Should Be ($before -join '|')
+        (Invoke-RaMain @{ CheckUpdate = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+    }
+    It '-Update switches current without touching Steam config/shortcut; -Rollback returns; third version prunes the oldest' {
+        $e = Initialize-UpdateEnv 'upd-flow'
+        $cfgBefore = [IO.File]::ReadAllBytes($e.Cfg)
+        $lnk = Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName
+        $lnkBefore = [IO.File]::ReadAllBytes($lnk)
+        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        $st = Read-RaState
+        $st.InstalledVersion | Should Be '0.2.0'
+        $st.PreviousVersion | Should Be '0.1.0'
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($e.Cfg)) $cfgBefore | Should Be $true
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($lnk)) $lnkBefore | Should Be $true
+        @(Get-ChildItem (Split-Path $e.Cfg) -Filter '*.renameanything-backup-*').Count | Should Be 1
+        # Up to date: second -Update does nothing.
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Read-RaState).PreviousVersion | Should Be '0.1.0'
+        # Rollback
+        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.1.0'
+        (Read-RaState).PreviousVersion | Should Be '0.2.0'
+        # Roll forward again via -Update (0.2.0 already present and verified)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        # 0.3.0 -> keep 0.3.0 (current) and 0.2.0 (previous), prune 0.1.0
+        [void](New-SignedRelease $e.Dir '0.3.0' $e.Key)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.3.0'
+        Test-Path (Join-Path $script:RaRoot '0.1.0') | Should Be $false
+        Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $true
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($e.Cfg)) $cfgBefore | Should Be $true
+        # Uninstall removes the junction and all versions, keeps only the log; Steam option restored
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        @(Get-ChildItem $script:RaRoot -Force | ForEach-Object Name) -join ',' | Should Be 'bootstrap.log'
+        (Get-RaAppLaunchInfo (Read-RaTextFile $e.Cfg).Text).Value | Should Be '-debug_mode'
+    }
+    It 'tampered manifest (bad signature) is refused and nothing changes' {
+        $e = Initialize-UpdateEnv 'upd-badsig'
+        $r = New-SignedRelease $e.Dir '0.2.0' $e.Key
+        $script:fakeWeb["$($r.Base)/release-manifest.json"] = $utf8.GetBytes(([IO.File]::ReadAllText($r.ManifestPath)).Replace('"0.2.0"', '"0.2.1"'))
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        Get-CurrentTargetName | Should Be '0.1.0'
+        Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
+        Test-Path (Join-Path $script:RaRoot '0.2.1') | Should Be $false
+    }
+    It 'manifest signed with a different key is refused' {
+        $e = Initialize-UpdateEnv 'upd-otherkey'
+        $other = Join-Path $e.Dir 'other.private.xml'
+        [void](& $signScript -NewKey -PrivateKeyPath $other -KeySize 2048)
+        [void](New-SignedRelease $e.Dir '0.2.0' $other)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        Get-CurrentTargetName | Should Be '0.1.0'
+    }
+    It 'valid signature but ZIP with a different hash is refused (fail-closed), current unchanged' {
+        $e = Initialize-UpdateEnv 'upd-badzip'
+        $r = New-SignedRelease $e.Dir '0.2.0' $e.Key
+        $bad = New-TestPackage (Join-Path $e.Dir 'bad') -Tamper 'filehash' -Version '0.2.0'
+        $script:fakeWeb["$($r.Base)/$($r.ZipName)"] = [IO.File]::ReadAllBytes($bad.Zip)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        Get-CurrentTargetName | Should Be '0.1.0'
+        Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
+        @(Get-ChildItem $script:RaRoot -Force -Filter 'download-*').Count | Should Be 0
+        @(Get-ChildItem $script:RaRoot -Force -Filter '.staging-*').Count | Should Be 0
+    }
+    It 'tag/manifest version mismatch and foreign asset host are refused' {
+        $e = Initialize-UpdateEnv 'upd-mismatch'
+        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key -Tag 'v9.9.9')
+        Assert-RaThrows { Get-RaRemoteRelease $null } 'does not match'
+        $script:fakeWeb = @{}
+        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key -AssetHost 'https://evil.example/releases/download')
+        Assert-RaThrows { Get-RaRemoteRelease $null } 'Unexpected asset URL'
+        Get-CurrentTargetName | Should Be '0.1.0'
+    }
+    It 'fails closed while the signing key or repository is still a placeholder' {
+        $e = Initialize-UpdateEnv 'upd-placeholder'
+        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key)
+        $script:RaUpdatePublicKeyXml = 'TO-BE-GENERATED'
+        Assert-RaThrows { Get-RaRemoteRelease $null } 'signing key is not configured'
+        $script:RaGitHubRepo = $origRepo
+        $script:requested.Clear()
+        Assert-RaThrows { Get-RaRemoteRelease $null } 'not configured'
+        $script:requested.Count | Should Be 0
+    }
+    It 'offline update with -ManifestPath/-PackagePath makes no network request' {
+        $e = Initialize-UpdateEnv 'upd-offline'
+        $r = New-SignedRelease $e.Dir '0.2.0' $e.Key
+        $script:fakeWeb = @{}
+        $script:requested.Clear()
+        (Invoke-RaMain @{ Update = $true; ManifestPath = $r.ManifestPath; PackagePath = $r.Zip; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        $script:requested.Count | Should Be 0
+    }
+    It 'rollback refuses when the previous version is missing or modified' {
+        $e = Initialize-UpdateEnv 'upd-rbfail'
+        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        [IO.File]::WriteAllText((Join-Path $script:RaRoot '0.1.0\runtime\rename_anything_country.dll'), 'tampered')
+        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        Get-CurrentTargetName | Should Be '0.2.0'
     }
 }
 
