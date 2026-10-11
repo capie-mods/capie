@@ -71,6 +71,10 @@ character slots, matching command/opening epoch and cap1 reached one native
 constructor with independent storage. That caller checks the versioned export
 twice before dispatch; the game log observes its marker, not a separate export
 trace. This is log-only acceptance, without a real inline rename or game save.
+The separate render candidate B20FBE88 subsequently passed first-open rendering
+of all five fields in PID42556, with unchanged35/69/70-record transport and160
+compared character slots. Cancel restored current names and the error log stayed
+593→593. Autofocus/select-all and real inline Apply remain separate pending tests.
 See [the audit](../docs/evidence/session-20261011/day2-unified-country-transport-audit.json).
 Earlier accepted binaries do not include this export. The query does not write
 to saves or establish multiplayer compatibility.
