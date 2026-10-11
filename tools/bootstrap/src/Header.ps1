@@ -1,0 +1,104 @@
+<#
+.SYNOPSIS
+    Rename Anything (HOI4) bootstrap: installs the native launcher bundle and
+    optionally wires it into Steam launch options and/or a game shortcut.
+
+.DESCRIPTION
+    Runs on Windows PowerShell 5.1 and PowerShell 7, without administrator rights
+    and without external modules. It never modifies the HOI4 installation, Steam
+    Workshop content or saves. See tools/bootstrap/README.md.
+
+    Interactive (no action switches):
+        irm <release-url>/install.ps1 | iex
+    Noninteractive:
+        & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
+        .\install.ps1 -Install -Shortcut -ShortcutPath "$env:USERPROFILE\Desktop" -Yes
+
+    This file is intentionally pure ASCII (Polish text uses \uXXXX escapes decoded at
+    runtime), because Windows PowerShell 5.1 and `irm` may decode non-ASCII scripts
+    with a legacy code page.
+
+    install.ps1 is GENERATED from tools/bootstrap/src by tools/bootstrap/build-install.ps1.
+    Edit the fragments in src/ and rebuild; never edit install.ps1 by hand.
+
+.PARAMETER Install
+    Install or verify the release pinned in this script.
+
+.PARAMETER Shortcut
+    Create the game shortcut (Desktop unless -ShortcutPath is given).
+
+.PARAMETER ShortcutPath
+    Folder for the shortcut; implies -Shortcut.
+
+.PARAMETER SteamLaunchOption
+    Add the launcher to the HOI4 Steam launch options.
+
+.PARAMETER SteamAccount
+    Steam account id(s), comma separated, or "all".
+
+.PARAMETER RemoveSteamLaunchOption
+    Remove only our part of the HOI4 Steam launch options.
+
+.PARAMETER Uninstall
+    Remove the launch option part, our shortcuts and the installed files (the log is kept).
+
+.PARAMETER DryRun
+    Show what would happen and write nothing (alias -WhatIf).
+
+.PARAMETER Yes
+    Ask no questions; the actions must be given as switches.
+
+.PARAMETER PackagePath
+    Already downloaded release ZIP to install instead of downloading it.
+
+.PARAMETER SteamRoot
+    Steam folder override (default: HKCU\Software\Valve\Steam\SteamPath).
+
+.PARAMETER CheckUpdate
+    Ask the GitHub Releases API for the newest version (one request, on demand only).
+
+.PARAMETER Update
+    Install the newest signed release and switch to it.
+
+.PARAMETER Rollback
+    Switch back to the previous version kept on disk.
+
+.PARAMETER ManifestPath
+    Signed release-manifest.json for an offline -Update or -CheckUpdate.
+
+.PARAMETER Language
+    Message language override: pl or en.
+
+.OUTPUTS
+    System.Int32. Exit code 0 on success, 1 on failure (also the process exit code with -File).
+
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File .\install.ps1
+
+.EXAMPLE
+    .\install.ps1 -Install -SteamLaunchOption -SteamAccount all -Yes
+#>
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('RaStrictMode', '',
+    Justification = 'Under irm | iex the top level runs in the caller session; Invoke-RaMain enables Set-StrictMode -Version Latest instead.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'The parameters are consumed by the entry point at the end of the generated install.ps1 (src/Main.ps1).')]
+[CmdletBinding()]
+[OutputType([int])]
+param(
+    [switch]$Install,
+    [switch]$Shortcut,
+    [string]$ShortcutPath,
+    [switch]$SteamLaunchOption,
+    [string]$SteamAccount,
+    [switch]$RemoveSteamLaunchOption,
+    [switch]$Uninstall,
+    [Alias('WhatIf')][switch]$DryRun,
+    [switch]$Yes,
+    [string]$PackagePath,
+    [string]$SteamRoot,
+    [switch]$CheckUpdate,
+    [switch]$Update,
+    [switch]$Rollback,
+    [string]$ManifestPath,
+    [ValidateSet('', 'pl', 'en')][string]$Language = ''
+)

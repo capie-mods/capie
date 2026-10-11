@@ -135,7 +135,45 @@ edits `localconfig.vdf` again.
   `-CheckUpdate` to see whether a release supporting your `hoi4.exe` exists. Each manifest
   lists the supported `hoi4.exe` SHA256 values.
 * Maintainers: `sign-release-manifest.ps1 -NewKey | -MakeManifest | -Sign` (offline).
-  Keep the private key outside the repository.
+  Keep the private key outside the repository. Paste the public key into
+  `src/Shared/Configuration.ps1` and rebuild `install.ps1`.
+
+## Source layout and the single-file build
+
+`install.ps1` is what users download, so it stays **one pure-ASCII file without BOM**
+(`irm | iex` runs exactly one file). It is **generated**; do not edit it by hand. The
+source lives in vertical slices under `src/`:
+
+| Fragment | Content |
+| --- | --- |
+| `src/Header.ps1` | help and `param()` block of the distributed script |
+| `src/Shared/Configuration.ps1` | the only release values: GitHub repo, update public key, pinned manifest |
+| `src/Shared/Constants.ps1` | fixed names, formats, patterns and limits (no magic strings elsewhere) |
+| `src/Shared/Adapters.ps1` | every external dependency: console, prompts, Steam process, registry, clock, network, file bytes, `.lnk` COM, folder dialog |
+| `src/Shared/Messages.ps1` | EN/PL texts (`\uXXXX` escapes) |
+| `src/Shared/Logging.ps1`, `Vdf.ps1`, `TextFile.ps1`, `State.ps1`, `Manifest.ps1`, `Steam.ps1`, `VersionStore.ps1` | shared building blocks |
+| `src/Features/Install.ps1`, `SteamLaunchOption.ps1`, `Shortcut.ps1`, `Update.ps1`, `Uninstall.ps1` | one file per user-visible action |
+| `src/Main.ps1` | option handling, dispatch, entry point (always last) |
+
+The fragments are plain `.ps1` files with functions, not `.psm1` modules: all slices
+share one script scope (configuration, adapters, runtime switches), and a module would
+isolate that state per slice. Production code reaches the outside world only through
+the adapters, so tests replace them after dot-sourcing `install.ps1`
+(for example `$script:RaGetSteamProcess = { @('fake-steam') }`). A Pester test enforces
+that no fragment except `Adapters.ps1` calls `Write-Host`, `Read-Host`, `Get-Process`,
+`Get-ItemProperty`, `Get-UICulture`, `Get-Date`, `WebClient` or `WScript.Shell` directly.
+
+```powershell
+.\tools\bootstrap\build-install.ps1          # regenerate install.ps1 from src/
+.\tools\bootstrap\build-install.ps1 -Check   # exit 1 if install.ps1 is stale (also a Pester test)
+```
+
+The builder concatenates the fragments in a fixed order (each in a `#region`), uses LF
+line endings, rejects any non-ASCII byte and refuses output that does not parse. Every
+function has comment-based help (`.SYNOPSIS`, `.DESCRIPTION`, `.PARAMETER`, `.OUTPUTS`,
+`.EXAMPLE`), `[CmdletBinding()]`, `[OutputType()]` and typed parameters. `Invoke-RaMain`
+enables `Set-StrictMode -Version Latest` (only for the call: under `irm | iex` the top
+level runs in the user's session, which must not be changed).
 
 ## Tests
 
@@ -148,7 +186,25 @@ Invoke-Pester -Script .\tools\bootstrap\install.Tests.ps1         # Pester 3.4 (
 
 They run offline: every network call is mocked, and unexpected requests fail. Steam is a
 synthetic folder tree, and shortcuts are created only in the work folder. Pester 3.4's
-`Should Throw` is broken on PowerShell 7, so the tests use their own `Assert-RaThrows`.
+`Should Throw` is broken on PowerShell 7, so the tests use their own `Assert-RaThrow`.
+The unit tests run under `Set-StrictMode -Version Latest`. Besides the behaviour tests
+there are tests for the build (`-Check`, ASCII, documented functions, adapter discipline)
+and for each adapter.
+
+Mutation test (each mutant disables one safety check; all must be killed):
+
+```powershell
+.\tools\bootstrap\mutation-test.ps1 -WorkRoot $env:TEMP\ra-mutation -PowerShellExe pwsh
+```
+
+Static analysis for every PowerShell file in the repository (PSScriptAnalyzer with
+`PSScriptAnalyzerSettings.psd1` and the project rules in `tools/lint/RaScriptRules.psm1`).
+Nothing has to be installed into your profile:
+
+```powershell
+Save-Module PSScriptAnalyzer -Path $env:TEMP\psmodules
+.\tools\lint-powershell.ps1 -ModulePath $env:TEMP\psmodules      # exit 0 = no findings
+```
 
 ## Launcher changes required (separate task, not in this folder)
 

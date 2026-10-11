@@ -29,6 +29,9 @@ Optional `-VisualStudioDir` selects another VS 2022 installation. Use an explici
 `-OutputDirectory` for a candidate build that must preserve earlier binaries;
 the default remains `plugin/build`. Building over a DLL currently loaded by HOI4
 is refused. Project C++ compiles with `/W4 /WX`.
+The shared steps of `build.ps1`, `launcher/build.ps1` and `probes/build-*.ps1` (game DLL
+guard, Visual Studio environment, MinHook, flag sets, exit-code checks) live in
+`plugin/NativeBuild.psm1`; its offline unit tests are `plugin/tests/NativeBuild.Tests.ps1`.
 The script builds
 MinHook from source into the DLL, links the MSVC runtime statically, and runs the
 18 field checks and 13 localization-boundary checks. Outputs are ignored by Git under `plugin/build/`:
