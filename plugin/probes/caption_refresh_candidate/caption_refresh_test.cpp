@@ -212,7 +212,7 @@ void test_seed_only_at_prefill_and_apply_gate() {
     g.env.rev_field(Field::party, "0"); g.ticks(PE, 5);
     CHECK(!g.apply_gate(PE) && !g.t().state(Field::party).seeded);
     CHECK(g.t().counters().dispatch_rejected == 2 && g.t().counters().seed_refusals == 1);
-    CHECK(g.env.logged("seed-carrier-rejected-apply-blocked") == 1 && g.env.logged("apply-rejected-no-valid-seed") == 2);
+    CHECK(g.env.logged("seed-carrier-rejected-apply-blocked") == 1 && g.env.logged("apply-rejected-no-counter") == 1 && g.env.logged("apply-rejected-stale") == 1);
     g.close(PE);
     CHECK(g.open(PE) == Tracker::Seed::seeded && g.apply_gate(PE));  // next opening seeds 0
     // Launcher/hidden/foreign windows cannot seed.
@@ -659,6 +659,40 @@ void test_bind_clears_invalid_latch() {
     CHECK(f.t().counters().invalid_resets == 2 && f.env.logged("invalid-context-reset") == 2);
 }
 
+// R5-MINOR-1: permanent states get their own verdict (sentinel -2 / -3), not "stale" (-1).
+void test_dispatch_verdicts() {
+    using V = Service<TestEnv>::Verdict;
+    {   Fixture f; f.env.rev_field(Field::leader, "4"); f.open(LE);
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LE)) == V::allowed); }
+    {   Fixture f; f.env.rev_field(Field::leader, "4"); f.world.show(LE, true); f.tick(LE);
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LE)) == V::stale); }            // unseeded
+    {   Fixture f; f.env.rev_field(Field::leader, "4"); f.open(LE);
+        f.env.carriers.clear();
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LE)) == V::no_counter);           // carrier missing
+        f.env.rev_field(Field::leader, "1,000");
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LE)) == V::no_counter);           // unreadable format
+        CHECK(f.env.logged("apply-rejected-no-counter") == 2); }
+    {   Fixture f; f.env.rev_field(Field::leader, "999"); f.open(LE);
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LE)) == V::cap_reached);          // limit, reopen won't help
+        f.close(LE); f.open(LE);
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LE)) == V::cap_reached && f.env.logged("apply-rejected-cap") == 2); }
+    {   Fixture f; f.env.rev_field(Field::leader, "998"); f.open(LE);
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LE)) == V::allowed); }           // 998 still allowed
+    {   Fixture f; f.env.rev_field(Field::leader, "4"); f.open(LE); f.close(LE); f.world.show(LL, true); f.tick(LL);
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LL)) == V::stale); }              // launcher origin
+    {   Fixture f; f.env.rev_field(Field::leader, "5"); f.open(LE);
+        f.env.rev_field(Field::leader, "4"); f.tick(LE);                              // lower read (suspicion)
+        CHECK(f.svc.on_dispatch_verdict(window_addr(LE)) == V::stale); }
+}
+
+// R5-NOTE-1: the gui diagnostics are logged once on the first successful resolve, not only on rejects.
+void test_first_success_diag_logged_once() {
+    Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE);
+    f.env.rev_field(Field::leader, "1"); f.tick(LE);
+    f.world.consume(); f.env.rev_field(Field::leader, "2"); f.tick(LE);
+    CHECK(f.env.calls == 2 && f.env.logged("detail=resolve-ok-first") == 1 && f.env.logged("gui_b8_rva=") == 1);
+}
+
 void test_forward_order_and_once() {
     std::vector<int> order;
     auto orig = [&](int v) { order.push_back(v); };
@@ -755,6 +789,8 @@ int main(int argc, char** argv) {
     test_dispatch_from_launcher_seeded();
     test_headroom_literal();
     test_bind_clears_invalid_latch();
+    test_dispatch_verdicts();
+    test_first_success_diag_logged_once();
     test_forward_order_and_once();
     test_fingerprint_table();
     if (argc > 1) exe_check(argv[1]);

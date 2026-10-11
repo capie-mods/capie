@@ -171,3 +171,18 @@ PID49352 log contains a hide->re-show cycle WITHOUT our focus (see report).
   input, focus only released, Escape not handled, stale sentinel, error records).
 - `RN_PLUGIN_STATUS` is served by the COUNTRY DLL, so the CAPIE text is a SEPARATE candidate:
   `country-status-candidate/` (patch + build + tests; accepted `plugin/src/country.cpp` untouched).
+
+## Revision 7 (review R5)
+
+- Sentinel causes (R5-MINOR-1): the forwarded own Apply now carries `rn_ip_cmd_epoch = -code`:
+  `-1` stale (unseeded / jump / rollback suspicion / failed re-prefill: Cancel and reopen fixes it),
+  `-2` no revision counter (carrier missing or unreadable: reopen does not help),
+  `-3` counter limit (999: reopen does not help). The script maps each to its own message.
+- `[obj+B8]` (R5-NOTE-1) is NOT a pin candidate any more: `3085170` is a shared allocator global
+  written into every such container. It stays a diagnostic, logged at rejects and once at the first
+  successful resolve (`detail=resolve-ok-first`).
+- Status text language (R5-MINOR-2): the country DLL intercepts the bare `RN_PLUGIN_STATUS` key, so
+  the language is chosen in `RN_COUNTRY_PLUGIN` (`$RN_PLUGIN_STATUS_EN$` / `$RN_PLUGIN_STATUS_PL$`),
+  as a `tools/gen.py` patch in `docs/evidence/session-20261011/claude-native/gen-py-capie-status.patch`,
+  proven by `country-status-candidate/check_status_localisation.py`. Ship it together with the
+  country-status DLL (older DLLs do not override the `_EN`/`_PL` keys).

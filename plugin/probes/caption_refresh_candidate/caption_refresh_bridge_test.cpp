@@ -390,6 +390,21 @@ int main() {
           "hidden editor: logged drop, no forwarding");
     put(le_context, 0x470, TempVector{});
 
+    // 15b. R5-MINOR-1: permanent caption states get distinct sentinels, not "stale" (-1):
+    //      missing revision carrier -> epoch -2; counter at the 999 limit -> epoch -3.
+    put(le_context, 0x470, TempVector{});
+    show(LE, true);                                                   // live own editor (no tick needed)
+    set_rev(LE, "");                                                  // carrier widget absent
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    check(captured_count("rn_ip_cmd_epoch") == 1 && captured_raw("rn_ip_cmd_epoch") == -200000, "no counter -> epoch -2");
+    check(count(logs(), "stale-sentinel epoch=-2 reason=no-counter") == 1 && captured_count("rn_native_ok") == 0, "-2 logged, no payload");
+    set_rev(LE, "999");                                               // seeded field at the limit
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    check(captured_raw("rn_ip_cmd_epoch") == -300000 && count(logs(), "stale-sentinel epoch=-3 reason=counter-limit") == 1,
+          "counter limit -> epoch -3");
+    check(count(logs(), "stale-sentinel epoch=-1 reason=stale") == 2, "only the two real stale cases used -1");
+    set_rev(LE, "1"); show(LE, false); tick_observed(le, 0);
+
     // 16. B03: an unreadable context fails CLOSED (gate false, no sentinel eligibility).
     void* noaccess = VirtualAlloc(nullptr, 4096, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
     check(noaccess != nullptr && !caption_dispatch_allowed(noaccess, 0) && !stale_eligible(noaccess, 0), "unreadable context fails closed");
