@@ -52,8 +52,9 @@ guarded rename effects. Missing payload must never fall back to stale Apply inpu
 No product Apply, Enter callback, focus/prefill, native-party input or MP behavior
 is implemented by this prototype.
 
-The current probe's script log exposes length and slots0/31, not its ok marker or
-all slots; root may extend that separate fixture while the game is closed for
-runtime validation. Do not mistake compilation or static proofs for a passing
+The separate, still-unloaded probe's script log exposes the ok marker, length
+and all32 slots in five lines for runtime validation. Its commit effect only
+logs, so observer and initial bridge tests cannot rename an object. Do not
+mistake compilation or static proofs for a passing
 transport test. See `day2-native-command-contract.txt`, decompile and assembly in
 `docs/evidence/session-20261011` for native ABI/ownership proof and its boundaries.
