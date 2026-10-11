@@ -103,3 +103,12 @@ przechodzą; potem niezależne review i pełny test w grze.
   CAPIE na postaci (np. `GetPortraitSmall` → nazwa sprite'a małego portretu, fallback
   `GFX_portrait_unknown`); mod pokaże portret 32–40 px przed ikoną roli (tooltip roli już jest),
   ukryty bez CAPIE. Po etapie 2, z osobnym RE, review i testem w grze.
+
+## Decyzje etapu 2 (2026-10-12)
+
+1. Dwie DLL: `capie_core.dll` (nazwy krajów, status, capability) i `capie_editor.dll`
+   (edytory) — zaakceptowane.
+2. Wariant release bez hooków diagnostycznych (4 hooki: Tick, Bind, Dispatch, ctor efektu);
+   pełna diagnostyka tylko w wariancie debug — zaakceptowane, do potwierdzenia w grze.
+3. clang-tidy/clang-format: użytkownik zgodził się, by root sam zainstalował komponent VS
+   „C++ Clang tools for Windows” (zaplanowane na kolejną sesję).
