@@ -160,7 +160,11 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
     if (!init_state.compare_exchange_strong(expected, 1)) return active.load() ? 0 : 33;
     try {
         // Never co-load with any editor bridge variant hooking the same Tick/Bind targets.
-        if (GetModuleHandleW(L"rename_anything_inline_editor_bridge.dll") ||
+        // Reverse load order is NOT protected (older DLLs do not know this basename): the
+        // operator must never load any of them after this module either.
+        if (GetModuleHandleW(L"rename_anything_editor_observer.dll") ||
+            GetModuleHandleW(L"rename_anything_editor_bridge.dll") ||
+            GetModuleHandleW(L"rename_anything_inline_editor_bridge.dll") ||
             GetModuleHandleW(L"rename_anything_inline_editor_render_bridge.dll") ||
             GetModuleHandleW(L"rename_anything_inline_editor_debug_bridge.dll") ||
             GetModuleHandleW(L"rename_anything_inline_editor_focus_bridge.dll") ||
@@ -216,7 +220,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
         if (log_file == INVALID_HANDLE_VALUE) return 13;
         image_base = image;
 #ifndef RN_CAPTION_REFRESH_ARM_HOOKS
-        write_log("RN_CAPTION initialized: exact image + 26 unique fingerprints + 4 slot pins + 2 tokens; INACTIVE build, 0 hooks, no native call\r\n");
+        write_log("RN_CAPTION initialized: exact image + 28 unique fingerprints + 4 slot pins + 2 tokens; INACTIVE build, 0 hooks, no native call\r\n");
         return 41;
 #else
         find_instant_fn = reinterpret_cast<FindWidget>(image + rva::find_instant);
