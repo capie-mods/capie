@@ -1,0 +1,19 @@
+# Decyzje dystrybucji — 2026-10-11
+
+Źródło: odpowiedzi użytkownika na pytania z
+[distribution-options.txt](evidence/session-20261011/claude-distribution/distribution-options.txt).
+
+1. **Model:** pliki moda przez Steam Workshop + natywny launcher z GitHub Releases.
+2. **Sposób włączania DLL:** preferowany wpis launchera w opcjach uruchamiania Steam
+   (`"…\RenameAnythingLauncher.exe" %command%`). Świadome włączenie rozszerzenia;
+   usunięcie wpisu = zwykły HOI4 bez DLL. Dwuklik launchera pozostaje drugim trybem.
+   Wymaga testu runtime: `%command%` wskazuje Paradox Launcher (`dowser.exe`), więc
+   launcher musi rozpoznać `hoi4.exe` utworzony przez ten Paradox Launcher (tylko
+   potomek procesu uruchomionego przez launcher, nie dowolny istniejący proces).
+3. **Kod publiczny, licencja MIT (wstępnie).** Umożliwia Certum Open Source / SignPath.
+4. **Nieznana wersja gry:** launcher uruchamia grę bez DLL i pokazuje jasny komunikat.
+5. **Tryb bez DLL:** decyzja root — skrypt wykrywa obecność natywnych capability;
+   bez nich pola in-place są ukryte, a stany/miasta/postacie działają przez
+   dotychczasowy edytor; nazwa kraju i pole tekstowe niedostępne z komunikatem.
+
+MP: nadal niezweryfikowane; test z drugim graczem po zakończeniu SP.
