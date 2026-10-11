@@ -6,7 +6,9 @@
 1. **Model:** pliki moda przez Steam Workshop + natywny launcher z GitHub Releases.
 2. **Sposób włączania DLL:** preferowany wpis launchera w opcjach uruchamiania Steam
    (`"…\RenameAnythingLauncher.exe" %command%`). Świadome włączenie rozszerzenia;
-   usunięcie wpisu = zwykły HOI4 bez DLL. Dwuklik launchera pozostaje drugim trybem.
+   usunięcie wpisu = zwykły HOI4 bez DLL. Drugi równorzędny tryb: skrót (np. na pulpicie) do launchera z tymi samymi
+   parametrami; launcher może oferować przycisk „Utwórz skrót”. Oba tryby
+   uruchamiają ten sam łańcuch Paradox Launcher → hoi4.exe.
    Wymaga testu runtime: `%command%` wskazuje Paradox Launcher (`dowser.exe`), więc
    launcher musi rozpoznać `hoi4.exe` utworzony przez ten Paradox Launcher (tylko
    potomek procesu uruchomionego przez launcher, nie dowolny istniejący proces).
