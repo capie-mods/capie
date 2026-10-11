@@ -359,8 +359,9 @@ struct Target { uptr gui{}, view{}; unsigned char dirty{}; };  // stack-only
 // means the field was unreadable.
 // The "gui" object at [idler+6B8] is NOT polymorphic (R4 review: 0x4E0-byte container built by
 // B614C0; offset 0 is data, not a vtable). gui_word0 is that raw data word, logged as-is.
-// gui_b8_rva is [obj+B8]-base: B614C0 stores the global image+3085170 there (B6156C lea /
-// B61573 mov) - a candidate structural pin, LOGGED ONLY until runtime confirms it.
+// gui_b8_rva is [obj+B8]-base (B614C0 stores image+3085170 there, B6156C/B61573). R5-NOTE-1:
+// 3085170 is a SHARED allocator global written by 11DF40 into every such container, so it does
+// not identify this object: diagnostic only, never a pin. Logged at rejects and once on success.
 inline constexpr uptr gui_structural_offset = 0xB8, gui_structural_rva = 0x3085170;
 struct ResolveDiag { Reject reject{Reject::none}; uptr observed_rva{}, expected_rva{}, slot_rva{}, gui_word0{}, gui_b8_rva{}; };
 
@@ -594,21 +595,40 @@ public:
              result == Tracker::Seed::seeded ? "seeded" : result == Tracker::Seed::observed ? "existing-seed-kept" : "seed-refused", rev);
         return result;
     }
-    bool on_dispatch(uptr window) noexcept {
+    // R5-MINOR-1: distinguish WHY an own Apply may not dispatch, so the bridge can forward a
+    // sentinel the script maps to an accurate message. Codes are the negative sentinel epochs:
+    //   stale (1)        -> rn_ip_cmd_epoch = -1: unseeded / jump / rollback suspicion / not an own
+    //                       visible editor. Fixed by Cancel + reopen (new prefill seed).
+    //   no_counter (2)   -> -2: the revision carrier is missing or unparsable. Reopen does NOT fix
+    //                       it (mod without the success counters, or an unreadable format).
+    //   cap_reached (3)  -> -3: counter at 999 (display/headroom limit). Reopen does NOT fix it.
+    enum class Verdict : unsigned { allowed = 0, stale = 1, no_counter = 2, cap_reached = 3 };
+    static const char* verdict_name(Verdict v) noexcept {
+        switch (v) {
+        case Verdict::allowed: return "apply-allowed";
+        case Verdict::no_counter: return "apply-rejected-no-counter";
+        case Verdict::cap_reached: return "apply-rejected-cap";
+        default: return "apply-rejected-stale";
+        }
+    }
+    Verdict on_dispatch_verdict(uptr window) noexcept {
         OwnWindow own{};
         u64 rev = 0;
-        const bool readable = inspect(env_.mem(), env_.image(), window, own) == WindowKind::visible &&
-                              model_specs[own.model].role == Role::editor &&
-                              read_revision(own.root, model_specs[own.model].carrier, rev);
-        bool allowed = false;
+        const bool own_editor = inspect(env_.mem(), env_.image(), window, own) == WindowKind::visible &&
+                                model_specs[own.model].role == Role::editor;
+        const bool counter = own_editor && read_revision(own.root, model_specs[own.model].carrier, rev);
+        Verdict verdict = Verdict::stale;
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (readable) allowed = tracker_.dispatch_allowed(model_specs[own.model].field, rev);
-            else tracker_.count_dispatch_reject();
+            if (!own_editor) tracker_.count_dispatch_reject();
+            else if (!counter) { tracker_.count_dispatch_reject(); verdict = Verdict::no_counter; }
+            else if (rev >= max_revision) { tracker_.count_dispatch_reject(); verdict = Verdict::cap_reached; }
+            else if (tracker_.dispatch_allowed(model_specs[own.model].field, rev)) verdict = Verdict::allowed;
         }
-        if (!allowed) line("dispatch", own.model, "apply-rejected-no-valid-seed", rev);
-        return allowed;
+        if (verdict != Verdict::allowed) line("dispatch", own.model, verdict_name(verdict), rev);
+        return verdict;
     }
+    bool on_dispatch(uptr window) noexcept { return on_dispatch_verdict(window) == Verdict::allowed; }
     bool dispatch_allowed(Field f, u64 rev_now) noexcept { std::lock_guard<std::mutex> lock(mutex_); return tracker_.dispatch_allowed(f, rev_now); }
     Tracker snapshot() noexcept { std::lock_guard<std::mutex> lock(mutex_); return tracker_; }
 
@@ -639,7 +659,9 @@ private:
             reject_line(own.model, reject_name(pre), plan.serial, diag);
             return;
         }
-        { std::lock_guard<std::mutex> lock(mutex_); tracker_.called(plan.serial); }
+        bool first_success = false;
+        { std::lock_guard<std::mutex> lock(mutex_); tracker_.called(plan.serial); first_success = !resolved_once_; resolved_once_ = true; }
+        if (first_success) diag_line(own.model, "resolve-ok-first", plan.serial, diag);
         // No lock is held across the native call. Exactly one call per plan.
         const bool returned = env_.call_refresh(before.gui, politics_view_index);
         Outcome outcome = Outcome::ok;
@@ -669,6 +691,9 @@ private:
     // Bounded vtable/slot diagnostic for a rejecting resolve: observed/expected RVA relative to
     // module base, plus the raw gui word 0 and the +B8 structural candidate (logged, not gates).
     void reject_line(std::size_t model, const char* detail, u64 serial, const ResolveDiag& diag) noexcept {
+        diag_line(model, detail, serial, diag);
+    }
+    void diag_line(std::size_t model, const char* detail, u64 serial, const ResolveDiag& diag) noexcept {
         char text[400]{};
         std::snprintf(text, sizeof(text),
                       "RN_CAPTION event=precall model=%s detail=%s serial=%llu observed_vt_rva=0x%llX expected_vt_rva=0x%llX "
@@ -682,7 +707,7 @@ private:
     Env& env_;
     std::mutex mutex_;
     Tracker tracker_;
-    bool invalid_[model_count]{}, carrier_bad_[model_count]{};
+    bool invalid_[model_count]{}, carrier_bad_[model_count]{}, resolved_once_{};
 };
 
 // Hook body shape: forward to the original exactly once, unconditionally and first,

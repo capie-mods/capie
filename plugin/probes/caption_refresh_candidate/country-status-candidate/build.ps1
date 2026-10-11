@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$MinHookDir,
-    [string]$VisualStudioDir = ''
+    [string]$VisualStudioDir = '',
+    [string]$Python = 'C:\Users\user\miniconda3\python.exe'
 )
 # SEPARATE candidate: country DLL with the CAPIE status text. Stages a copy of plugin/src, applies
 # country_status.patch (the accepted plugin/src/country.cpp is never edited), builds the DLL into
@@ -56,4 +57,7 @@ try {
     & (Join-Path $out 'protocol_test.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Protocol tests failed' }
 } finally { Pop-Location }
+# R5-MINOR-2: the language choice of the status text (gen.py patch) is proven offline.
+& $Python -I (Join-Path $PSScriptRoot 'check_status_localisation.py')
+if ($LASTEXITCODE -ne 0) { throw 'Status localisation check failed' }
 Write-Output "Built SEPARATE country status candidate (not deployed): $dllPath"

@@ -57,12 +57,15 @@ void caption_prefill(void* window,std::size_t model) noexcept {
     if(!caption_armed.load(std::memory_order_acquire) || model>1) return;
     caption_service.on_prefill(reinterpret_cast<rn::caption::uptr>(window));
 }
-bool caption_dispatch_allowed(void* context,std::size_t model) noexcept {
-    if(!caption_armed.load(std::memory_order_acquire) || model>1) return true;  // disarmed/country: unchanged
+// 0 = allowed; otherwise the sentinel code (epoch -code): 1 stale (Cancel+reopen fixes it),
+// 2 revision counter missing/unreadable, 3 counter at the 999 limit (reopen does NOT fix 2/3).
+unsigned caption_dispatch_verdict(void* context,std::size_t model) noexcept {
+    if(!caption_armed.load(std::memory_order_acquire) || model>1) return 0;  // disarmed/country: unchanged
     void* window=nullptr;
-    if(!member(context,0x10,window)) return false;
-    return caption_service.on_dispatch(reinterpret_cast<rn::caption::uptr>(window));
+    if(!member(context,0x10,window)) return 1;                               // fail-closed
+    return static_cast<unsigned>(caption_service.on_dispatch_verdict(reinterpret_cast<rn::caption::uptr>(window)));
 }
+bool caption_dispatch_allowed(void* context,std::size_t model) noexcept { return caption_dispatch_verdict(context,model)==0; }
 void caption_tick(void* window) noexcept {
     if(caption_armed.load(std::memory_order_acquire)) caption_service.on_tick(reinterpret_cast<rn::caption::uptr>(window));
 }
@@ -146,12 +149,14 @@ unsigned focus_verify(const unsigned char* base,const IMAGE_SECTION_HEADER* text
 
 STALE_BLOCK = r'''
 // ===== RN6 stale-editor sentinel (generated; see make_armed_bridge.py) =====
-// Instead of a silent drop, an own Apply whose editor lifecycle no longer matches the live
-// widget (failed re-prefill after a panel reopen, or an unseeded caption field) is forwarded with
-// ONLY the original non-reserved records plus rn_ip_cmd_epoch = -1 (raw -100000). No payload,
-// no capability. The script guard returns 8 before any write and the status line shows
-// "This editor is out of date. Cancel and open it again." Requires a fresh, visible own editor
-// window of the same model (otherwise the drop stays, logged).
+// Instead of a silent drop, an own Apply that may not dispatch is forwarded with ONLY the
+// original non-reserved records plus rn_ip_cmd_epoch = -code (raw -code*100000). No payload, no
+// capability. The script guard rejects it (8) before any write and shows a cause-specific line:
+//   -1 stale: lifecycle no longer matches the widget (failed re-prefill, unseeded field) ->
+//      "This editor is out of date. Cancel and open it again."
+//   -2 no counter: revision carrier missing/unreadable (reopen does not help).
+//   -3 counter limit: 999 successful renames of this field in this save (reopen does not help).
+// Requires a fresh, visible own editor window of the same model (otherwise the drop stays, logged).
 bool stale_eligible(void* context,std::size_t model) noexcept {
     void* window=nullptr; View view{};
     if(!member(context,0x10,window)) return false;
@@ -160,8 +165,10 @@ bool stale_eligible(void* context,std::size_t model) noexcept {
         reinterpret_cast<std::uintptr_t>(context)==address+0x110 &&
         inspect_window(window,view)==ViewResult::visible && view.model==model;
 }
-bool dispatch_stale(Origin& current,void* opaque_selector) noexcept {
+// code: 1 stale (Cancel+reopen), 2 no revision counter, 3 counter limit. Sent as epoch -code.
+bool dispatch_stale(Origin& current,void* opaque_selector,unsigned code) noexcept {
     const auto context_address=reinterpret_cast<std::uintptr_t>(current.context);
+    if(code<1 || code>3) code=1;
     if(!original_ctor || current.model>=model_count || context_address>(std::numeric_limits<std::uintptr_t>::max)()-0x470) return false;
     current.scope=reinterpret_cast<const void*>(context_address+0x3C0);
     current.source=reinterpret_cast<const TempVector*>(context_address+0x470);
@@ -180,12 +187,12 @@ bool dispatch_stale(Origin& current,void* opaque_selector) noexcept {
     epoch={};
     std::memcpy(epoch.key.data.small,command_epoch_key,sizeof(command_epoch_key)-1);
     epoch.key.size=sizeof(command_epoch_key)-1; epoch.key.capacity=15;
-    epoch.raw_value=-fixed_point;
+    epoch.raw_value=-static_cast<std::int64_t>(code)*fixed_point;
     current.view={current.records,static_cast<std::int32_t>(kept),static_cast<std::int32_t>(kept),source.allocator};
     char line[256]{};
     std::snprintf(line,sizeof(line),
-        "RN_IEBR id=%lu model=%s stale-sentinel epoch=-1 kept=%zu sanitized=%zu; editor out of date, no payload\r\n",
-        current.id,models[current.model].name,kept-1,sanitized);
+        "RN_IEBR id=%lu model=%s stale-sentinel epoch=-%u reason=%s kept=%zu sanitized=%zu; no payload\r\n",
+        current.id,models[current.model].name,code,code==2?"no-counter":code==3?"counter-limit":"stale",kept-1,sanitized);
     write_log(line);
     {
         OriginFrame frame(&current);
@@ -230,7 +237,8 @@ EDITS = [
     ("    original_bind(window);\n    if(!active.load(std::memory_order_acquire)) return;\n",
      "    original_bind(window);\n    if(!active.load(std::memory_order_acquire)) return;\n    caption_bind(window);\n    focus_bind(window);\n"),
     ("    Origin current{};\n    current.context=context; current.model_name=model_name; current.selector=selector; current.model=model;\n",
-     "    const bool caption_ok=caption_dispatch_allowed(context,model);\n"
+     "    const unsigned caption_code=caption_dispatch_verdict(context,model);\n"
+     "    const bool caption_ok=caption_code==0;\n"
      "    if(!caption_ok) bridge_rejected(observation_id.fetch_add(1)+1,\"caption-seed-gate-apply-rejected\");\n"
      "    Origin current{};\n    current.context=context; current.model_name=model_name; current.selector=selector; current.model=model;\n"),
     ('        const auto same_name=GetModuleHandleW(L"rename_anything_inline_editor_debug_bridge.dll");\n',
@@ -263,7 +271,7 @@ EDITS = [
      "    if(!stale && original_ctor && !capture_fields(current,snapshots)) stale=true;\n"
      "    if(stale) {\n"
      "        // RN6: never drop an own Apply silently while its own editor window is live.\n"
-     "        if(stale_eligible(context,model) && dispatch_stale(current,opaque_selector)) return;\n"
+     "        if(stale_eligible(context,model) && dispatch_stale(current,opaque_selector,caption_ok?1u:caption_code)) return;\n"
      "        bridge_rejected(current.id,\"own-action-dropped-before-dispatch\"); return;\n    }\n"
      "    if(!original_ctor || !prepare_transport(current,snapshots) || !still_current(current,snapshots)) {\n"
      "        bridge_rejected(current.id,\"own-action-dropped-before-dispatch\"); return;\n    }\n"),
