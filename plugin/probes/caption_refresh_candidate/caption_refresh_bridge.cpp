@@ -385,8 +385,9 @@ void reset_model(std::size_t model,bool hidden) noexcept {
     AcquireSRWLockExclusive(&state_lock);
     auto& state=lifecycle[model];
     if(hidden) {
-        // A valid bound root was merely hidden. Retain this opening's draft/readiness.
-        if(state.visible) ++state.generation;
+        // Panel close replaces the editor widget on reopen; re-prefill on next show so Apply
+        // is not silently dropped (RN3 PID3044). Draft is intentionally dropped.
+        if(state.visible) { ++state.generation; state.attempted=false; state.prefilled=false; }
         state.visible=false;
     } else {
         // An invalid root/epoch cannot authorize input. Same-epoch recovery must

@@ -128,3 +128,22 @@ moves away. No script flag, epoch or draft write; draft compared before/after; n
 across the call. Every transition is logged (`RN_FOCUS`) with parent/root/desired/B78 copies so
 runtime can confirm or refute the focus hypothesis. OPEN: no native caller passes nullptr; the
 PID49352 log contains a hide->re-show cycle WITHOUT our focus (see report).
+
+## Revision 5 (PID3044 runtime)
+
+- Caption `gui-vt` guard was a runtime false-negative: the live GameGui at `[idler+6B8]` is a
+  more-derived singleton whose offset-0 vtable is not the plain CGameGui `294A688` (RTTI-confirmed
+  that `294A688` IS CGameGui). `B6E210`/`B674F0` read only `gui+C8`, so `gui-vt` is now
+  DIAGNOSTIC ONLY; the gui identity is closed by the idler round-trip (`gui+180==idler`) and the
+  politics-view checks (`view` vtable, `view+38==gui`, `view+570==idler`). Every `precall` reject
+  now logs `observed_vt_rva` / `expected_vt_rva` / `slot_rva` / `gui_vt_rva` for the next run.
+- RN3 silent Apply drop on reopen: a panel close hides the editor root with flag/epoch kept and
+  the reopen rebuilds the edit widget, so the retained `prefilled` made Apply drop with
+  `own-edit-identity-visibility-text`. The generated bridge now clears `attempted`/`prefilled` on a
+  real visible->hidden transition so the next show re-prefills in the same lifecycle (draft
+  dropped), and Apply works. OPEN: if re-prefill itself fails (focused draft), feedback to the
+  player needs a script-visible flag (no command from the observer bridge) — Script/UI task.
+- Focus release stays as diagnostic (`RN_FOCUS ... own_focus=0 ... no call` in PID3044).
+- `rn_editor_cap` capability signal: designed, NOT implemented this round (see report) — the useful
+  injection point is the Open command, and extending the accepted transport to Open selectors
+  (which also executes over MP) requires its own review/runtime.
