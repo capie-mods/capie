@@ -65,10 +65,15 @@ New source also exports the read-only `RNCountryCapabilities()` query. It return
 `0x524E4301` only after successful initialization, and zero before initialization
 or after a rejected initialization. Module presence or a saved country flag is
 insufficient. The isolated `plugin/build/country-capability` candidate passed
-31 protocol checks and the wrong-host negative test; positive in-game querying
-and an inline caller are not yet verified. Earlier accepted binaries do not
-include this export. The query does not write to saves or establish multiplayer
-compatibility.
+31 protocol checks and the wrong-host negative test. In PID42200 the isolated
+five-field inline caller passed its live country transport: both names, all64
+character slots, matching command/opening epoch and cap1 reached one native
+constructor with independent storage. That caller checks the versioned export
+twice before dispatch; the game log observes its marker, not a separate export
+trace. This is log-only acceptance, without a real inline rename or game save.
+See [the audit](../docs/evidence/session-20261011/day2-unified-country-transport-audit.json).
+Earlier accepted binaries do not include this export. The query does not write
+to saves or establish multiplayer compatibility.
 
 Initialization error codes: 10 unsupported executable hash, 11 wrong PE machine/header,
 12 missing `.text`, 20 wrong/ambiguous signature, 30 MinHook initialization failure,
