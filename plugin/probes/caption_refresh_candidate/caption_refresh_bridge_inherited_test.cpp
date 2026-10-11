@@ -430,10 +430,11 @@ int main() {
     check(prepare_transport(invalid,pair),"invalid B still carries rejection marker");
     check(raw(invalid,"rn_native_ok")==100000 && raw(invalid,"rn_native_len")==3200000,"valid A intact with invalid B");
     check(raw(invalid,"rn_nativeb_ok")==0 && raw(invalid,"rn_nativeb_len")==0,"invalid B header zero");
-    for(unsigned i=0;i<32;++i) {
+    for(unsigned i=0;i<31;++i) {
         char key[16]{}; std::snprintf(key,sizeof(key),"rn_nativeb_%u",i);
         check(raw(invalid,key)==0,"invalid B all slots zero");
     }
+    check(raw(invalid,"rn_nativeb_err")==200000,"invalid B carries InputError too_long in its last slot");
     auto leader=command(context,0);
     check(prepare_transport(leader,pair) && leader.view.count==36,"leader remains 35 fresh records");
     auto country=command(context,2);

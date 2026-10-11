@@ -193,6 +193,37 @@ void test_no_lock_across_call() {
     f->w.parent_flags(0); f->tick(0);
     CHECK(f->env.calls == 1 && progressed);
 }
+// R3-MINOR-3: parent bit 16 means hidden, same criterion as the caption core.
+void test_parent_bit16_hidden() {
+    Fixture f; f.w.focus(edit_of(0, 0)); f.tick(0);
+    f.w.parent_flags(8 | 16); f.tick(0);
+    CHECK(f.env.calls == 1 && f.env.logged("parent_flags=0x18") == 1);
+}
+
+// R4 planning: every editor-root visible->hidden transition is logged once with its source,
+// classified only from copied bits (parent detached / parent hidden / trigger false / own flags).
+void own_show(World& w, std::size_t e, unsigned char root_flags, unsigned char desired) {
+    w.m.put<unsigned char>(root_of(e) + rn::caption::off::root_flags, root_flags);
+    w.m.put<unsigned char>(window_of(e) + rn::caption::off::window_desired, desired);
+}
+void test_hide_source_log() {
+    struct Case { const char* source; std::function<void(World&)> hide; };
+    const std::vector<Case> cases = {
+        {"source=parent-hidden", [](World& w) { w.parent_flags(0); own_show(w, 0, 0x10, 1); }},
+        {"source=own-trigger-false", [](World& w) { own_show(w, 0, 0x10, 0); }},
+        {"source=parent-detached", [](World& w) { w.m.put<uptr>(window_of(0) + rn::caption::off::window_parent, 0); own_show(w, 0, 0x10, 1); }},
+        {"source=own-root-flags", [](World& w) { own_show(w, 0, 8 | 16, 1); }},
+    };
+    for (const auto& c : cases) {
+        Fixture f; own_show(f.w, 0, 8, 1); f.tick(0, 2);
+        CHECK(f.env.logged("RN_HIDE") == 0);
+        c.hide(f.w); f.tick(0, 5);
+        CHECK(f.env.logged("RN_HIDE") == 1 && f.env.logged(c.source) == 1 && f.rel.counters().root_hides == 1);
+    }
+    Fixture g; g.env.arm = false; own_show(g.w, 0, 8, 1); g.tick(0); own_show(g.w, 0, 0x10, 0); g.tick(0);
+    CHECK(g.env.logged("RN_HIDE") == 0);                       // disarmed: nothing
+}
+
 int exe_check(const char* path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) { std::printf("EXE check SKIPPED\n"); return 0; }
@@ -228,6 +259,8 @@ int main(int argc, char** argv) {
     test_disarmed_bind_invalid();
     test_failures_and_draft();
     test_no_lock_across_call();
+    test_parent_bit16_hidden();
+    test_hide_source_log();
     if (argc > 1) exe_check(argv[1]);
     std::printf("focus release tests: %d checks, %d failures\n", checks, failures);
     std::fflush(stdout);

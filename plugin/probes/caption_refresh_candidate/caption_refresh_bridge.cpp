@@ -1141,7 +1141,8 @@ bool record_key(const Record& record,char (&out)[129]) noexcept {
 bool reserved_key(const char* key) noexcept {
     if(std::strcmp(key,"rn_native_ok")==0 || std::strcmp(key,"rn_native_len")==0 ||
        std::strcmp(key,"rn_nativeb_ok")==0 || std::strcmp(key,"rn_nativeb_len")==0 ||
-       std::strcmp(key,"rn_native_cap")==0 || std::strcmp(key,command_epoch_key)==0) return true;
+       std::strcmp(key,"rn_native_cap")==0 || std::strcmp(key,command_epoch_key)==0 ||
+       std::strcmp(key,"rn_native_err")==0 || std::strcmp(key,"rn_nativeb_err")==0) return true;
     for(unsigned i=0;i<32;++i) {
         char expected[16]{}; std::snprintf(expected,sizeof(expected),"rn_native_%u",i);
         if(std::strcmp(key,expected)==0) return true;
@@ -1203,8 +1204,13 @@ bool prepare_transport(Origin& current,const InputSnapshot (&snapshots)[2]) noex
         std::snprintf(key,sizeof(key),"%s_len",prefix);
         if(!transport_record(current.records[kept++],key,field.length)) return false;
         for(unsigned i=0;i<32;++i) {
-            std::snprintf(key,sizeof(key),"%s_%u",prefix,i);
-            if(!transport_record(current.records[kept++],key,field.codes[i])) return false;
+            // RN6: invalid field => no codes; its last slot carries the InputError instead
+            // (rn_native_err / rn_nativeb_err: 1 empty, 2 too long, 3..6 character). Budget unchanged.
+            const bool error_slot=i==31 && !encoded.value;
+            if(error_slot) std::snprintf(key,sizeof(key),"%s_err",prefix);
+            else std::snprintf(key,sizeof(key),"%s_%u",prefix,i);
+            const std::uint64_t value=error_slot?static_cast<std::uint64_t>(encoded.error):field.codes[i];
+            if(!transport_record(current.records[kept++],key,value)) return false;
         }
         char line[512]{};
         std::snprintf(line,sizeof(line),
@@ -1345,6 +1351,57 @@ void __fastcall execute_observed(void* command) {
         write_log(line);
     }
 }
+
+// ===== RN6 stale-editor sentinel (generated; see make_armed_bridge.py) =====
+// Instead of a silent drop, an own Apply whose editor lifecycle no longer matches the live
+// widget (failed re-prefill after a panel reopen, or an unseeded caption field) is forwarded with
+// ONLY the original non-reserved records plus rn_ip_cmd_epoch = -1 (raw -100000). No payload,
+// no capability. The script guard returns 8 before any write and the status line shows
+// "This editor is out of date. Cancel and open it again." Requires a fresh, visible own editor
+// window of the same model (otherwise the drop stays, logged).
+bool stale_eligible(void* context,std::size_t model) noexcept {
+    void* window=nullptr; View view{};
+    if(!member(context,0x10,window)) return false;
+    const auto address=reinterpret_cast<std::uintptr_t>(window);
+    return address && address<=(std::numeric_limits<std::uintptr_t>::max)()-0x110 &&
+        reinterpret_cast<std::uintptr_t>(context)==address+0x110 &&
+        inspect_window(window,view)==ViewResult::visible && view.model==model;
+}
+bool dispatch_stale(Origin& current,void* opaque_selector) noexcept {
+    const auto context_address=reinterpret_cast<std::uintptr_t>(current.context);
+    if(!original_ctor || current.model>=model_count || context_address>(std::numeric_limits<std::uintptr_t>::max)()-0x470) return false;
+    current.scope=reinterpret_cast<const void*>(context_address+0x3C0);
+    current.source=reinterpret_cast<const TempVector*>(context_address+0x470);
+    TempVector source{};
+    if(!guarded_copy(&source,current.source,sizeof(source)) || source.count<0 ||
+       source.count>static_cast<int>(max_original_records) || source.capacity<source.count || source.capacity>65536 ||
+       !readable(source.data,static_cast<std::size_t>(source.count)*sizeof(Record))) return false;
+    std::size_t kept=0,sanitized=0;
+    for(int i=0;i<source.count;++i) {
+        Record record{}; char key[129]{};
+        if(!guarded_copy(&record,source.data+i,sizeof(record)) || !record_key(record,key)) return false;
+        if(reserved_key(key)) { ++sanitized; continue; }
+        current.records[kept++]=record;
+    }
+    Record& epoch=current.records[kept++];
+    epoch={};
+    std::memcpy(epoch.key.data.small,command_epoch_key,sizeof(command_epoch_key)-1);
+    epoch.key.size=sizeof(command_epoch_key)-1; epoch.key.capacity=15;
+    epoch.raw_value=-fixed_point;
+    current.view={current.records,static_cast<std::int32_t>(kept),static_cast<std::int32_t>(kept),source.allocator};
+    char line[256]{};
+    std::snprintf(line,sizeof(line),
+        "RN_IEBR id=%lu model=%s stale-sentinel epoch=-1 kept=%zu sanitized=%zu; editor out of date, no payload\r\n",
+        current.id,models[current.model].name,kept-1,sanitized);
+    write_log(line);
+    {
+        OriginFrame frame(&current);
+        original_dispatch(current.context,opaque_selector);
+    }
+    if(current.ctor_calls!=1) bridge_rejected(current.id,"stale-sentinel-unexpected-ctor-count-no-retry");
+    return true;
+}
+// ===== end stale-editor sentinel =====
 void __fastcall dispatch_observed(void* context,void* opaque_selector) {
     const auto* selector=static_cast<const MsvcString*>(opaque_selector);
     if(active.load(std::memory_order_acquire)) debug_own_action(context,selector);
@@ -1352,15 +1409,20 @@ void __fastcall dispatch_observed(void* context,void* opaque_selector) {
     if(!active.load(std::memory_order_acquire) || !own_commit(context,selector,model_name,model)) {
         original_dispatch(context,opaque_selector); return;
     }
-    if(!caption_dispatch_allowed(context,model)) {
-        bridge_rejected(observation_id.fetch_add(1)+1,"caption-seed-gate-apply-dropped"); return;
-    }
+    const bool caption_ok=caption_dispatch_allowed(context,model);
+    if(!caption_ok) bridge_rejected(observation_id.fetch_add(1)+1,"caption-seed-gate-apply-rejected");
     Origin current{};
     current.context=context; current.model_name=model_name; current.selector=selector; current.model=model;
     current.id=observation_id.fetch_add(1)+1;
     InputSnapshot snapshots[2]{};
-    if(!original_ctor || !capture_fields(current,snapshots) || !prepare_transport(current,snapshots) ||
-       !still_current(current,snapshots)) {
+    bool stale=!caption_ok;
+    if(!stale && original_ctor && !capture_fields(current,snapshots)) stale=true;
+    if(stale) {
+        // RN6: never drop an own Apply silently while its own editor window is live.
+        if(stale_eligible(context,model) && dispatch_stale(current,opaque_selector)) return;
+        bridge_rejected(current.id,"own-action-dropped-before-dispatch"); return;
+    }
+    if(!original_ctor || !prepare_transport(current,snapshots) || !still_current(current,snapshots)) {
         bridge_rejected(current.id,"own-action-dropped-before-dispatch"); return;
     }
     {
@@ -1549,7 +1611,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
         focus_switch = reinterpret_cast<FocusSwitch>(image_base + rn::focus::rva::focus_switch);
         focus_armed.store(true, std::memory_order_release);
         active.store(true, std::memory_order_release);
-        write_log("RN_DEBUG initialized format=1 ring=256 ttl_ms=10000 models=7 selectors=10 fields=5; exact image + 11 unique fingerprints; 7 hooks; caption refresh armed (25 caption FP, 4 slot pins, 2 tokens, B6E210(gui,12) only, seed gate on leader/party Apply); focus release on politics hide (8 FP, 2 slot pins, 225E320(manager,null) once per transition); own copied history, scalar remote requests, fresh post-Tick snapshots, observed Execute; dispatch is not execution and Execute is not effect success; no auto-Apply/focus/Escape\r\n");
+        write_log("RN_DEBUG initialized format=1 ring=256 ttl_ms=10000 models=7 selectors=10 fields=5; exact image + 11 bridge + 25 caption + 8 focus unique fingerprints; 7 shared hooks; caption refresh armed (25 caption FP, 4 slot pins, 2 tokens, B6E210(gui,12) only, seed gate on leader/party Apply); focus release on politics hide (8 FP, 2 slot pins, 225E320(manager,null) once per transition); own copied history, scalar remote requests, fresh post-Tick snapshots, observed Execute; dispatch is not execution and Execute is not effect success; no auto-Apply, no synthetic input, focus only released (never set) on politics hide, Escape not handled; stale Apply -> epoch -1 sentinel; invalid field -> rn_native(b)_err\r\n");
         return 0;
     } catch (...) { return 99; }
 }

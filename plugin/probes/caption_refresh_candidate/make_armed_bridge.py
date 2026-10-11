@@ -144,6 +144,59 @@ unsigned focus_verify(const unsigned char* base,const IMAGE_SECTION_HEADER* text
 // ===== end focus release =====
 '''
 
+STALE_BLOCK = r'''
+// ===== RN6 stale-editor sentinel (generated; see make_armed_bridge.py) =====
+// Instead of a silent drop, an own Apply whose editor lifecycle no longer matches the live
+// widget (failed re-prefill after a panel reopen, or an unseeded caption field) is forwarded with
+// ONLY the original non-reserved records plus rn_ip_cmd_epoch = -1 (raw -100000). No payload,
+// no capability. The script guard returns 8 before any write and the status line shows
+// "This editor is out of date. Cancel and open it again." Requires a fresh, visible own editor
+// window of the same model (otherwise the drop stays, logged).
+bool stale_eligible(void* context,std::size_t model) noexcept {
+    void* window=nullptr; View view{};
+    if(!member(context,0x10,window)) return false;
+    const auto address=reinterpret_cast<std::uintptr_t>(window);
+    return address && address<=(std::numeric_limits<std::uintptr_t>::max)()-0x110 &&
+        reinterpret_cast<std::uintptr_t>(context)==address+0x110 &&
+        inspect_window(window,view)==ViewResult::visible && view.model==model;
+}
+bool dispatch_stale(Origin& current,void* opaque_selector) noexcept {
+    const auto context_address=reinterpret_cast<std::uintptr_t>(current.context);
+    if(!original_ctor || current.model>=model_count || context_address>(std::numeric_limits<std::uintptr_t>::max)()-0x470) return false;
+    current.scope=reinterpret_cast<const void*>(context_address+0x3C0);
+    current.source=reinterpret_cast<const TempVector*>(context_address+0x470);
+    TempVector source{};
+    if(!guarded_copy(&source,current.source,sizeof(source)) || source.count<0 ||
+       source.count>static_cast<int>(max_original_records) || source.capacity<source.count || source.capacity>65536 ||
+       !readable(source.data,static_cast<std::size_t>(source.count)*sizeof(Record))) return false;
+    std::size_t kept=0,sanitized=0;
+    for(int i=0;i<source.count;++i) {
+        Record record{}; char key[129]{};
+        if(!guarded_copy(&record,source.data+i,sizeof(record)) || !record_key(record,key)) return false;
+        if(reserved_key(key)) { ++sanitized; continue; }
+        current.records[kept++]=record;
+    }
+    Record& epoch=current.records[kept++];
+    epoch={};
+    std::memcpy(epoch.key.data.small,command_epoch_key,sizeof(command_epoch_key)-1);
+    epoch.key.size=sizeof(command_epoch_key)-1; epoch.key.capacity=15;
+    epoch.raw_value=-fixed_point;
+    current.view={current.records,static_cast<std::int32_t>(kept),static_cast<std::int32_t>(kept),source.allocator};
+    char line[256]{};
+    std::snprintf(line,sizeof(line),
+        "RN_IEBR id=%lu model=%s stale-sentinel epoch=-1 kept=%zu sanitized=%zu; editor out of date, no payload\r\n",
+        current.id,models[current.model].name,kept-1,sanitized);
+    write_log(line);
+    {
+        OriginFrame frame(&current);
+        original_dispatch(current.context,opaque_selector);
+    }
+    if(current.ctor_calls!=1) bridge_rejected(current.id,"stale-sentinel-unexpected-ctor-count-no-retry");
+    return true;
+}
+// ===== end stale-editor sentinel =====
+'''
+
 EDITS = [
     # RN3 (PID3044): a panel close hides the own editor root and reopen rebuilds the edit widget
     # with the SAME flag/epoch. Keeping prefilled across the hide made Apply drop silently with
@@ -177,8 +230,8 @@ EDITS = [
     ("    original_bind(window);\n    if(!active.load(std::memory_order_acquire)) return;\n",
      "    original_bind(window);\n    if(!active.load(std::memory_order_acquire)) return;\n    caption_bind(window);\n    focus_bind(window);\n"),
     ("    Origin current{};\n    current.context=context; current.model_name=model_name; current.selector=selector; current.model=model;\n",
-     "    if(!caption_dispatch_allowed(context,model)) {\n"
-     "        bridge_rejected(observation_id.fetch_add(1)+1,\"caption-seed-gate-apply-dropped\"); return;\n    }\n"
+     "    const bool caption_ok=caption_dispatch_allowed(context,model);\n"
+     "    if(!caption_ok) bridge_rejected(observation_id.fetch_add(1)+1,\"caption-seed-gate-apply-rejected\");\n"
      "    Origin current{};\n    current.context=context; current.model_name=model_name; current.selector=selector; current.model=model;\n"),
     ('        const auto same_name=GetModuleHandleW(L"rename_anything_inline_editor_debug_bridge.dll");\n',
      f'        const auto same_name=GetModuleHandleW(L"{DLL}");\n'),
@@ -199,9 +252,51 @@ EDITS = [
      "        active.store(true, std::memory_order_release);\n"),
     ("own copied history, scalar remote requests",
      "caption refresh armed (25 caption FP, 4 slot pins, 2 tokens, B6E210(gui,12) only, seed gate on leader/party Apply); focus release on politics hide (8 FP, 2 slot pins, 225E320(manager,null) once per transition); own copied history, scalar remote requests"),
+    # RN6 stale sentinel: capture failure on a fresh visible own editor (failed re-prefill) or an
+    # unseeded caption field forwards rn_ip_cmd_epoch=-1 instead of a silent drop.
+    ("    InputSnapshot snapshots[2]{};\n"
+     "    if(!original_ctor || !capture_fields(current,snapshots) || !prepare_transport(current,snapshots) ||\n"
+     "       !still_current(current,snapshots)) {\n"
+     "        bridge_rejected(current.id,\"own-action-dropped-before-dispatch\"); return;\n    }\n",
+     "    InputSnapshot snapshots[2]{};\n"
+     "    bool stale=!caption_ok;\n"
+     "    if(!stale && original_ctor && !capture_fields(current,snapshots)) stale=true;\n"
+     "    if(stale) {\n"
+     "        // RN6: never drop an own Apply silently while its own editor window is live.\n"
+     "        if(stale_eligible(context,model) && dispatch_stale(current,opaque_selector)) return;\n"
+     "        bridge_rejected(current.id,\"own-action-dropped-before-dispatch\"); return;\n    }\n"
+     "    if(!original_ctor || !prepare_transport(current,snapshots) || !still_current(current,snapshots)) {\n"
+     "        bridge_rejected(current.id,\"own-action-dropped-before-dispatch\"); return;\n    }\n"),
+    ("void __fastcall dispatch_observed(void* context,void* opaque_selector) {\n",
+     STALE_BLOCK + "void __fastcall dispatch_observed(void* context,void* opaque_selector) {\n"),
+    # RN6 error codes inside the unchanged record budget: an invalid field carries no codes, so its
+    # unused last slot carries the encoder InputError as rn_native_err / rn_nativeb_err.
+    ("        for(unsigned i=0;i<32;++i) {\n"
+     "            std::snprintf(key,sizeof(key),\"%s_%u\",prefix,i);\n"
+     "            if(!transport_record(current.records[kept++],key,field.codes[i])) return false;\n",
+     "        for(unsigned i=0;i<32;++i) {\n"
+     "            // RN6: invalid field => no codes; its last slot carries the InputError instead\n"
+     "            // (rn_native_err / rn_nativeb_err: 1 empty, 2 too long, 3..6 character). Budget unchanged.\n"
+     "            const bool error_slot=i==31 && !encoded.value;\n"
+     "            if(error_slot) std::snprintf(key,sizeof(key),\"%s_err\",prefix);\n"
+     "            else std::snprintf(key,sizeof(key),\"%s_%u\",prefix,i);\n"
+     "            const std::uint64_t value=error_slot?static_cast<std::uint64_t>(encoded.error):field.codes[i];\n"
+     "            if(!transport_record(current.records[kept++],key,value)) return false;\n"),
+    ("       std::strcmp(key,\"rn_native_cap\")==0 || std::strcmp(key,command_epoch_key)==0) return true;\n",
+     "       std::strcmp(key,\"rn_native_cap\")==0 || std::strcmp(key,command_epoch_key)==0 ||\n"
+     "       std::strcmp(key,\"rn_native_err\")==0 || std::strcmp(key,\"rn_nativeb_err\")==0) return true;\n"),
+    # R3-MINOR-1 init line truthfulness.
+    ("exact image + 11 unique fingerprints; 7 hooks; ",
+     "exact image + 11 bridge + 25 caption + 8 focus unique fingerprints; 7 shared hooks; "),
+    ("; no auto-Apply/focus/Escape\\r\\n",
+     "; no auto-Apply, no synthetic input, focus only released (never set) on politics hide, Escape not handled; stale Apply -> epoch -1 sentinel; invalid field -> rn_native(b)_err\\r\\n"),
 ]
 TEST_EDITS = [
     ('#include "inline_editor_debug_bridge.cpp"\n', '#include "caption_refresh_bridge.cpp"\n'),
+    # RN6: an invalid field's last slot is rn_nativeb_err (InputError) instead of a zero code.
+    ('    for(unsigned i=0;i<32;++i) {\n        char key[16]{}; std::snprintf(key,sizeof(key),"rn_nativeb_%u",i);\n        check(raw(invalid,key)==0,"invalid B all slots zero");\n    }\n',
+     '    for(unsigned i=0;i<31;++i) {\n        char key[16]{}; std::snprintf(key,sizeof(key),"rn_nativeb_%u",i);\n        check(raw(invalid,key)==0,"invalid B all slots zero");\n    }\n'
+     '    check(raw(invalid,"rn_nativeb_err")==200000,"invalid B carries InputError too_long in its last slot");\n'),
     ('LoadLibraryW(L"rename_anything_inline_editor_debug_bridge.dll")', f'LoadLibraryW(L"{DLL}")'),
 ]
 

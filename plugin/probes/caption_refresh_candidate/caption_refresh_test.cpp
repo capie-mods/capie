@@ -70,7 +70,7 @@ struct World {
             mem.put<uptr>(image + pin.vtable + pin.slot, image + pin.target);
         }
         mem.add(fake_idler, 0x700); mem.put<uptr>(fake_idler, image + rva::vt_ingame_idler); mem.put<uptr>(fake_idler + off::idler_gui, fake_gui);
-        mem.add(fake_gui, 0x200); mem.put<uptr>(fake_gui, image + rva::vt_game_gui); mem.put<uptr>(fake_gui + off::gui_idler, fake_idler);
+        mem.add(fake_gui, 0x200); mem.put<uptr>(fake_gui + off::gui_idler, fake_idler);  // word 0 is data (non-polymorphic container)
         mem.put<uptr>(fake_gui + off::gui_views + 8 * 12, fake_view);
         mem.add(fake_view, 0x600); mem.put<uptr>(fake_view, image + rva::vt_politics_view);
         mem.put<uptr>(fake_view + off::view_observer, image + rva::vt_politics_observer);
@@ -511,13 +511,16 @@ void test_guard_rejections() {
         CHECK(r == m.expected);
         CHECK(t.gui == 0 && t.view == 0);
     }
-    // gui vtable is diagnostic-only (PID3044): a wrong gui vtable does NOT reject, and the diag
-    // records its RVA. A vt mismatch elsewhere fills observed/expected RVA for the log.
+    // The gui object is non-polymorphic (R4): word 0 is data and never gates; it and the +B8
+    // structural candidate are copied for the log. A vt mismatch elsewhere fills observed/expected.
     {
         World w; Target t{}; ResolveDiag diag{};
-        w.mem.put<uptr>(fake_gui, image + 0x9999);  // "derived" gui vtable
+        w.mem.put<uptr>(fake_gui, 0x0000123400005678ull);                        // arbitrary data word
+        w.mem.put<uptr>(fake_gui + gui_structural_offset, image + gui_structural_rva);
         CHECK(resolve(w.mem, image, window_addr(LE), t, &diag) == Reject::none && t.gui == fake_gui);
-        CHECK(diag.gui_vt_rva == 0x9999 && diag.reject == Reject::none);
+        CHECK(diag.gui_word0 == 0x0000123400005678ull && diag.gui_b8_rva == gui_structural_rva && diag.reject == Reject::none);
+        w.mem.put<uptr>(fake_gui + gui_structural_offset, 0);                      // candidate pin absent: still no gate
+        CHECK(resolve(w.mem, image, window_addr(LE), t, &diag) == Reject::none && diag.gui_b8_rva == 0);
     }
     {
         World w; Target t{}; ResolveDiag diag{};
@@ -624,6 +627,38 @@ void test_counter_format_0_999() {
         CHECK(!parse_revision(bad, std::strlen(bad), v));
 }
 
+// N05: a launcher is never an Apply origin, even when its field IS seeded.
+void test_dispatch_from_launcher_seeded() {
+    Fixture f; f.env.rev_field(Field::leader, "4"); f.open(LE);
+    CHECK(f.apply_gate(LE));                                   // editor origin allowed
+    f.close(LE); f.world.show(LL, true); f.tick(LL);
+    CHECK(f.t().state(Field::leader).seeded);
+    CHECK(!f.apply_gate(LL));                                  // launcher origin rejected
+}
+
+// N08: literal headroom: 998 may Apply (999 still representable), 999 may not.
+void test_headroom_literal() {
+    Tracker t;
+    t.seed(Field::leader, 998);
+    CHECK(t.dispatch_allowed(Field::leader, 998));
+    t.seed(Field::party, 999);
+    CHECK(!t.dispatch_allowed(Field::party, 999));
+    u64 v = 0;
+    CHECK(parse_revision("999", 3, v) && v == 999 && !parse_revision("1000", 4, v));
+}
+
+// N10: a valid Bind clears the invalid latch, so a later invalid context resets/logs again.
+void test_bind_clears_invalid_latch() {
+    Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE);
+    const uptr ctx_window = window_addr(LL) + off::window_context + off::context_window;
+    f.world.mem.put<uptr>(ctx_window, 0); f.tick(LL);            // invalid #1
+    CHECK(f.t().counters().invalid_resets == 1);
+    f.world.mem.put<uptr>(ctx_window, window_addr(LL));
+    f.svc.on_bind(window_addr(LL));                              // valid bind clears the latch
+    f.world.mem.put<uptr>(ctx_window, 0); f.tick(LL);            // invalid #2 without a valid tick between
+    CHECK(f.t().counters().invalid_resets == 2 && f.env.logged("invalid-context-reset") == 2);
+}
+
 void test_forward_order_and_once() {
     std::vector<int> order;
     auto orig = [&](int v) { order.push_back(v); };
@@ -717,6 +752,9 @@ int main(int argc, char** argv) {
     test_prefill_before_tick_after_rollback();
     test_minimal_guard_matrix();
     test_counter_format_0_999();
+    test_dispatch_from_launcher_seeded();
+    test_headroom_literal();
+    test_bind_clears_invalid_latch();
     test_forward_order_and_once();
     test_fingerprint_table();
     if (argc > 1) exe_check(argv[1]);
