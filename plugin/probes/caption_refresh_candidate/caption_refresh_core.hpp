@@ -467,12 +467,27 @@ template <class M> WindowKind inspect(const M& mem, uptr image, uptr window, Own
 //   * Equal/higher counter after a hypothetical bindless load is ACCEPTED: the worst case is
 //     one extra or one missed B6E210 dirty request (a plain native panel refresh, as when
 //     reopening the panel); never a write, command or retry. World identity stays OPEN and
-//     the authority gate stays closed until it is proven.
+//     no country/world authority is required (see "Minimal refresh guard" below).
 // Env must provide (all noexcept):
 //   const M& mem() ; uptr image();
 //   bool carrier(uptr root, const char* name, char* out, size_t cap, size_t& size)  // fresh lookup
 //   bool call_refresh(uptr gui, int index)   // SEH-guarded B6E210; false = fault
-//   bool authority_proven()                  // OPEN in shipped build => false
+//   bool refresh_armed()                     // operational arm switch: false in the inactive
+//                                            // shell, true only after the armed bridge verified all pins
+//
+// Minimal refresh guard (replaces the former "authority" requirement). A B6E210 request is
+// issued only when ALL hold, freshly in the same post-Tick call on the UI thread:
+//   1. the field was seeded by the bridge prefill (own editor opening) in this bind generation;
+//   2. the script success counter of that field increased above the acked value (and is not
+//      under rollback/stale suspicion);
+//   3. the ticking window is one of our 4 own player_context/politics_tab models, visible;
+//   4. resolve(): its idler/manager/GameGui/politics view chain is consistent and the window's
+//      parent IS the current politics view root (same GUI/view the editor lives in).
+// Why a false positive is harmless: B6E210(gui,12) only sets view+44=1 if the politics view is
+// visible; the frame loop then calls the view's own observer (15863F0) which re-reads the
+// CURRENT data and rewrites captions/rows/portrait/chart, exactly as on panel reopen and as
+// 7 native callers already do. It takes no data argument, writes no game state, runs no command
+// and is local UI only (no MP sync). Worst case of a wrong guess: one redundant redraw.
 //   void log(const char* line)
 template <class Env> class Service {
 public:
@@ -536,6 +551,8 @@ public:
             return Tracker::Seed::refused_bad;
         }
         const auto f = model_specs[own.model].field;
+        // The bridge prefill runs before this Tick's on_tick: register the opening edge first.
+        { std::lock_guard<std::mutex> lock(mutex_); tracker_.visibility(own.model, true); }
         if (!read_revision(own.root, model_specs[own.model].carrier, rev)) {
             { std::lock_guard<std::mutex> lock(mutex_); tracker_.seed(f, max_revision + 1); }  // counted refusal
             line("prefill", own.model, "seed-carrier-rejected-apply-blocked", 0);
@@ -579,9 +596,9 @@ private:
         Plan plan{};
         { std::lock_guard<std::mutex> lock(mutex_); plan = tracker_.plan(); }
         if (!plan.valid) return;
-        if (!env_.authority_proven()) {  // OPEN: country/world authority decoder not proven
+        if (!env_.refresh_armed()) {  // operational switch, not an authority proof
             { std::lock_guard<std::mutex> lock(mutex_); tracker_.precall_rejected(plan.serial); }
-            line("plan", own.model, "authority-open-no-call", plan.serial);
+            line("plan", own.model, "disarmed-no-call", plan.serial);
             return;
         }
         Target before{};
