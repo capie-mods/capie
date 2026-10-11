@@ -27,3 +27,10 @@ MP: nadal niezweryfikowane; test z drugim graczem po zakończeniu SP.
    2026-10-11: country-capability, inline-editor-debug-bridge, inline-editor-render-bridge,
    launcher-candidate, caption-refresh-candidate — „found no threats” (Defender,
    skan custom; nie jest to wynik wielu silników ani heurystyk chmurowych VT).
+7. **Zgoda użytkownika (2026-10-11):** upload finalnych artefaktów wydania do VirusTotal
+   „jak przyjdzie na to pora”. Dotyczy wyłącznie plików wydania; każdy upload odnotować
+   w release notes.
+8. **Bootstrap CLI w PowerShell** (jedna linijka w terminalu), interaktywnie: (a) czy
+   zainstalować launcher/DLL, (b) czy dodać launcher do opcji uruchamiania Steam —
+   z jasną informacją, że gra z DLL nie jest deklarowana jako zgodna z MP, dopóki
+   wpis nie zostanie cofnięty; plus tryb odinstalowania/cofnięcia.
