@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-"""Require a docstring under every module-level constant.
+"""Require a docstring under every module-level constant and complete function docstrings.
 
 Ruff has no rule that asks for documentation of module constants, so this
-script fills that gap. A constant is a module-level assignment (plain ``=`` or
+script fills that gap. It also closes a second gap: ruff's ``D417`` checks the
+parameter names only when a docstring already has an ``Args:`` section, and
+the pydoclint ``DOC201`` rule only looks at ``return`` statements. Here every
+function or method (nested ones included) whose signature has parameters other
+than ``self``/``cls`` must have an ``Args:`` section, and every function whose
+return annotation is not ``None`` must have a ``Returns:`` or ``Yields:``
+section. Together with ``D417`` and ``DOC*`` that makes every parameter and
+return value documented. A constant is a module-level assignment (plain ``=`` or
 annotated) whose target name is written in UPPER_CASE, optionally with one
 leading underscore. The statement right after it must be a bare string
 literal, the "attribute docstring" form from PEP 257 that Sphinx and most
@@ -23,9 +30,10 @@ checks the same files as ``ruff check``. File or folder arguments replace that
 default set (the excludes still apply to folders, not to files named
 explicitly).
 
-Each missing docstring is printed as ``path:line: NAME has no docstring``,
-followed by a summary line. The exit code is 1 when something is missing or a
-file cannot be parsed, and 0 otherwise.
+Each missing docstring is printed as ``path:line: NAME has no docstring``, each
+incomplete function docstring as ``path:line: name() docstring has no Args
+section`` (or ``Returns``), followed by a summary line. The exit code is 1
+when something is missing or a file cannot be parsed, and 0 otherwise.
 
 Usage::
 
@@ -49,6 +57,15 @@ CONSTANT_NAME = re.compile(r"_?[A-Z][A-Z0-9_]*")
 
 SKIPPED_DIR_NAMES = frozenset({"__pycache__"})
 """Folder names never searched, in addition to every folder starting with a dot."""
+
+IMPLICIT_PARAMETERS = frozenset({"self", "cls"})
+"""Parameters that never need an ``Args:`` entry."""
+
+ARGS_SECTION = "Args:"
+"""Google-style docstring section that documents parameters."""
+
+RESULT_SECTIONS = ("Returns:", "Yields:")
+"""Google-style docstring sections that document a return value."""
 
 
 def ruff_excludes(root: Path) -> list[str]:
@@ -174,6 +191,58 @@ def missing_docstrings(tree: ast.Module) -> list[tuple[int, str]]:
     return missing
 
 
+def parameter_names(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+    """Return the parameters of a function that must be documented.
+
+    Args:
+        function: Function or method definition.
+
+    Returns:
+        Parameter names in signature order, without ``self`` and ``cls``.
+    """
+    arguments = function.args
+    names = [arg.arg for arg in [*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs]]
+    names += [arg.arg for arg in (arguments.vararg, arguments.kwarg) if arg is not None]
+    return [name for name in names if name not in IMPLICIT_PARAMETERS]
+
+
+def returns_value(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Return whether a function's annotation promises a value.
+
+    Args:
+        function: Function or method definition.
+
+    Returns:
+        False for a missing annotation and for ``-> None``, True otherwise.
+    """
+    annotation = function.returns
+    if annotation is None:
+        return False
+    return not (isinstance(annotation, ast.Constant) and annotation.value is None)
+
+
+def incomplete_docstrings(tree: ast.Module) -> list[tuple[int, str, str]]:
+    """Find functions whose docstring lacks an Args or Returns section.
+
+    Args:
+        tree: Parsed module.
+
+    Returns:
+        (line number, function name, missing section) triples in source order.
+    """
+    found: list[tuple[int, str, str]] = []
+    functions = [
+        node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    ]
+    for function in sorted(functions, key=lambda node: node.lineno):
+        docstring = ast.get_docstring(function) or ""
+        if parameter_names(function) and ARGS_SECTION not in docstring:
+            found.append((function.lineno, function.name, "Args"))
+        if returns_value(function) and not any(s in docstring for s in RESULT_SECTIONS):
+            found.append((function.lineno, function.name, "Returns"))
+    return found
+
+
 def display_path(path: Path, root: Path) -> str:
     """Return a path relative to the repository root when possible.
 
@@ -197,7 +266,10 @@ def main() -> int:
         0 when every constant is documented, 1 otherwise.
     """
     parser = argparse.ArgumentParser(
-        description="Require a docstring under every module-level UPPER_CASE constant."
+        description=(
+            "Require a docstring under every module-level UPPER_CASE constant and "
+            "Args/Returns sections in every function docstring."
+        )
     )
     parser.add_argument("paths", nargs="*", type=Path, help="files or folders (default: repo)")
     args = parser.parse_args()
@@ -214,6 +286,9 @@ def main() -> int:
             continue
         for line, name in missing_docstrings(tree):
             print(f"{shown}:{line}: {name} has no docstring")
+            problems += 1
+        for line, name, section in incomplete_docstrings(tree):
+            print(f"{shown}:{line}: {name}() docstring has no {section} section")
             problems += 1
     print(f"{len(files)} files checked, {problems} problems")
     return 1 if problems else 0

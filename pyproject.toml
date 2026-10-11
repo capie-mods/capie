@@ -19,6 +19,7 @@ pygments-paradox-script = { path = "sites/shared/pygments-paradox", editable = t
 
 [dependency-groups]
 dev = [
+    "pytest>=8.4",
     "ruff>=0.17.0",
     "ty>=0.0.86",
 ]
@@ -34,6 +35,10 @@ observe = [
 
 [tool.ruff]
 target-version = "py313"
+# The scripts in tools/ import the sibling packages modgen/ and rncommon/ (and the tests
+# their helper package inline_checks/) through sys.path[0]; list those roots so the import
+# sorter classifies them as first-party.
+src = [".", "tools", "tools/tests"]
 # 100 instead of 88: the generators build long Paradox-script lines out of f-string pieces.
 line-length = 100
 # Python only. Ruff 0.17 also formats code blocks inside Markdown by default; the docs and
@@ -54,6 +59,12 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = ["ALL"]
+# pydoclint (DOC) rules are still preview rules in ruff 0.17. `preview` with
+# `explicit-preview-rules` enables exactly the DOC codes listed below and no other preview
+# rule, so Returns/Yields/Raises sections are checked against the function bodies.
+preview = true
+explicit-preview-rules = true
+extend-select = ["DOC102", "DOC201", "DOC202", "DOC402", "DOC403", "DOC501", "DOC502"]
 ignore = [
     # Copyright/licence headers are not used in this repository (explicitly excluded by the owner).
     "CPY",
@@ -71,12 +82,12 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # `assert` is the check mechanism of these scripts: a failed contract raises AssertionError,
 # which the probe checkers catch and report as FAIL. They are never run with `python -O`.
-# gen.py asserts invariants of its own constant tables (character set, UI strings).
 "tools/audit-debug-bridge.py" = ["S101"]
-"tools/gen.py" = ["S101"]
 "probes/rn_inline_pair_apply_source/*.py" = ["S101"]
-# The integrated in-place editor test reuses that ApplyVM and reports a failed contract the same way.
-"tools/tests/check_inline_editor.py" = ["S101"]
+# The integrated in-place editor test (entry point and its inline_checks package) reuses that
+# ApplyVM and reports a failed contract the same way. The pytest unit tests use bare `assert`,
+# which is pytest's assertion API.
+"tools/tests/**/*.py" = ["S101"]
 # check.py prints file paths exactly as glob/os.path produce them and relies on glob.glob
 # ordering; pathlib would change separators, sort order and dot-file matching in its output.
 "tools/check.py" = ["PTH100", "PTH110", "PTH112", "PTH118", "PTH119", "PTH120", "PTH207"]
@@ -91,7 +102,9 @@ python-version = "3.13"
 python-platform = "win32"
 # probes/rn_inline_pair_apply_source/check.py imports the sibling fixture's checker as `check`
 # after inserting this directory into sys.path at runtime; mirror that for type checking.
-extra-paths = ["probes/rn_inline_pair_qa/tools"]
+# tools/ (modgen, rncommon) and tools/tests (inline_checks) are the import roots of the tool
+# scripts and of the pytest unit tests.
+extra-paths = ["probes/rn_inline_pair_qa/tools", "tools", "tools/tests"]
 
 [tool.ty.src]
 # Same exclusions, and the same reasons, as [tool.ruff] extend-exclude above.
@@ -108,3 +121,11 @@ all = "error"
 
 [tool.ty.terminal]
 error-on-warning = true
+
+[tool.pytest.ini_options]
+# Unit tests of the generator slices and the shared helpers. The scripts are not an installed
+# package, so the import roots of tools/ (modgen, rncommon) and tools/tests (inline_checks)
+# are put on sys.path the same way the scripts find them at runtime.
+testpaths = ["tools/tests"]
+pythonpath = ["tools", "tools/tests"]
+addopts = ["-p", "no:cacheprovider"]
