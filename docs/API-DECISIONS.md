@@ -76,3 +76,12 @@ Odpowiedzi użytkownika na punkty badania architektury
   regułą gry ustawianą w lobby (decyzja 7) — zaakceptowane.
 - Uprawnienia sprawdzane w samym efekcie skryptu (Execute nie weryfikuje nadawcy ani
   triggerów visible/enabled).
+
+## Repozytoria (utworzone 2026-10-11, puste, PRIVATE, konto SirCypkowskyy)
+
+- `capie` — DLL, launcher, bootstrap, dokumentacja CAPIE (`sites/capie`).
+- `capie-script-sdk` — skryptowe SDK CAPIE (osobny przedmiot Workshop).
+- `capie-design` — wspólny design system (`docs/design/`).
+- `hoi4-rename-anything` — mod (bez zmian).
+Podział kodu z historią (`git filter-repo`) na etapie 4 roadmapy; przeniesienie do
+organizacji po zakończeniu, po potwierdzeniu użytkownika.
