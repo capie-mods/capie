@@ -25,7 +25,11 @@ MinHook source checkout. Run from PowerShell:
 .\plugin\build.ps1 -MinHookDir 'C:\path\to\minhook'
 ```
 
-Optional `-VisualStudioDir` selects another VS 2022 installation. The script builds
+Optional `-VisualStudioDir` selects another VS 2022 installation. Use an explicit
+`-OutputDirectory` for a candidate build that must preserve earlier binaries;
+the default remains `plugin/build`. Building over a DLL currently loaded by HOI4
+is refused. Project C++ compiles with `/W4 /WX`.
+The script builds
 MinHook from source into the DLL, links the MSVC runtime statically, and runs the
 18 field checks and 13 localization-boundary checks. Outputs are ignored by Git under `plugin/build/`:
 
@@ -56,6 +60,15 @@ Run the injector once per process. Restart the game before updating or rebuildin
 an already loaded DLL. A timed-out remote call reports uncertain state, leaves any
 still-needed argument allocation until process exit, and requires a game restart
 before retry. It never waits indefinitely or unloads a partially initialized DLL.
+
+New source also exports the read-only `RNCountryCapabilities()` query. It returns
+`0x524E4301` only after successful initialization, and zero before initialization
+or after a rejected initialization. Module presence or a saved country flag is
+insufficient. The isolated `plugin/build/country-capability` candidate passed
+31 protocol checks and the wrong-host negative test; positive in-game querying
+and an inline caller are not yet verified. Earlier accepted binaries do not
+include this export. The query does not write to saves or establish multiplayer
+compatibility.
 
 Initialization error codes: 10 unsupported executable hash, 11 wrong PE machine/header,
 12 missing `.text`, 20 wrong/ambiguous signature, 30 MinHook initialization failure,

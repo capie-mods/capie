@@ -1,6 +1,7 @@
 // HOI4 1.19.3.0 only. Reversible in-memory localization hooks; no game-file writes.
 #include "image_guard.hpp"
 #include "protocol.hpp"
+#include "country_capability.hpp"
 #include <MinHook.h>
 #include <atomic>
 #include <cstring>
@@ -79,6 +80,12 @@ bool unique_signature(const unsigned char* base, const IMAGE_SECTION_HEADER* tex
     }
     return matches == 1;
 }
+}
+
+// Read-only capability query for a future inline country editor. Loading the DLL
+// alone is insufficient; failed/unstarted initialization always reports zero.
+extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
+    return active.load(std::memory_order_acquire) ? rn::country_capabilities_v1 : 0;
 }
 
 // The injector invokes this explicitly outside DllMain. Return values are in README.
