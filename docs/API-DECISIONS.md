@@ -57,5 +57,12 @@ Odpowiedzi użytkownika na punkty badania architektury
    Steam użytkownik uruchamia wyłącznie sam.
 9. CI na komputerze użytkownika (self-hosted, z zainstalowaną grą).
 10. Po patchu gry mają działać wszystkie funkcje, a nie podzbiór; preferencja, by nie
-    wydawać nowej wersji, gdy patch nie łamie używanych miejsc (decyzja w toku — patrz niżej).
+    wydawać nowej wersji, gdy patch nie łamie używanych miejsc. **Decyzja: wariant (a)** —
+    przy nieznanym SHA gry CAPIE uruchamia w runtime skaner sygnatur; wszystkie funkcje
+    włącza tylko, gdy KAŻDY wzorzec (funkcje i offsety struktur w kodzie) jest jednoznaczny,
+    a hookowany kod bajtowo identyczny z przetestowanym; inaczej CAPIE się nie włącza
+    (wszystko albo nic) i gra działa bez niej z komunikatem. Na niezweryfikowanej wersji gry
+    widoczny dyskretny znacznik. Domyślnie opcja wyłączona, włączana przez gracza
+    (rekomendacja root; do zmiany na prośbę użytkownika). Zmienia decyzję dystrybucji nr 4
+    tylko w trybie włączonym.
 11. `versions.json`: w repo (podpisany) i dołączany do wydania.
