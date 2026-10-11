@@ -96,7 +96,7 @@ recovering an earlier cosmetic tag; other mods that use cosmetic tags may confli
 With the DLL loaded before loading the save, a full game restart preserved the
 custom country name on the map, in diplomacy and in its tooltip without another
 Apply (PID 42732, Polish UI). The saved adjective also remained in the mod panel;
-its native event context is tested separately in the [report](../docs/test-report.md).
+its native event context still awaits its separate live test in the [report](../docs/test-report.md).
 Without the native component, retaining the RN1 tag and falling back to original
 localization remains the expected behavior pending the uninstall/load check.
 

@@ -5,6 +5,12 @@
 #include <iostream>
 #include <vector>
 
+// Development probes compile this injector with one different, fixed DLL name.
+// The pinned executable and duplicate-module guards remain shared.
+#ifndef RN_EXPECTED_DLL_NAME
+#define RN_EXPECTED_DLL_NAME L"rename_anything_country.dll"
+#endif
+
 namespace {
 uintptr_t module_address(DWORD pid, const wchar_t* name) {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
@@ -39,8 +45,8 @@ int wmain(int argc, wchar_t** argv) {
     if (!pid_long || *end) { std::wcerr << L"Invalid PID\n"; return 2; }
     const DWORD pid = static_cast<DWORD>(pid_long);
     const auto dll = std::filesystem::absolute(argv[2]);
-    if (!std::filesystem::is_regular_file(dll) || dll.filename() != L"rename_anything_country.dll") {
-        std::wcerr << L"Expected the built rename_anything_country.dll\n"; return 2;
+    if (!std::filesystem::is_regular_file(dll) || dll.filename() != RN_EXPECTED_DLL_NAME) {
+        std::wcerr << L"Expected the built " << RN_EXPECTED_DLL_NAME << L"\n"; return 2;
     }
     HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_CREATE_THREAD |
         PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ, FALSE, pid);
@@ -106,6 +112,6 @@ int wmain(int argc, wchar_t** argv) {
         std::wcerr << L"RNInitialize refused/failed; code=" << status << L". Restart game before retry.\n";
         return 14;
     }
-    std::wcout << L"Country hooks initialized in PID " << pid << L"; game files unchanged.\n";
+    std::wcout << RN_EXPECTED_DLL_NAME << L" initialized in PID " << pid << L"; game files unchanged.\n";
     return 0;
 }
