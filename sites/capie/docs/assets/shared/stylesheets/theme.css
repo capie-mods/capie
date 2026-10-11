@@ -1,0 +1,544 @@
+/*
+ * Shared theme for the CAPIE and Rename Anything documentation sites.
+ * Source: sites/shared/theme/stylesheets/theme.css. Copied into each site by
+ * sites/shared/sync_shared.py; edit the source, not the copies.
+ *
+ * Every colour comes from tokens.css (generated from docs/design/tokens.json),
+ * except the light-scheme page colours marked "derived": the design system
+ * defines only the game's dark panels, so the light scheme uses parchment and
+ * ink shades mixed from those tokens to keep WCAG AA contrast.
+ *
+ * Rules from docs/design/DESIGN-SYSTEM.md applied here: flat (no shadows, no
+ * glow, no gradients), near-square corners, olive for actions, brass for the
+ * native layer, signal colours only for state, motion only with
+ * prefers-reduced-motion: no-preference.
+ */
+
+/* ---------- Both schemes ---------- */
+
+:root {
+  --md-text-font-family: var(--capie-font-sans);
+  --md-code-font-family: var(--capie-font-mono);
+
+  /* Header and tabs: the game's outer frame in both schemes. */
+  --md-primary-fg-color: var(--capie-window-ink);
+  --md-primary-fg-color--light: var(--capie-panel-umber);
+  --md-primary-fg-color--dark: var(--capie-window-ink);
+  --md-primary-bg-color: var(--capie-parchment);
+  --md-primary-bg-color--light: var(--capie-khaki);
+}
+
+/* Code blocks stay a recessed dark plate in both schemes, like a game text field.
+   Scoped to the scheme attribute so it wins over the theme's per-scheme palette. */
+[data-md-color-scheme="default"],
+[data-md-color-scheme="slate"] {
+  --md-code-fg-color: var(--capie-parchment);
+  --md-code-bg-color: var(--capie-field-ink);
+  --md-code-hl-color: var(--capie-brass);
+  --md-code-hl-color--light: rgb(208 160 112 / 14%);
+  --md-code-hl-comment-color: var(--capie-ash);
+  --md-code-hl-keyword-color: var(--capie-brass);
+  --md-code-hl-name-color: var(--capie-parchment);
+  --md-code-hl-variable-color: var(--capie-khaki);
+  --md-code-hl-function-color: var(--capie-header-amber);
+  --md-code-hl-constant-color: var(--capie-header-amber);
+  --md-code-hl-number-color: var(--capie-header-amber);
+  --md-code-hl-string-color: #b3c48e; /* derived: olive-lit lightened to 8:1 on field-ink */
+  --md-code-hl-special-color: var(--capie-caution-orange);
+  --md-code-hl-operator-color: var(--capie-ash);
+  --md-code-hl-punctuation-color: var(--capie-ash);
+  --md-code-hl-generic-color: var(--capie-khaki);
+}
+
+/* ---------- Dark scheme: the game's panels ---------- */
+
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: var(--capie-panel-umber);
+  --md-default-bg-color--light: rgb(39 36 33 / 54%);
+  --md-default-bg-color--lighter: rgb(39 36 33 / 26%);
+  --md-default-bg-color--lightest: rgb(39 36 33 / 7%);
+  --md-default-fg-color: var(--capie-parchment);
+  --md-default-fg-color--light: var(--capie-khaki);
+  --md-default-fg-color--lighter: var(--capie-ash);
+  --md-default-fg-color--lightest: rgb(236 230 211 / 12%);
+
+  --md-typeset-color: var(--capie-parchment);
+  --md-typeset-a-color: var(--capie-brass);
+  --md-accent-fg-color: var(--capie-header-amber);
+  --md-accent-fg-color--transparent: rgb(255 189 0 / 10%);
+  --md-typeset-mark-color: rgb(208 160 112 / 30%);
+  --md-typeset-table-color: var(--capie-panel-rim);
+  --md-typeset-table-color--light: rgb(60 57 54 / 35%);
+  --md-typeset-kbd-color: var(--capie-olive-button);
+  --md-typeset-kbd-accent-color: var(--capie-olive-lit);
+  --md-typeset-kbd-border-color: var(--capie-window-ink);
+  --md-admonition-bg-color: var(--capie-field-ink);
+  --md-admonition-fg-color: var(--capie-parchment);
+  --md-footer-bg-color: var(--capie-window-ink);
+  --md-footer-bg-color--dark: var(--capie-window-ink);
+  --md-shadow-z1: none;
+  --md-shadow-z2: none;
+  --md-shadow-z3: none;
+
+  --site-label-color: var(--capie-header-amber);
+  --site-muted: var(--capie-ash);
+  --site-surface: var(--capie-field-ink);
+  --site-rim: var(--capie-panel-rim);
+  --site-ok: var(--capie-go-green);
+  --site-progress: var(--capie-header-amber);
+  --site-planned: var(--capie-brass);
+  --site-not: var(--capie-caution-orange);
+
+  /* Zensical "modern" variant colour channels. */
+  --color-foreground: 236 230 211;
+  --color-background: 39 36 33;
+  --color-background-subtle: 22 20 18;
+  --color-backdrop: 15 14 13;
+}
+
+/* ---------- Light scheme: parchment and ink (derived) ---------- */
+
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #f6f2e7; /* derived: parchment lifted towards white */
+  --md-default-bg-color--light: rgb(246 242 231 / 70%);
+  --md-default-bg-color--lighter: rgb(246 242 231 / 30%);
+  --md-default-bg-color--lightest: rgb(246 242 231 / 12%);
+  --md-default-fg-color: #1d1a17; /* derived: between window-ink and field-ink */
+  --md-default-fg-color--light: #4f483e; /* derived: khaki darkened, 8.4:1 */
+  --md-default-fg-color--lighter: #6f6656; /* derived: ash darkened, 5.3:1 */
+  --md-default-fg-color--lightest: rgb(29 26 23 / 10%);
+
+  --md-typeset-color: #1d1a17;
+  --md-typeset-a-color: #7a5322; /* derived: brass darkened to 6.4:1 on the page */
+  --md-accent-fg-color: #5c3d14;
+  --md-accent-fg-color--transparent: rgb(122 83 34 / 10%);
+  --md-typeset-mark-color: rgb(208 160 112 / 40%);
+  --md-typeset-table-color: #ddd4bf;
+  --md-typeset-table-color--light: rgb(221 212 191 / 40%);
+  --md-typeset-kbd-color: #ece6d3;
+  --md-typeset-kbd-accent-color: #fbf8f0;
+  --md-typeset-kbd-border-color: #b8ad95;
+  --md-admonition-bg-color: #efe9da;
+  --md-admonition-fg-color: #1d1a17;
+  --md-footer-bg-color: var(--capie-window-ink);
+  --md-footer-bg-color--dark: var(--capie-window-ink);
+  --md-shadow-z1: none;
+  --md-shadow-z2: none;
+  --md-shadow-z3: none;
+
+  --site-label-color: #7a5400; /* derived: header-amber darkened for text on parchment */
+  --site-muted: #6f6656;
+  --site-surface: #efe9da;
+  --site-rim: #ddd4bf;
+  --site-ok: #3d6b2a; /* derived: go-green darkened, 5.9:1 */
+  --site-progress: #7a5400;
+  --site-planned: #7a5322;
+  --site-not: #a33a0c; /* derived: warning-rust darkened, 6.1:1 */
+
+  --color-foreground: 29 26 23;
+  --color-background: 246 242 231;
+  --color-background-subtle: 239 233 218;
+  --color-backdrop: 221 212 191;
+}
+
+/* ---------- Typography ---------- */
+
+.md-typeset {
+  font-size: 0.8rem;
+  line-height: 1.65;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-typeset h4,
+[data-md-color-scheme="slate"] .md-typeset h1,
+[data-md-color-scheme="slate"] .md-typeset h2,
+[data-md-color-scheme="slate"] .md-typeset h3 {
+  color: var(--md-typeset-color);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.md-typeset h1 {
+  font-size: 1.9em;
+  margin-bottom: 0.6em;
+}
+
+.md-typeset h2 {
+  border-top: 1px solid var(--site-rim);
+  padding-top: 0.9em;
+}
+
+.md-typeset h1 + h2,
+.md-typeset .md-content__inner > h2:first-child {
+  border-top: 0;
+}
+
+/* Label caps, the design system's section label. */
+.md-typeset .label-caps,
+.md-nav__item--section > .md-nav__link,
+.md-nav--primary .md-nav__title {
+  color: var(--site-label-color);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.md-typeset .lead {
+  color: var(--md-default-fg-color--light);
+  font-size: 1.08em;
+}
+
+.md-typeset a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, currentcolor 40%, transparent);
+}
+
+.md-typeset a:hover,
+.md-typeset a:focus-visible {
+  text-decoration-color: currentcolor;
+}
+
+.md-typeset .headerlink,
+.md-typeset .md-button {
+  text-decoration: none;
+}
+
+/* Inline code: a small recessed chip, light or dark with the page. */
+.md-typeset :not(pre) > code {
+  background: var(--site-surface);
+  border: 1px solid var(--site-rim);
+  border-radius: var(--capie-radius-node);
+  color: var(--md-default-fg-color);
+  padding: 0 0.3em;
+}
+
+/* Code blocks: field-ink plate with a panel-rim frame. */
+.md-typeset pre > code,
+.md-typeset .highlight pre {
+  border-radius: var(--capie-radius-node);
+}
+
+.md-typeset .highlight pre > code {
+  border: 1px solid var(--capie-panel-rim);
+}
+
+.md-typeset .highlight span.filename {
+  background: var(--capie-window-ink);
+  border-radius: var(--capie-radius-node) var(--capie-radius-node) 0 0;
+  border: 1px solid var(--capie-panel-rim);
+  border-bottom: 1px solid var(--capie-panel-rim);
+  color: var(--capie-khaki);
+  font-weight: 700;
+}
+
+/* Pygments tokens that the stock theme leaves at default. */
+.highlight .na { color: var(--capie-khaki); }
+.highlight .nn { color: var(--capie-ash); }
+.highlight .nf { color: var(--capie-brass); font-weight: 700; }
+.highlight .bp { color: var(--capie-header-amber); font-style: italic; }
+.highlight .kc { color: var(--capie-header-amber); }
+.highlight .kd { color: var(--capie-brass); }
+.highlight .nv { color: var(--capie-khaki); }
+.highlight .si { color: var(--capie-header-amber); }
+.highlight .se { color: var(--capie-caution-orange); }
+.highlight .ss { color: var(--capie-brass); }
+.highlight .c1,
+.highlight .c { font-style: italic; }
+
+/* ---------- Header, navigation, footer ---------- */
+
+.md-header {
+  border-bottom: 1px solid var(--site-rim);
+  box-shadow: none;
+}
+
+.md-header__title {
+  font-weight: 700;
+}
+
+.md-tabs {
+  background-color: var(--capie-window-ink);
+  border-bottom: 1px solid var(--capie-panel-rim);
+}
+
+.md-logo img,
+.md-header__button.md-logo img {
+  height: 1.4rem;
+  width: 1.4rem;
+}
+
+.md-nav__link--active,
+.md-nav__item .md-nav__link--active {
+  color: var(--md-typeset-a-color);
+  font-weight: 700;
+}
+
+.md-footer {
+  border-top: 1px solid var(--capie-panel-rim);
+}
+
+.md-footer-meta {
+  background-color: var(--capie-window-ink);
+}
+
+/* ---------- Admonitions ---------- */
+
+.md-typeset .admonition,
+.md-typeset details {
+  /* A full 1px frame in the token colour plus a tinted title row, like a game panel.
+     No thick side stripe: the design system frames boxes evenly (see "Shapes"). */
+  border: 1px solid var(--site-rim);
+  border-radius: var(--capie-radius-node);
+  box-shadow: none;
+  font-size: 0.78rem;
+}
+
+/* "Proposed" and "planned": dashed brass, the design system's planned look. */
+.md-typeset .admonition.proposed,
+.md-typeset .admonition.planned {
+  border-color: var(--capie-brass-dim);
+  border-style: dashed;
+}
+
+.md-typeset .proposed > .admonition-title,
+.md-typeset .planned > .admonition-title {
+  background-color: rgb(144 128 96 / 14%);
+}
+
+.md-typeset .proposed > .admonition-title::before,
+.md-typeset .planned > .admonition-title::before {
+  background-color: var(--site-planned);
+  mask-image: var(--md-admonition-icon--note);
+}
+
+/* "Works today": olive with the go-green signal. */
+.md-typeset .admonition.works {
+  border-color: var(--capie-pencil-green-lit);
+}
+
+.md-typeset .works > .admonition-title {
+  background-color: rgb(80 112 64 / 16%);
+}
+
+.md-typeset .works > .admonition-title::before {
+  background-color: var(--site-ok);
+  mask-image: var(--md-admonition-icon--success);
+}
+
+/* Warnings use the game's caution colours, never red. */
+.md-typeset .admonition.warning,
+.md-typeset .admonition.caution {
+  border-color: var(--capie-warning-rust);
+}
+
+.md-typeset .warning > .admonition-title,
+.md-typeset .caution > .admonition-title {
+  background-color: rgb(198 72 17 / 12%);
+}
+
+.md-typeset .warning > .admonition-title::before,
+.md-typeset .caution > .admonition-title::before {
+  background-color: var(--site-not);
+}
+
+.md-typeset .admonition.note,
+.md-typeset .admonition.info,
+.md-typeset .admonition.tip {
+  border-color: var(--capie-steel-bevel);
+}
+
+.md-typeset .note > .admonition-title,
+.md-typeset .info > .admonition-title,
+.md-typeset .tip > .admonition-title {
+  background-color: rgb(118 119 107 / 14%);
+}
+
+.md-typeset .note > .admonition-title::before,
+.md-typeset .info > .admonition-title::before,
+.md-typeset .tip > .admonition-title::before {
+  background-color: var(--md-default-fg-color--light);
+}
+
+/* ---------- Status marks (design system "Web: status marks") ---------- */
+
+.md-typeset .st {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 700;
+  gap: 0.4em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.md-typeset .st::before {
+  box-sizing: border-box;
+  content: "";
+  display: inline-block;
+  flex: none;
+  height: 10px;
+  width: 10px;
+}
+
+.md-typeset .st-today { color: var(--site-ok); }
+.md-typeset .st-today::before { background: var(--capie-pencil-green-lit); }
+
+.md-typeset .st-progress { color: var(--site-progress); }
+.md-typeset .st-progress::before { border: 1.5px solid var(--capie-header-amber); }
+
+.md-typeset .st-planned { color: var(--site-planned); }
+.md-typeset .st-planned::before { border: 1.5px dashed var(--capie-brass-dim); }
+
+.md-typeset .st-not { color: var(--site-not); }
+.md-typeset .st-not::before {
+  /* Outline with one diagonal, drawn as a tiny SVG (warning-rust #c64811). */
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M0 10 L10 0' stroke='%23c64811' stroke-width='1.5'/%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+  border: 1.5px solid var(--capie-warning-rust);
+}
+
+/* "Proposed, subject to change" tag placed above proposed code. */
+.md-typeset .proposed-tag {
+  border: 1px dashed var(--capie-brass-dim);
+  border-radius: var(--capie-radius-node);
+  color: var(--site-planned);
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.3em;
+  padding: 0.1em 0.6em;
+  text-transform: uppercase;
+}
+
+/* ---------- Tables ---------- */
+
+.md-typeset table:not([class]) {
+  border: 1px solid var(--site-rim);
+  border-radius: var(--capie-radius-node);
+  box-shadow: none;
+  font-size: 0.74rem;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--site-surface);
+  color: var(--md-default-fg-color);
+  font-weight: 700;
+}
+
+/* ---------- Diagrams ---------- */
+
+/* Diagrams are drawn on their own panel-umber canvas, so they read the same in both schemes. */
+.md-typeset figure.diagram {
+  margin: 1.6em 0;
+  max-width: 100%;
+}
+
+.md-typeset figure.diagram img {
+  border-radius: var(--capie-radius-panel);
+  display: block;
+  height: auto;
+  max-width: 100%;
+  width: 880px;
+}
+
+.md-typeset figure.diagram figcaption {
+  color: var(--site-muted);
+  font-size: 0.7rem;
+  margin-top: 0.6em;
+  max-width: 44rem;
+}
+
+/* ---------- Buttons ---------- */
+
+.md-typeset .md-button {
+  border-radius: var(--capie-radius-node);
+  border-width: 1px;
+  font-weight: 700;
+}
+
+.md-typeset .md-button--primary {
+  background-color: var(--capie-olive-button);
+  border-color: var(--capie-olive-lit);
+  color: var(--capie-parchment);
+}
+
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button--primary:focus-visible {
+  background-color: var(--capie-olive-lit);
+  border-color: var(--capie-pencil-green-lit);
+  color: var(--capie-parchment);
+}
+
+/* ---------- Motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Endorsement line on Rename Anything surfaces: "Built on CAPIE", tag style, smaller than the name. */
+.md-typeset .endorse {
+  color: var(--site-planned);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-top: -0.4em;
+  text-transform: uppercase;
+}
+
+/* ---------- Fixes found in the render check ---------- */
+
+/* One admonition surface for every type; the type shows only in the frame and title tint. */
+.md-typeset .admonition,
+.md-typeset details {
+  background-color: var(--md-admonition-bg-color);
+  color: var(--md-admonition-fg-color);
+}
+
+/* Status marks belong to the page, not to the table of contents or the navigation. */
+.md-nav .st,
+.md-search-result .st {
+  display: none;
+}
+
+/* Copy button: a quiet glyph on the code plate, no filled square. */
+.md-typeset .md-code__button,
+.md-typeset .md-clipboard {
+  background-color: transparent;
+  color: var(--capie-ash);
+}
+
+.md-typeset .md-code__button:hover,
+.md-typeset .md-clipboard:hover {
+  color: var(--capie-parchment);
+}
+
+.md-typeset .md-code__nav {
+  background-color: transparent;
+}
+
+/* Figures and captions are left-aligned like the text around them. */
+.md-typeset figure.diagram {
+  align-items: flex-start;
+  display: block;
+  text-align: left;
+}
+
+.md-typeset figure.diagram figcaption {
+  font-style: normal;
+  margin-left: 0;
+  text-align: left;
+}

@@ -1,0 +1,56 @@
+# TEMPLATE, NOT ACTIVE. GitHub Pages deployment for the CAPIE documentation.
+#
+# To use it: copy to .github/workflows/docs-capie.yml in the repository that hosts the site,
+# set site_url in sites/capie/zensical.toml to the real Pages address, and in the repository
+# settings choose Pages > Source: GitHub Actions.
+#
+# Paths assume today's monorepo layout (sites/capie, sites/shared, root pyproject.toml with the
+# `docs` dependency group). After the repository split, drop the `sites/capie/` prefix and point
+# the uv commands at that repository's own pyproject.toml.
+# Based on the workflow in Zensical's "Publish your site" guide; the build cache is not reused on
+# CI, as that guide recommends.
+
+name: Documentation (CAPIE)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sites/capie/**"
+      - "sites/shared/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-capie
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/configure-pages@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install uv
+      # Installs Zensical and the local Paradox script lexer (sites/shared/pygments-paradox).
+      - run: uv sync --locked --only-group docs
+      # Fails if the site copies of the shared theme drifted from sites/shared/theme.
+      - run: uv run --no-sync python sites/shared/sync_shared.py --check
+      - run: uv run --no-sync zensical build -f sites/capie/zensical.toml --clean --strict
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: sites/capie/site
+      - uses: actions/deploy-pages@v5
+        id: deployment

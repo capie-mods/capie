@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 330" width="880" height="330" role="img" aria-labelledby="t d">
+  <title id="t">Multiplayer level L0: lock and banner</title>
+  <desc id="d">Planned and not yet tested on two machines. Every command CAPIE annotates carries the CAPIE version. The command updates synchronised game state on every client. Until every human country has confirmed the same CAPIE build, all CAPIE features stay off for everyone and a banner names the players who have not confirmed. Shown here: players 1 and 2 have confirmed, player 3 has not, so the banner names player 3. When player 3 confirms, the features switch on for everyone.</desc>
+  <!-- Tokens: docs/design/tokens.json v1.2.0. Still on purpose: everything here is planned. -->
+  <style>
+    .canvas{fill:#272421}
+    .rim{fill:none;stroke:#3c3936;stroke-width:1}
+    .caps{font:700 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.14em;fill:#ffbd00}
+    .title{font:700 15px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ece6d3}
+    .body{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .cap{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#a39a86}
+    .warn{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ff7019}
+    .good{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#7db35a}
+    .tag{font:700 10px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.08em;fill:#d0a070}
+    .node{fill:#161412;stroke:#76776b;stroke-width:1.25}
+    .plan{fill:#161412;stroke:#908060;stroke-width:1.25;stroke-dasharray:5 4}
+    .fb{fill:#161412;stroke:#c64811;stroke-width:1.25;stroke-dasharray:5 4}
+    .ok{fill:#161412;stroke:#507040;stroke-width:1.75}
+    .wire{stroke:#908060;stroke-width:1.5;fill:none;stroke-dasharray:5 4}
+    .wire-off{stroke:#3c3936;stroke-width:1.5;fill:none;stroke-dasharray:2 4}
+  </style>
+
+  <rect class="canvas" width="880" height="330" rx="6"/>
+  <rect class="rim" x="8.5" y="8.5" width="863" height="313" rx="4"/>
+
+  <text class="caps" x="32" y="38">HUMAN PLAYERS</text>
+  <g transform="translate(632 56)">
+    <rect width="10" height="10" fill="none" stroke="#908060" stroke-dasharray="3 2"/>
+    <text class="tag" x="16" y="9">PLANNED, NOT TESTED</text>
+  </g>
+
+  <!-- Players -->
+  <rect class="node" x="32" y="56" width="176" height="56" rx="2"/>
+  <text class="title" x="46" y="80">Player 1 (host)</text>
+  <text class="body" x="46" y="100">CAPIE 1.0</text>
+  <rect class="node" x="232" y="56" width="176" height="56" rx="2"/>
+  <text class="title" x="246" y="80">Player 2</text>
+  <text class="body" x="246" y="100">CAPIE 1.0</text>
+  <rect class="node" x="432" y="56" width="176" height="56" rx="2"/>
+  <text class="title" x="446" y="80">Player 3</text>
+  <text class="body" x="446" y="100">confirms later</text>
+
+  <line class="wire" x1="120" y1="112" x2="120" y2="176"/>
+  <line class="wire" x1="320" y1="112" x2="320" y2="176"/>
+  <line class="wire-off" x1="520" y1="112" x2="520" y2="176"/>
+  <text class="cap" x="128" y="150">carries capie_ver</text>
+
+  <!-- Synchronised state -->
+  <rect class="plan" x="32" y="178" width="576" height="56" rx="2"/>
+  <text class="title" x="46" y="202">Synchronised game state</text>
+  <text class="body" x="46" y="222">the same script runs on every client</text>
+  <g transform="translate(330 196)">
+    <rect width="10" height="10" fill="#507040"/>
+    <text class="cap" x="16" y="9.5">P1</text>
+    <rect x="56" width="10" height="10" fill="#507040"/>
+    <text class="cap" x="72" y="9.5">P2</text>
+    <rect x="112.75" y=".75" width="8.5" height="8.5" fill="none" stroke="#a39a86" stroke-width="1.5"/>
+    <text class="cap" x="128" y="9.5">P3</text>
+  </g>
+
+  <!-- Result -->
+  <g>
+    <rect class="fb" x="32" y="254" width="816" height="50" rx="2"/>
+    <g transform="translate(46 269)">
+      <path d="M10 1.75 L18.75 17.5 L1.25 17.5 Z" fill="#c64811"/>
+      <rect x="9.1" y="6.5" width="1.8" height="6" fill="#ece6d3"/>
+      <rect x="9.1" y="13.9" width="1.8" height="1.8" fill="#ece6d3"/>
+    </g>
+    <text class="warn" x="76" y="284">CAPIE features are off in this session: Player 3 has not confirmed CAPIE 1.0.</text>
+  </g>
+
+  <text class="cap" x="636" y="160">When Player 3 confirms,</text>
+  <text class="cap" x="636" y="178">features switch on for all.</text>
+  <text class="cap" x="636" y="202">A player who joins later</text>
+  <text class="cap" x="636" y="220">locks the session again</text>
+  <text class="cap" x="636" y="238">until they confirm.</text>
+</svg>

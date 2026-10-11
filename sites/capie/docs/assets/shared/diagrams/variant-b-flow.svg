@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 352" width="880" height="352" role="img" aria-labelledby="t d">
+  <title id="t">Variant B: how a mod talks to CAPIE</title>
+  <desc id="d">Proposed contract; the same mechanism already runs Rename Anything in single player. The player clicks Apply in your mod's scripted GUI. CAPIE adds records to the player's own game command: capie_cap with the API level, and the typed text as codes. The command's effect runs with the same input on every client. The CAPIE script SDK checks capie_cap and calls the game's own setter. Without CAPIE the command carries no capie_cap, so the effect sets capie_err to 10, shows a CAPIE missing line and changes nothing.</desc>
+  <!-- Tokens: docs/design/tokens.json v1.2.0. Still on purpose: the SDK is planned, so nothing moves. -->
+  <style>
+    .canvas{fill:#272421}
+    .rim{fill:none;stroke:#3c3936;stroke-width:1}
+    .caps{font:700 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.14em;fill:#ffbd00}
+    .title{font:700 15px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ece6d3}
+    .body{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .mono{font:400 12px 'Ubuntu Mono',Consolas,'DejaVu Sans Mono',monospace;fill:#d0a070}
+    .cap{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#a39a86}
+    .labf{font:400 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ff7019}
+    .lab{font:400 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .tag{font:700 10px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.08em;fill:#d0a070}
+    .node{fill:#161412;stroke:#76776b;stroke-width:1.25}
+    .native{fill:#161412;stroke:#d0a070;stroke-width:1.75}
+    .plan{fill:#161412;stroke:#908060;stroke-width:1.25;stroke-dasharray:5 4}
+    .fb{fill:#161412;stroke:#c64811;stroke-width:1.25;stroke-dasharray:5 4}
+    .arrow{stroke:#76776b;stroke-width:1.5;fill:none}
+    .arrowfb{stroke:#c64811;stroke-width:1.5;fill:none;stroke-dasharray:5 4}
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#76776b"/>
+    </marker>
+    <marker id="ahf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#c64811"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" width="880" height="352" rx="6"/>
+  <rect class="rim" x="8.5" y="8.5" width="863" height="335" rx="4"/>
+
+  <!-- Legend: line style carries the status -->
+  <g transform="translate(32 28)">
+    <line x1="0" y1="5" x2="22" y2="5" stroke="#76776b" stroke-width="1.5"/>
+    <text class="cap" x="30" y="9.5">works today in Rename Anything (private rn_* names)</text>
+    <line x1="402" y1="5" x2="424" y2="5" stroke="#908060" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text class="cap" x="432" y="9.5">planned SDK, proposed capie_* names</text>
+  </g>
+
+  <rect class="node" x="32" y="64" width="188" height="118" rx="2"/>
+  <text class="title" x="46" y="91">Player clicks</text>
+  <text class="title" x="46" y="109">Apply</text>
+  <text class="body" x="46" y="134">in your mod's scripted GUI,</text>
+  <text class="body" x="46" y="152">next to a native text field</text>
+
+  <rect class="native" x="244" y="64" width="188" height="118" rx="2"/>
+  <text class="title" x="258" y="91">CAPIE annotates</text>
+  <text class="body" x="258" y="114">the player's own command:</text>
+  <text class="mono" x="258" y="138">capie_cap = 1</text>
+  <text class="mono" x="258" y="158">text as codes 1..84</text>
+
+  <rect class="node" x="456" y="64" width="188" height="118" rx="2"/>
+  <text class="title" x="470" y="91">Effect runs</text>
+  <text class="body" x="470" y="114">same command, same input</text>
+  <text class="body" x="470" y="132">on every client; authority</text>
+  <text class="body" x="470" y="150">checked again inside</text>
+
+  <rect class="plan" x="668" y="64" width="180" height="118" rx="2"/>
+  <text class="title" x="682" y="91">SDK applies</text>
+  <text class="body" x="682" y="114">checks capie_cap, decodes,</text>
+  <text class="body" x="682" y="132">validates, then calls the</text>
+  <text class="body" x="682" y="150">game's own setter</text>
+
+  <line class="arrow" x1="220" y1="123" x2="241" y2="123" marker-end="url(#ah)"/>
+  <line class="arrow" x1="432" y1="123" x2="453" y2="123" marker-end="url(#ah)"/>
+  <line class="arrow" x1="644" y1="123" x2="665" y2="123" marker-end="url(#ah)"/>
+
+  <path class="arrowfb" d="M550 182 L550 247" marker-end="url(#ahf)"/>
+  <text class="labf" x="558" y="214">no capie_cap</text>
+  <text class="labf" x="558" y="230">(CAPIE missing)</text>
+
+  <rect class="fb" x="456" y="250" width="392" height="74" rx="2"/>
+  <text class="title" x="470" y="276">Fallback branch</text>
+  <text class="mono" x="470" y="298" style="fill:#ff7019">capie_err = 10</text>
+  <text class="body" x="580" y="298">status line: CAPIE missing.</text>
+  <text class="body" x="470" y="316">Nothing was changed.</text>
+
+  <text class="cap" x="32" y="222">CAPIE never writes game state</text>
+  <text class="cap" x="32" y="240">by itself. It adds data to a</text>
+  <text class="cap" x="32" y="258">command the player issued and</text>
+  <text class="cap" x="32" y="276">supplies text when it is drawn.</text>
+  <text class="lab" x="32" y="312">Without CAPIE the same script</text>
+  <text class="lab" x="32" y="330">takes the other branch.</text>
+
+</svg>
