@@ -39,3 +39,23 @@ Odpowiedzi użytkownika na punkty badania architektury
    Wspólny design system jako samodzielny katalog/repo współdzielone.
 5. Przeniesienie do nowej organizacji GitHub (zakłada ją użytkownik; transfer po
    potwierdzeniu użytkownika).
+
+## Decyzje do architektury CAPIE (2026-10-11, odpowiedzi na pytania z modding-api-architecture.md)
+
+1. Kontrakt API = wariant B (protokół przez zmienne/scripted effects/cosmetic tag); wariant A
+   (natywne słowa kluczowe) ewentualnie później jako dodatek.
+2. MP na start = L0: blokada funkcji + widoczny baner do potwierdzenia CAPIE przez każdego
+   gracza; odrzucanie graczy pozostaje tematem badawczym.
+3. Skryptowe SDK CAPIE jako osobny przedmiot Workshop + osobne repo w organizacji GitHub.
+4. Wskaźnik w menu głównym: „CAPIE załadowane / brak” wystarcza.
+5. Rozszerzyć dozwolone znaki (cyrylica, akcenty, umlauty) — o ile HOI4 (fonty, parser,
+   transport) je obsługuje; do zbadania.
+6. Overlord → podmiot-gracz: najprostszy wariant (bez weta i bez dodatkowego UI).
+7. Uprawnienia hosta przez regułę gry ustawianą w lobby — zaakceptowane.
+8. Korpus starszych buildów: zaakceptowane podejście; domyślnie archiwizacja każdego nowego
+   `hoi4.exe` od teraz (prywatnie, bez redystrybucji). Narzędzia wymagające danych logowania
+   Steam użytkownik uruchamia wyłącznie sam.
+9. CI na komputerze użytkownika (self-hosted, z zainstalowaną grą).
+10. Po patchu gry mają działać wszystkie funkcje, a nie podzbiór; preferencja, by nie
+    wydawać nowej wersji, gdy patch nie łamie używanych miejsc (decyzja w toku — patrz niżej).
+11. `versions.json`: w repo (podpisany) i dołączany do wydania.
