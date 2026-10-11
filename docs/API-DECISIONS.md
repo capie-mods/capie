@@ -66,3 +66,13 @@ Odpowiedzi użytkownika na punkty badania architektury
     (rekomendacja root; do zmiany na prośbę użytkownika). Zmienia decyzję dystrybucji nr 4
     tylko w trybie włączonym.
 11. `versions.json`: w repo (podpisany) i dołączany do wydania.
+
+## Korekty po analizie RE (2026-10-11, hoi4-re-findings.md)
+
+- Decyzja 4 (odrzucanie graczy bez CAPIE) zastąpiona: skryptowy handshake wersji
+  (`capie_ver` w każdej komendzie CAPIE, zmienna kraju) + blokada funkcji i widoczny
+  baner/ostrzeżenie dla wszystkich. Bez natywnego wyrzucania graczy — zaakceptowane.
+- Decyzja 6 (wyjątek dla hosta): brak triggera hosta w grze; wyjątek realizowany wyłącznie
+  regułą gry ustawianą w lobby (decyzja 7) — zaakceptowane.
+- Uprawnienia sprawdzane w samym efekcie skryptu (Execute nie weryfikuje nadawcy ani
+  triggerów visible/enabled).
