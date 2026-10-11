@@ -34,3 +34,8 @@ MP: nadal niezweryfikowane; test z drugim graczem po zakończeniu SP.
    zainstalować launcher/DLL, (b) czy dodać launcher do opcji uruchamiania Steam —
    z jasną informacją, że gra z DLL nie jest deklarowana jako zgodna z MP, dopóki
    wpis nie zostanie cofnięty; plus tryb odinstalowania/cofnięcia.
+9. **Launcher → Paradox Launcher → gra (wymóg):** każdy tryb (Steam, skrót, dwuklik)
+   przechodzi przez Paradox Launcher, żeby gracz mógł wybrać playset i grać z innymi
+   modami. Launcher wstrzykuje DLL tylko do `hoi4.exe` będącego potomkiem procesu,
+   który sam uruchomił. Zgodność z innymi modami nadpisującymi okno polityki
+   (`countrypoliticsview.gui`) lub te same scripted GUI wymaga osobnej oceny.
