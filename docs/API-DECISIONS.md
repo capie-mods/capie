@@ -26,3 +26,16 @@ Odpowiedzi użytkownika na punkty badania architektury
 - Obecne nazwy plików binarnych (`rename_anything_*.dll`, injectory, kontroler) są
   przypięte w manifestach, testach i review; zmiana nazw plików wymaga przebudowy,
   nowych hashy, manifestów i review — planowana jako osobny etap, nie ad hoc.
+
+## Kolejność prac do pierwszego wydania (zaakceptowana 2026-10-11)
+
+1. Integracja edytorów i liczników do `mod/` + test w grze (uzbrojona CAPIE/caption bridge,
+   country DLL), w obecnym monorepo.
+2. Zmiana nazw binariów na `capie_*.dll` jako osobny etap (rebuild, hashe, manifesty, review).
+3. Wersjonowany kontrakt CAPIE ↔ mody (modele, pola, selektory, capability);
+   Rename Anything przypina wersję CAPIE.
+4. Podział na dwa repo z zachowaniem historii (`git filter-repo`): CAPIE (`plugin/`,
+   launcher, bootstrap) i Rename Anything (`mod/`, `tools/`, `probes/`); dowody wg komponentu.
+   Wspólny design system jako samodzielny katalog/repo współdzielone.
+5. Przeniesienie do nowej organizacji GitHub (zakłada ją użytkownik; transfer po
+   potwierdzeniu użytkownika).
