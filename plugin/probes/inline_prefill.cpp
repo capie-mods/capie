@@ -317,10 +317,23 @@ void prefill_open(const View& view,std::uint64_t epoch,std::uint64_t generation,
         const auto field=model.first+j;
         edits[j]=guarded_find(find_edit,view.root,fields[field].edit);
         bool focused=false;
-        if(!edit_named(edits[j],fields[field].edit) || !visible_edit(edits[j]) ||
-           !read_input_active(edits[j],focused) || focused ||
-           !carrier(view.root,fields[field].carrier,text[j],true)) {
-            diagnostic(id,"prefill-rejected-reopen-required",field,epoch,generation); return;
+        if(!edit_named(edits[j],fields[field].edit)) {
+            diagnostic(id,"prefill-edit-lookup-type-rejected",field,epoch,generation); return;
+        }
+        if(!visible_edit(edits[j])) {
+            diagnostic(id,"prefill-edit-visibility-rejected",field,epoch,generation); return;
+        }
+        if(!read_input_active(edits[j],focused)) {
+            diagnostic(id,"prefill-focus-state-unreadable",field,epoch,generation); return;
+        }
+        if(focused) {
+            diagnostic(id,"prefill-focused-draft-preserved",field,epoch,generation); return;
+        }
+        if(!carrier(view.root,fields[field].carrier,text[j],false)) {
+            diagnostic(id,"prefill-carrier-lookup-string-rejected",field,epoch,generation); return;
+        }
+        if(!decode_utf8(text[j])) {
+            diagnostic(id,"prefill-carrier-unicode-render-rejected",field,epoch,generation); return;
         }
     }
     std::uint64_t fresh_epoch=0;
