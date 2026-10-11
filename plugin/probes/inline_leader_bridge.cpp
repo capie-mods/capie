@@ -12,7 +12,7 @@
 #include <limits>
 #include <type_traits>
 namespace {
-constexpr std::uintptr_t tick_rva=0xB88950, key_rva=0x22F1030;
+constexpr std::uintptr_t tick_rva=0xB88950, key_rva=0x22F1030, bind_rva=0xB86320;
 constexpr std::uintptr_t dispatch_rva=0xB867D0, ctor_rva=0x1144840;
 constexpr std::size_t max_original_records=256, transport_records=35;
 constexpr std::int64_t fixed_point=100000;
@@ -26,6 +26,7 @@ struct MsvcString {
 };
 static_assert(sizeof(MsvcString)==0x20 && offsetof(MsvcString,size)==0x10 && offsetof(MsvcString,capacity)==0x18);
 using Tick=void(__fastcall*)(void*,char);
+using Bind=void(__fastcall*)(void*);
 using HandleKey=std::uint64_t(__fastcall*)(void*,void*);
 using FindWidget=void*(__fastcall*)(void*,const MsvcString*,bool,bool);
 using SetText=void(__fastcall*)(void*,const MsvcString*);
@@ -89,6 +90,7 @@ struct OriginFrame {
 HMODULE own_module=nullptr;
 std::uintptr_t image_base=0;
 Tick original_tick=nullptr;
+Bind original_bind=nullptr;
 HandleKey original_key=nullptr;
 FindWidget find_edit=nullptr, find_instant=nullptr;
 SetText set_text=nullptr;
@@ -311,14 +313,26 @@ void reset_model(std::size_t model,bool hidden) noexcept {
     AcquireSRWLockExclusive(&state_lock);
     auto& state=lifecycle[model];
     if(hidden) {
-        if(state.visible || state.attempted || state.prefilled) ++state.generation;
-        state.visible=false; state.attempted=false; state.prefilled=false;
+        // A valid bound root was merely hidden. Retain this opening's draft/readiness.
+        if(state.visible) ++state.generation;
+        state.visible=false;
     } else {
-        // Unreadable epoch suspends the same opening; recovery must not reset a draft.
-        state.visible=true; state.attempted=true; state.prefilled=false; ++state.generation;
+        // An invalid root/epoch cannot authorize input. Same-epoch recovery must
+        // not silently retry SetText over a draft: require a new Open or bind.
+        state.visible=false; state.attempted=true; state.prefilled=false; ++state.generation;
     }
     for(std::size_t i=models[model].first;i<models[model].first+models[model].count;++i) pending[i]={};
     ReleaseSRWLockExclusive(&state_lock);
+}
+std::uint64_t reset_bound_model(std::size_t model) noexcept {
+    AcquireSRWLockExclusive(&state_lock);
+    auto& state=lifecycle[model];
+    state.visible=false; state.attempted=false; state.prefilled=false;
+    state.epoch=0; ++state.generation; state.last_status=0;
+    for(std::size_t i=models[model].first;i<models[model].first+models[model].count;++i) pending[i]={};
+    const auto generation=state.generation;
+    ReleaseSRWLockExclusive(&state_lock);
+    return generation;
 }
 void diagnostic(unsigned long id,const char* event,std::size_t field,std::uint64_t epoch,
                 std::uint64_t generation,const InputSnapshot* text=nullptr,DWORD producer=0) noexcept {
@@ -425,7 +439,7 @@ void observe_tick(void* window) {
     if(result!=ViewResult::visible) {
         status_once(view.model,result==ViewResult::hidden?1u:2u,
             result==ViewResult::hidden?"own-root-hidden":"own-root-guard-rejected");
-        reset_model(view.model,true); return;
+        reset_model(view.model,result==ViewResult::hidden); return;
     }
     std::uint64_t epoch=0;
     if(!read_epoch(view.root,view.model,epoch)) {
@@ -436,10 +450,11 @@ void observe_tick(void* window) {
     bool attempt=false; std::uint64_t generation=0;
     AcquireSRWLockExclusive(&state_lock);
     auto& state=lifecycle[view.model];
-    if(!state.visible || state.epoch!=epoch) {
-        state.visible=true; state.attempted=false; state.prefilled=false; state.epoch=epoch; ++state.generation;
+    if(state.epoch!=epoch) {
+        state.attempted=false; state.prefilled=false; state.epoch=epoch; ++state.generation;
         for(std::size_t i=models[view.model].first;i<models[view.model].first+models[view.model].count;++i) pending[i]={};
     }
+    state.visible=true;
     generation=state.generation;
     if(!state.attempted) { state.attempted=true; attempt=true; }
     ReleaseSRWLockExclusive(&state_lock);
@@ -450,6 +465,24 @@ void observe_tick(void* window) {
 void __fastcall tick_observed(void* window,char force) {
     original_tick(window,force);
     if(active.load(std::memory_order_acquire)) observe_tick(window);
+}
+void __fastcall bind_observed(void* window) {
+    // Native construction/rebind and recursive widget binding finish first.
+    // Forward once; do not access an old root or cache a window/widget pointer.
+    original_bind(window);
+    if(!active.load(std::memory_order_acquire)) return;
+    View view{}; const auto result=inspect_window(window,view);
+    if(result==ViewResult::unrelated) return;
+    if(result==ViewResult::invalid) {
+        reset_model(view.model,false);
+        status_once(view.model,5u,"bind-own-root-guard-rejected");
+        return;
+    }
+    // inspect_window verified exact own model + fresh context/window/root/lists.
+    // The newly bound root is normally hidden; its next visible tick prefills.
+    const auto generation=reset_bound_model(view.model);
+    diagnostic(observation_id.fetch_add(1)+1,"own-model-bound-readiness-reset",
+        models[view.model].first,0,generation);
 }
 bool enter_event(void* event) noexcept {
     int values[8]{};
@@ -724,6 +757,12 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
             text->Misc.VirtualSize > nt->OptionalHeader.SizeOfImage - text->VirtualAddress ||
             !readable(base + text->VirtualAddress, text->Misc.VirtualSize)) return 12;
         constexpr unsigned char tick_bytes[] = {0x48,0x89,0x5c,0x24,0x10,0x55,0x56,0x57,0x41,0x56,0x41,0x57,0x48,0x81,0xec,0x20,0x01,0x00,0x00,0x44,0x0f,0xb6,0xf2,0x48,0x8b,0xd9,0x48,0x8d,0x51,0x28,0x33,0xff,0x48,0x85,0xc9,0x48,0x0f,0x44,0xd7,0x41,0xb9,0x02,0x00,0x00,0x00};
+        // Exact pinned EXE: B86320 void(window*), fresh-create and rebind callers.
+        constexpr unsigned char bind_bytes[] = {
+            0x48,0x8b,0xc4,0x48,0x89,0x58,0x10,0x48,0x89,0x68,0x18,0x48,0x89,0x70,0x20,0x57,
+            0x41,0x54,0x41,0x55,0x41,0x56,0x41,0x57,0x48,0x83,0xec,0x50,0x48,0x8b,0xf9,0xc7,
+            0x40,0x08,0x00,0x00,0x00,0x00,0x48,0x8d,0xb1,0xe8,0x00,0x00,0x00,0x4c,0x8b,0x2e,
+            0x41,0x8b,0x45,0x2c};
         constexpr unsigned char key_bytes[] = {0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x6c,0x24,0x10,0x48,0x89,0x74,0x24,0x20,0x57,0x41,0x54,0x41,0x55,0x41,0x56,0x41,0x57,0x48,0x83,0xec,0x40,0x48,0x8b,0xda,0x48,0x8b,0xf9,0x48,0x8b,0xca,0xe8,0xc6,0x22,0xf8,0xff};
         constexpr unsigned char find_edit_bytes[] = {
             0x48,0x89,0x5c,0x24,0x10,0x48,0x89,0x6c,0x24,0x18,0x56,0x57,0x41,0x54,0x41,0x56,
@@ -740,7 +779,8 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
             0x48,0x89,0x5c,0x24,0x18,0x48,0x89,0x4c,0x24,0x08,0x55,0x56,0x57,0x41,0x54,0x41,
             0x55,0x41,0x56,0x41,0x57,0x48,0x83,0xec,0x60,0x0f,0x29,0x74,0x24,0x50,0x4d,0x8b,
             0xf1,0x49,0x8b,0xf8,0x48,0x8b,0xf2,0x4c,0x8b,0xe1};
-        if (!unique_at(base, text, tick_rva, tick_bytes) || !unique_at(base, text, key_rva, key_bytes) ||
+        if (!unique_at(base, text, bind_rva, bind_bytes) ||
+            !unique_at(base, text, tick_rva, tick_bytes) || !unique_at(base, text, key_rva, key_bytes) ||
             !unique_at(base, text, find_edit_rva, find_edit_bytes) ||
             !unique_at(base, text, find_instant_rva, find_instant_bytes) ||
             !unique_at(base, text, set_text_rva, set_text_bytes) ||
@@ -764,9 +804,12 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
         if (MH_Initialize() != MH_OK) return 30;
         auto* dispatch_target = const_cast<unsigned char*>(base) + dispatch_rva;
         auto* ctor_target = const_cast<unsigned char*>(base) + ctor_rva;
+        auto* bind_target = const_cast<unsigned char*>(base) + bind_rva;
         auto* tick_target = const_cast<unsigned char*>(base) + tick_rva;
         auto* key_target = const_cast<unsigned char*>(base) + key_rva;
-        if (MH_CreateHook(tick_target, reinterpret_cast<void*>(&tick_observed),
+        if (MH_CreateHook(bind_target, reinterpret_cast<void*>(&bind_observed),
+                          reinterpret_cast<void**>(&original_bind)) != MH_OK ||
+            MH_CreateHook(tick_target, reinterpret_cast<void*>(&tick_observed),
                           reinterpret_cast<void**>(&original_tick)) != MH_OK ||
             MH_CreateHook(key_target, reinterpret_cast<void*>(&key_observed),
                           reinterpret_cast<void**>(&original_key)) != MH_OK ||
@@ -776,10 +819,12 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
                           reinterpret_cast<void**>(&original_ctor)) != MH_OK) {
             MH_Uninitialize(); return 31;
         }
-        if (MH_EnableHook(ctor_target) != MH_OK || MH_EnableHook(dispatch_target) != MH_OK ||
+        if (MH_EnableHook(bind_target) != MH_OK ||
+            MH_EnableHook(ctor_target) != MH_OK || MH_EnableHook(dispatch_target) != MH_OK ||
             MH_EnableHook(key_target) != MH_OK || MH_EnableHook(tick_target) != MH_OK) {
             // No integrated action was enabled. Preserve trampolines that
             // could have an in-flight forwarding caller; restart after failure.
+            MH_DisableHook(bind_target);
             MH_DisableHook(dispatch_target);
             MH_DisableHook(ctor_target);
             MH_DisableHook(tick_target);
@@ -788,7 +833,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
             return 32;
         }
         active.store(true, std::memory_order_release);
-        write_log("RN_ILBR initialized: exact image + 7 unique fingerprints; 4 hooks; prefill + Enter diagnostic + leader-button transport; no auto-Apply/focus/Escape\r\n");
+        write_log("RN_ILBR initialized: exact image + 8 unique fingerprints; 5 hooks; prefill + Enter diagnostic + leader-button transport; no auto-Apply/focus/Escape\r\n");
         return 0;
     } catch (...) { return 99; }
 }

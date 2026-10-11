@@ -1,13 +1,14 @@
 # Isolated inline leader transport prototype
 
-This is an **unbuilt, unactivated QA source candidate**. It combines the reviewed
-inline prefill and command bridge in a new DLL/output. It does not replace the
-country DLL or any earlier probe. Root owns integration review, build, fixture
-configuration and fresh-process activation.
+This is an **isolated, unactivated QA prototype**. It combines the reviewed
+inline prefill and command bridge in its own DLL/output. Root owns integration
+review, build, fixture configuration and fresh-process activation. Source and
+historical build fingerprints are distinguished below.
 
-The four detours are B88950 (post native tick), 22F1030 (forward native key),
-B867D0 (ordinary scripted-GUI button dispatch), and 1144840 (command constructor).
-The exact EXE hash and seven unique entry fingerprints must match before any
+The five detours are B86320 (post native creation/rebind), B88950 (post native
+tick), 22F1030 (forward native key), B867D0 (ordinary scripted-GUI button
+dispatch), and 1144840 (command constructor).
+The exact EXE hash and eight unique entry fingerprints must match before any
 hook is enabled. Initialization rejects loaded observer, editor bridge or
 inline prefill DLLs and pins itself. Never load these modules in the reverse
 order either. An initialization failure requires a fresh process.
@@ -22,9 +23,27 @@ Prefill retains the current split-reason implementation for all three fields:
 
 Epoch carriers remain rn_ip_leader_epoch and rn_ip_party_neutrality_epoch with
 plain positive decimal `[?ROOT.rn_ip_epoch|0]`. All fields are freshly resolved;
-prefill happens once per opening/epoch and verifies native UTF32 readback.
-Subsequent refreshes preserve drafts. Partial/rejected prefill requires reopen.
+prefill happens once per bound opening/epoch and verifies native UTF32 readback.
+Visible refresh and ordinary hide/return at the same epoch preserve drafts.
+Hiding clears pending Enter requests and suspends visibility, retaining attempted
+and prefilled state. Invalid root/epoch guards instead suspend readiness and
+refuse a same-epoch retry over a draft. Partial/rejected prefill requires reopen.
 Focus is manual. No auto-focus or Escape behavior is added.
+
+The bind hook forwards once, then freshly verifies the exact own model,
+context/window/root agreement, root type and bounded lists. A valid new binding
+clears scalar readiness/pending state, resets its observed epoch and advances
+generation before the next visible tick. No widget pointer is cached. The
+verified native callers include both fresh construction and destroy/rebind;
+the 52-byte B86320 prefix has one match in the pinned EXE. Evidence is in
+`docs/evidence/session-20261011/day2-inline-bind-raw-*` and
+`day2-inline-bind-lifecycle-proposal.txt`.
+
+**World load without a rebind remains unproved.** A saved script epoch is not a
+process session identity. Menu paths can skip native window ticks, and a load
+could reuse existing widgets at the same saved epoch. This revision must stay
+log-only until menu/load behavior is observed or a verified session invalidation
+is added. Explicit Cancel/Open is the current recovery after such transitions.
 
 Enter **only copies a diagnostic** for later tick validation. Every key forwards
 exactly once, preserving the native return value. Enter never calls dispatch,
@@ -77,6 +96,11 @@ variables. Do not enable the existing rename helper for this diagnostic run.
 The normal command can execute the effect bound by its fixture, so log-only
 effects are an activation requirement. Typed target ownership and execution-time
 epoch checks must be independently accepted before any real rename stage.
+Use either `rn_in_place_ui` or its transport QA copy, never both: their exact model
+and control names intentionally coincide. Inline legacy-exclusion gates hide
+launchers/editors during `rn_open`/`rn_input` and also reject Open/Apply effects.
+The script execution guard remains necessary because native visibility is cached
+between ticks. Returning focus/draft behavior still requires runtime QA.
 
 After review, build-inline-leader-bridge.ps1 -MinHookDir <source> produces only:
 
@@ -96,8 +120,23 @@ the prior bridge, then prefill/typing/draft/reopen and leader log-only payload
 length/codes/epoch, invalid full-zero payload, unrelated-record preservation and
 stale-opening rejection. Multiplayer and two-field transport remain deferred.
 
-Root built the candidate on 2026-10-11 with own C++ `/W4 /WX`, no warnings.
+The lifecycle runtime matrix also includes ordinary hide/return, Cancel/reopen,
+leader/party switch, temporary menu return, same-process load of same-epoch and
+lower-epoch saves, and local country switch. Record bind events, generation,
+prefill count and exact draft; no stale pending Enter or readiness may authorize
+a new target. Real rename remains disabled for these checks.
+
+Historical build before the bind/hide correction: root built source
+`A30256E5AE6158434235C616E0D119F00F627878DBC6F3E55100B91F458DF2B1` on
+2026-10-11 with own C++ `/W4 /WX`, no warnings.
 DLL SHA256 `9EB47336166074323C71459180D907E087B4EE978B6212A926E91403B120D329`;
 injector `4655389573E00167D779F1C71601C5F247FEFCF7750EF123071EE0330A2C3B1A`.
-This build has not yet been injected. Metadata and independent source review
-are retained in `docs/evidence/session-20261011/day2-inline-leader-bridge-*`.
+That historical DLL was not injected and is not the build of the current source.
+Current source after root applied the reviewed lifecycle proposal:
+`24127761981B065BA24E00DA2D48BF785B05DB6BA83D9FF727E696A2A132D7D1`.
+Root rebuilt this revision with own C++ `/W4 /WX`, no warnings, and verified all
+eight fingerprints uniquely at their exact RVAs in the pinned EXE.
+DLL SHA256 `ED5F9B243F26E2FF5C105021DB2D9A4F5EC5BF2A613B0ED79DD9088EE9170ED5`;
+injector `657A68B091DFCBA5BAA3A1E3CDEFB3BF262754953F3DB6DE1C71C73830A3586E`.
+Not yet injected; build is not runtime acceptance. Metadata is retained in
+`docs/evidence/session-20261011/day2-inline-leader-lifecycle-build-review.json`.
