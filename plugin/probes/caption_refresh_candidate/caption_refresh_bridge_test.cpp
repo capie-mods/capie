@@ -262,6 +262,15 @@ int main() {
     tick_observed(foreign.data(), 0);
     check(tick_originals == ticks_before + 1 && caption_service.snapshot().counters().seeds == seeds, "foreign window untouched");
 
+    // 9. RN3 re-prefill on reopen: panel close hides the editor root with flag/epoch kept; a
+    //    later show must re-prefill (fresh SetText) so Apply is not silently dropped.
+    show(LE, false); tick_observed(le, 0);          // ensure hidden baseline
+    show(LE, true); tick_observed(le, 0);           // first show -> prefill
+    const auto reopen_before = set_text_calls;
+    show(LE, false); tick_observed(le, 0);          // panel close (visible -> hidden)
+    show(LE, true);  tick_observed(le, 0);          // reopen with a fresh widget -> re-prefill
+    check(set_text_calls == reopen_before + 1, "editor re-prefills once after hide/show (no silent Apply drop)");
+
     std::printf("caption refresh bridge integration: %u checks, %u failures\n", checks, failures);
     std::fflush(stdout);
     std::_Exit(failures ? 1 : 0);

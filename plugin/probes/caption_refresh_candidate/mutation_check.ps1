@@ -31,7 +31,10 @@ $mutants = [ordered]@{
     'no-identity-postcheck'   = @('else if (after.gui != before.gui || after.view != before.view) outcome = Outcome::postcall_identity;', '')
     'already-dirty-unlabelled'= @('before.dirty == 1 ? "ok-already-dirty"', 'before.dirty == 2 ? "ok-already-dirty"')
     'no-parent-root'          = @('if (parent != root) return Reject::parent_root;', '')
-    'no-model-vt-resolve'     = @('if (model_vt != image + rva::vt_sg_model) return Reject::model_vt;', '')
+    'no-model-vt-resolve'     = @('if (model_vt != image + rva::vt_sg_model) return vt_reject(Reject::model_vt, model_vt, image + rva::vt_sg_model);', '')
+    'no-gui-vt-diag'          = @('if (rd(mem, gui, 0, gui_vt) && diag) diag->gui_vt_rva = gui_vt ? gui_vt - image : 0;', '')
+    'gui-vt-still-gates'      = @('if (rd(mem, gui, 0, gui_vt) && diag) diag->gui_vt_rva = gui_vt ? gui_vt - image : 0;', 'if (!rd(mem, gui, 0, gui_vt) || gui_vt != image + rva::vt_game_gui) return Reject::gui_vt;')
+    'no-view-vt-diag'         = @('return vt_reject(Reject::view_vt, view_vt, image + rva::vt_politics_view);', 'return Reject::view_vt;')
     'no-manager-guard'        = @('manager_idler != idler) return Reject::manager_idler;', 'false) return Reject::manager_idler;')
     'visibility-ignores-flags'= @('return desired && (flags & 8) && !(flags & (4 | 16)) ?', 'return desired ?')
     'hidden-drops-pending'    = @('tracker_.visibility(own.model, kind == WindowKind::visible);  // hidden keeps',
@@ -56,6 +59,7 @@ $bridgeMutants = [ordered]@{
     'bridge-tick-ignores-arm'  = @('if(caption_armed.load(std::memory_order_acquire)) caption_service.on_tick(', 'if(true) caption_service.on_tick(')
     'bridge-no-focus-tick'     = @("        focus_tick(window);`n", '')
     'bridge-focus-wrong-arg'   = @('focus_switch(manager,nullptr);', 'focus_switch(manager,manager);')
+    'bridge-no-reprefill'      = @('if(state.visible) { ++state.generation; state.attempted=false; state.prefilled=false; }', 'if(state.visible) ++state.generation;')
 }
 # Focus-release mutants: applied to focus_release.hpp, checked with focus_release_test.cpp.
 $focusMutants = [ordered]@{

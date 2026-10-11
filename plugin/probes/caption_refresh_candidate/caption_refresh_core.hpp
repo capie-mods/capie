@@ -353,17 +353,27 @@ inline const char* reject_name(Reject r) noexcept {
     return i < sizeof(names) / sizeof(names[0]) ? names[i] : "unknown";
 }
 struct Target { uptr gui{}, view{}; unsigned char dirty{}; };  // stack-only
+// Bounded diagnostics for a rejecting resolve: RVA (relative to module base) of the observed
+// vtable/slot and the expected value, so a runtime run reveals the real class. observed==0
+// means the field was unreadable. gui_vt_rva is always filled when gui is readable (the gui
+// vtable is logged but NOT a gate; see resolve).
+struct ResolveDiag { Reject reject{Reject::none}; uptr observed_rva{}, expected_rva{}, slot_rva{}, gui_vt_rva{}; };
 
 template <class T, class M> bool rd(const M& mem, uptr object, uptr offset, T& out) noexcept {
     if (!object || offset > UINTPTR_MAX - object) return false;
     return mem.read(object + offset, &out, sizeof(T));
 }
 
-template <class M> Reject resolve(const M& mem, uptr image, uptr window, Target& out) noexcept {
+template <class M> Reject resolve(const M& mem, uptr image, uptr window, Target& out, ResolveDiag* diag = nullptr) noexcept {
     out = Target{};
+    if (diag) *diag = ResolveDiag{};
+    auto vt_reject = [&](Reject r, uptr observed, uptr expected) noexcept {
+        if (diag) { diag->reject = r; diag->observed_rva = observed ? observed - image : 0; diag->expected_rva = expected - image; }
+        return r;
+    };
     uptr model = 0, model_vt = 0;
     if (!rd(mem, window, off::window_model, model) || !rd(mem, model, 0, model_vt)) return Reject::window_read;
-    if (model_vt != image + rva::vt_sg_model) return Reject::model_vt;
+    if (model_vt != image + rva::vt_sg_model) return vt_reject(Reject::model_vt, model_vt, image + rva::vt_sg_model);
     std::uint32_t politics_token = 0, context_token = 0, model_context = 0, model_parent = 0;
     if (!rd(mem, image, rva::token_politics_tab, politics_token) || !rd(mem, image, rva::token_player_context, context_token) ||
         politics_token != token_politics_tab_value || context_token != token_player_context_value) return Reject::token_image;
@@ -377,8 +387,11 @@ template <class M> Reject resolve(const M& mem, uptr image, uptr window, Target&
     if (!rd(mem, window, off::window_parent, parent)) return Reject::window_read;
     uptr idler = 0, idler_vt = 0, getter = 0;
     if (!rd(mem, window, off::window_idler, idler) || !idler) return Reject::idler_null;
-    if (!rd(mem, idler, 0, idler_vt) || idler_vt != image + rva::vt_ingame_idler) return Reject::idler_vt;
-    if (!rd(mem, idler_vt, off::slot_idler_gui, getter) || getter != image + rva::idler_gui_getter) return Reject::idler_slot;
+    if (!rd(mem, idler, 0, idler_vt) || idler_vt != image + rva::vt_ingame_idler) return vt_reject(Reject::idler_vt, idler_vt, image + rva::vt_ingame_idler);
+    if (!rd(mem, idler_vt, off::slot_idler_gui, getter) || getter != image + rva::idler_gui_getter) {
+        if (diag) { diag->reject = Reject::idler_slot; diag->observed_rva = getter ? getter - image : 0; diag->expected_rva = rva::idler_gui_getter; diag->slot_rva = rva::vt_ingame_idler + off::slot_idler_gui; }
+        return Reject::idler_slot;
+    }
     uptr manager = 0, manager_idler = 0;
     if (!rd(mem, window, off::window_manager, manager) || !rd(mem, manager, off::manager_idler, manager_idler) ||
         manager_idler != idler) return Reject::manager_idler;
@@ -386,16 +399,23 @@ template <class M> Reject resolve(const M& mem, uptr image, uptr window, Target&
     // bounded read below is its exact semantics without executing native code.
     uptr gui = 0, gui_vt = 0, gui_idler = 0;
     if (!rd(mem, idler, off::idler_gui, gui) || !gui) return Reject::gui_null;
-    if (!rd(mem, gui, 0, gui_vt) || gui_vt != image + rva::vt_game_gui) return Reject::gui_vt;
+    // gui vtable is DIAGNOSTIC ONLY (PID3044: live GameGui is a more-derived singleton whose
+    // offset-0 vtable is not the plain CGameGui 294A688). B6E210/B674F0 read only gui+C8, so
+    // the gui identity is closed by the idler round-trip (gui+180==idler) and the politics-view
+    // checks below (view vtable, view+38==gui, view+570==idler), never by the gui vtable.
+    if (rd(mem, gui, 0, gui_vt) && diag) diag->gui_vt_rva = gui_vt ? gui_vt - image : 0;
     if (!rd(mem, gui, off::gui_idler, gui_idler) || gui_idler != idler) return Reject::gui_idler;
     uptr view = 0, view_vt = 0, observer_vt = 0;
     if (!rd(mem, gui, off::gui_views + 8 * static_cast<uptr>(politics_view_index), view) || !view) return Reject::view_null;
-    if (!rd(mem, view, 0, view_vt) || view_vt != image + rva::vt_politics_view) return Reject::view_vt;
-    if (!rd(mem, view, off::view_observer, observer_vt) || observer_vt != image + rva::vt_politics_observer) return Reject::observer_vt;
+    if (!rd(mem, view, 0, view_vt) || view_vt != image + rva::vt_politics_view) return vt_reject(Reject::view_vt, view_vt, image + rva::vt_politics_view);
+    if (!rd(mem, view, off::view_observer, observer_vt) || observer_vt != image + rva::vt_politics_observer) return vt_reject(Reject::observer_vt, observer_vt, image + rva::vt_politics_observer);
     for (const auto& pin : slot_pins) {
         if (pin.vtable == rva::vt_ingame_idler) continue;  // checked above
         uptr slot = 0;
-        if (!rd(mem, image + pin.vtable, pin.slot, slot) || slot != image + pin.target) return Reject::view_slots;
+        if (!rd(mem, image + pin.vtable, pin.slot, slot) || slot != image + pin.target) {
+            if (diag) { diag->reject = Reject::view_slots; diag->observed_rva = slot ? slot - image : 0; diag->expected_rva = pin.target; diag->slot_rva = pin.vtable + pin.slot; }
+            return Reject::view_slots;
+        }
     }
     uptr view_gui = 0, view_idler = 0, root = 0;
     if (!rd(mem, view, off::view_gui, view_gui) || view_gui != gui) return Reject::view_gui;
@@ -602,10 +622,11 @@ private:
             return;
         }
         Target before{};
-        const auto pre = resolve(env_.mem(), env_.image(), window, before);
+        ResolveDiag diag{};
+        const auto pre = resolve(env_.mem(), env_.image(), window, before, &diag);
         if (pre != Reject::none) {
             { std::lock_guard<std::mutex> lock(mutex_); tracker_.precall_rejected(plan.serial); }
-            line("precall", own.model, reject_name(pre), plan.serial);
+            reject_line(own.model, reject_name(pre), plan.serial, diag);
             return;
         }
         { std::lock_guard<std::mutex> lock(mutex_); tracker_.called(plan.serial); }
@@ -633,6 +654,18 @@ private:
         char text[256]{};
         std::snprintf(text, sizeof(text), "RN_CAPTION event=%s model=%s detail=%s value=%llu\r\n", event,
                       model < model_count ? model_specs[model].name : "?", detail, static_cast<unsigned long long>(value));
+        env_.log(text);
+    }
+    // Bounded vtable/slot diagnostic for a rejecting resolve: observed/expected RVA relative to
+    // module base, plus the gui vtable RVA (logged, not a gate), so a run reveals the real class.
+    void reject_line(std::size_t model, const char* detail, u64 serial, const ResolveDiag& diag) noexcept {
+        char text[320]{};
+        std::snprintf(text, sizeof(text),
+                      "RN_CAPTION event=precall model=%s detail=%s serial=%llu observed_vt_rva=0x%llX expected_vt_rva=0x%llX "
+                      "slot_rva=0x%llX gui_vt_rva=0x%llX\r\n",
+                      model < model_count ? model_specs[model].name : "?", detail, static_cast<unsigned long long>(serial),
+                      static_cast<unsigned long long>(diag.observed_rva), static_cast<unsigned long long>(diag.expected_rva),
+                      static_cast<unsigned long long>(diag.slot_rva), static_cast<unsigned long long>(diag.gui_vt_rva));
         env_.log(text);
     }
     Env& env_;

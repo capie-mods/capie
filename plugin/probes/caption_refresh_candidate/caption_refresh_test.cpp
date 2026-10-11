@@ -486,7 +486,6 @@ void test_guard_rejections() {
         {"manager+18", [](World& w) { w.mem.put<uptr>(fake_manager + off::manager_idler, fake_idler + 8); }, Reject::manager_idler},
         {"manager null", [](World& w) { w.mem.put<uptr>(window_addr(LE) + off::window_manager, 0); }, Reject::manager_idler},
         {"gui null", [](World& w) { w.mem.put<uptr>(fake_idler + off::idler_gui, 0); }, Reject::gui_null},
-        {"gui vt", [](World& w) { w.mem.put<uptr>(fake_gui, image + 0x2); }, Reject::gui_vt},
         {"gui idler", [](World& w) { w.mem.put<uptr>(fake_gui + off::gui_idler, fake_idler + 8); }, Reject::gui_idler},
         {"view null", [](World& w) { w.mem.put<uptr>(fake_gui + off::gui_views + 96, 0); }, Reject::view_null},
         {"view vt", [](World& w) { w.mem.put<uptr>(fake_view, image + 0x3); }, Reject::view_vt},
@@ -511,6 +510,26 @@ void test_guard_rejections() {
         if (r != m.expected) std::printf("  mutation %s -> %s\n", m.name, reject_name(r));
         CHECK(r == m.expected);
         CHECK(t.gui == 0 && t.view == 0);
+    }
+    // gui vtable is diagnostic-only (PID3044): a wrong gui vtable does NOT reject, and the diag
+    // records its RVA. A vt mismatch elsewhere fills observed/expected RVA for the log.
+    {
+        World w; Target t{}; ResolveDiag diag{};
+        w.mem.put<uptr>(fake_gui, image + 0x9999);  // "derived" gui vtable
+        CHECK(resolve(w.mem, image, window_addr(LE), t, &diag) == Reject::none && t.gui == fake_gui);
+        CHECK(diag.gui_vt_rva == 0x9999 && diag.reject == Reject::none);
+    }
+    {
+        World w; Target t{}; ResolveDiag diag{};
+        w.mem.put<uptr>(fake_view, image + 0x1234);  // politics view vtable mismatch
+        CHECK(resolve(w.mem, image, window_addr(LE), t, &diag) == Reject::view_vt);
+        CHECK(diag.observed_rva == 0x1234 && diag.expected_rva == rva::vt_politics_view);
+    }
+    {
+        World w; Target t{}; ResolveDiag diag{};
+        w.mem.put<uptr>(image + rva::vt_politics_observer + 0x48, image + 0x4321);
+        CHECK(resolve(w.mem, image, window_addr(LE), t, &diag) == Reject::view_slots);
+        CHECK(diag.observed_rva == 0x4321 && diag.expected_rva == 0x15863F0 && diag.slot_rva == rva::vt_politics_observer + 0x48);
     }
     // Service level: a guard reject never calls native and is deferred to the next edge.
     Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE);
