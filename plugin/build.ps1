@@ -1,52 +1,60 @@
+<#
+.SYNOPSIS
+    Builds and tests the country capability: rename_anything_country.dll, the injector and the protocol test.
+
+.DESCRIPTION
+    Output: -OutputDirectory (default plugin/build). Refuses to run while hoi4.exe has the
+    country DLL from that folder loaded. Compiles MinHook (third-party C, no /WX), then
+    our C++ sources with /WX, runs protocol_test.exe and copies the MinHook licence
+    (required for redistribution) next to the binaries. Flag sets: plugin/NativeBuild.psm1.
+
+.PARAMETER MinHookDir
+    MinHook source folder (needs include\MinHook.h and LICENSE.txt).
+
+.PARAMETER VisualStudioDir
+    Visual Studio folder; empty means "find it with vswhere".
+
+.PARAMETER OutputDirectory
+    Build output folder.
+
+.OUTPUTS
+    None. Prints "Built and tested in <folder>".
+
+.EXAMPLE
+    .\plugin\build.ps1 -MinHookDir 'C:\path\to\minhook'
+#>
+[CmdletBinding()]
+[OutputType([void])]
 param(
-    [Parameter(Mandatory=$true)][string]$MinHookDir,
+    [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$MinHookDir,
     [string]$VisualStudioDir = '',
-    [string]$OutputDirectory = (Join-Path $PSScriptRoot 'build')
+    [ValidateNotNullOrEmpty()][string]$OutputDirectory = (Join-Path $PSScriptRoot 'build')
 )
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$pluginDir = $PSScriptRoot
-$buildDir = $OutputDirectory
-New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
-$buildDir = (Resolve-Path -LiteralPath $buildDir).Path
-$countryDllPath = Join-Path $buildDir 'rename_anything_country.dll'
-foreach ($gameProcess in @(Get-Process -Name hoi4 -ErrorAction SilentlyContinue)) {
-    foreach ($module in $gameProcess.Modules) {
-        if ($module.FileName -eq $countryDllPath) {
-            throw 'Country DLL is loaded. Exit the game before rebuilding this target.'
-        }
-    }
-}
-if (-not $VisualStudioDir) {
-    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-    $VisualStudioDir = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-}
-if (-not $VisualStudioDir) { throw 'Visual Studio C++ x64 tools are required.' }
-$vcvars = Join-Path $VisualStudioDir 'VC\Auxiliary\Build\vcvars64.bat'
-# Import the compiler environment without printing it (it may contain private data).
-$environmentLines = & $env:ComSpec /d /c ('call "' + $vcvars + '" >nul && set')
-if ($LASTEXITCODE -ne 0) { throw 'vcvars64 failed' }
-foreach ($line in $environmentLines) {
-    if ($line -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') }
-}
-$MinHookDir = (Resolve-Path -LiteralPath $MinHookDir).Path
-if (-not (Test-Path -LiteralPath (Join-Path $MinHookDir 'include\MinHook.h'))) { throw 'MinHook.h not found' }
-$minHookLicensePath = Join-Path $MinHookDir 'LICENSE.txt'
-if (-not (Test-Path -LiteralPath $minHookLicensePath)) { throw 'MinHook LICENSE.txt is required for redistribution.' }
+Import-Module (Join-Path $PSScriptRoot 'NativeBuild.psm1') -Force
+
+$script:CountryDllName = 'rename_anything_country.dll'
+$script:InjectorExeName = 'rename_anything_injector.exe'
+$script:ProtocolTestExeName = 'protocol_test.exe'
+
+$buildDir = Initialize-NbOutputDirectory -Path $OutputDirectory
+Assert-NbModuleNotLoaded -ModulePath (Join-Path $buildDir $script:CountryDllName) -Message 'Country DLL is loaded. Exit the game before rebuilding this target.'
+[void](Import-NbVisualStudioEnvironment -VisualStudioDir $VisualStudioDir)
+$minHook = Resolve-NbMinHook -MinHookDir $MinHookDir -MissingMessage 'MinHook.h and LICENSE.txt (required for redistribution) are required.'
+$flags = Get-NbFlagSet Country
 Push-Location $buildDir
 try {
-    $common = @('/nologo', '/O2', '/MT', '/W4', '/utf-8', '/DWIN32_LEAN_AND_MEAN', '/DNOMINMAX')
-    $ownFlags = @('/WX')
-    $minhookSources = @('buffer.c', 'hook.c', 'trampoline.c', 'hde\hde64.c') | ForEach-Object { Join-Path $MinHookDir ('src\' + $_) }
-    & cl.exe @common /c /TC @minhookSources ('/I' + (Join-Path $MinHookDir 'include'))
-    if ($LASTEXITCODE -ne 0) { throw 'MinHook compilation failed' }
-    & cl.exe @common @ownFlags /std:c++20 /EHsc /LD (Join-Path $pluginDir 'src\country.cpp') ('/I' + (Join-Path $MinHookDir 'include')) buffer.obj hook.obj trampoline.obj hde64.obj /link bcrypt.lib /OUT:rename_anything_country.dll
-    if ($LASTEXITCODE -ne 0) { throw 'Country DLL compilation failed' }
-    & cl.exe @common @ownFlags /std:c++20 /EHsc (Join-Path $pluginDir 'src\injector.cpp') /link bcrypt.lib /OUT:rename_anything_injector.exe
-    if ($LASTEXITCODE -ne 0) { throw 'Injector compilation failed' }
-    & cl.exe @common @ownFlags /UNDEBUG /std:c++20 /EHsc (Join-Path $pluginDir 'tests\protocol_test.cpp') /link /OUT:protocol_test.exe
-    if ($LASTEXITCODE -ne 0) { throw 'Protocol test compilation failed' }
-    & .\protocol_test.exe
-    if ($LASTEXITCODE -ne 0) { throw 'Protocol tests failed' }
+    Invoke-NbMinHookCompile -MinHook $minHook
+    $dllArgs = New-NbCompilerArgument -Flags $flags -Dll -Source (Join-Path $PSScriptRoot 'src\country.cpp') -IncludeDir $minHook.Include `
+        -LinkObject @('buffer.obj', 'hook.obj', 'trampoline.obj', 'hde64.obj') -OutFile $script:CountryDllName
+    Invoke-NbTool -FilePath 'cl.exe' -ArgumentList $dllArgs -FailureMessage 'Country DLL compilation failed'
+    $injectorArgs = New-NbCompilerArgument -Flags $flags -Source (Join-Path $PSScriptRoot 'src\injector.cpp') -OutFile $script:InjectorExeName
+    Invoke-NbTool -FilePath 'cl.exe' -ArgumentList $injectorArgs -FailureMessage 'Injector compilation failed'
+    $testArgs = New-NbCompilerArgument -Flags $flags -PreFlags '/UNDEBUG' -Source (Join-Path $PSScriptRoot 'tests\protocol_test.cpp') `
+        -LinkLibrary @() -OutFile $script:ProtocolTestExeName
+    Invoke-NbTool -FilePath 'cl.exe' -ArgumentList $testArgs -FailureMessage 'Protocol test compilation failed'
+    Invoke-NbTool -FilePath ('.\' + $script:ProtocolTestExeName) -FailureMessage 'Protocol tests failed'
 } finally { Pop-Location }
-Copy-Item -LiteralPath $minHookLicensePath -Destination (Join-Path $buildDir 'LICENSE.MinHook.txt') -Force
-Write-Host "Built and tested in $buildDir"
+Copy-Item -LiteralPath $minHook.License -Destination (Join-Path $buildDir 'LICENSE.MinHook.txt') -Force
+Write-Information -MessageData "Built and tested in $buildDir" -InformationAction Continue

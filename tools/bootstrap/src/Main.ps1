@@ -1,0 +1,260 @@
+# ---------------------------------------------------------------------------
+# Main: option handling, action dispatch and the script entry point.
+# ---------------------------------------------------------------------------
+
+$script:RaOptionNames = @(
+    'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
+    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath'
+)
+
+function Write-RaDone {
+    <#
+    .SYNOPSIS
+        Prints the localized "Done." line.
+    .DESCRIPTION
+        Shared closing line of every successful action.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Write-RaDone
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param()
+    Write-RaHost (Get-RaText 'Done') -Color Green
+}
+
+function Initialize-RaRun {
+    <#
+    .SYNOPSIS
+        Applies the options to the runtime switches and prints the banner.
+    .DESCRIPTION
+        Sets language, root folder (unless a test already set it), dry-run and -Yes,
+        prints title/intro and logs the start line with the switches that were given.
+    .PARAMETER Options
+        Normalized option table (every known key present).
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Initialize-RaRun $options
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    $script:RaLang = if ($Options.Language) { $Options.Language } else { Get-RaDefaultLanguage }
+    if (-not $script:RaRoot) { $script:RaRoot = Join-Path $env:LOCALAPPDATA $script:RaRootDirName }
+    $script:RaDry = [bool]$Options.DryRun
+    $script:RaAssumeYes = [bool]$Options.Yes
+    Write-RaHost (Get-RaText 'Title') -Color White
+    Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
+    if ($script:RaDry) { Write-RaHost (Get-RaText 'DryRunNote') -Color Cyan }
+    $given = ($Options.GetEnumerator() | Where-Object { $_.Value } | ForEach-Object { "-$($_.Key)" }) -join ' '
+    Write-RaLog ('Start: PS {0}, args: {1}' -f $PSVersionTable.PSVersion, $given) -NoConsole
+}
+
+function Get-RaSetupPlan {
+    <#
+    .SYNOPSIS
+        Decides what the install/integration run does, asking when no switch was given.
+    .DESCRIPTION
+        Without -Install/-SteamLaunchOption/-Shortcut the user is asked (install? which
+        start mode?). The multiplayer warning is shown before any Steam or shortcut step,
+        each of which must then be confirmed (-Yes confirms).
+    .PARAMETER Options
+        Normalized option table.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject (Install, Steam, Shortcut, ShortcutFolder)
+    .EXAMPLE
+        $plan = Get-RaSetupPlan $options
+    #>
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    $plan = [pscustomobject]@{
+        Install        = [bool]$Options.Install
+        Steam          = [bool]$Options.SteamLaunchOption
+        Shortcut       = [bool]$Options.Shortcut -or [bool]$Options.ShortcutPath
+        ShortcutFolder = $null
+    }
+    if (-not ($plan.Install -or $plan.Steam -or $plan.Shortcut)) {
+        if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Uninstall.' }
+        $plan.Install = Confirm-Ra (Get-RaText 'AskInstall' @($script:RaRoot)) $true
+        do { $mode = Read-RaAnswer (Get-RaText 'AskMode') } until ($script:RaStartModes.ContainsKey($mode))
+        $plan.Steam = $script:RaStartModes[$mode].Steam
+        $plan.Shortcut = $script:RaStartModes[$mode].Shortcut
+    }
+    if ($plan.Steam -or $plan.Shortcut) {
+        Write-RaHost ''
+        Write-RaHost (Get-RaText 'MpWarning') -Color Yellow
+        Write-RaHost ''
+    }
+    if ($plan.Steam -and -not (Confirm-Ra (Get-RaText 'AskConfirmSteam') $false)) {
+        $plan.Steam = $false
+        Write-RaLog 'Steam step declined.'
+    }
+    if ($plan.Shortcut) {
+        $plan.ShortcutFolder = Resolve-RaShortcutFolder $Options.ShortcutPath
+        if (-not $Options.ShortcutPath -and -not (Confirm-Ra (Get-RaText 'AskConfirmShortcut') $false)) {
+            $plan.Shortcut = $false
+            Write-RaLog 'Shortcut step declined.'
+        }
+    }
+    return $plan
+}
+
+function Invoke-RaSetupAction {
+    <#
+    .SYNOPSIS
+        Runs the install / Steam launch option / shortcut flow.
+    .DESCRIPTION
+        Steps run in order install, Steam, shortcut, prune. A failed Steam step is
+        logged and makes the exit code 1 but does not stop the shortcut step.
+    .PARAMETER Options
+        Normalized option table.
+    .PARAMETER State
+        State object.
+    .PARAMETER SteamRootPath
+        Steam folder or empty.
+    .OUTPUTS
+        System.Int32
+    .EXAMPLE
+        Invoke-RaSetupAction $options $state $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param(
+        [Parameter(Mandatory, Position = 0)][hashtable]$Options,
+        [Parameter(Mandatory, Position = 1)][psobject]$State,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
+    )
+    $plan = Get-RaSetupPlan $Options
+    if ($plan.Install) {
+        Install-RaPackage $State $Options.PackagePath
+        Save-RaState $State
+    }
+    $launcher = Get-RaLauncherPath
+    if (($plan.Steam -or $plan.Shortcut) -and -not $script:RaDry -and -not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
+        throw (Get-RaText 'NotInstalled')
+    }
+    $steamStepFailed = $false
+    if ($plan.Steam) {
+        if (-not $SteamRootPath) { throw 'Steam not found.' }
+        try {
+            Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount -LauncherPath $launcher
+            Save-RaState $State
+        } catch {
+            $steamStepFailed = $true
+            Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
+        }
+    }
+    if ($plan.Shortcut) {
+        $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
+        [void](New-RaShortcut -State $State -Folder $plan.ShortcutFolder -LauncherPath $launcher -GameDir $gameDir)
+        Save-RaState $State
+    }
+    if ($plan.Install) { Remove-RaUnusedVersion $State }
+    if ($steamStepFailed) { return $script:RaExitFailure }
+    Write-RaDone
+    return $script:RaExitSuccess
+}
+
+function Invoke-RaAction {
+    <#
+    .SYNOPSIS
+        Dispatches to the requested action and returns its exit code.
+    .DESCRIPTION
+        Priority: -Uninstall, -RemoveSteamLaunchOption, -CheckUpdate, -Rollback, -Update,
+        then the install/integration flow. Exceptions propagate to Invoke-RaMain.
+    .PARAMETER Options
+        Normalized option table.
+    .OUTPUTS
+        System.Int32
+    .EXAMPLE
+        Invoke-RaAction $options
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    $state = Read-RaState
+    $steamRootPath = $null
+    try { $steamRootPath = Get-RaSteamRoot $Options.SteamRoot } catch {
+        if ($Options.SteamRoot) { throw }
+        Write-RaLog $_.Exception.Message -Level WARN -NoConsole
+    }
+    $gameDir = { if ($steamRootPath) { Get-RaGameDir $steamRootPath } else { $null } }
+
+    if ($Options.Uninstall) {
+        Invoke-RaUninstall $state $steamRootPath
+        if (-not $script:RaDry -and (Test-Path -LiteralPath (Get-RaStatePath))) { Remove-Item -LiteralPath (Get-RaStatePath) -Force }
+        Write-RaHost (Get-RaText 'UninstallDone' @((Get-RaLogPath))) -Color Green
+        return $script:RaExitSuccess
+    }
+    if ($Options.RemoveSteamLaunchOption) {
+        if (-not $steamRootPath) { throw 'Steam not found.' }
+        if (-not (Remove-RaSteamLaunchOption $state $steamRootPath)) { throw 'Steam is running; launch option not changed.' }
+        Save-RaState $state
+        Write-RaDone
+        return $script:RaExitSuccess
+    }
+    if ($Options.CheckUpdate) {
+        [void](Invoke-RaCheckUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath)
+        return $script:RaExitSuccess
+    }
+    if ($Options.Rollback) {
+        Invoke-RaRollback $state
+        Save-RaState $state
+        Write-RaDone
+        return $script:RaExitSuccess
+    }
+    if ($Options.Update) {
+        if ((Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath)) {
+            Save-RaState $state
+            Remove-RaUnusedVersion $state
+        }
+        Write-RaDone
+        return $script:RaExitSuccess
+    }
+    return (Invoke-RaSetupAction -Options $Options -State $state -SteamRootPath $steamRootPath)
+}
+
+function Invoke-RaMain {
+    <#
+    .SYNOPSIS
+        Runs the bootstrap with the given options and returns the exit code.
+    .DESCRIPTION
+        Enables strict mode and Stop error handling for this call only (never for the
+        caller's session under irm | iex), then dispatches. Any error is logged as
+        FAILED and turned into exit code 1.
+    .PARAMETER P
+        Option table; keys are the script's parameter names, missing keys mean "not given".
+    .OUTPUTS
+        System.Int32
+    .EXAMPLE
+        Invoke-RaMain @{ Install = $true; Yes = $true }
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$P)
+    Set-StrictMode -Version Latest
+    $ErrorActionPreference = 'Stop'
+    $options = $P.Clone()
+    foreach ($k in $script:RaOptionNames) { if (-not $options.ContainsKey($k)) { $options[$k] = $null } }
+    Initialize-RaRun $options
+    try {
+        return (Invoke-RaAction $options)
+    } catch {
+        Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
+        return $script:RaExitFailure
+    }
+}
+
+if ($MyInvocation.InvocationName -ne '.') {
+    $raExit = Invoke-RaMain @{
+        Install = $Install; Shortcut = $Shortcut; ShortcutPath = $ShortcutPath; SteamLaunchOption = $SteamLaunchOption
+        SteamAccount = $SteamAccount; RemoveSteamLaunchOption = $RemoveSteamLaunchOption; Uninstall = $Uninstall
+        DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot; Language = $Language
+        CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
+    }
+    if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
+    # Under `irm | iex` never call exit (it would close the user's terminal).
+}

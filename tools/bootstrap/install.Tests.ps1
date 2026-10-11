@@ -1,35 +1,99 @@
-# Offline tests for tools/bootstrap/install.ps1.
-# Pester 3.4 syntax (the version bundled with Windows); also runs on PowerShell 7.
-#   Invoke-Pester -Script .\tools\bootstrap\install.Tests.ps1
-# Work directory: $env:RA_BOOTSTRAP_TEST_ROOT (default: %TEMP%\ra-bootstrap-tests).
-# Optional: $env:RA_BOOTSTRAP_REAL_LOCALCONFIG = path to a COPY of a real localconfig.vdf.
-# Nothing outside the work directory is written; Steam/game are never touched.
+<#
+.SYNOPSIS
+    Offline Pester tests for tools/bootstrap/install.ps1 (the generated single file).
+
+.DESCRIPTION
+    Pester 3.4 syntax (the version bundled with Windows); also runs on PowerShell 7.
+        Invoke-Pester -Script .\tools\bootstrap\install.Tests.ps1
+    Work directory: $env:RA_BOOTSTRAP_TEST_ROOT (default: %TEMP%\ra-bootstrap-tests).
+    Optional: $env:RA_BOOTSTRAP_REAL_LOCALCONFIG = path to a COPY of a real localconfig.vdf.
+    Nothing outside the work directory is written; Steam/game are never touched. Every
+    adapter that reaches outside the process (network, Steam process, prompts, desktop,
+    folder dialog) is replaced in Reset-Env.
+#>
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $scriptPath = Join-Path $here 'install.ps1'
+$buildScript = Join-Path $here 'build-install.ps1'
+$sourceDir = Join-Path $here 'src'
 . $scriptPath
+# Unit tests call the functions directly, so enable the same strict mode Invoke-RaMain uses.
+Set-StrictMode -Version Latest
 
 $testRoot = if ($env:RA_BOOTSTRAP_TEST_ROOT) { $env:RA_BOOTSTRAP_TEST_ROOT } else { Join-Path ([IO.Path]::GetTempPath()) 'ra-bootstrap-tests' }
 $script:RaQuiet = $true
 $origRepo = $script:RaGitHubRepo
 $origKey = $script:RaUpdatePublicKeyXml
 $origPinned = $script:RaPinnedRelease
+$origAdapters = @{
+    ReadAllBytes = $script:RaReadAllBytes; WriteAllBytes = $script:RaWriteAllBytes; CopyFile = $script:RaCopyFile
+    ReadShortcut = $script:RaReadShortcut; WriteShortcut = $script:RaWriteShortcut; Now = $script:RaNow
+    GetRegistryValue = $script:RaGetRegistryValue; GetUiLanguage = $script:RaGetUiLanguage; WriteHost = $script:RaWriteHost
+}
 $signScript = Join-Path $here 'sign-release-manifest.ps1'
 $L = 'C:\Users\Test User\AppData\Local\RenameAnything\0.1.0\RenameAnythingLauncher.exe'
 $LOld = 'C:\Users\Test User\AppData\Local\RenameAnything\0.0.9\RenameAnythingLauncher.exe'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
+$fakeGitHubAssetHost = 'https://github.com/test-owner/test-repo/releases/download'
+$fakeGitHubApiUrl = 'https://api.github.com/repos/test-owner/test-repo/releases/latest'
 
-function Assert-RaThrows {
-    <# Pester 3.4 "Should Throw" does not work on PowerShell 7, so use our own. #>
-    param([scriptblock]$Block, [string]$MessagePart)
-    $threw = $false; $msg = ''
-    try { & $Block } catch { $threw = $true; $msg = $_.Exception.Message }
+function Assert-RaThrow {
+    <#
+    .SYNOPSIS
+        Asserts that a script block throws, optionally with a message fragment.
+    .DESCRIPTION
+        Pester 3.4 "Should Throw" does not work on PowerShell 7, so the tests use this.
+    .PARAMETER Block
+        Code expected to throw.
+    .PARAMETER MessagePart
+        Optional text the exception message must contain.
+    .OUTPUTS
+        None. Fails the current test through Should.
+    .EXAMPLE
+        Assert-RaThrow { Add-RaWrapper '%command% %command%' $L } 'more than once'
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][scriptblock]$Block,
+        [Parameter(Position = 1)][string]$MessagePart = ''
+    )
+    $threw = $false
+    $msg = ''
+    try { & $Block } catch {
+        $threw = $true
+        $msg = $_.Exception.Message
+    }
     $threw | Should Be $true
     if ($MessagePart) { $msg.Contains($MessagePart) | Should Be $true }
 }
 
 function New-LocalConfigText {
-    param([string]$AppBlock, [string]$Nl = "`n", [switch]$NoApp)
+    <#
+    .SYNOPSIS
+        Builds a synthetic localconfig.vdf with decoy blocks.
+    .DESCRIPTION
+        Contains another game's LaunchOptions, an escaped JSON value and the WebStorage
+        and depots decoys that also mention 394360. The HOI4 app block is inserted
+        where -AppBlock says (or omitted with -NoApp).
+    .PARAMETER AppBlock
+        Text of the 394360 block (see New-AppBlock).
+    .PARAMETER Nl
+        Line ending to use.
+    .PARAMETER NoApp
+        Leave the 394360 block out.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Position = 0)][AllowEmptyString()][string]$AppBlock = '',
+        [ValidateSet("`n", "`r`n")][string]$Nl = "`n",
+        [switch]$NoApp
+    )
     $app = if ($NoApp) { '' } else { $AppBlock }
     $t = @"
 "UserLocalConfigStore"
@@ -87,15 +151,76 @@ $app					"8930"
 }
 
 function New-AppBlock {
-    param([string]$LaunchOptionsLine)
+    <#
+    .SYNOPSIS
+        Builds the "394360" app block for New-LocalConfigText.
+    .DESCRIPTION
+        Includes LastPlayed and a nested cloud block; the given line (usually the
+        LaunchOptions key) is added before the closing brace.
+    .PARAMETER LaunchOptionsLine
+        Extra line inside the block (empty for none).
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        New-AppBlock '"LaunchOptions"		"-debug_mode"'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$LaunchOptionsLine)
     $lo = if ($null -ne $LaunchOptionsLine) { "`t`t`t`t`t`t$LaunchOptionsLine`n" } else { '' }
-    return "`t`t`t`t`t`"394360`"`n`t`t`t`t`t{`n`t`t`t`t`t`t`"LastPlayed`"`t`t`"1791737197`"`n`t`t`t`t`t`t`"cloud`"`n`t`t`t`t`t`t{`n`t`t`t`t`t`t`t`"last_sync_state`"`t`t`"synchronized`"`n`t`t`t`t`t`t}`n$lo`t`t`t`t`t}`n"
+    $t5 = "`t" * 5
+    $t6 = "`t" * 6
+    $head = "$t5`"394360`"`n$t5{`n$t6`"LastPlayed`"`t`t`"1791737197`"`n$t6`"cloud`"`n$t6{`n"
+    return $head + "$t6`t`"last_sync_state`"`t`t`"synchronized`"`n$t6}`n$lo$t5}`n"
 }
 
-function Write-Utf8 { param($Path, $Text) [IO.File]::WriteAllText($Path, $Text, $utf8) }
+function Write-Utf8 {
+    <#
+    .SYNOPSIS
+        Writes text as UTF-8 without BOM.
+    .DESCRIPTION
+        Fixture helper.
+    .PARAMETER Path
+        Target file.
+    .PARAMETER Text
+        Content.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Write-Utf8 $p 'text'
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Path,
+        [Parameter(Mandatory, Position = 1)][AllowEmptyString()][string]$Text
+    )
+    [IO.File]::WriteAllText($Path, $Text, $utf8)
+}
 
 function New-FakeSteam {
-    param([string]$Root, [hashtable]$Accounts)
+    <#
+    .SYNOPSIS
+        Creates a synthetic Steam folder tree.
+    .DESCRIPTION
+        userdata\<id>\config\localconfig.vdf per account, loginusers.vdf with persona
+        names, libraryfolders.vdf pointing at itself, appmanifest_394360.acf and a game
+        folder with hoi4.exe (a copy of notepad.exe) and a dummy dowser.exe.
+    .PARAMETER Root
+        Steam folder to create.
+    .PARAMETER Accounts
+        Account id -> localconfig.vdf text.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Root,
+        [Parameter(Mandatory, Position = 1)][hashtable]$Accounts
+    )
     New-Item -ItemType Directory -Force -Path (Join-Path $Root 'config'), (Join-Path $Root 'steamapps\common\Hearts of Iron IV') | Out-Null
     $users = ''
     foreach ($id in $Accounts.Keys) {
@@ -107,7 +232,8 @@ function New-FakeSteam {
     }
     Write-Utf8 (Join-Path $Root 'config\loginusers.vdf') "`"users`"`n{`n$users}`n"
     $esc = $Root.Replace('\', '\\')
-    Write-Utf8 (Join-Path $Root 'steamapps\libraryfolders.vdf') "`"libraryfolders`"`n{`n`t`"0`"`n`t{`n`t`t`"path`"`t`t`"$esc`"`n`t`t`"apps`"`n`t`t{`n`t`t`t`"394360`"`t`t`"1`"`n`t`t}`n`t}`n}`n"
+    $libraries = "`"libraryfolders`"`n{`n`t`"0`"`n`t{`n`t`t`"path`"`t`t`"$esc`"`n`t`t`"apps`"`n`t`t{`n`t`t`t`"394360`"`t`t`"1`"`n`t`t}`n`t}`n}`n"
+    Write-Utf8 (Join-Path $Root 'steamapps\libraryfolders.vdf') $libraries
     Write-Utf8 (Join-Path $Root 'steamapps\appmanifest_394360.acf') "`"AppState`"`n{`n`t`"appid`"`t`t`"394360`"`n`t`"installdir`"`t`t`"Hearts of Iron IV`"`n}`n"
     $game = Join-Path $Root 'steamapps\common\Hearts of Iron IV'
     Copy-Item -LiteralPath (Join-Path $env:WINDIR 'System32\notepad.exe') -Destination (Join-Path $game 'hoi4.exe')
@@ -115,8 +241,30 @@ function New-FakeSteam {
 }
 
 function New-TestPackage {
-    <# Returns @{ Zip; Manifest } with real hashes. $Tamper: none|filehash|extra|zipslip|missing #>
-    param([string]$Dir, [string]$Tamper = 'none', [string]$Version = '0.1.0')
+    <#
+    .SYNOPSIS
+        Builds a small release ZIP plus a manifest with real hashes.
+    .DESCRIPTION
+        $Tamper: none | filehash (one file's bytes differ) | extra (unlisted entry) |
+        zipslip (../ entry) | missing (one listed file absent).
+    .PARAMETER Dir
+        Folder for the ZIP.
+    .PARAMETER Tamper
+        Kind of damage to apply.
+    .PARAMETER Version
+        Manifest version.
+    .OUTPUTS
+        System.Collections.Hashtable (Zip, Manifest)
+    .EXAMPLE
+        New-TestPackage $dir -Tamper 'extra'
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Dir,
+        [Parameter(Position = 1)][ValidateSet('none', 'filehash', 'extra', 'zipslip', 'missing')][string]$Tamper = 'none',
+        [string]$Version = '0.1.0'
+    )
     $src = Join-Path $Dir 'pkgsrc'
     New-Item -ItemType Directory -Force -Path (Join-Path $src 'runtime') | Out-Null
     $files = [ordered]@{
@@ -127,7 +275,7 @@ function New-TestPackage {
     $manifest = [ordered]@{ Version = $Version; ZipName = "RA-$Version-$Tamper.zip"; ZipSha256 = ''; Files = [ordered]@{}; SupportedGameSha256 = @() }
     foreach ($k in $files.Keys) {
         $bytes = $utf8.GetBytes($files[$k])
-        $manifest.Files[$k] = Get-RaSha256OfBytes $bytes
+        $manifest.Files[$k] = Get-RaSha256OfData $bytes
     }
     $zip = Join-Path $Dir "RA-$Version-$Tamper.zip"
     if (Test-Path $zip) { Remove-Item $zip -Force }
@@ -139,17 +287,40 @@ function New-TestPackage {
             if ($Tamper -eq 'missing' -and $k -eq 'LICENSE.MinHook.txt') { continue }
             $content = if ($Tamper -eq 'filehash' -and $k -eq 'runtime/rename_anything_country.dll') { 'EVIL' } else { $files[$k] }
             $e = $z.CreateEntry($k)
-            $s = $e.Open(); $b = $utf8.GetBytes($content); $s.Write($b, 0, $b.Length); $s.Dispose()
+            $s = $e.Open()
+            $b = $utf8.GetBytes($content)
+            $s.Write($b, 0, $b.Length)
+            $s.Dispose()
         }
-        if ($Tamper -eq 'extra') { $e = $z.CreateEntry('runtime/extra.dll'); $s = $e.Open(); $s.WriteByte(1); $s.Dispose() }
-        if ($Tamper -eq 'zipslip') { $e = $z.CreateEntry('../evil.txt'); $s = $e.Open(); $s.WriteByte(1); $s.Dispose() }
+        foreach ($extra in @(@{ Kind = 'extra'; Name = 'runtime/extra.dll' }, @{ Kind = 'zipslip'; Name = '../evil.txt' })) {
+            if ($Tamper -ne $extra.Kind) { continue }
+            $s = $z.CreateEntry($extra.Name).Open()
+            $s.WriteByte(1)
+            $s.Dispose()
+        }
     } finally { $z.Dispose() }
     $manifest.ZipSha256 = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
     return @{ Zip = $zip; Manifest = $manifest }
 }
 
 function Reset-Env {
-    param([string]$Name)
+    <#
+    .SYNOPSIS
+        Gives a test a fresh work folder and safe adapters.
+    .DESCRIPTION
+        Resets every runtime switch and adapter: no Steam process, a temporary Desktop,
+        prompts that fail the test, no folder dialog, and a network mock that records
+        every URL and fails on anything not registered in $script:fakeWeb.
+    .PARAMETER Name
+        Sub-folder name under the test root.
+    .OUTPUTS
+        System.String (the work folder)
+    .EXAMPLE
+        $dir = Reset-Env 'e2e'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][string]$Name)
     $dir = Join-Path $testRoot $Name
     if (Test-Path $dir) { Remove-Item -LiteralPath $dir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -168,17 +339,46 @@ function Reset-Env {
     $script:RaUpdatePublicKeyXml = $origKey
     $script:RaPinnedRelease = $origPinned
     $script:RaFolderPicker = $null
+    $script:RaReadAllBytes = $origAdapters.ReadAllBytes
+    $script:RaWriteAllBytes = $origAdapters.WriteAllBytes
+    $script:RaCopyFile = $origAdapters.CopyFile
+    $script:RaReadShortcut = $origAdapters.ReadShortcut
+    $script:RaWriteShortcut = $origAdapters.WriteShortcut
+    $script:RaNow = $origAdapters.Now
+    $script:RaGetRegistryValue = { param($p, $n) throw "no registry in tests: $p\$n" }
+    $script:RaGetUiLanguage = $origAdapters.GetUiLanguage
+    $script:RaWriteHost = $origAdapters.WriteHost
     $script:requested = New-Object System.Collections.ArrayList
     # Network is always mocked: any unexpected request fails the test.
     $script:fakeWeb = @{}
-    $script:RaHttpGet = { param($u) [void]$script:requested.Add($u); if (-not $script:fakeWeb.ContainsKey($u)) { throw "no network in tests: $u" }; , $script:fakeWeb[$u] }
+    $script:RaHttpGet = {
+        param($u)
+        [void]$script:requested.Add($u)
+        if (-not $script:fakeWeb.ContainsKey($u)) { throw "no network in tests: $u" }
+        , $script:fakeWeb[$u]
+    }
     return $dir
 }
 
-function Get-TreeHashes {
-    param([string]$Dir)
+function Get-TreeHash {
+    <#
+    .SYNOPSIS
+        Lists "path=sha256" for every file under a folder (sorted).
+    .DESCRIPTION
+        Used to prove that an operation wrote nothing.
+    .PARAMETER Dir
+        Folder to scan; a missing folder yields an empty list.
+    .OUTPUTS
+        System.String[]
+    .EXAMPLE
+        (Get-TreeHash $dir) -join '|'
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]], [object[]])]
+    param([Parameter(Mandatory, Position = 0)][string]$Dir)
     if (-not (Test-Path $Dir)) { return @() }
-    return @(Get-ChildItem -LiteralPath $Dir -Recurse -File | Sort-Object FullName | ForEach-Object { $_.FullName + '=' + (Get-FileHash -LiteralPath $_.FullName).Hash })
+    $files = Get-ChildItem -LiteralPath $Dir -Recurse -File | Sort-Object FullName
+    return @($files | ForEach-Object { $_.FullName + '=' + (Get-FileHash -LiteralPath $_.FullName).Hash })
 }
 
 Describe 'Script hygiene' {
@@ -198,27 +398,28 @@ Describe 'Script hygiene' {
         $script:RaLang = 'en'
         (Get-RaText 'MpWarning') | Should Match 'NOT declared multiplayer-compatible'
     }
-    It 'Assert-RaThrows itself fails for a non-throwing block (negative control)' {
+    It 'Assert-RaThrow itself fails for a non-throwing block (negative control)' {
         $failed = $false
-        try { Assert-RaThrows { 1 } } catch { $failed = $true }
+        try { Assert-RaThrow { 1 } } catch { $failed = $true }
         $failed | Should Be $true
     }
     It 'runs as a downloaded scriptblock (irm-style) in a child process: -Uninstall -DryRun writes nothing' {
         $dir = Reset-Env 'child-scriptblock'
         $steam = Join-Path $dir 'Steam'
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
-        $before = Get-TreeHashes $dir
+        $before = Get-TreeHash $dir
         $exe = (Get-Process -Id $PID).Path
-        $cmd = "`$env:LOCALAPPDATA = '$dir\LocalAppData'; `$t = [IO.File]::ReadAllText('$scriptPath'); & ([scriptblock]::Create(`$t)) -Uninstall -DryRun -Yes -SteamRoot '$steam' -Language en; 'CHILD-EXIT-OK'"
+        $prefix = "`$env:LOCALAPPDATA = '$dir\LocalAppData'; `$t = [IO.File]::ReadAllText('$scriptPath'); "
+        $cmd = $prefix + "& ([scriptblock]::Create(`$t)) -Uninstall -DryRun -Yes -SteamRoot '$steam' -Language en; 'CHILD-EXIT-OK'"
         $out = & $exe -NoProfile -NonInteractive -Command $cmd 2>&1 | Out-String
         $out | Should Match 'CHILD-EXIT-OK'
         $out | Should Match 'DRY RUN'
-        (Get-TreeHashes $dir) -join '|' | Should Be ($before -join '|')
+        (Get-TreeHash $dir) -join '|' | Should Be ($before -join '|')
     }
     It 'has a single placeholder release URL constant and refuses an unpinned manifest' {
         $origRepo | Should Match 'PLACEHOLDER'
         $origKey | Should Be 'TO-BE-GENERATED'
-        Assert-RaThrows { Test-RaManifest $origPinned } 'not configured'
+        Assert-RaThrow { Test-RaManifest $origPinned } 'not configured'
     }
 }
 
@@ -241,26 +442,26 @@ Describe 'VDF parser' {
         ConvertFrom-RaVdfString (ConvertTo-RaVdfString $v) | Should Be $v
     }
     It 'rejects unbalanced braces' {
-        Assert-RaThrows { ConvertFrom-RaVdf ((New-LocalConfigText (New-AppBlock $null)) + "}`n") }
-        Assert-RaThrows { ConvertFrom-RaVdf ((New-LocalConfigText (New-AppBlock $null)).TrimEnd().TrimEnd('}')) }
+        Assert-RaThrow { ConvertFrom-RaVdf ((New-LocalConfigText (New-AppBlock $null)) + "}`n") }
+        Assert-RaThrow { ConvertFrom-RaVdf ((New-LocalConfigText (New-AppBlock $null)).TrimEnd().TrimEnd('}')) }
     }
     It 'rejects an unterminated string' {
-        Assert-RaThrows { ConvertFrom-RaVdf "`"a`"`n{`n`t`"b`"`t`t`"oops`n}`n" }
+        Assert-RaThrow { ConvertFrom-RaVdf "`"a`"`n{`n`t`"b`"`t`t`"oops`n}`n" }
     }
     It 'rejects a truncated (corrupted) file' {
         $t = New-LocalConfigText (New-AppBlock $null)
-        Assert-RaThrows { Get-RaAppLaunchInfo $t.Substring(0, [int]($t.Length / 2)) }
+        Assert-RaThrow { Get-RaAppLaunchInfo $t.Substring(0, [int]($t.Length / 2)) }
     }
     It 'rejects a file without the apps block' {
-        Assert-RaThrows { Get-RaAppLaunchInfo "`"UserLocalConfigStore`"`n{`n`t`"x`"`t`t`"1`"`n}`n" } 'No UserLocalConfigStore'
+        Assert-RaThrow { Get-RaAppLaunchInfo "`"UserLocalConfigStore`"`n{`n`t`"x`"`t`t`"1`"`n}`n" } 'No UserLocalConfigStore'
     }
     It 'rejects duplicate 394360 blocks' {
         $b = New-AppBlock $null
-        Assert-RaThrows { Get-RaAppLaunchInfo (New-LocalConfigText ($b + $b)) } 'Multiple'
+        Assert-RaThrow { Get-RaAppLaunchInfo (New-LocalConfigText ($b + $b)) } 'Multiple'
     }
     It 'rejects duplicate LaunchOptions keys' {
         $b = New-AppBlock ("`"LaunchOptions`"`t`t`"a`"`n`t`t`t`t`t`t`"LaunchOptions`"`t`t`"b`"")
-        Assert-RaThrows { Get-RaAppLaunchInfo (New-LocalConfigText $b) } 'Multiple LaunchOptions'
+        Assert-RaThrow { Get-RaAppLaunchInfo (New-LocalConfigText $b) } 'Multiple LaunchOptions'
     }
 }
 
@@ -272,11 +473,13 @@ Describe 'Launch option composition' {
     It 'chains after another wrapper' { Add-RaWrapper '"C:\Tools\other.exe" %command% -x' $L | Should Be "`"C:\Tools\other.exe`" `"$L`" %command% -x" }
     It 'is idempotent' { $once = Add-RaWrapper '-debug_mode' $L; Add-RaWrapper $once $L | Should Be $once }
     It 'replaces an older version path' { Add-RaWrapper (Add-RaWrapper '-x' $LOld) $L | Should Be "`"$L`" %command% -x" }
-    It 'refuses two %command%' { Assert-RaThrows { Add-RaWrapper '%command% %command%' $L } }
-    It 'refuses a launcher path with quotes' { Assert-RaThrows { Add-RaWrapper '' 'C:\a"b\RenameAnythingLauncher.exe' } }
+    It 'refuses two %command%' { Assert-RaThrow { Add-RaWrapper '%command% %command%' $L } }
+    It 'refuses a launcher path with quotes' { Assert-RaThrow { Add-RaWrapper '' 'C:\a"b\RenameAnythingLauncher.exe' } }
     It 'removes only our fragment (flags)' { Remove-RaWrapper (Add-RaWrapper '-debug_mode' $L) | Should Be '-debug_mode' }
     It 'removes to empty' { Remove-RaWrapper (Add-RaWrapper '' $L) | Should Be '' }
-    It 'removes and keeps another wrapper' { Remove-RaWrapper (Add-RaWrapper '"C:\Tools\other.exe" %command% -x' $L) | Should Be '"C:\Tools\other.exe" %command% -x' }
+    It 'removes and keeps another wrapper' {
+        Remove-RaWrapper (Add-RaWrapper '"C:\Tools\other.exe" %command% -x' $L) | Should Be '"C:\Tools\other.exe" %command% -x'
+    }
     It 'detects an unquoted path variant' {
         Test-RaHasWrapper 'C:\RA\RenameAnythingLauncher.exe %command%' | Should Be $true
         Remove-RaWrapper 'C:\RA\RenameAnythingLauncher.exe %command% -x' | Should Be '-x'
@@ -292,7 +495,8 @@ Describe 'Minimal text edit of localconfig.vdf' {
         $idx = $t.IndexOf('"-debug_mode"')
         $r.Text.Substring(0, $idx) | Should Be $t.Substring(0, $idx)
         $r.Text.EndsWith($t.Substring($idx + '"-debug_mode"'.Length)) | Should Be $true
-        $r.Text | Should Match ([regex]::Escape('"\"C:\\Users\\Test User\\AppData\\Local\\RenameAnything\\0.1.0\\RenameAnythingLauncher.exe\" %command% -debug_mode"'))
+        $expectedToken = '"\"C:\\Users\\Test User\\AppData\\Local\\RenameAnything\\0.1.0\\RenameAnythingLauncher.exe\" %command% -debug_mode"'
+        $r.Text | Should Match ([regex]::Escape($expectedToken))
         (Get-RaAppLaunchInfo $r.Text).Value | Should Be (Add-RaWrapper '-debug_mode' $L)
         # the other game's options untouched
         $r.Text | Should Match '"LaunchOptions"\t\t"-other_game"'
@@ -349,7 +553,7 @@ Describe 'File update with backup, verification and restore' {
         Write-Utf8 $p (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"'))
         $orig = [IO.File]::ReadAllBytes($p)
         $script:RaAfterWriteHook = { param($path) [IO.File]::AppendAllText($path, 'garbage"') }
-        Assert-RaThrows { Update-RaLocalConfig -ConfigPath $p -Compute { param($o) Add-RaWrapper $o $L } } 'restored from backup'
+        Assert-RaThrow { Update-RaLocalConfig -ConfigPath $p -Compute { param($o) Add-RaWrapper $o $L } } 'restored from backup'
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($p)) $orig | Should Be $true
         $script:RaAfterWriteHook = $null
     }
@@ -359,7 +563,7 @@ Describe 'File update with backup, verification and restore' {
         $t = New-LocalConfigText (New-AppBlock $null)
         Write-Utf8 $p $t.Substring(0, $t.Length - 3)
         $orig = [IO.File]::ReadAllBytes($p)
-        Assert-RaThrows { Update-RaLocalConfig -ConfigPath $p -Compute { param($o) 'x' } }
+        Assert-RaThrow { Update-RaLocalConfig -ConfigPath $p -Compute { 'x' } }
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($p)) $orig | Should Be $true
         @(Get-ChildItem $dir -Filter '*.renameanything-*').Count | Should Be 0
     }
@@ -367,7 +571,7 @@ Describe 'File update with backup, verification and restore' {
         $dir = Reset-Env 'file-utf8'
         $p = Join-Path $dir 'localconfig.vdf'
         [IO.File]::WriteAllBytes($p, [byte[]](0x22, 0xC3, 0x28, 0x22))
-        Assert-RaThrows { Read-RaTextFile $p } 'UTF-8'
+        Assert-RaThrow { Read-RaTextFile $p } 'UTF-8'
     }
 }
 
@@ -376,21 +580,21 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $dir = Reset-Env 'steam-running'
         $steam = Join-Path $dir 'Steam'
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
-        $before = Get-TreeHashes $steam
+        $before = Get-TreeHash $steam
         $script:RaGetSteamProcess = { @('fake-steam') }
         $state = Read-RaState
-        Assert-RaThrows { Set-RaSteamLaunchOption $state $steam '' $L } 'Steam is running'
-        (Get-TreeHashes $steam) -join '|' | Should Be ($before -join '|')
+        Assert-RaThrow { Set-RaSteamLaunchOption $state $steam '' $L } 'Steam is running'
+        (Get-TreeHash $steam) -join '|' | Should Be ($before -join '|')
     }
     It 'Steam running interactive: Q skips, Enter after closing proceeds' {
         [void](Reset-Env 'steam-wait')
         $script:RaAssumeYes = $false
         $script:RaGetSteamProcess = { @('fake-steam') }
-        $script:RaReadHost = { param($p) 'q' }
+        $script:RaReadHost = { 'q' }
         Wait-RaSteamClosed | Should Be $false
         $script:steamCalls = 0
         $script:RaGetSteamProcess = { $script:steamCalls++; if ($script:steamCalls -le 2) { @('fake') } else { @() } }
-        $script:RaReadHost = { param($p) '' }
+        $script:RaReadHost = { '' }
         Wait-RaSteamClosed | Should Be $true
     }
     It 'multiple accounts: -Yes without selector fails; selector and interactive choice work' {
@@ -398,16 +602,16 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $steam = Join-Path $dir 'Steam'
         $cfg = New-LocalConfigText (New-AppBlock $null)
         New-FakeSteam $steam @{ '111' = $cfg; '222' = $cfg }
-        $acc = @(Get-RaSteamAccounts $steam)
+        $acc = @(Get-RaSteamAccount $steam)
         $acc.Count | Should Be 2
-        ($acc | Where-Object Id -eq '222').Name | Should Be 'Persona 222'
-        Assert-RaThrows { Select-RaSteamAccounts $acc '' } 'Several Steam accounts'
-        @(Select-RaSteamAccounts $acc 'all').Count | Should Be 2
-        @(Select-RaSteamAccounts $acc '222')[0].Id | Should Be '222'
-        Assert-RaThrows { Select-RaSteamAccounts $acc '999' } 'Unknown'
+        ($acc | Where-Object { $_.Id -eq '222' }).Name | Should Be 'Persona 222'
+        Assert-RaThrow { Select-RaSteamAccount $acc '' } 'Several Steam accounts'
+        @(Select-RaSteamAccount $acc 'all').Count | Should Be 2
+        @(Select-RaSteamAccount $acc '222')[0].Id | Should Be '222'
+        Assert-RaThrow { Select-RaSteamAccount $acc '999' } 'Unknown'
         $script:RaAssumeYes = $false
-        $script:RaReadHost = { param($p) '2' }
-        $sel = @(Select-RaSteamAccounts $acc '')
+        $script:RaReadHost = { '2' }
+        $sel = @(Select-RaSteamAccount $acc '')
         $sel.Count | Should Be 1
         $sel[0].Id | Should Be '222'
     }
@@ -430,7 +634,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
             }
             $script:RaPinnedRelease = $m
             $state = Read-RaState
-            Assert-RaThrows { Install-RaPackage $state $pkg.Zip }
+            Assert-RaThrow { Install-RaPackage $state $pkg.Zip }
             Test-Path (Join-Path $script:RaRoot '0.1.0') | Should Be $false
             @(Get-ChildItem $script:RaRoot -Force -Filter '.staging-*' -ErrorAction SilentlyContinue).Count | Should Be 0
             Test-Path (Join-Path $dir 'evil.txt') | Should Be $false
@@ -449,9 +653,11 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $script:RaPinnedRelease = $pkg.Manifest
         $custom = Join-Path $dir 'My Games Folder'
         New-Item -ItemType Directory -Path $custom | Out-Null
-        $gameBefore = Get-TreeHashes (Join-Path $steam 'steamapps')
+        $gameBefore = Get-TreeHash (Join-Path $steam 'steamapps')
 
-        $code = Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; ShortcutPath = $custom; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }
+        $code = Invoke-RaMain @{
+            Install = $true; SteamLaunchOption = $true; ShortcutPath = $custom; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en'
+        }
         $code | Should Be 0
         $launcher = Join-Path $script:RaRoot 'current\RenameAnythingLauncher.exe'
         Test-Path $launcher | Should Be $true
@@ -467,7 +673,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $state.InstalledVersion | Should Be '0.1.0'
         @($state.Shortcuts) -contains $lnk | Should Be $true
         @($state.SteamEntries)[0].OriginalValue | Should Be '-debug_mode'
-        (Get-TreeHashes (Join-Path $steam 'steamapps')) -join '|' | Should Be ($gameBefore -join '|')
+        (Get-TreeHash (Join-Path $steam 'steamapps')) -join '|' | Should Be ($gameBefore -join '|')
         Test-Path (Join-Path $script:RaRoot 'bootstrap.log') | Should Be $true
 
         # A foreign shortcut with the same name elsewhere must survive uninstall.
@@ -485,14 +691,17 @@ Describe 'Steam process, accounts and end-to-end flows' {
         Test-Path $lnk | Should Be $false
         Test-Path $foreign | Should Be $true
         @(Get-ChildItem $script:RaRoot -Force | ForEach-Object Name) -join ',' | Should Be 'bootstrap.log'
-        (Get-TreeHashes (Join-Path $steam 'steamapps')) -join '|' | Should Be ($gameBefore -join '|')
+        (Get-TreeHash (Join-Path $steam 'steamapps')) -join '|' | Should Be ($gameBefore -join '|')
     }
 
     It 'uninstall without state removes only our fragment (user edited options afterwards)' {
         $dir = Reset-Env 'uninstall-nostate'
         $steam = Join-Path $dir 'Steam'
         $val = ConvertTo-RaVdfString ((Add-RaWrapper '-debug_mode' $L) + ' -nomusic')
-        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock ('"LaunchOptions"		"' + $val + '"'))); '222' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-x"')) }
+        New-FakeSteam $steam @{
+            '111' = (New-LocalConfigText (New-AppBlock ('"LaunchOptions"		"' + $val + '"')))
+            '222' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-x"'))
+        }
         $cfg222 = Join-Path $steam 'userdata\222\config\localconfig.vdf'
         $orig222 = [IO.File]::ReadAllBytes($cfg222)
         (Invoke-RaMain @{ RemoveSteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
@@ -507,7 +716,10 @@ Describe 'Steam process, accounts and end-to-end flows' {
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText '' -NoApp); '222' = (New-LocalConfigText (New-AppBlock $null)) }
         $pkg = New-TestPackage $dir
         $script:RaPinnedRelease = $pkg.Manifest
-        (Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; SteamAccount = 'all'; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        $options = @{
+            Install = $true; SteamLaunchOption = $true; SteamAccount = 'all'; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en'
+        }
+        (Invoke-RaMain $options) | Should Be 0
         $launcher = Join-Path $script:RaRoot 'current\RenameAnythingLauncher.exe'
         foreach ($id in '111', '222') {
             (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam "userdata\$id\config\localconfig.vdf")).Text).Value | Should Be "`"$launcher`" %command%"
@@ -526,10 +738,10 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $script:RaPinnedRelease = $pkg.Manifest
         # Install for real first so the Steam/shortcut steps have a launcher, then dry-run those.
         (Invoke-RaMain @{ Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-        $before = Get-TreeHashes $dir
+        $before = Get-TreeHash $dir
         (Invoke-RaMain @{ SteamLaunchOption = $true; Shortcut = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
         (Invoke-RaMain @{ Uninstall = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-        (Get-TreeHashes $dir) -join '|' | Should Be ($before -join '|')
+        (Get-TreeHash $dir) -join '|' | Should Be ($before -join '|')
     }
 
     It 'refuses to overwrite a foreign file with the shortcut name' {
@@ -560,7 +772,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $script:answers = New-Object System.Collections.Queue
         foreach ($a in 't', '3', 'n', '2', 't') { $script:answers.Enqueue($a) }  # install, both, decline Steam, picker, confirm shortcut
         $script:RaAssumeYes = $false
-        $script:RaReadHost = { param($p) $script:answers.Dequeue() }
+        $script:RaReadHost = { $script:answers.Dequeue() }
         (Invoke-RaMain @{ PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'pl' }) | Should Be 0
         $script:answers.Count | Should Be 0
         Test-Path (Join-Path $picked $script:RaShortcutFileName) | Should Be $true
@@ -571,8 +783,40 @@ Describe 'Steam process, accounts and end-to-end flows' {
 }
 
 function New-SignedRelease {
-    <# Builds a package + signed manifest via sign-release-manifest.ps1 and registers fake GitHub URLs. #>
-    param([string]$Dir, [string]$Version, [string]$KeyPath, [string[]]$GameSha = @(), [string]$Tag = $null, [string]$AssetHost = 'https://github.com/test-owner/test-repo/releases/download')
+    <#
+    .SYNOPSIS
+        Builds a package and a signed manifest and registers fake GitHub URLs for them.
+    .DESCRIPTION
+        Uses sign-release-manifest.ps1 (-MakeManifest, -Sign) exactly as a maintainer
+        would, then serves the release JSON, manifest, signature and ZIP through the
+        network mock ($script:fakeWeb).
+    .PARAMETER Dir
+        Work folder.
+    .PARAMETER Version
+        Release version.
+    .PARAMETER KeyPath
+        Private key used to sign.
+    .PARAMETER GameSha
+        Supported hoi4.exe hashes.
+    .PARAMETER Tag
+        Release tag; default v<Version>.
+    .PARAMETER AssetHost
+        Asset URL prefix (a foreign host must be refused).
+    .OUTPUTS
+        System.Collections.Hashtable (Zip, ManifestPath, Base, ZipName)
+    .EXAMPLE
+        New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory)][string]$Dir,
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][string]$KeyPath,
+        [string[]]$GameSha = @(),
+        [string]$Tag = '',
+        [string]$AssetHost = $fakeGitHubAssetHost
+    )
     $pkg = New-TestPackage (Join-Path $Dir "rel-$Version") -Version $Version
     $mPath = Join-Path $Dir "rel-$Version\release-manifest.json"
     [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version $Version -SupportedGameSha256 $GameSha -OutPath $mPath)
@@ -580,11 +824,13 @@ function New-SignedRelease {
     if (-not $Tag) { $Tag = "v$Version" }
     $base = "$AssetHost/$Tag"
     $zipName = [IO.Path]::GetFileName($pkg.Zip)
-    $rel = [pscustomobject]@{ tag_name = $Tag; assets = @(
-            [pscustomobject]@{ name = 'release-manifest.json'; browser_download_url = "$base/release-manifest.json" },
-            [pscustomobject]@{ name = 'release-manifest.json.sig'; browser_download_url = "$base/release-manifest.json.sig" },
-            [pscustomobject]@{ name = $zipName; browser_download_url = "$base/$zipName" }) }
-    $script:fakeWeb['https://api.github.com/repos/test-owner/test-repo/releases/latest'] = $utf8.GetBytes(($rel | ConvertTo-Json -Depth 5))
+    $assets = @(
+        [pscustomobject]@{ name = 'release-manifest.json'; browser_download_url = "$base/release-manifest.json" },
+        [pscustomobject]@{ name = 'release-manifest.json.sig'; browser_download_url = "$base/release-manifest.json.sig" },
+        [pscustomobject]@{ name = $zipName; browser_download_url = "$base/$zipName" }
+    )
+    $rel = [pscustomobject]@{ tag_name = $Tag; assets = $assets }
+    $script:fakeWeb[$fakeGitHubApiUrl] = $utf8.GetBytes(($rel | ConvertTo-Json -Depth 5))
     $script:fakeWeb["$base/release-manifest.json"] = [IO.File]::ReadAllBytes($mPath)
     $script:fakeWeb["$base/release-manifest.json.sig"] = [IO.File]::ReadAllBytes("$mPath.sig")
     $script:fakeWeb["$base/$zipName"] = [IO.File]::ReadAllBytes($pkg.Zip)
@@ -592,7 +838,21 @@ function New-SignedRelease {
 }
 
 function Initialize-UpdateEnv {
-    param([string]$Name)
+    <#
+    .SYNOPSIS
+        Prepares an installed 0.1.0 with Steam option and shortcut, a signing key and the test repository.
+    .DESCRIPTION
+        Starting point of every update/rollback test.
+    .PARAMETER Name
+        Work folder name.
+    .OUTPUTS
+        System.Collections.Hashtable (Dir, Steam, Key, Cfg, GameSha)
+    .EXAMPLE
+        $e = Initialize-UpdateEnv 'upd-flow'
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param([Parameter(Mandatory, Position = 0)][string]$Name)
     $dir = Reset-Env $Name
     $steam = Join-Path $dir 'Steam'
     New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
@@ -601,11 +861,34 @@ function Initialize-UpdateEnv {
     $script:RaGitHubRepo = 'test-owner/test-repo'
     $p1 = New-TestPackage (Join-Path $dir 'v1') -Version '0.1.0'
     $script:RaPinnedRelease = $p1.Manifest
-    (Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; Shortcut = $true; Yes = $true; PackagePath = $p1.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-    return @{ Dir = $dir; Steam = $steam; Key = $key; Cfg = (Join-Path $steam 'userdata\111\config\localconfig.vdf'); GameSha = (Get-FileHash (Join-Path $steam 'steamapps\common\Hearts of Iron IV\hoi4.exe')).Hash }
+    $options = @{ Install = $true; SteamLaunchOption = $true; Shortcut = $true; Yes = $true; PackagePath = $p1.Zip; SteamRoot = $steam; Language = 'en' }
+    # Pester 3.4 'Should' can emit a value; keep the helper's output to the one hashtable.
+    $null = (Invoke-RaMain $options) | Should Be 0
+    return @{
+        Dir     = $dir
+        Steam   = $steam
+        Key     = $key
+        Cfg     = (Join-Path $steam 'userdata\111\config\localconfig.vdf')
+        GameSha = (Get-FileHash (Join-Path $steam 'steamapps\common\Hearts of Iron IV\hoi4.exe')).Hash
+    }
 }
 
-function Get-CurrentTargetName { return (Split-Path -Leaf (Get-RaJunctionTarget (Get-RaCurrentLink))) }
+function Get-CurrentTargetName {
+    <#
+    .SYNOPSIS
+        Name of the version folder the 'current' junction points to.
+    .DESCRIPTION
+        Shortcut for assertions on the active version.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-CurrentTargetName | Should Be '0.2.0'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return (Split-Path -Leaf (Get-RaJunctionTarget (Get-RaCurrentLink)))
+}
 
 Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollback)' {
     It 'install creates the stable current junction; Steam option and shortcut point at it' {
@@ -619,15 +902,15 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
     }
     It '-CheckUpdate: one API call + 2 manifest assets, reports newer version and game support, changes nothing' {
         $e = Initialize-UpdateEnv 'upd-check'
-        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key @($e.GameSha))
-        $before = @(Get-TreeHashes $e.Dir | Where-Object { $_ -notmatch 'bootstrap\.log=' })
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -GameSha @($e.GameSha))
+        $before = @(Get-TreeHash $e.Dir | Where-Object { $_ -notmatch 'bootstrap\.log=' })
         $r = Invoke-RaCheckUpdate (Read-RaState) (Get-RaGameDir $e.Steam) $null
         $r.Newer | Should Be $true
         $r.InstalledSupportsGame | Should Be $false
         $r.LatestSupportsGame | Should Be $true
         $script:requested.Count | Should Be 3
         $script:requested[0] | Should Be 'https://api.github.com/repos/test-owner/test-repo/releases/latest'
-        @(Get-TreeHashes $e.Dir | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' | Should Be ($before -join '|')
+        @(Get-TreeHash $e.Dir | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' | Should Be ($before -join '|')
         (Invoke-RaMain @{ CheckUpdate = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
     }
     It '-Update switches current without touching Steam config/shortcut; -Rollback returns; third version prunes the oldest' {
@@ -635,7 +918,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $cfgBefore = [IO.File]::ReadAllBytes($e.Cfg)
         $lnk = Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName
         $lnkBefore = [IO.File]::ReadAllBytes($lnk)
-        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key)
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
         (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         $st = Read-RaState
@@ -655,7 +938,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         # 0.3.0 -> keep 0.3.0 (current) and 0.2.0 (previous), prune 0.1.0
-        [void](New-SignedRelease $e.Dir '0.3.0' $e.Key)
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.3.0' -KeyPath $e.Key)
         (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.3.0'
         Test-Path (Join-Path $script:RaRoot '0.1.0') | Should Be $false
@@ -668,7 +951,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
     }
     It 'tampered manifest (bad signature) is refused and nothing changes' {
         $e = Initialize-UpdateEnv 'upd-badsig'
-        $r = New-SignedRelease $e.Dir '0.2.0' $e.Key
+        $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
         $script:fakeWeb["$($r.Base)/release-manifest.json"] = $utf8.GetBytes(([IO.File]::ReadAllText($r.ManifestPath)).Replace('"0.2.0"', '"0.2.1"'))
         (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.1.0'
@@ -679,13 +962,13 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $e = Initialize-UpdateEnv 'upd-otherkey'
         $other = Join-Path $e.Dir 'other.private.xml'
         [void](& $signScript -NewKey -PrivateKeyPath $other -KeySize 2048)
-        [void](New-SignedRelease $e.Dir '0.2.0' $other)
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $other)
         (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.1.0'
     }
     It 'valid signature but ZIP with a different hash is refused (fail-closed), current unchanged' {
         $e = Initialize-UpdateEnv 'upd-badzip'
-        $r = New-SignedRelease $e.Dir '0.2.0' $e.Key
+        $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
         $bad = New-TestPackage (Join-Path $e.Dir 'bad') -Tamper 'filehash' -Version '0.2.0'
         $script:fakeWeb["$($r.Base)/$($r.ZipName)"] = [IO.File]::ReadAllBytes($bad.Zip)
         (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
@@ -696,36 +979,37 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
     }
     It 'tag/manifest version mismatch and foreign asset host are refused' {
         $e = Initialize-UpdateEnv 'upd-mismatch'
-        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key -Tag 'v9.9.9')
-        Assert-RaThrows { Get-RaRemoteRelease $null } 'does not match'
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -Tag 'v9.9.9')
+        Assert-RaThrow { Get-RaRemoteRelease $null } 'does not match'
         $script:fakeWeb = @{}
-        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key -AssetHost 'https://evil.example/releases/download')
-        Assert-RaThrows { Get-RaRemoteRelease $null } 'Unexpected asset URL'
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -AssetHost 'https://evil.example/releases/download')
+        Assert-RaThrow { Get-RaRemoteRelease $null } 'Unexpected asset URL'
         Get-CurrentTargetName | Should Be '0.1.0'
     }
     It 'fails closed while the signing key or repository is still a placeholder' {
         $e = Initialize-UpdateEnv 'upd-placeholder'
-        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key)
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
         $script:RaUpdatePublicKeyXml = 'TO-BE-GENERATED'
-        Assert-RaThrows { Get-RaRemoteRelease $null } 'signing key is not configured'
+        Assert-RaThrow { Get-RaRemoteRelease $null } 'signing key is not configured'
         $script:RaGitHubRepo = $origRepo
         $script:requested.Clear()
-        Assert-RaThrows { Get-RaRemoteRelease $null } 'not configured'
+        Assert-RaThrow { Get-RaRemoteRelease $null } 'not configured'
         $script:requested.Count | Should Be 0
     }
     It 'offline update with -ManifestPath/-PackagePath makes no network request' {
         $e = Initialize-UpdateEnv 'upd-offline'
-        $r = New-SignedRelease $e.Dir '0.2.0' $e.Key
+        $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
         $script:fakeWeb = @{}
         $script:requested.Clear()
-        (Invoke-RaMain @{ Update = $true; ManifestPath = $r.ManifestPath; PackagePath = $r.Zip; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        $options = @{ Update = $true; ManifestPath = $r.ManifestPath; PackagePath = $r.Zip; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }
+        (Invoke-RaMain $options) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         $script:requested.Count | Should Be 0
     }
     It 'rollback refuses when the previous version is missing or modified' {
         $e = Initialize-UpdateEnv 'upd-rbfail'
         (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
-        [void](New-SignedRelease $e.Dir '0.2.0' $e.Key)
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
         (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         [IO.File]::WriteAllText((Join-Path $script:RaRoot '0.1.0\runtime\rename_anything_country.dll'), 'tampered')
         (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
@@ -743,16 +1027,276 @@ Describe 'Real localconfig.vdf copy (optional)' {
             $orig = [IO.File]::ReadAllBytes($p)
             $origText = (Read-RaTextFile $p).Text
             $before = (Get-RaAppLaunchInfo $origText).Value
-            $r = Update-RaLocalConfig -ConfigPath $p -Compute { param($o) Add-RaWrapper $o $L }
+            [void](Update-RaLocalConfig -ConfigPath $p -Compute { param($o) Add-RaWrapper $o $L })
             $newText = (Read-RaTextFile $p).Text
             $a = $origText -split "`n"; $b = $newText -split "`n"
             $diff = @(Compare-Object $a $b)
             ($diff.Count -le 2) | Should Be $true
             @($diff | Where-Object { $_.InputObject -notmatch '"LaunchOptions"' }).Count | Should Be 0
-            [void](Update-RaLocalConfig -ConfigPath $p -Compute { param($o) if ($null -eq $before) { '' } else { $before } })
+            [void](Update-RaLocalConfig -ConfigPath $p -Compute { if ($null -eq $before) { '' } else { $before } })
             if ($null -ne $before) { Test-RaBytesEqual ([IO.File]::ReadAllBytes($p)) $orig | Should Be $true }
         }
     } else {
         It 'skipped (RA_BOOTSTRAP_REAL_LOCALCONFIG not set)' { $true | Should Be $true }
+    }
+}
+
+Describe 'Build and structure (single-file distribution from src/)' -Tags 'Build' {
+    It 'install.ps1 is up to date with tools/bootstrap/src (build-install.ps1 -Check)' {
+        $out = & $buildScript -Check
+        $LASTEXITCODE | Should Be 0
+        ($out -join ' ') | Should Match 'UP-TO-DATE'
+    }
+    It 'the -Check mode detects a stale install.ps1 (negative control)' {
+        $dir = Reset-Env 'build-stale'
+        $copy = Join-Path $dir 'install.ps1'
+        [IO.File]::WriteAllText($copy, [IO.File]::ReadAllText($scriptPath) + "`n# hand edit`n")
+        $out = & $buildScript -Check -OutputPath $copy
+        $LASTEXITCODE | Should Be 1
+        ($out -join ' ') | Should Match 'STALE'
+    }
+    It 'every source fragment is pure ASCII without BOM' {
+        foreach ($f in Get-ChildItem -LiteralPath $sourceDir -Recurse -Filter '*.ps1') {
+            @([IO.File]::ReadAllBytes($f.FullName) | Where-Object { $_ -gt 127 }).Count | Should Be 0
+        }
+    }
+    It 'every function is documented and typed (help, CmdletBinding, OutputType)' {
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$null, [ref]$null)
+        $functions = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
+        $functions.Count | Should BeGreaterThan 60
+        $bad = @()
+        foreach ($fn in $functions) {
+            $help = $fn.GetHelpContent()
+            $attrs = @($fn.Body.ParamBlock.Attributes | ForEach-Object { $_.TypeName.Name })
+            $ok = $help -and $help.Synopsis -and $help.Description -and $help.Examples.Count -gt 0 -and $help.Outputs.Count -gt 0 -and
+            ($attrs -contains 'CmdletBinding') -and ($attrs -contains 'OutputType')
+            if (-not $ok) { $bad += $fn.Name }
+        }
+        ($bad -join ', ') | Should Be ''
+    }
+    It 'outside Adapters.ps1 nothing calls the host, processes, registry, network or COM directly' {
+        $forbiddenCommands = @('Write-Host', 'Read-Host', 'Get-Process', 'Get-ItemProperty', 'Get-UICulture', 'Get-Date')
+        $forbiddenText = @('System.Net.WebClient', 'WScript.Shell')
+        $violations = @()
+        foreach ($f in Get-ChildItem -LiteralPath $sourceDir -Recurse -Filter '*.ps1' | Where-Object { $_.Name -ne 'Adapters.ps1' }) {
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$null)
+            $commands = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true)
+            foreach ($c in $commands) { if ($forbiddenCommands -contains $c.GetCommandName()) { $violations += "$($f.Name): $($c.GetCommandName())" } }
+            $text = [IO.File]::ReadAllText($f.FullName)
+            foreach ($s in $forbiddenText) { if ($text.Contains($s)) { $violations += "$($f.Name): $s" } }
+        }
+        ($violations -join '; ') | Should Be ''
+    }
+    It 'the derived wrapper pattern equals the historical literal' {
+        $script:RaWrapperPattern | Should BeExactly '(?:"[^"]*\\RenameAnythingLauncher\.exe"|(?<!\S)[^\s"]*\\RenameAnythingLauncher\.exe)[ \t]*'
+    }
+}
+
+Describe 'Adapters (test seams for external dependencies)' {
+    It 'registry adapter: Steam path from HKCU is normalized; missing value fails clearly' {
+        $dir = Reset-Env 'adapter-registry'
+        $steam = Join-Path $dir 'Steam'
+        New-Item -ItemType Directory -Path $steam | Out-Null
+        $script:registryCalls = New-Object System.Collections.ArrayList
+        $script:RaGetRegistryValue = { param($p, $n) [void]$script:registryCalls.Add("$p|$n"); $steam.Replace('\', '/') }
+        Get-RaSteamRoot '' | Should Be $steam
+        $script:registryCalls[0] | Should Be 'HKCU:\Software\Valve\Steam|SteamPath'
+        $script:RaGetRegistryValue = { throw 'value missing' }
+        Assert-RaThrow { Get-RaSteamRoot '' } 'Steam not found'
+        $script:RaGetRegistryValue = { Join-Path $dir 'NoSuchSteam' }
+        Assert-RaThrow { Get-RaSteamRoot '' } 'does not exist'
+    }
+    It 'UI language adapter: pl -> pl, other -> en, failure -> en' {
+        [void](Reset-Env 'adapter-lang')
+        $script:RaGetUiLanguage = { 'pl' }
+        Get-RaDefaultLanguage | Should Be 'pl'
+        $script:RaGetUiLanguage = { 'de' }
+        Get-RaDefaultLanguage | Should Be 'en'
+        $script:RaGetUiLanguage = { throw 'no culture' }
+        Get-RaDefaultLanguage | Should Be 'en'
+    }
+    It 'clock adapter: backup names are deterministic and never overwrite' {
+        $dir = Reset-Env 'adapter-clock'
+        $script:RaNow = { [datetime]::new(2026, 1, 2, 3, 4, 5) }
+        $p = Join-Path $dir 'localconfig.vdf'
+        New-RaBackupPath $p | Should Be "$p.renameanything-backup-20260102-030405"
+        Write-Utf8 "$p.renameanything-backup-20260102-030405" 'x'
+        New-RaBackupPath $p | Should Be "$p.renameanything-backup-20260102-030405-1"
+        Write-Utf8 $p (New-LocalConfigText (New-AppBlock $null))
+        $r = Update-RaLocalConfig -ConfigPath $p -Compute { 'X' }
+        $r.Backup | Should Be "$p.renameanything-backup-20260102-030405-1"
+    }
+    It 'console adapter: levels map to colours; quiet, -NoConsole and dry-run behave' {
+        $dir = Reset-Env 'adapter-console'
+        $script:lines = New-Object System.Collections.ArrayList
+        $script:RaWriteHost = { param($m, $c) [void]$script:lines.Add("$c|$m") }
+        $script:RaQuiet = $false
+        Write-RaLog 'w' -Level WARN
+        Write-RaLog 'p' -Level PLAN
+        Write-RaLog 'hidden' -NoConsole
+        $script:RaQuiet = $true
+        Write-RaLog 'quiet'
+        ($script:lines -join ',') | Should Be 'Yellow|w,Cyan|p'
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match '\[WARN\] w'
+        $log | Should Match '\[INFO\] hidden'
+        $log | Should Match '\[INFO\] quiet'
+        $script:RaDry = $true
+        Write-RaLog 'dry'
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Not Match 'dry'
+        (Get-RaLogPath).StartsWith($dir) | Should Be $true
+    }
+    It 'file adapters: a failing replace is restored from the verified backup' {
+        $dir = Reset-Env 'adapter-copy'
+        $p = Join-Path $dir 'localconfig.vdf'
+        Write-Utf8 $p (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"'))
+        $orig = [IO.File]::ReadAllBytes($p)
+        $script:RaCopyFile = {
+            param($s, $d)
+            if ($s.EndsWith('.renameanything-tmp')) { throw 'disk full (simulated)' }
+            [IO.File]::Copy($s, $d, $true)
+        }
+        Assert-RaThrow { Update-RaLocalConfig -ConfigPath $p -Compute { param($o) Add-RaWrapper $o $L } } 'restored from backup'
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($p)) $orig | Should Be $true
+        Test-Path "$p.renameanything-tmp" | Should Be $false
+    }
+    It 'file adapters: the strict reader sees exactly the adapter bytes' {
+        [void](Reset-Env 'adapter-read')
+        $script:RaReadAllBytes = { , [byte[]](0xEF, 0xBB, 0xBF, 0x61, 0x0D, 0x0A) }
+        $f = Read-RaTextFile 'C:\does-not-exist\x.vdf'
+        $f.HasBom | Should Be $true
+        $f.Text | Should Be "a`r`n"
+        $f.Newline | Should Be "`r`n"
+        $script:RaReadAllBytes = { , [byte[]](0x22, 0xC3, 0x28) }
+        Assert-RaThrow { Read-RaTextFile 'C:\does-not-exist\x.vdf' } 'not valid UTF-8'
+    }
+    It 'shortcut adapters: the .lnk spec and ownership checks work without COM' {
+        $dir = Reset-Env 'adapter-lnk'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $game = Get-RaGameDir $steam
+        $script:lnkStore = @{}
+        $script:RaWriteShortcut = { param($p, $spec) $script:lnkStore[$p] = $spec; Write-Utf8 $p 'lnk' }
+        $script:RaReadShortcut = {
+            param($p)
+            if ($script:lnkStore.ContainsKey($p)) { $script:lnkStore[$p] } else { [pscustomobject]@{ TargetPath = 'C:\other.exe' } }
+        }
+        $launcher = Join-Path $script:RaRoot 'current\RenameAnythingLauncher.exe'
+        $state = New-RaState
+        $folder = Join-Path $dir 'Games'
+        New-Item -ItemType Directory -Path $folder | Out-Null
+        $lnk = New-RaShortcut -State $state -Folder $folder -LauncherPath $launcher -GameDir $game
+        $spec = $script:lnkStore[$lnk]
+        $spec.TargetPath | Should Be $launcher
+        $spec.Arguments | Should Be ('"' + (Join-Path $game 'dowser.exe') + '"')
+        $spec.WorkingDirectory | Should Be (Split-Path -Parent $launcher)
+        $spec.IconLocation | Should Be ((Join-Path $game 'hoi4.exe') + ',0')
+        $spec.Description | Should Match 'Not declared multiplayer-compatible'
+        @($state.Shortcuts) -contains $lnk | Should Be $true
+        $foreign = Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName
+        Write-Utf8 $foreign 'foreign'
+        Test-RaOwnShortcut $lnk | Should Be $true
+        Test-RaOwnShortcut $foreign | Should Be $false
+        Remove-RaOwnShortcut $state
+        Test-Path $lnk | Should Be $false
+        Test-Path $foreign | Should Be $true
+        @($state.Shortcuts).Count | Should Be 0
+    }
+    It 'network adapter: only HTTPS reaches the adapter' {
+        [void](Reset-Env 'adapter-http')
+        Assert-RaThrow { Get-RaHttpContent 'http://example.com/x' } 'non-HTTPS'
+        $script:requested.Count | Should Be 0
+        $script:fakeWeb['https://example.com/x'] = [byte[]](1, 2, 3)
+        $bytes = Get-RaHttpContent 'https://example.com/x'
+        $bytes.Count | Should Be 3
+        $bytes.GetType().Name | Should Be 'Byte[]'
+        $script:requested.Count | Should Be 1
+    }
+}
+
+Describe 'Extracted functions' {
+    It 'Get-RaUndoValue restores the exact original only while our value is unchanged' {
+        $entry = [pscustomobject]@{ WrittenValue = (Add-RaWrapper '-x' $L); OriginalValue = '%command% -x' }
+        Get-RaUndoValue (Add-RaWrapper '-x' $L) $entry | Should Be '%command% -x'
+        Get-RaUndoValue ((Add-RaWrapper '-x' $L) + ' -y') $entry | Should Be '-x -y'
+        $nullOriginal = [pscustomobject]@{ WrittenValue = (Add-RaWrapper '' $L); OriginalValue = $null }
+        Get-RaUndoValue (Add-RaWrapper '' $L) $nullOriginal | Should Be ''
+        Get-RaUndoValue (Add-RaWrapper '-z' $L) $null | Should Be '-z'
+    }
+    It 'Get-RaSetupPlan maps the start mode menu and re-asks on invalid input' {
+        [void](Reset-Env 'plan')
+        $script:RaAssumeYes = $false
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($a in 'n', '9', '1', 't') { $script:answers.Enqueue($a) }
+        $script:RaReadHost = { $script:answers.Dequeue() }
+        $plan = Get-RaSetupPlan @{ Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null }
+        $plan.Install | Should Be $false
+        $plan.Steam | Should Be $true
+        $plan.Shortcut | Should Be $false
+        $script:answers.Count | Should Be 0
+        $script:RaAssumeYes = $true
+        Assert-RaThrow { Get-RaSetupPlan @{ Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null } } 'With -Yes'
+    }
+    It 'Test-RaReleaseAssetUrl accepts only this repository''s release downloads' {
+        [void](Reset-Env 'asset-url')
+        $script:RaGitHubRepo = 'test-owner/test-repo'
+        Test-RaReleaseAssetUrl "$fakeGitHubAssetHost/v1/x.zip" | Should Be $true
+        Test-RaReleaseAssetUrl 'HTTPS://GITHUB.COM/test-owner/test-repo/releases/download/v1/x.zip' | Should Be $true
+        Test-RaReleaseAssetUrl 'https://github.com/other/test-repo/releases/download/v1/x.zip' | Should Be $false
+        Test-RaReleaseAssetUrl '' | Should Be $false
+    }
+    It 'Get-RaSteamLibrary reads the legacy libraryfolders.vdf format' {
+        $dir = Reset-Env 'libraries'
+        $steam = Join-Path $dir 'Steam'
+        New-Item -ItemType Directory -Force -Path (Join-Path $steam 'steamapps') | Out-Null
+        $legacy = "`"LibraryFolders`"`n{`n`t`"TimeNextStatsReport`"`t`t`"1`"`n`t`"1`"`t`t`"D:\\Games\\Steam`"`n}`n"
+        Write-Utf8 (Join-Path $steam 'steamapps\libraryfolders.vdf') $legacy
+        $libs = @(Get-RaSteamLibrary $steam)
+        $libs.Count | Should Be 2
+        $libs[1] | Should Be 'D:\Games\Steam'
+    }
+    It 'Compare-RaVersion compares numerically and ignores suffixes' {
+        Compare-RaVersion '0.10.0' '0.9.9' | Should Be 1
+        Compare-RaVersion '1.0.0-beta' '1.0.0' | Should Be 0
+        Compare-RaVersion '0.1.0' '0.2.0' | Should Be -1
+    }
+    It 'Test-RaManifest rejects unsafe paths, a missing launcher and bad game hashes' {
+        $h = 'A' * 64
+        $base = { [ordered]@{ Version = '1.0.0'; ZipName = 'a.zip'; ZipSha256 = $h; Files = [ordered]@{ 'RenameAnythingLauncher.exe' = $h } } }
+        $m = & $base
+        Test-RaManifest $m
+        $m.Contains('SupportedGameSha256') | Should Be $true
+        $m = & $base
+        $m.Files['runtime/../x.dll'] = $h
+        Assert-RaThrow { Test-RaManifest $m } 'unsafe path'
+        $m = & $base
+        $m.Files.Remove('RenameAnythingLauncher.exe')
+        $m.Files['x.dll'] = $h
+        Assert-RaThrow { Test-RaManifest $m } 'launcher missing'
+        $m = & $base
+        $m['SupportedGameSha256'] = @('nothex')
+        Assert-RaThrow { Test-RaManifest $m } 'bad game hash'
+    }
+    It 'Select-RaSteamAccount: interactive A selects all, invalid numbers are asked again' {
+        $accounts = @([pscustomobject]@{ Id = '1'; Name = $null }, [pscustomobject]@{ Id = '2'; Name = 'P' })
+        [void](Reset-Env 'select-all')
+        $script:RaAssumeYes = $false
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($a in '7', 'a') { $script:answers.Enqueue($a) }
+        $script:RaReadHost = { $script:answers.Dequeue() }
+        @(Select-RaSteamAccount $accounts '').Count | Should Be 2
+        $script:answers.Count | Should Be 0
+    }
+    It 'Get-RaPackageZip refuses to guess a download URL while the repository is a placeholder' {
+        [void](Reset-Env 'pkg-url')
+        $m = [ordered]@{ Version = '1.0.0'; ZipName = 'a.zip' }
+        Assert-RaThrow { Get-RaPackageZip -Manifest $m -LocalZip '' -ZipUrl '' } 'placeholder'
+        $script:requested.Count | Should Be 0
+    }
+    It 'ConvertTo-RaFileContent writes the BOM only when asked' {
+        @(ConvertTo-RaFileContent 'a' $false).Count | Should Be 1
+        $withBom = ConvertTo-RaFileContent 'a' $true
+        $withBom.Count | Should Be 4
+        $withBom[0] | Should Be 0xEF
     }
 }
