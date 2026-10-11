@@ -95,3 +95,11 @@ Doxygen z parametrami i wartościami zwracanymi), obszerny angielski opis na poc
 modułu (przepuszczony przez skill humanizer), clang-format + clang-tidy. Zachowanie musi
 pozostać równoważne: wszystkie dotychczasowe testy offline, fingerprinty i mutation checki
 przechodzą; potem niezależne review i pełny test w grze.
+
+## Backlog funkcji CAPIE
+
+- **Portret postaci w liście Postacie** (życzenie użytkownika 2026-10-11): skrypt HOI4 nie ma
+  gettera portretu (`loc_objects_documentation.md`), więc wymaga natywnej funkcji lokalizacji
+  CAPIE na postaci (np. `GetPortraitSmall` → nazwa sprite'a małego portretu, fallback
+  `GFX_portrait_unknown`); mod pokaże portret 32–40 px przed ikoną roli (tooltip roli już jest),
+  ukryty bez CAPIE. Po etapie 2, z osobnym RE, review i testem w grze.
