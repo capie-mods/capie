@@ -1,0 +1,98 @@
+[project]
+name = "hoi4-rename-anything-tools"
+version = "0.0.0"
+description = "Offline Python helper scripts for the Rename Anything HOI4 mod (lint/type-check environment only)."
+# The scripts are run with the developer's CPython 3.13 (miniconda, `python -I`).
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.uv]
+# Standalone scripts, not an installable package.
+package = false
+# `observe` is installed by default so `ty` can resolve `import frida` in plugin/tools/observe.py.
+default-groups = ["dev", "observe"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.0",
+    "ty>=0.0.86",
+]
+# Runtime dependency of plugin/tools/observe.py only.
+observe = [
+    "frida>=17.23.3",
+]
+
+[tool.ruff]
+target-version = "py313"
+# 100 instead of 88: the generators build long Paradox-script lines out of f-string pieces.
+line-length = 100
+# Python only. Ruff 0.17 also formats code blocks inside Markdown by default; the docs and
+# fixture READMEs are not part of this lint scope.
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
+extend-exclude = [
+    # Archived audit tools whose SHA-256 values are pinned in evidence reports; bytes must not change.
+    "docs/evidence/",
+    # TODO: include after product fixture iteration settles (another agent is editing this file).
+    "probes/rn_inline_editor_product_qa/check.py",
+    # Hashes of these three tools are pinned in probes/rn_inline_editor_transport_qa/source-baseline.json,
+    # which is itself pinned by the product fixture's protected baseline. Editing them would break
+    # that chain, so they stay byte-identical until those baselines are re-recorded deliberately.
+    "probes/rn_inline_pair_qa/tools/",
+    # TODO: untracked, in-progress work of another agent (caption refresh); include once committed.
+    "plugin/probes/caption_refresh_candidate/",
+]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Copyright/licence headers are not used in this repository (explicitly excluded by the owner).
+    "CPY",
+    # Conflicts with `ruff format`, which owns trailing commas (ruff's documented recommendation).
+    "COM812",
+    # Every linted file is a command-line script whose user interface is stdout/stderr text;
+    # `print` is the intended output API, not leftover debugging.
+    "T201",
+    # The scripts are standalone entry points run as `python path/to/script.py`, not packages.
+    # Adding `__init__.py` files would turn tools/, probes/* and plugin/tools/ into packages and
+    # change how `probes/rn_inline_pair_apply_source/check.py` resolves its `from check import`.
+    "INP001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# `assert` is the check mechanism of these scripts: a failed contract raises AssertionError,
+# which the probe checkers catch and report as FAIL. They are never run with `python -O`.
+# gen.py asserts invariants of its own constant tables (character set, UI strings).
+"tools/audit-debug-bridge.py" = ["S101"]
+"tools/gen.py" = ["S101"]
+"probes/rn_inline_pair_apply_source/*.py" = ["S101"]
+# check.py prints file paths exactly as glob/os.path produce them and relies on glob.glob
+# ordering; pathlib would change separators, sort order and dot-file matching in its output.
+"tools/check.py" = ["PTH100", "PTH110", "PTH112", "PTH118", "PTH119", "PTH120", "PTH207"]
+
+[tool.ruff.lint.pydocstyle]
+# Google style: readable "Args:/Returns:/Raises:" sections; ruff then disables the conflicting
+# pydocstyle rules (D203/D213 and the numpy-only section rules) automatically.
+convention = "google"
+
+[tool.ty.environment]
+python-version = "3.13"
+python-platform = "win32"
+# probes/rn_inline_pair_apply_source/check.py imports the sibling fixture's checker as `check`
+# after inserting this directory into sys.path at runtime; mirror that for type checking.
+extra-paths = ["probes/rn_inline_pair_qa/tools"]
+
+[tool.ty.src]
+# Same exclusions, and the same reasons, as [tool.ruff] extend-exclude above.
+exclude = [
+    "docs/evidence/",
+    "probes/rn_inline_editor_product_qa/check.py",
+    "probes/rn_inline_pair_qa/tools/",
+    "plugin/probes/caption_refresh_candidate/",
+]
+
+[tool.ty.rules]
+# Every ty rule, including the ones that are off or warnings by default, is an error.
+all = "error"
+
+[tool.ty.terminal]
+error-on-warning = true
