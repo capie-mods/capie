@@ -39,6 +39,15 @@ from pathlib import Path
 PIN = "7dc947be34970da1e1c787bcddbe7f62b610ff258aebf8f06aa8b348f3a031d5"
 """SHA-256 (lower case) of the only ``hoi4.exe`` build this probe may attach to."""
 
+GAME_IMAGE_NAME = "hoi4.exe"
+"""File name (compared case-insensitively) the attached process must run from."""
+
+DEFAULT_SECONDS = 120
+"""Default session length in seconds (``--seconds``)."""
+
+QUERY_NATIVE_PATH = 0
+"""``dwFlags`` of ``QueryFullProcessImageNameW``: Win32 path format."""
+
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 """Access right passed to ``OpenProcess``; enough to query the image name only."""
 
@@ -59,7 +68,7 @@ def process_image(pid: int) -> Path:
         Path of the executable the process was started from.
 
     Raises:
-        OSError: If the process cannot be opened or queried.
+        WinError: If the process cannot be opened or queried (an ``OSError``).
     """
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
@@ -79,7 +88,9 @@ def process_image(pid: int) -> Path:
     try:
         buf = ctypes.create_unicode_buffer(IMAGE_PATH_BUFFER_CHARS)
         count = wintypes.DWORD(len(buf))
-        if not kernel.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(count)):
+        if not kernel.QueryFullProcessImageNameW(
+            handle, QUERY_NATIVE_PATH, buf, ctypes.byref(count)
+        ):
             raise ctypes.WinError(ctypes.get_last_error())
         return Path(buf.value)
     finally:
@@ -87,16 +98,20 @@ def process_image(pid: int) -> Path:
 
 
 def main() -> None:
-    """Verify the target image, attach Frida and log probe messages until the deadline."""
+    """Verify the target image, attach Frida and log probe messages until the deadline.
+
+    Raises:
+        SystemExit: The process image is not the pinned ``hoi4.exe`` build.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--pid", required=True, type=int)
-    parser.add_argument("--seconds", default=120, type=int)
+    parser.add_argument("--seconds", default=DEFAULT_SECONDS, type=int)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--script", type=Path, default=Path(__file__).with_name("verify.js"))
     args = parser.parse_args()
     image = process_image(args.pid)
     digest = hashlib.sha256(image.read_bytes()).hexdigest()
-    if image.name.lower() != "hoi4.exe" or digest != PIN:
+    if image.name.lower() != GAME_IMAGE_NAME or digest != PIN:
         msg = f"Refused unsupported image: {image} sha256={digest}"
         raise SystemExit(msg)
     # Imported only after the image check so a missing or broken Frida install
@@ -107,7 +122,11 @@ def main() -> None:
     with args.out.open("w", encoding="utf-8", buffering=1) as log:
 
         def emit(line: str) -> None:
-            """Write one timestamped line to the log file and to stdout."""
+            """Write one timestamped line to the log file and to stdout.
+
+            Args:
+                line: Message without timestamp.
+            """
             stamped = f"{time.strftime('%Y-%m-%dT%H:%M:%S%z')} {line}"
             log.write(stamped + "\n")
             print(stamped, flush=True)

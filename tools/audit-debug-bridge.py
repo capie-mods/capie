@@ -51,12 +51,14 @@ that manifest is meant to be regenerated.
 """
 
 import datetime as dt
-import hashlib
 import json
 import re
 import struct
 import subprocess
 from pathlib import Path
+
+from rncommon.game_data import DEFAULT_GAME
+from rncommon.hashing import sha256_file
 
 ROOT = Path(__file__).resolve().parent.parent
 """Repository root (the parent of ``tools/``)."""
@@ -64,7 +66,7 @@ ROOT = Path(__file__).resolve().parent.parent
 EVIDENCE = ROOT / "docs/evidence/session-20261011"
 """Evidence folder holding the input baseline and the output manifest."""
 
-GAME_EXE = Path(r"C:\Program Files (x86)\Steam\steamapps\common\Hearts of Iron IV\hoi4.exe")
+GAME_EXE = Path(DEFAULT_GAME) / "hoi4.exe"
 """Installed game executable whose bytes are audited (read-only)."""
 
 GAME_SHA256 = "7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5"
@@ -81,6 +83,30 @@ MAX_SECTIONS = 96
 
 SECTION_HEADER_SIZE = 40
 """Size in bytes of one PE section header."""
+
+PE_SIGNATURE = b"PE\0\0"
+"""Signature at the start of the NT headers."""
+
+COFF_MACHINE_OFFSET = 4
+"""Offset of the COFF ``Machine`` and ``NumberOfSections`` fields from the PE signature."""
+
+COFF_OPTIONAL_SIZE_OFFSET = 20
+"""Offset of the COFF ``SizeOfOptionalHeader`` field from the PE signature."""
+
+COFF_END_OFFSET = 24
+"""Size of the PE signature plus the COFF file header (start of the optional header)."""
+
+SECTION_NAME_SIZE = 8
+"""Size of the zero-padded name at the start of a section header."""
+
+TEXT_SECTION = b".text"
+"""Name of the code section."""
+
+DIAGNOSTIC_TRANSPORT_CHECKS = 49626
+"""Assertion count of the diagnostic transport suite, copied into the report (not recomputed)."""
+
+INHERITED_V2_CHECKS = 49240
+"""Assertion count inherited from the key-logger v2 suite, copied into the report."""
 
 EXPECTED_FINGERPRINTS = 11
 """Number of byte fingerprints the bridge source must declare."""
@@ -113,7 +139,7 @@ def sha(path: str | Path) -> str:
     Returns:
         The digest as 64 upper-case hex characters.
     """
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest().upper()
+    return sha256_file(path, upper=True)
 
 
 def text_section(image: bytes) -> tuple[int, bytes]:
@@ -128,19 +154,19 @@ def text_section(image: bytes) -> tuple[int, bytes]:
         the last one wins.
     """
     pe_offset = struct.unpack_from("<I", image, PE_SIGNATURE_OFFSET_FIELD)[0]
-    assert image[pe_offset : pe_offset + 4] == b"PE\0\0"
-    machine, section_count = struct.unpack_from("<HH", image, pe_offset + 4)
-    optional_size = struct.unpack_from("<H", image, pe_offset + 20)[0]
+    assert image[pe_offset : pe_offset + len(PE_SIGNATURE)] == PE_SIGNATURE
+    machine, section_count = struct.unpack_from("<HH", image, pe_offset + COFF_MACHINE_OFFSET)
+    optional_size = struct.unpack_from("<H", image, pe_offset + COFF_OPTIONAL_SIZE_OFFSET)[0]
     assert machine == AMD64_MACHINE
     assert section_count < MAX_SECTIONS
-    sections = pe_offset + 24 + optional_size
+    sections = pe_offset + COFF_END_OFFSET + optional_size
     text_rva: int | None = None
     code = b""
     for i in range(section_count):
         at = sections + i * SECTION_HEADER_SIZE
-        if image[at : at + 8].rstrip(b"\0") == b".text":
+        if image[at : at + SECTION_NAME_SIZE].rstrip(b"\0") == TEXT_SECTION:
             virtual_size, rva, raw_size, raw_offset = (
-                int(value) for value in struct.unpack_from("<IIII", image, at + 8)
+                int(value) for value in struct.unpack_from("<IIII", image, at + SECTION_NAME_SIZE)
             )
             text_rva = rva
             code = image[raw_offset : raw_offset + min(raw_size, virtual_size)]
@@ -232,8 +258,8 @@ def main() -> None:
         "time": dt.datetime.now(dt.UTC).astimezone().isoformat(),
         "status": "OFFLINE PASS; fresh HOI4 runtime PENDING",
         "baseline_v2_source_sha256": sha(ROOT / "plugin/probes/inline_editor_key_logger_v2.cpp"),
-        "diagnostic_transport_checks": 49626,
-        "inherited_v2_checks": 49240,
+        "diagnostic_transport_checks": DIAGNOSTIC_TRANSPORT_CHECKS,
+        "inherited_v2_checks": INHERITED_V2_CHECKS,
         "checks_are_repeated_assertions_not_distinct_scenarios": True,
         "ring_queue_suite": (
             "wrap/pause/truncation/concurrent copied snapshots; model order/coalescing/TTL PASS"
@@ -264,8 +290,9 @@ def main() -> None:
     out = EVIDENCE / "day2-inline-debug-bridge-candidate.json"
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(
-        f"11 unique fingerprints;7 hooks;{len(protected)} protected hashes;"
-        "5 negative CLI PASS; runtime not activated"
+        f"{EXPECTED_FINGERPRINTS} unique fingerprints;{EXPECTED_HOOKS} hooks;"
+        f"{len(protected)} protected hashes;"
+        f"{len(CLI_CASES)} negative CLI PASS; runtime not activated"
     )
     print("Manifest SHA256", sha(out))
 
