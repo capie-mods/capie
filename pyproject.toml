@@ -65,6 +65,8 @@ ignore = [
 "tools/audit-debug-bridge.py" = ["S101"]
 "tools/gen.py" = ["S101"]
 "probes/rn_inline_pair_apply_source/*.py" = ["S101"]
+# The integrated in-place editor test reuses that ApplyVM and reports a failed contract the same way.
+"tools/tests/check_inline_editor.py" = ["S101"]
 # check.py prints file paths exactly as glob/os.path produce them and relies on glob.glob
 # ordering; pathlib would change separators, sort order and dot-file matching in its output.
 "tools/check.py" = ["PTH100", "PTH110", "PTH112", "PTH118", "PTH119", "PTH120", "PTH207"]
