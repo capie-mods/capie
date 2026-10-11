@@ -1,0 +1,37 @@
+/**
+ * @file game_build.hpp
+ * @brief The one game build CAPIE 1.0 supports, and CAPIE's own identity strings.
+ *
+ * CAPIE refuses to do anything unless the running executable hashes to
+ * `game_exe_sha256`. The RVAs and byte signatures in `signature_table.hpp` and the
+ * layouts in `engine/layout.hpp` are valid for this build only. A future runtime scanner
+ * (see `scanner.hpp`) may accept other builds, but only under the all-or-nothing rule in
+ * docs/API-DECISIONS.md, decision 10(a).
+ *
+ * This file holds data only. It does not read files or memory.
+ */
+#pragma once
+#include <cstdint>
+
+namespace capie::core {
+
+/// @brief Lower-case SHA-256 of the only accepted `hoi4.exe` (HOI4 1.19.3.0, Steam, x64).
+inline constexpr char game_exe_sha256[] = "7dc947be34970da1e1c787bcddbe7f62b610ff258aebf8f06aa8b348f3a031d5";
+/// @brief File name of the game executable, compared case-insensitively by the tools.
+inline constexpr wchar_t game_exe_name[] = L"hoi4.exe";
+/// @brief Human-readable version of the accepted build, used in messages only.
+inline constexpr char game_version[] = "1.19.3.0";
+/// @brief Preferred image base of the accepted build; RVAs are relative to the real base.
+inline constexpr std::uintptr_t game_preferred_base = 0x140000000;
+
+/// @brief CAPIE product version shown to players ("CAPIE 1.0 loaded").
+inline constexpr char capie_version[] = "1.0";
+
+/// @brief File name of the country/localisation DLL.
+inline constexpr wchar_t core_dll_name[] = L"capie_core.dll";
+/// @brief File name of the editor bridge DLL.
+inline constexpr wchar_t editor_dll_name[] = L"capie_editor.dll";
+/// @brief Log file written next to the editor DLL.
+inline constexpr wchar_t editor_log_name[] = L"capie_editor.log";
+
+}  // namespace capie::core

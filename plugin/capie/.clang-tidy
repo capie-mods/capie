@@ -1,0 +1,85 @@
+# CAPIE clang-tidy configuration (clang-tidy 17+). Run with tools/run-clang-tidy.ps1, which
+# uses plugin/build/capie/compile_commands.json written by build.ps1.
+#
+# Every disabled check has its reason here; single-site exceptions use NOLINT with a reason.
+#  - cppcoreguidelines-pro-type-reinterpret-cast, -pro-bounds-pointer-arithmetic,
+#    -pro-type-union-access, -pro-bounds-constant-array-index:
+#      CAPIE reads foreign engine objects by address. Turning an RVA or offset into an
+#      address, and the MSVC std::string union, are the purpose of the engine adapter layer;
+#      every such access goes through the bounded, SEH-guarded readers in core/memory.hpp.
+#  - cppcoreguidelines-pro-type-vararg, cppcoreguidelines-pro-bounds-array-to-pointer-decay:
+#      std::snprintf into fixed stack buffers is the allocation-free log formatter used on
+#      event paths (no heap, no exceptions inside hooks).
+#  - cppcoreguidelines-avoid-non-const-global-variables:
+#      MinHook detours are free functions; the hook state (trampolines, lifecycle, flags)
+#      is process-global by construction. Each global is documented and owned by one module.
+#  - modernize-avoid-c-arrays, cppcoreguidelines-avoid-c-arrays:
+#      engine POD layouts must match game memory byte for byte, and the constexpr name
+#      tables are referenced by the accepted test suites as arrays.
+#  - modernize-use-trailing-return-type: style preference, not adopted.
+#  - readability-identifier-length: loop indices (i, j) and short math names in ported code.
+#  - readability-implicit-bool-conversion:
+#      the caption/focus cores keep the reviewed rev7 form (pointer/flag truthiness) so the
+#      78 mutation anchors and review diffs stay small.
+#  - bugprone-easily-swappable-parameters: signatures mirror game functions and hook ABIs.
+#  - misc-non-private-member-variables-in-classes: plain data structs.
+#  - cppcoreguidelines-macro-usage: the one flavor macro (CAPIE_DEBUG_DIAGNOSTICS) is a build switch.
+#  - misc-include-cleaner: headers include what the unity composition roots need.
+#  - bugprone-exception-escape is kept: hook bodies are noexcept and catch(...) internally.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-macro-usage,
+  google-build-using-namespace,
+  google-explicit-constructor,
+  misc-*,
+  -misc-non-private-member-variables-in-classes,
+  -misc-include-cleaner,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  performance-*,
+  portability-*,
+  readability-*,
+  -readability-identifier-length,
+  -readability-implicit-bool-conversion
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'plugin[/\\]capie[/\\]src[/\\].*'
+FormatStyle: file
+CheckOptions:
+  - key: readability-function-cognitive-complexity.Threshold
+    # Guard chains are long linear && sequences; 60 keeps them while catching real nesting.
+    value: 60
+  - key: readability-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;3;4;8;10;16'
+  - key: cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;3;4;8;10;16'
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
