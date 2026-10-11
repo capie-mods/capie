@@ -22,7 +22,7 @@ if (-not $VisualStudioDir) {
 }
 if (-not $VisualStudioDir) { throw 'Visual Studio C++ x64 tools are required.' }
 $vcvars = Join-Path $VisualStudioDir 'VC\Auxiliary\Build\vcvars64.bat'
-$environmentLines = & $env:ComSpec /d /c ('call "' + $vcvars + '" >nul && set')
+$environmentLines = & $env:ComSpec /d /c ('call "' + $vcvars + '" >nul 2>&1 && set')
 if ($LASTEXITCODE -ne 0) { throw 'vcvars64 failed' }
 foreach ($line in $environmentLines) {
     if ($line -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process') }

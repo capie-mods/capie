@@ -53,6 +53,13 @@ namespace off {
 inline constexpr uptr window_idler = 0xE0;       // B88BEE: mov rcx,[rbx+E0]; call [rax+B8]
 inline constexpr uptr window_model = 0xE8;
 inline constexpr uptr window_root = 0xF8;        // render bridge (runtime-proven)
+// window+F0 is the token-map owner read by Bind (B86350: r11=[window+F0], map fields at
+// +78/+88/+A0). B8A1C0 inserts the politics_tab root into the map at this+70 and gets the
+// GameGui from [this+18] vslot B8. Treating window+F0 as that same manager is an
+// inference from the map layout (OPEN-identity); it is used only as an equality guard
+// ([manager+18] == window idler), so a wrong inference can only refuse.
+inline constexpr uptr window_manager = 0xF0;
+inline constexpr uptr manager_idler = 0x18;
 inline constexpr uptr window_parent = 0x100;     // B863F9: mov [rdi+100],rax
 inline constexpr uptr window_parent_sg = 0x108;  // B8649E: mov qword [rdi+108],0
 inline constexpr uptr window_context = 0x110;    // render bridge (runtime-proven)
@@ -85,8 +92,10 @@ inline constexpr int politics_view_index = 12;  // B62D69 stores politics view a
 inline constexpr int gui_view_limit = 0x17;     // B6E214 cmp edx,17
 
 struct Fingerprint { uptr rva; const char* hex; const char* proves; };
-// Every entry: whole-instruction byte run, exactly one match in .text at the stated RVA
-// of the pinned EXE (verified offline from the file; see report).
+// Every entry starts and ends on an instruction boundary (whole instructions only) and has
+// exactly one match in .text, at the stated RVA, of the pinned EXE (checked by the test from
+// the EXE file). Byte runs avoid DIR64 relocations (independent review), so they also match
+// the ASLR-relocated in-memory image.
 inline constexpr Fingerprint fingerprints[] = {
     {0xDCCF30, "488b81b8060000c3", "idler slot B8 getter returns [idler+6B8]"},
     {0xB6E210, "4883ec2883fa1774404863c248895c2420488d1cc1488b8bc80000004885c97423488b01ff502884c07419488b8bc80000004883c130488b5c24204883c428e9fc866c00488b5c24204883c428c3",
@@ -96,9 +105,9 @@ inline constexpr Fingerprint fingerprints[] = {
     {0x1237520, "40534883ec20488bd9488b89780500004885c97426488b01ff904802000084c07519488b83780500000fb680a5000000c0e80324014883c4205bc3",
      "politics view visibility (slot28) reads view+578"},
     {0x12374F0, "488b8178050000c3", "view root = [view+578]"},
-    {0x12362A0, "40534883ec20488d0553db760148895108488901488bd944894110c6411400e85c05000048", "observer bind: [obs+8]=rdx, [obs+14]=0"},
-    {0x1237180, "48895c2410488974241848897c242048894c24085541564157488d6c24d04881ec30010000498bf1498bf84c8bf24c8b",
-     "view base ctor prologue: r14=param_2, rdi=param_3, r15=this"},
+    {0x12362A0, "40534883ec20488d0553db760148895108488901488bd944894110c6411400e85c050000", "observer bind: [obs+8]=rdx, [obs+14]=0"},
+    {0x1237180, "48895c2410488974241848897c242048894c24085541564157488d6c24d04881ec30010000498bf1498bf84c8bf24c8bf9",
+     "view base ctor prologue: rsi=param_4, rdi=param_3, r14=param_2, r15=this"},
     {0x12371DB, "448b4570488bd7498d4f30e8b5f0ffff90", "observer bind(view+30, param_3=gui)"},
     {0x1237358, "4d89b77005000049899f78050000", "view+570=param_2, view+578 init"},
     {0xB62D52, "4c8bc6488b9680010000488bc8e89c98a100eb03498bc748898628010000", "politics ctor(gui+180, gui); gui+128=view"},
@@ -107,6 +116,9 @@ inline constexpr Fingerprint fingerprints[] = {
     {0xB88BEE, "488b8be0000000488b01ff90b8000000488bc8", "tick: window+E0 idler, vslot B8 -> gui"},
     {0xB88B27, "488b83e8000000400fb6ff817828703a0000", "model+28 == 3A70 player_context"},
     {0xB86346, "488db1e80000004c8b2e418b452c85c0", "bind: model=[window+E8], model+2C token"},
+    {0xB86350, "418b452c85c00f8eb80000004c8b99f0000000", "bind: eax=[model+2C]; r11=[window+F0] (token map owner)"},
+    {0xB8A1C0, "48895c24185556574154415541564157488d6c24d94881ecc00000000f29b424b0000000488bf1488b4918488b01ff90b80000004c8bf0488d4e70e8f0490000",
+     "manager: rsi=this, [this+18] vslot B8 -> gui (r14), map at this+70"},
     {0xB86414, "4983bd80000000000f84cf000000", "bind: parent_scripted_gui length model+80"},
     {0xB863F9, "493bd07406488b4218eb0233c048898700010000", "bind: window+100 = token-map entry+18"},
     {0xB8649E, "488db7e800000048c7870801000000000000", "bind: window+108 = 0"},
@@ -114,7 +126,7 @@ inline constexpr Fingerprint fingerprints[] = {
     {0xB8A660, "ba0c000000498bcee883cefdff488bc8e87bce6a00488bd8c74567b23a00004c8d4567488d5597488d4e70e8709dffff488b0848895918",
      "token 3AB2 -> GetRoot(GetView(gui,12))"},
     {0xF86CC, "8b15fa5d8502488b8c24d0af0100e8713605004c8d05da079f028b10488d0db98d3203e87cc43c02", "politics_tab literal <- DWORD 294E4CC"},
-    {0xF78FE, "8b15e4519f02488b8c24e0ad0100e83f4405004c8d05f80b9f028b10488d0d178a3203e84ad23c02", "parent_window_token registration"},
+    {0xF78FE, "8b15e4519f02488b8c24e0ad0100e83f4405004c8d05f80b9f028b10488d0d178a3203e84ad23c02", "parent_window_token literal <- DWORD 2AECAE8 (=3A6E)"},
     {0x159F33D, "8b86c00000004189452ce9d6090000", "parser copies token to model+2C"},
 };
 inline constexpr std::size_t fingerprint_count = sizeof(fingerprints) / sizeof(fingerprints[0]);
@@ -145,16 +157,20 @@ inline std::size_t decode_hex(const char* hex, unsigned char* out, std::size_t c
     return length / 2;
 }
 
+
 // ---------------------------------------------------------------------------
 // Revision carriers (script side is OPEN: names/fixture not yet implemented).
-// The revision is an ordinary success counter (rn_ip_lui_rev / rn_ip_pui_rev) shown by
-// an instant text carrier. Only exact decimal digits are accepted; empty, signed,
-// fractional, separators, K-suffixes or leading zeros are rejected (never read as 0).
-inline constexpr u64 fixed_point = 100000;
-inline constexpr u64 max_revision = static_cast<u64>(INT64_MAX) / fixed_point - 1;  // +1 headroom
+// The revision is an ordinary success counter (rn_ip_lui_rev / rn_ip_pui_rev) shown by an
+// instant text carrier. HOI4 variables are fixed-point (int32 scaled by 1000, ~2147483 max;
+// exact range OPEN) and `[?var]` formatting of values >= 1000 (separators/suffixes) is not
+// verified. Accepted range is therefore 0..999 as plain digits; Apply is gated below 999
+// so the post-Apply value is still representable. Anything else is rejected, never read as 0.
+// Consequence (fail-safe): after 999 successes per field and save, refresh stops (OPEN).
+inline constexpr u64 max_revision = 999;
+inline constexpr unsigned rollback_confirm_reads = 3;  // consecutive lower reads => rollback
 
 inline bool parse_revision(const char* text, std::size_t size, u64& out) noexcept {
-    if (!text || size == 0 || size > 15) return false;
+    if (!text || size == 0 || size > 3) return false;
     if (size > 1 && text[0] == '0') return false;
     u64 value = 0;
     for (std::size_t i = 0; i < size; ++i) {
@@ -181,15 +197,18 @@ inline constexpr ModelSpec model_specs[] = {
 inline constexpr std::size_t model_count = sizeof(model_specs) / sizeof(model_specs[0]);
 
 // ---------------------------------------------------------------------------
-// Scalar tracker. Never stores an engine pointer. Not internally locked: Service
-// holds a mutex around every call and never across a native call.
+// Scalar tracker. Never stores an engine pointer. Not internally locked: Service holds a
+// mutex around every call and never across a native call.
 struct FieldState {
-    bool seeded{}, pending{}, suspended{}, deferred{};
+    bool seeded{}, pending{}, suspended{}, deferred{}, poisoned{};
     u64 acked{}, observed{}, suspended_rev{}, deferred_edge{}, poisoned_edge{};
-    bool poisoned{};
+    unsigned lower_streak{};
 };
+// native_calls counts ATTEMPTS (recorded before the call); acks/failures count only
+// verified results after the call.
 struct Counters {
-    u64 seeds{}, observations_ignored_unseeded{}, rollbacks{}, binds{}, invalid_resets{};
+    u64 seeds{}, seed_refusals{}, observations_ignored_unseeded{}, stale_lower_reads{}, rollbacks{};
+    u64 binds{}, invalid_resets{}, dispatch_allowed{}, dispatch_rejected{};
     u64 plans{}, precall_rejects{}, native_calls{}, acks{}, failures{}, stale_results{};
 };
 struct Plan { bool valid{}; u64 serial{}; bool fields[field_count]{}; u64 target[field_count]{}; };
@@ -197,37 +216,50 @@ struct Plan { bool valid{}; u64 serial{}; bool fields[field_count]{}; u64 target
 class Tracker {
 public:
     enum class Seed { seeded, observed, refused_poisoned, refused_bad };
+    enum class Observe { ignored_unseeded, unchanged, increased, lower_unconfirmed, rollback_confirmed, invalid_value };
+    // Prefill-only entry point (integrated render bridge prefill, before Apply is possible).
     Seed seed(Field f, u64 rev) noexcept {
         auto& s = state_[idx(f)];
-        if (rev > max_revision) return Seed::refused_bad;
-        if (s.poisoned && s.poisoned_edge == edge_[idx(f)]) return Seed::refused_poisoned;
+        if (rev > max_revision) { ++counters_.seed_refusals; return Seed::refused_bad; }
+        if (s.poisoned && s.poisoned_edge == edge_[idx(f)]) { ++counters_.seed_refusals; return Seed::refused_poisoned; }
         if (!s.seeded) {
-            const auto edge = edge_[idx(f)];
             s = FieldState{};
-            s.seeded = true; s.acked = rev; s.observed = rev; s.poisoned_edge = edge;
+            s.seeded = true; s.acked = rev; s.observed = rev;
             ++counters_.seeds;
             return Seed::seeded;
         }
         observe(f, rev);  // an existing seed is never overwritten by a later value
         return Seed::observed;
     }
-    // Launcher/editor observation. Unseeded observations never create a baseline.
-    void observe(Field f, u64 rev) noexcept {
+    // Editor/launcher tick observation. Never creates a baseline. A lower value is first
+    // treated as stale carrier text (pending kept); only rollback_confirm_reads consecutive
+    // lower reads confirm a real rollback, which drops baseline and pending.
+    Observe observe(Field f, u64 rev) noexcept {
         auto& s = state_[idx(f)];
-        if (!s.seeded) { ++counters_.observations_ignored_unseeded; return; }
-        if (rev < s.observed || rev > max_revision) { poison(f); ++counters_.rollbacks; return; }
-        if (rev > s.observed) {
-            s.observed = rev;
-            if (s.suspended && rev > s.suspended_rev) s.suspended = false;  // new success = new attempt
-            if (s.deferred) s.deferred = false;
+        if (rev > max_revision) return Observe::invalid_value;
+        if (!s.seeded) { ++counters_.observations_ignored_unseeded; return Observe::ignored_unseeded; }
+        if (rev < s.observed) {
+            if (++s.lower_streak >= rollback_confirm_reads) { poison(f); ++counters_.rollbacks; return Observe::rollback_confirmed; }
+            ++counters_.stale_lower_reads;
+            return Observe::lower_unconfirmed;
         }
+        s.lower_streak = 0;
+        if (rev == s.observed) return Observe::unchanged;
+        s.observed = rev;
+        if (s.suspended && rev > s.suspended_rev) s.suspended = false;  // new success = new attempt
+        s.deferred = false;                                              // new success = new attempt
         s.pending = s.observed > s.acked;
+        return Observe::increased;
     }
-    // Gate for a future integrated Apply dispatch: seed required, no unobserved jump.
-    bool dispatch_allowed(Field f, u64 rev_now) const noexcept {
+    // Hard gate for the integrated Apply dispatch: seed required, no unobserved jump, no
+    // pending rollback suspicion, headroom for the +1. Unseeded => reject (MAJOR-1).
+    bool dispatch_allowed(Field f, u64 rev_now) noexcept {
         const auto& s = state_[idx(f)];
-        return s.seeded && rev_now == s.observed && rev_now < max_revision;
+        const bool ok = s.seeded && s.lower_streak == 0 && rev_now == s.observed && rev_now < max_revision;
+        if (ok) ++counters_.dispatch_allowed; else ++counters_.dispatch_rejected;
+        return ok;
     }
+    void count_dispatch_reject() noexcept { ++counters_.dispatch_rejected; }
     void bind(Field f) noexcept { ++bind_gen_[idx(f)]; reset(f); ++counters_.binds; }
     void invalid(Field f) noexcept { poison(f); ++counters_.invalid_resets; }
     void visibility(std::size_t model, bool visible) noexcept {
@@ -237,10 +269,11 @@ public:
     }
     Plan plan() noexcept {
         Plan p{};
-        if (inflight_.valid) return p;
+        if (inflight_.valid) return p;  // also the re-entrancy guard
         for (std::size_t i = 0; i < field_count; ++i) {
             const auto& s = state_[i];
             if (!s.seeded || !s.pending || s.observed <= s.acked) continue;
+            if (s.lower_streak) continue;  // stale/rollback suspicion: no request on unconfirmed text
             if (s.suspended && s.suspended_rev >= s.observed) continue;
             if (s.deferred && s.deferred_edge == edge_[i]) continue;
             p.fields[i] = true; p.target[i] = s.observed; p.valid = true;
@@ -252,7 +285,7 @@ public:
         ++counters_.plans;
         return p;
     }
-    // Guards failed before any native call: wait for a new visibility edge.
+    // Guards failed before any native call: wait for a new visibility edge or a new success.
     void precall_rejected(u64 serial) noexcept {
         if (!take(serial)) return;
         for (std::size_t i = 0; i < field_count; ++i) if (last_.fields[i] && current(i)) {
@@ -261,7 +294,7 @@ public:
         ++counters_.precall_rejects;
     }
     void called(u64 serial) noexcept { if (inflight_.valid && inflight_.serial == serial) ++counters_.native_calls; }
-    // ok only after fresh post-call relookup + dirty==1 + revision readback.
+    // ok only after fresh post-call relookup + same gui/view + dirty==1 + revision readback.
     void finished(u64 serial, bool ok) noexcept {
         if (!take(serial)) { ++counters_.stale_results; return; }
         bool any = false;
@@ -308,13 +341,13 @@ private:
 // (bounded/SEH in process). All results are copied scalars; pointers live on the stack.
 enum class Reject : unsigned {
     none, window_read, model_vt, token_image, context_token, parent_token, parent_override,
-    parent_sg_window, idler_null, idler_vt, idler_slot, gui_null, gui_vt, gui_idler,
+    parent_sg_window, idler_null, idler_vt, idler_slot, manager_idler, gui_null, gui_vt, gui_idler,
     view_null, view_vt, observer_vt, view_slots, view_gui, view_idler, root_null, parent_root, dirty_read,
 };
 inline const char* reject_name(Reject r) noexcept {
     static constexpr const char* names[] = {"none", "window-read", "model-vt", "token-image", "context-token",
-        "parent-token", "parent-override", "parent-sg-window", "idler-null", "idler-vt", "idler-slot", "gui-null",
-        "gui-vt", "gui-idler", "view-null", "view-vt", "observer-vt", "view-slots", "view-gui", "view-idler",
+        "parent-token", "parent-override", "parent-sg-window", "idler-null", "idler-vt", "idler-slot", "manager-idler",
+        "gui-null", "gui-vt", "gui-idler", "view-null", "view-vt", "observer-vt", "view-slots", "view-gui", "view-idler",
         "root-null", "parent-root", "dirty-read"};
     const auto i = static_cast<unsigned>(r);
     return i < sizeof(names) / sizeof(names[0]) ? names[i] : "unknown";
@@ -346,6 +379,9 @@ template <class M> Reject resolve(const M& mem, uptr image, uptr window, Target&
     if (!rd(mem, window, off::window_idler, idler) || !idler) return Reject::idler_null;
     if (!rd(mem, idler, 0, idler_vt) || idler_vt != image + rva::vt_ingame_idler) return Reject::idler_vt;
     if (!rd(mem, idler_vt, off::slot_idler_gui, getter) || getter != image + rva::idler_gui_getter) return Reject::idler_slot;
+    uptr manager = 0, manager_idler = 0;
+    if (!rd(mem, window, off::window_manager, manager) || !rd(mem, manager, off::manager_idler, manager_idler) ||
+        manager_idler != idler) return Reject::manager_idler;
     // Fresh getter: DCCF30 is exactly `mov rax,[rcx+6B8]; ret` (fingerprinted), so the
     // bounded read below is its exact semantics without executing native code.
     uptr gui = 0, gui_vt = 0, gui_idler = 0;
@@ -416,7 +452,22 @@ template <class M> WindowKind inspect(const M& mem, uptr image, uptr window, Own
 }
 
 // ---------------------------------------------------------------------------
-// Service: one entry per post-original Tick and per post-original Bind.
+// Service. Entry points (all on the UI thread, AFTER the original native function):
+//   on_bind(window)      post-original Bind B86320
+//   on_tick(window)      post-original Tick B88950: observation + at most one refresh plan
+//   on_prefill(window)   INTEGRATION ONLY: the reviewed bridge's one-shot opening prefill.
+//                        The ONLY place a baseline is created (MAJOR-1).
+//   on_dispatch(window)  INTEGRATION ONLY: hard gate before the own Apply dispatch; false =>
+//                        the Apply must be dropped (unseeded, jump, rollback suspicion, cap).
+// Without the integration (this standalone shell) no seed can exist, so no refresh happens.
+//
+// Load-without-Bind policy (MAJOR-3), chosen explicitly:
+//   * Bind => full reset (observed once per model per load: run17884/run36204 logs).
+//   * Confirmed lower counter (3 consecutive reads) => reset, new prefill seed required.
+//   * Equal/higher counter after a hypothetical bindless load is ACCEPTED: the worst case is
+//     one extra or one missed B6E210 dirty request (a plain native panel refresh, as when
+//     reopening the panel); never a write, command or retry. World identity stays OPEN and
+//     the authority gate stays closed until it is proven.
 // Env must provide (all noexcept):
 //   const M& mem() ; uptr image();
 //   bool carrier(uptr root, const char* name, char* out, size_t cap, size_t& size)  // fresh lookup
@@ -431,7 +482,12 @@ public:
         const auto kind = inspect(env_.mem(), env_.image(), window, own);
         if (kind == WindowKind::unrelated) return;
         const auto f = model_specs[own.model].field;
-        { std::lock_guard<std::mutex> lock(mutex_); if (kind == WindowKind::invalid) tracker_.invalid(f); else tracker_.bind(f); }
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (kind == WindowKind::invalid) tracker_.invalid(f); else tracker_.bind(f);
+            invalid_[own.model] = kind == WindowKind::invalid;
+            carrier_bad_[own.model] = false;
+        }
         line("bind", own.model, kind == WindowKind::invalid ? "invalid-reset" : "baseline-reset", 0);
     }
     void on_tick(uptr window) noexcept {
@@ -439,20 +495,72 @@ public:
         const auto kind = inspect(env_.mem(), env_.image(), window, own);
         if (kind == WindowKind::unrelated) return;
         const auto& spec = model_specs[own.model];
-        if (kind != WindowKind::visible) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            tracker_.visibility(own.model, false);  // hidden keeps seed/ack/pending
-            if (kind == WindowKind::invalid) tracker_.invalid(spec.field);
+        if (kind == WindowKind::invalid) {
+            bool transition = false;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                tracker_.visibility(own.model, false);
+                transition = !invalid_[own.model];
+                invalid_[own.model] = true;
+                if (transition) tracker_.invalid(spec.field);  // edge-triggered, not per frame
+            }
+            if (transition) line("observe", own.model, "invalid-context-reset", 0);
             return;
         }
-        { std::lock_guard<std::mutex> lock(mutex_); tracker_.visibility(own.model, true); }
-        u64 rev = 0;
-        if (!read_revision(own.root, spec.carrier, rev)) { line_once(own.model, "revision-carrier-rejected"); return; }
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if (spec.role == Role::editor) tracker_.seed(spec.field, rev); else tracker_.observe(spec.field, rev);
+            invalid_[own.model] = false;
+            tracker_.visibility(own.model, kind == WindowKind::visible);  // hidden keeps seed/ack/pending
         }
+        if (kind != WindowKind::visible) return;
+        u64 rev = 0;
+        if (!read_revision(own.root, spec.carrier, rev)) { carrier_rejected(own.model); return; }
+        Tracker::Observe result{};
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            carrier_bad_[own.model] = false;
+            result = tracker_.observe(spec.field, rev);
+            if (result == Tracker::Observe::lower_unconfirmed && tracker_.state(spec.field).lower_streak != 1)
+                result = Tracker::Observe::unchanged;  // log only the first lower read of a streak
+        }
+        if (result == Tracker::Observe::lower_unconfirmed) line("observe", own.model, "lower-revision-pending-kept", rev);
+        if (result == Tracker::Observe::rollback_confirmed) line("observe", own.model, "rollback-confirmed-reset", rev);
         service(window, own);
+    }
+    Tracker::Seed on_prefill(uptr window) noexcept {
+        OwnWindow own{};
+        u64 rev = 0;
+        if (inspect(env_.mem(), env_.image(), window, own) != WindowKind::visible ||
+            model_specs[own.model].role != Role::editor) {
+            line("prefill", own.model, "not-visible-own-editor", 0);
+            return Tracker::Seed::refused_bad;
+        }
+        const auto f = model_specs[own.model].field;
+        if (!read_revision(own.root, model_specs[own.model].carrier, rev)) {
+            { std::lock_guard<std::mutex> lock(mutex_); tracker_.seed(f, max_revision + 1); }  // counted refusal
+            line("prefill", own.model, "seed-carrier-rejected-apply-blocked", 0);
+            return Tracker::Seed::refused_bad;
+        }
+        Tracker::Seed result{};
+        { std::lock_guard<std::mutex> lock(mutex_); result = tracker_.seed(f, rev); }
+        line("prefill", own.model,
+             result == Tracker::Seed::seeded ? "seeded" : result == Tracker::Seed::observed ? "existing-seed-kept" : "seed-refused", rev);
+        return result;
+    }
+    bool on_dispatch(uptr window) noexcept {
+        OwnWindow own{};
+        u64 rev = 0;
+        const bool readable = inspect(env_.mem(), env_.image(), window, own) == WindowKind::visible &&
+                              model_specs[own.model].role == Role::editor &&
+                              read_revision(own.root, model_specs[own.model].carrier, rev);
+        bool allowed = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (readable) allowed = tracker_.dispatch_allowed(model_specs[own.model].field, rev);
+            else tracker_.count_dispatch_reject();
+        }
+        if (!allowed) line("dispatch", own.model, "apply-rejected-no-valid-seed", rev);
+        return allowed;
     }
     bool dispatch_allowed(Field f, u64 rev_now) noexcept { std::lock_guard<std::mutex> lock(mutex_); return tracker_.dispatch_allowed(f, rev_now); }
     Tracker snapshot() noexcept { std::lock_guard<std::mutex> lock(mutex_); return tracker_; }
@@ -461,6 +569,11 @@ private:
     bool read_revision(uptr root, const char* name, u64& rev) noexcept {
         char text[32]{}; std::size_t size = 0;
         return env_.carrier(root, name, text, sizeof(text) - 1, size) && size < sizeof(text) && parse_revision(text, size, rev);
+    }
+    void carrier_rejected(std::size_t model) noexcept {
+        bool transition = false;
+        { std::lock_guard<std::mutex> lock(mutex_); transition = !carrier_bad_[model]; carrier_bad_[model] = true; }
+        if (transition) line("observe", model, "revision-carrier-rejected", 0);  // once per ok->bad transition
     }
     void service(uptr window, const OwnWindow& own) noexcept {
         Plan plan{};
@@ -495,26 +608,22 @@ private:
                 outcome = Outcome::readback_revision;
         }
         { std::lock_guard<std::mutex> lock(mutex_); tracker_.finished(plan.serial, outcome == Outcome::ok); }
-        line("refresh", own.model, outcome_name(outcome), plan.serial);
+        // dirty already 1 before the call: accepted (refresh is scheduled anyway) but labelled
+        // as non-discriminating evidence of this call's effect.
+        line("refresh", own.model, outcome == Outcome::ok && before.dirty == 1 ? "ok-already-dirty" : outcome_name(outcome), plan.serial);
     }
-    void line(const char* event, std::size_t model, const char* detail, u64 serial) noexcept {
+    void line(const char* event, std::size_t model, const char* detail, u64 value) noexcept {
         char text[256]{};
-        std::snprintf(text, sizeof(text), "RN_CAPTION event=%s model=%s detail=%s serial=%llu\r\n", event,
-                      model < model_count ? model_specs[model].name : "?", detail, static_cast<unsigned long long>(serial));
+        std::snprintf(text, sizeof(text), "RN_CAPTION event=%s model=%s detail=%s value=%llu\r\n", event,
+                      model < model_count ? model_specs[model].name : "?", detail, static_cast<unsigned long long>(value));
         env_.log(text);
-    }
-    void line_once(std::size_t model, const char* detail) noexcept {
-        { std::lock_guard<std::mutex> lock(mutex_); if (once_[model]) return; once_[model] = true; }
-        line("observe", model, detail, 0);
     }
     Env& env_;
     std::mutex mutex_;
     Tracker tracker_;
-    bool once_[model_count]{};
+    bool invalid_[model_count]{}, carrier_bad_[model_count]{};
 };
-}  // namespace rn::caption
 
-namespace rn::caption {
 // Hook body shape: forward to the original exactly once, unconditionally and first,
 // with no lock held; observation runs afterwards and cannot suppress or repeat it.
 template <class Original, class Observe, class... Args>
