@@ -95,8 +95,10 @@ Country Apply replaces the current cosmetic tag. Reset drops the tag rather than
 recovering an earlier cosmetic tag; other mods that use cosmetic tags may conflict.
 With the DLL loaded before loading the save, a full game restart preserved the
 custom country name on the map, in diplomacy and in its tooltip without another
-Apply (PID 42732, Polish UI). The saved adjective also remained in the mod panel;
-its native event context still awaits its separate live test in the [report](../docs/test-report.md).
+Apply (PID 42732, Polish UI). A later independent own Apply test also showed
+Polska QA, adjective próbny and leader Jan Żółć in the original news.350 event
+(PID 22876, Polish UI); see the [evidence](../docs/evidence/qa-20261011-day2/47-vanilla-news350-country-adjective-leader.jpg)
+and [report](../docs/test-report.md).
 Without the native component, retaining the RN1 tag and falling back to original
 localization remains the expected behavior pending the uninstall/load check.
 
