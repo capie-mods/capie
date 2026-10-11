@@ -85,3 +85,13 @@ Odpowiedzi użytkownika na punkty badania architektury
 - `hoi4-rename-anything` — mod (bez zmian).
 Podział kodu z historią (`git filter-repo`) na etapie 4 roadmapy; przeniesienie do
 organizacji po zakończeniu, po potwierdzeniu użytkownika.
+
+## Etap 2 — wymagania jakości kodu C++ (2026-10-11)
+
+Zmiana nazw na `capie_*.dll` łączona z uporządkowaniem kodu natywnego: DRY, clean
+architecture (rdzeń / funkcje / adaptery silnika), nazwane stałe zamiast magic numbers i
+stringów, dokumentacja każdej funkcji/klasy/stałej (odpowiednik docstringów: komentarze
+Doxygen z parametrami i wartościami zwracanymi), obszerny angielski opis na początku każdego
+modułu (przepuszczony przez skill humanizer), clang-format + clang-tidy. Zachowanie musi
+pozostać równoważne: wszystkie dotychczasowe testy offline, fingerprinty i mutation checki
+przechodzą; potem niezależne review i pełny test w grze.
