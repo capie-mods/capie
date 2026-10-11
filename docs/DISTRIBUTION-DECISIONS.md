@@ -19,3 +19,11 @@
    dotychczasowy edytor; nazwa kraju i pole tekstowe niedostępne z komunikatem.
 
 MP: nadal niezweryfikowane; test z drugim graczem po zakończeniu SP.
+6. **Skan antywirusowy przed wydaniem (obowiązkowy):** wszystkie publikowane binaria
+   (launcher, DLL, injectory) przechodzą VirusTotal, a linki do wyników trafiają do
+   release notes. Upload do VirusTotal upublicznia plik — wykonywany wyłącznie dla
+   finalnych artefaktów wydania i za każdym razem po zgodzie użytkownika.
+   Lokalnie, bez publikacji: Windows Defender `MpCmdRun -Scan -ScanType 3`.
+   2026-10-11: country-capability, inline-editor-debug-bridge, inline-editor-render-bridge,
+   launcher-candidate, caption-refresh-candidate — „found no threats” (Defender,
+   skan custom; nie jest to wynik wielu silników ani heurystyk chmurowych VT).
