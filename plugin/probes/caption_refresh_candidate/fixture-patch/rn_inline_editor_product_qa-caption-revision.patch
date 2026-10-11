@@ -1,0 +1,148 @@
+--- a/probes/rn_inline_editor_product_qa/common/scripted_guis/rn_in_place_ui.txt
++++ b/probes/rn_inline_editor_product_qa/common/scripted_guis/rn_in_place_ui.txt
+@@ -11,11 +11,14 @@
+ 		ai_enabled = { always = no }
+ 		effects = {
+ 			rn_ip_leader_open_click = {
++				# Explicit zero before the first opening: an absent counter is never displayed/read as 0 by accident.
++				if = { limit = { NOT = { has_variable = rn_ip_lui_rev } } set_variable = { rn_ip_lui_rev = 0 } }
+ 				rn_inline_leader_open = yes
+ 				rn_ip_status_clear = yes
+ 			}
+ 		}
+ 		triggers = {
++			rn_ip_leader_rev_visible = { always = no }
+ 			rn_ip_leader_open_click_enabled = { tag = ROOT is_ai = no NOT = { has_country_flag = rn_ip_leader_open } NOT = { has_country_flag = rn_open } NOT = { has_country_flag = rn_input } NOT = { has_country_flag = rn_ip_country_open } NOT = { rn_ip_cooldown_active_leader = yes } }
+ 		}
+ 	}
+@@ -30,6 +33,13 @@
+ 			rn_ip_leader_apply_click = {
+ 				log = "RN_IPP leader before current_leader=[ROOT.GetLeader] cmd_epoch=[?temp_var:rn_ip_cmd_epoch|0] epoch=[?ROOT.rn_ip_epoch|0] pin_count=[?ROOT.rn_ip_leader_target^num|0]"
+ 				rn_inline_leader_apply = yes
++				# Caption refresh: +1 exactly once, only when the guarded helper ended in its success branch
++				# (it initializes rn_ip_leader_error = 7 and leaves 0 only after set_name). Capped at 999:
++				# the native bridge already refuses Apply at 999 (plain-digit display range 0..999).
++				if = {
++					limit = { check_variable = { temp_var:rn_ip_leader_error = 0 } check_variable = { rn_ip_lui_rev < 999 } }
++					add_to_variable = { rn_ip_lui_rev = 1 }
++				}
+ 				rn_ip_status_record_leader = yes
+ 				log = "RN_IPP leader after error=[?temp_var:rn_ip_leader_error|0] current_leader=[ROOT.GetLeader] cmd_epoch=[?temp_var:rn_ip_cmd_epoch|0] epoch=[?ROOT.rn_ip_epoch|0] pin_count=[?ROOT.rn_ip_leader_target^num|0]"
+ 			}
+@@ -37,6 +47,7 @@
+ 		}
+ 		triggers = {
+ 			rn_ip_leader_epoch_visible = { always = no }
++			rn_ip_leader_rev_visible = { always = no }
+ 			rn_ip_leader_prefill_visible = { always = no }
+ 			rn_ip_leader_apply_click_enabled = {
+ 				tag = ROOT
+@@ -67,11 +78,13 @@
+ 		ai_enabled = { always = no }
+ 		effects = {
+ 			rn_ip_party_neutrality_open_click = {
++				if = { limit = { NOT = { has_variable = rn_ip_pui_rev } } set_variable = { rn_ip_pui_rev = 0 } }
+ 				rn_inline_pair_open_party = yes
+ 				rn_ip_status_clear = yes
+ 			}
+ 		}
+ 		triggers = {
++			rn_ip_party_neutrality_rev_visible = { always = no }
+ 			rn_ip_party_neutrality_open_click_enabled = {
+ 				tag = ROOT
+ 				is_ai = no
+@@ -106,6 +119,12 @@
+ 			rn_ip_party_neutrality_apply_click = {
+ 				log = "RN_IPP party before short=[ROOT.GetRulingParty] long=[ROOT.GetRulingPartyLong] cmd_epoch=[?temp_var:rn_ip_cmd_epoch|0] epoch=[?ROOT.rn_ip_epoch|0] pin_count=[?ROOT.rn_ip_party_target^num|0] group=[?ROOT.rn_ip_party_group|0]"
+ 				rn_inline_pair_apply_party = yes
++				# Caption refresh: +1 exactly once, only after set_party_name + rn_inline_party_finish
++				# (the guard initializes rn_pair_err = 7; every non-matching branch sets 9). Capped at 999.
++				if = {
++					limit = { check_variable = { temp_var:rn_pair_err = 0 } check_variable = { rn_ip_pui_rev < 999 } }
++					add_to_variable = { rn_ip_pui_rev = 1 }
++				}
+ 				rn_ip_status_record_pair = yes
+ 				log = "RN_IPP party after err=[?temp_var:rn_pair_err] field=[?temp_var:rn_pair_field] bad=[?temp_var:rn_pair_bad] short=[ROOT.GetRulingParty] long=[ROOT.GetRulingPartyLong] cmd_epoch=[?temp_var:rn_ip_cmd_epoch|0] epoch=[?ROOT.rn_ip_epoch|0] pin_count=[?ROOT.rn_ip_party_target^num|0] group=[?ROOT.rn_ip_party_group|0]"
+ 			}
+@@ -116,6 +135,7 @@
+ 		}
+ 		triggers = {
+ 			rn_ip_party_neutrality_epoch_visible = { always = no }
++			rn_ip_party_neutrality_rev_visible = { always = no }
+ 			rn_ip_party_neutrality_prefill_visible = { always = no }
+ 			rn_ip_party_neutrality_long_prefill_visible = { always = no }
+ 			rn_ip_party_neutrality_apply_click_enabled = { rn_ipp_party_target_matches = yes }
+--- a/probes/rn_inline_editor_product_qa/interface/rn_in_place_ui.gui
++++ b/probes/rn_inline_editor_product_qa/interface/rn_in_place_ui.gui
+@@ -13,6 +13,17 @@
+ 		size = { width = 20 height = 20 }
+ 		orientation = upper_left
+ 		clipping = no
++		# Caption refresh success counter carrier (read-only for the native bridge; hidden by trigger).
++		instantTextboxType = {
++			name = "rn_ip_leader_rev"
++			position = { x = 0 y = 0 }
++			font = "hoi_18mbs"
++			text = "[?ROOT.rn_ip_lui_rev|0]"
++			maxWidth = 60
++			maxHeight = 18
++			fixedsize = yes
++			alwaystransparent = yes
++		}
+ 		buttonType = {
+ 			name = "rn_ip_leader_open"
+ 			position = { x = 0 y = 0 }
+@@ -43,6 +54,17 @@
+ 			fixedsize = yes
+ 			alwaystransparent = yes
+ 		}
++		# Caption refresh success counter carrier (read-only for the native bridge; hidden by trigger).
++		instantTextboxType = {
++			name = "rn_ip_leader_rev"
++			position = { x = 0 y = 0 }
++			font = "hoi_18mbs"
++			text = "[?ROOT.rn_ip_lui_rev|0]"
++			maxWidth = 60
++			maxHeight = 18
++			fixedsize = yes
++			alwaystransparent = yes
++		}
+ 		instantTextboxType = {
+ 			name = "rn_ip_leader_prefill"
+ 			position = { x = 0 y = 0 }
+@@ -107,6 +129,17 @@
+ 		size = { width = 20 height = 20 }
+ 		orientation = upper_left
+ 		clipping = no
++		# Caption refresh success counter carrier (read-only for the native bridge; hidden by trigger).
++		instantTextboxType = {
++			name = "rn_ip_party_neutrality_rev"
++			position = { x = 0 y = 0 }
++			font = "hoi_16mbs"
++			text = "[?ROOT.rn_ip_pui_rev|0]"
++			maxWidth = 60
++			maxHeight = 18
++			fixedsize = yes
++			alwaystransparent = yes
++		}
+ 		buttonType = {
+ 			name = "rn_ip_party_neutrality_open"
+ 			position = { x = 0 y = 0 }
+@@ -135,6 +168,17 @@
+ 			maxHeight = 18
+ 			fixedsize = yes
+ 			alwaystransparent = yes
++		}
++		# Caption refresh success counter carrier (read-only for the native bridge; hidden by trigger).
++		instantTextboxType = {
++			name = "rn_ip_party_neutrality_rev"
++			position = { x = 0 y = 0 }
++			font = "hoi_16mbs"
++			text = "[?ROOT.rn_ip_pui_rev|0]"
++			maxWidth = 60
++			maxHeight = 18
++			fixedsize = yes
++			alwaystransparent = yes
+ 		}
+ 		instantTextboxType = {
+ 			name = "rn_ip_party_neutrality_prefill"

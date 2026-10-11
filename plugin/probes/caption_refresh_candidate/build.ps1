@@ -45,5 +45,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Test compilation failed' }
     & .\caption_refresh_test.exe $GameExe
     if ($LASTEXITCODE -ne 0) { throw 'Caption refresh tests failed' }
+    # 4. Focus-release unit suite (fake memory) + static focus fingerprint check of the EXE file.
+    & cl.exe @common (Join-Path $PSScriptRoot 'focus_release_test.cpp') /link /OUT:focus_release_test.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Focus release test compilation failed' }
+    & (Join-Path (Get-Location) focus_release_test.exe) $GameExe
+    if ($LASTEXITCODE -ne 0) { throw 'Focus release tests failed' }
 } finally { Pop-Location }
 Write-Output "Built INACTIVE caption refresh candidate: $dllPath"

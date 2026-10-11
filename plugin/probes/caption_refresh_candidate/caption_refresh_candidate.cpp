@@ -3,7 +3,7 @@
 // pins and token DWORDs, writes one log line and returns 41 (inactive by design).
 // No hook, no native call, no game object access. Hook arming exists only behind
 // RN_CAPTION_REFRESH_ARM_HOOKS, which the build compiles as a /c syntax check and
-// never links. Authority guard remains OPEN (authority_proven() == false), so even an
+// never links. refresh_armed() is false in this shell, so even an
 // armed build cannot reach B6E210 until a separately reviewed decoder exists.
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -28,7 +28,7 @@ std::atomic<unsigned long long> log_bytes{0};
 constexpr unsigned long long log_cap = 1u << 20;
 std::atomic<unsigned> init_state{0};
 std::atomic<bool> active{false};
-constexpr bool authority_proven_constant = false;  // OPEN: see README / report
+constexpr bool refresh_armed_constant = false;  // inactive shell; the armed bridge is separate
 
 bool readable(const void* source, std::size_t size) noexcept {
     if (size == 0) return true;
@@ -115,7 +115,7 @@ struct ProcessEnv {
         return guarded_copy(out, bytes, size);
     }
     bool call_refresh(uptr gui, int index) noexcept { return guarded_request(reinterpret_cast<void*>(gui), index); }
-    bool authority_proven() const noexcept { return authority_proven_constant; }
+    bool refresh_armed() const noexcept { return refresh_armed_constant; }
     void log(const char* line) noexcept { write_log(line); }
 };
 ProcessEnv process_env{};
@@ -244,7 +244,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
             return 32;
         }
         active.store(true, std::memory_order_release);
-        write_log("RN_CAPTION ARMED build (review-only): 2 hooks; authority OPEN => no native refresh call\r\n");
+        write_log("RN_CAPTION ARMED build (review-only): 2 hooks; disarmed shell => no native refresh call\r\n");
         return 0;
 #endif
     } catch (...) {

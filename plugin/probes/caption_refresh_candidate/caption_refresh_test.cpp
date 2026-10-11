@@ -114,7 +114,7 @@ enum class CallMode { mark, fault, no_mark, swap_view };
 struct TestEnv {
     World* world{};
     std::map<std::pair<uptr, std::string>, std::string> carriers;
-    bool authority = true;
+    bool armed = true;
     CallMode mode = CallMode::mark;
     int calls = 0, bad_args = 0;
     std::vector<std::string> lines;
@@ -137,7 +137,7 @@ struct TestEnv {
         default: world->mem.put<unsigned char>(fake_view + off::view_dirty, 1); return true;
         }
     }
-    bool authority_proven() const { return authority; }
+    bool refresh_armed() const { return armed; }
     void log(const char* line) { lines.emplace_back(line); }
     void rev(std::size_t m, const std::string& value) { carriers[{root_addr(m), model_specs[m].carrier}] = value; }
     void rev_field(Field f, const std::string& value) {
@@ -282,19 +282,19 @@ void test_dispatch_gate() {
 }
 
 void test_rapid_reopen_keeps_pending() {
-    Fixture f; f.env.authority = false;
+    Fixture f; f.env.armed = false;
     f.env.rev_field(Field::leader, "0"); f.open(LE);
     f.env.rev_field(Field::leader, "1");
     f.close(LE);
     CHECK(f.open(LE) == Tracker::Seed::observed);              // reopen prefill keeps the seed
     CHECK(f.t().state(Field::leader).pending && f.t().state(Field::leader).acked == 0 && f.t().state(Field::leader).observed == 1);
     CHECK(f.env.calls == 0 && f.apply_gate(LE));
-    f.env.authority = true; f.close(LE); f.open(LE);
+    f.env.armed = true; f.close(LE); f.open(LE);
     CHECK(f.env.calls == 1 && f.t().state(Field::leader).acked == 1);
 }
 
-void test_authority_open_zero_calls() {
-    Fixture f; f.env.authority = false;
+void test_disarmed_zero_calls() {
+    Fixture f; f.env.armed = false;
     f.env.rev_field(Field::leader, "0"); f.open(LE);
     f.env.rev_field(Field::leader, "1"); f.ticks(LE, 100);
     CHECK(f.env.calls == 0 && f.attempts() == 0);
@@ -327,11 +327,11 @@ void test_visibility_bits() {
 }
 
 void test_coalesced_jump_and_both_fields() {
-    Fixture f; f.env.authority = false;
+    Fixture f; f.env.armed = false;
     f.env.rev_field(Field::leader, "0"); f.env.rev_field(Field::party, "4");
     f.open(LE); f.close(LE); f.open(PE); f.close(PE);
     f.env.rev_field(Field::leader, "3"); f.env.rev_field(Field::party, "5");
-    f.env.authority = true;
+    f.env.armed = true;
     f.world.show(PL, true); f.tick(PL);
     CHECK(f.env.calls == 1 && f.t().state(Field::party).acked == 5 && f.t().state(Field::leader).acked == 0);
     f.world.consume(); f.world.show(LL, true); f.tick(LL);
@@ -366,11 +366,11 @@ void test_readback_revision_rollback_after_call() {
 
 // MAJOR-2: a lower value is stale text until confirmed; pending survives a short stale read.
 void test_stale_lower_text_keeps_pending() {
-    Fixture f; f.env.authority = false;
+    Fixture f; f.env.armed = false;
     f.env.rev_field(Field::leader, "0"); f.open(LE);
     f.env.rev_field(Field::leader, "1"); f.tick(LE);  // pending 1 observed by editor
     f.close(LE);
-    f.env.authority = true;
+    f.env.armed = true;
     f.env.rev(LL, "0");                                // launcher carrier not yet refreshed
     f.world.show(LL, true); f.ticks(LL, rollback_confirm_reads - 1);
     CHECK(f.t().state(Field::leader).seeded && f.t().state(Field::leader).pending && f.env.calls == 0);
@@ -382,7 +382,7 @@ void test_stale_lower_text_keeps_pending() {
 }
 
 void test_rollback_bind_invalid() {
-    Fixture f; f.env.authority = false;
+    Fixture f; f.env.armed = false;
     f.env.rev_field(Field::leader, "5"); f.open(LE);
     f.env.rev_field(Field::leader, "4"); f.ticks(LE, rollback_confirm_reads);  // confirmed rollback
     CHECK(!f.t().state(Field::leader).seeded && f.t().counters().rollbacks == 1);
@@ -395,7 +395,7 @@ void test_rollback_bind_invalid() {
     CHECK(f.t().state(Field::leader).pending);
     f.svc.on_bind(window_addr(LL));
     CHECK(!f.t().state(Field::leader).seeded && !f.t().state(Field::leader).pending && f.t().counters().binds == 1);
-    f.env.authority = true; f.close(LE); f.open(LE);
+    f.env.armed = true; f.close(LE); f.open(LE);
     CHECK(f.env.calls == 0 && f.t().state(Field::leader).acked == 5);
 }
 
@@ -557,6 +557,54 @@ void test_foreign_and_malformed() {
     CHECK(g.env.logged("revision-carrier-rejected") == 1);  // per ok->bad transition, not per frame
 }
 
+
+// Bridge ordering: the debug bridge prefill runs inside observe_tick BEFORE caption on_tick.
+// After a confirmed rollback the next opening must still be able to seed.
+void test_prefill_before_tick_after_rollback() {
+    Fixture f; f.env.rev_field(Field::leader, "5");
+    f.world.show(LE, true); CHECK(f.svc.on_prefill(window_addr(LE)) == Tracker::Seed::seeded); f.tick(LE);
+    f.env.rev_field(Field::leader, "4"); f.ticks(LE, rollback_confirm_reads);
+    CHECK(f.t().counters().rollbacks == 1 && !f.t().state(Field::leader).seeded);
+    f.close(LE);
+    f.world.show(LE, true);
+    CHECK(f.svc.on_prefill(window_addr(LE)) == Tracker::Seed::seeded);  // prefill first, then tick
+    f.tick(LE);
+    CHECK(f.t().state(Field::leader).acked == 4 && f.apply_gate(LE));
+}
+
+// Minimal refresh guard (replacement of "authority"): seed + increase + own visible window +
+// fresh chain with parent == politics view root. Each missing element => zero native calls.
+void test_minimal_guard_matrix() {
+    {   Fixture f; f.env.rev_field(Field::leader, "0"); f.world.show(LL, true); f.env.rev_field(Field::leader, "1"); f.ticks(LL, 5);
+        CHECK(f.env.calls == 0); }                                              // no seed
+    {   Fixture f; f.env.rev_field(Field::leader, "3"); f.open(LE); f.ticks(LE, 20); f.close(LE);
+        f.world.show(LL, true); f.ticks(LL, 20); CHECK(f.env.calls == 0); }   // no increase
+    {   Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE); f.env.rev_field(Field::leader, "1"); f.close(LE);
+        f.ticks(LL, 20); CHECK(f.env.calls == 0); }                           // all own windows hidden
+    {   Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE);
+        f.world.mem.put<uptr>(window_addr(LE) + off::window_parent, politics_root + 0x40);
+        f.env.rev_field(Field::leader, "1"); f.ticks(LE, 20); CHECK(f.env.calls == 0); }  // other parent/view
+    {   Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE);
+        f.world.mem.put<std::uint32_t>(model_addr(LE) + off::model_context_token, 0x3A71);
+        f.env.rev_field(Field::leader, "1"); f.ticks(LE, 20); CHECK(f.env.calls == 0); }  // not player_context
+    {   Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE); f.env.rev_field(Field::leader, "1"); f.tick(LE);
+        CHECK(f.env.calls == 1 && f.env.bad_args == 0); }                      // all present: exactly one
+}
+
+// HOI4 "[?ROOT.var|0]" renders integers as plain digits (runtime-proven for rn_ip_epoch);
+// every value of the accepted range must round-trip, nothing else may parse.
+void test_counter_format_0_999() {
+    int ok = 0;
+    for (u64 n = 0; n <= 999; ++n) {
+        const auto text = std::to_string(n); u64 v = 1000;
+        if (parse_revision(text.data(), text.size(), v) && v == n) ++ok;
+    }
+    CHECK(ok == 1000);
+    u64 v = 0;
+    for (const char* bad : {"1000", "1.000", "1,000", "1.0K", "1K", "0.5", "1.00", " 1", "1 ", "+1", "-0"})
+        CHECK(!parse_revision(bad, std::strlen(bad), v));
+}
+
 void test_forward_order_and_once() {
     std::vector<int> order;
     auto orig = [&](int v) { order.push_back(v); };
@@ -630,7 +678,7 @@ int main(int argc, char** argv) {
     test_launcher_unseeded_never_baselines();
     test_dispatch_gate();
     test_rapid_reopen_keeps_pending();
-    test_authority_open_zero_calls();
+    test_disarmed_zero_calls();
     test_hidden_preserves_and_no_call_while_hidden();
     test_visibility_bits();
     test_coalesced_jump_and_both_fields();
@@ -647,6 +695,9 @@ int main(int argc, char** argv) {
     test_guard_rejections();
     test_new_revision_lifts_deferral();
     test_foreign_and_malformed();
+    test_prefill_before_tick_after_rollback();
+    test_minimal_guard_matrix();
+    test_counter_format_0_999();
     test_forward_order_and_once();
     test_fingerprint_table();
     if (argc > 1) exe_check(argv[1]);
