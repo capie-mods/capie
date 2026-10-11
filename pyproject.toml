@@ -9,13 +9,23 @@ dependencies = []
 [tool.uv]
 # Standalone scripts, not an installable package.
 package = false
-# `observe` is installed by default so `ty` can resolve `import frida` in plugin/tools/observe.py.
-default-groups = ["dev", "observe"]
+# `observe` is installed by default so `ty` can resolve `import frida` in plugin/tools/observe.py;
+# `docs` for the same reason, so `ty` can resolve `import pygments` in the documentation lexer.
+default-groups = ["dev", "observe", "docs"]
+
+[tool.uv.sources]
+# Local, unpublished Pygments lexers for Paradox script; see sites/shared/pygments-paradox/.
+pygments-paradox-script = { path = "sites/shared/pygments-paradox", editable = true }
 
 [dependency-groups]
 dev = [
     "ruff>=0.17.0",
     "ty>=0.0.86",
+]
+# Documentation sites in sites/ (build with `uv run zensical build -f sites/<site>/zensical.toml`).
+docs = [
+    "zensical>=0.0.69",
+    "pygments-paradox-script",
 ]
 # Runtime dependency of plugin/tools/observe.py only.
 observe = [

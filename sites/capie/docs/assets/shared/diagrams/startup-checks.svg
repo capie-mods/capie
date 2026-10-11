@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 404" width="880" height="404" role="img" aria-labelledby="t d">
+  <title id="t">How CAPIE decides whether to start</title>
+  <desc id="d">Top row, works today: CAPIE is loaded into the game, checks that the SHA-256 of hoi4.exe matches a pinned build, then checks that every code pattern it needs matches exactly once at its expected place. Only then is CAPIE active with all features. If any pattern does not match, nothing is hooked and the game runs without CAPIE. Today an unknown game build also ends there. Middle row, planned and opt-in: on an unknown game build, CAPIE runs a full verification only if the player turned it on. It activates only when every pattern is unique and every hooked byte is identical to the tested build, and then shows an unverified-build mark. If the option is off, or any check fails, the game runs without CAPIE. Nothing is ever half on. Solid outlines mark what works today, dashed outlines what is planned. Two moving tokens show today's two outcomes: active, and a mismatch that leaves the game without CAPIE.</desc>
+  <!-- Tokens: docs/design/tokens.json v1.2.0. Motion only on today's two branches; planned items stay still. -->
+  <style>
+    .canvas{fill:#272421}
+    .rim{fill:none;stroke:#3c3936;stroke-width:1}
+    .caps{font:700 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.14em;fill:#ffbd00}
+    .title{font:700 15px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ece6d3}
+    .title-plan{font:700 15px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .body{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .cap{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#a39a86}
+    .lab{font:400 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .labf{font:400 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ff7019}
+    .tag{font:700 10px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.08em}
+    .t-today{fill:#7db35a}
+    .t-plan{fill:#d0a070}
+    .node{fill:#161412;stroke:#76776b;stroke-width:1.25}
+    .native{fill:#161412;stroke:#d0a070;stroke-width:1.75}
+    .plan{fill:#161412;stroke:#908060;stroke-width:1.25;stroke-dasharray:5 4}
+    .fb{fill:#161412;stroke:#c64811;stroke-width:1.25;stroke-dasharray:5 4}
+    .arrow{stroke:#76776b;stroke-width:1.5;fill:none}
+    .arrowp{stroke:#908060;stroke-width:1.5;fill:none;stroke-dasharray:5 4}
+    .arrowfb{stroke:#c64811;stroke-width:1.5;fill:none;stroke-dasharray:5 4}
+    .tok1{fill:#ffbd00}
+    .tok2{fill:#ff7019}
+    .tok1,.tok2{opacity:0}
+    @media (prefers-reduced-motion:no-preference){
+      .tok1{animation:t1 12s linear infinite}
+      .tok2{animation:t2 12s linear infinite}
+    }
+    @keyframes t1{
+      0%{opacity:0;transform:translate(0,0)}
+      3%{opacity:1;transform:translate(0,0)}
+      14%{transform:translate(220px,0)}
+      28%{transform:translate(436px,0)}
+      34%{opacity:1;transform:translate(436px,0)}
+      38%,100%{opacity:0;transform:translate(436px,0)}
+    }
+    @keyframes t2{
+      0%,44%{opacity:0;transform:translate(0,0)}
+      47%{opacity:1;transform:translate(0,0)}
+      58%{transform:translate(388px,0)}
+      63%{transform:translate(388px,62px)}
+      67%{transform:translate(428px,62px)}
+      78%{opacity:1;transform:translate(428px,207px)}
+      82%,100%{opacity:0;transform:translate(428px,207px)}
+    }
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#76776b"/>
+    </marker>
+    <marker id="ahp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#908060"/>
+    </marker>
+    <marker id="ahf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#c64811"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" width="880" height="404" rx="6"/>
+  <rect class="rim" x="8.5" y="8.5" width="863" height="387" rx="4"/>
+
+  <text class="caps" x="32" y="38">KNOWN GAME BUILD</text>
+  <!-- Legend: line style carries the status -->
+  <g transform="translate(600 26)">
+    <line x1="0" y1="5" x2="22" y2="5" stroke="#76776b" stroke-width="1.5"/>
+    <text class="cap" x="30" y="9.5">works today</text>
+    <line x1="122" y1="5" x2="144" y2="5" stroke="#908060" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text class="cap" x="152" y="9.5">planned, opt-in</text>
+  </g>
+
+  <!-- Row 1: today -->
+  <rect class="native" x="32" y="64" width="186" height="84" rx="2"/>
+  <text class="title" x="46" y="91">CAPIE loaded</text>
+  <text class="body" x="46" y="116">by the launcher (in progress)</text>
+  <text class="body" x="46" y="134">or by hand (development)</text>
+
+  <rect class="node" x="242" y="64" width="186" height="84" rx="2"/>
+  <text class="title" x="256" y="91">Known game build?</text>
+  <text class="body" x="256" y="116">SHA-256 of hoi4.exe</text>
+  <text class="body" x="256" y="134">matches a pinned build</text>
+
+  <rect class="node" x="452" y="64" width="186" height="84" rx="2"/>
+  <text class="title" x="466" y="91">Every pattern fits</text>
+  <text class="body" x="466" y="116">once, at its expected place,</text>
+  <text class="body" x="466" y="134">or nothing is hooked</text>
+
+  <rect class="node" x="662" y="64" width="186" height="84" rx="2"/>
+  <text class="title" x="676" y="91">CAPIE active</text>
+  <text class="body" x="676" y="116">all features on</text>
+  <text class="tag t-today" x="676" y="136">1.19.3.0 TODAY</text>
+
+  <line class="arrow" x1="218" y1="106" x2="239" y2="106" marker-end="url(#ah)"/>
+  <line class="arrow" x1="428" y1="106" x2="449" y2="106" marker-end="url(#ah)"/>
+  <line class="arrow" x1="638" y1="106" x2="659" y2="106" marker-end="url(#ah)"/>
+  <text class="lab" x="430" y="98">yes</text>
+  <text class="lab" x="640" y="98">yes</text>
+
+  <!-- Row 2: planned opt-in -->
+  <path class="arrowp" d="M335 148 L335 187" marker-end="url(#ahp)"/>
+  <text class="lab" x="343" y="174">unknown build</text>
+  <text class="caps" x="32" y="182">UNKNOWN BUILD</text>
+
+  <rect class="plan" x="242" y="190" width="186" height="84" rx="2"/>
+  <text class="title-plan" x="256" y="217">Player opted in?</text>
+  <text class="body" x="256" y="242">runtime verification,</text>
+  <text class="body" x="256" y="260">off by default</text>
+
+  <rect class="plan" x="452" y="190" width="186" height="84" rx="2"/>
+  <text class="title-plan" x="466" y="217">Full verification</text>
+  <text class="body" x="466" y="242">every pattern unique, every</text>
+  <text class="body" x="466" y="260">hooked byte as tested</text>
+
+  <rect class="plan" x="662" y="190" width="186" height="84" rx="2"/>
+  <text class="title-plan" x="676" y="217">CAPIE active</text>
+  <text class="body" x="676" y="242">all features, with an</text>
+  <text class="body" x="676" y="260">unverified-build mark</text>
+
+  <line class="arrowp" x1="428" y1="232" x2="449" y2="232" marker-end="url(#ahp)"/>
+  <line class="arrowp" x1="638" y1="232" x2="659" y2="232" marker-end="url(#ahp)"/>
+  <text class="lab" x="430" y="224">yes</text>
+  <text class="lab" x="640" y="224">pass</text>
+
+  <!-- Fallback -->
+  <path class="arrowfb" d="M610 148 L610 168 L650 168 L650 313" marker-end="url(#ahf)"/>
+  <text class="labf" x="548" y="164">mismatch</text>
+  <path class="arrowfb" d="M335 274 L335 313" marker-end="url(#ahf)"/>
+  <text class="labf" x="343" y="298">no</text>
+  <path class="arrowfb" d="M545 274 L545 313" marker-end="url(#ahf)"/>
+  <text class="labf" x="553" y="298">any failure</text>
+
+  <rect class="fb" x="242" y="316" width="606" height="62" rx="2"/>
+  <text class="title" x="256" y="342">Game runs without CAPIE</text>
+  <text class="body" x="256" y="364">The launcher says why. Scripts keep working. Nothing is ever half on.</text>
+
+  <text class="cap" x="32" y="214">Today an unknown</text>
+  <text class="cap" x="32" y="232">build goes straight</text>
+  <text class="cap" x="32" y="250">to the bottom box.</text>
+  <text class="cap" x="32" y="338">The game folder is</text>
+  <text class="cap" x="32" y="356">never modified.</text>
+
+  <circle class="tok1" cx="222" cy="106" r="3.5"/>
+  <circle class="tok2" cx="222" cy="106" r="3.5"/>
+</svg>

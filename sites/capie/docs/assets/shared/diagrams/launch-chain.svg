@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 330" width="880" height="330" role="img" aria-labelledby="t d">
+  <title id="t">Planned launch chain</title>
+  <desc id="d">Planned and not yet tested end to end. Steam Play with a launch option, or a desktop shortcut, starts the CAPIE launcher. The launcher checks the hash of hoi4.exe and starts the Paradox Launcher, where you pick your playset as usual. When the game is version 1.19.3.0, CAPIE is loaded only into the hoi4.exe started by this chain. When the version is unknown, for example after a game patch, the game starts without CAPIE and the launcher says why; states, cities and characters still work through scripts, and a custom country name shows as the original until an update ships.</desc>
+  <!-- Tokens: docs/design/tokens.json v1.2.0 -->
+  <style>
+    .canvas{fill:#272421}
+    .rim{fill:none;stroke:#3c3936;stroke-width:1}
+    .caps{font:700 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.14em;fill:#ffbd00}
+    .title{font:700 15px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ece6d3}
+    .body{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .cap{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#a39a86}
+    .lab{font:400 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .labf{font:400 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ff7019}
+    .tag{font:700 10px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.08em;fill:#ffbd00}
+    .node{fill:#161412;stroke:#76776b;stroke-width:1.25}
+    .native{fill:#161412;stroke:#d0a070;stroke-width:1.75}
+    .fb{fill:#161412;stroke:#c64811;stroke-width:1.25;stroke-dasharray:5 4}
+    .arrow{stroke:#76776b;stroke-width:1.5;fill:none}
+    .arrowfb{stroke:#c64811;stroke-width:1.5;fill:none;stroke-dasharray:5 4}
+    .tok1{fill:#ffbd00}
+    .tok2{fill:#ff7019}
+    .tok1,.tok2{opacity:0}
+    @media (prefers-reduced-motion:no-preference){
+      .tok1{animation:t1 12s linear infinite}
+      .tok2{animation:t2 12s linear infinite}
+    }
+    @keyframes t1{
+      0%{opacity:0;transform:translate(0,0)}
+      3%{opacity:1;transform:translate(0,0)}
+      14%{transform:translate(230px,0)}
+      28%{transform:translate(430px,0)}
+      36%{opacity:1;transform:translate(450px,0)}
+      40%,100%{opacity:0;transform:translate(450px,0)}
+    }
+    @keyframes t2{
+      0%,46%{opacity:0;transform:translate(0,0)}
+      49%{opacity:1;transform:translate(0,0)}
+      58%{transform:translate(115px,0)}
+      67%{transform:translate(115px,104px)}
+      78%{opacity:1;transform:translate(230px,104px)}
+      82%,100%{opacity:0;transform:translate(230px,104px)}
+    }
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#76776b"/>
+    </marker>
+    <marker id="ahf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#c64811"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" width="880" height="330" rx="6"/>
+  <rect class="rim" x="8.5" y="8.5" width="863" height="313" rx="4"/>
+
+  <text class="caps" x="32" y="38">STARTING THE GAME</text>
+  <g transform="translate(640 28)">
+    <rect width="10" height="10" fill="none" stroke="#ffbd00"/>
+    <text class="tag" x="16" y="9">IN PROGRESS, NOT YET TESTED</text>
+  </g>
+
+  <rect class="node" x="32" y="70" width="170" height="100" rx="2"/>
+  <text class="title" x="46" y="98">Steam: Play</text>
+  <text class="body" x="46" y="120">with a launch option,</text>
+  <text class="body" x="46" y="138">or a desktop shortcut</text>
+
+  <rect class="native" x="232" y="70" width="170" height="100" rx="2"/>
+  <text class="title" x="246" y="98">CAPIE launcher</text>
+  <text class="body" x="246" y="120">checks the hash</text>
+  <text class="body" x="246" y="138">of hoi4.exe</text>
+
+  <rect class="node" x="432" y="70" width="190" height="100" rx="2"/>
+  <text class="title" x="446" y="98">Paradox Launcher</text>
+  <text class="body" x="446" y="120">your playset and</text>
+  <text class="body" x="446" y="138">your other mods</text>
+
+  <rect class="native" x="652" y="70" width="196" height="100" rx="2"/>
+  <text class="title" x="666" y="98">hoi4.exe + CAPIE</text>
+  <text class="body" x="666" y="120">loaded only into the game</text>
+  <text class="body" x="666" y="138">this chain started</text>
+
+  <line class="arrow" x1="202" y1="120" x2="229" y2="120" marker-end="url(#ah)"/>
+  <line class="arrow" x1="402" y1="120" x2="429" y2="120" marker-end="url(#ah)"/>
+  <line class="arrow" x1="622" y1="120" x2="649" y2="120" marker-end="url(#ah)"/>
+  <text class="lab" x="368" y="60">version 1.19.3.0</text>
+
+  <path class="arrowfb" d="M317 170 L317 224 L429 224" marker-end="url(#ahf)"/>
+  <text class="labf" x="326" y="198">unknown</text>
+  <text class="labf" x="326" y="213">version</text>
+  <rect class="fb" x="432" y="194" width="416" height="104" rx="2"/>
+  <text class="title" x="446" y="222">Game starts without CAPIE</text>
+  <text class="body" x="446" y="244">The launcher says why. States, cities and characters</text>
+  <text class="body" x="446" y="262">still work through scripts; a custom country name</text>
+  <text class="body" x="446" y="280">shows as the original until an update ships.</text>
+
+  <text class="cap" x="32" y="214">After a game patch the</text>
+  <text class="cap" x="32" y="232">launcher does not guess.</text>
+  <text class="cap" x="32" y="250">The game folder is</text>
+  <text class="cap" x="32" y="268">never touched.</text>
+
+  <circle class="tok1" cx="198" cy="120" r="3.5"/>
+  <circle class="tok2" cx="202" cy="120" r="3.5"/>
+</svg>

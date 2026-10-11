@@ -30,3 +30,7 @@ plugin/build/
 /docs/evidence/probe/e5_01_commit_lodz.png
 /docs/evidence/probe/e6_02_load_screen.png
 /docs/evidence/probe/e6_03_after_load_full.png
+
+# Documentation site build output and Zensical cache (sites/README.md)
+/sites/*/site/
+/sites/*/.cache/

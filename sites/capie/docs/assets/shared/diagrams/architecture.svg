@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 486" width="880" height="486" role="img" aria-labelledby="t d">
+  <title id="t">Rename Anything is built on CAPIE</title>
+  <desc id="d">Three layers. Top: mod scripts from the Steam Workshop: Rename Anything, which works today, and your own mod calling CAPIE effects, which is planned. Middle: CAPIE, Cyprian's API Extender, one native DLL started by the CAPIE launcher. It already provides country name and adjective support and the bridge from native text fields to game commands; a public API for other mods and a multiplayer check that keeps CAPIE features off until every player confirms CAPIE are planned. Bottom: the unmodified Hearts of Iron IV 1.19.3.0 engine with game commands, localisation lookups and the save file. Solid outlines mark what works today, dashed outlines what is planned.</desc>
+  <!-- Tokens: docs/design/tokens.json v1.2.0. Static on purpose: the layers are a structure, not a sequence. Site copy of docs/assets/readme/architecture.svg: multiplayer chip follows the L0 decision, SDK names proposed. -->
+  <style>
+    .canvas{fill:#272421}
+    .rim{fill:none;stroke:#3c3936;stroke-width:1}
+    .caps{font:700 11.5px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.14em;fill:#ffbd00}
+    .title{font:700 15px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ece6d3}
+    .body{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .item{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#ece6d3}
+    .item-plan{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#c3b091}
+    .cap{font:400 12px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;fill:#a39a86}
+    .tag{font:700 10px Ubuntu,'Segoe UI','DejaVu Sans',Verdana,sans-serif;letter-spacing:.08em}
+    .t-today{fill:#7db35a}
+    .t-plan{fill:#d0a070}
+    .node{fill:#161412;stroke:#76776b;stroke-width:1.25}
+    .node-plan{fill:#161412;stroke:#908060;stroke-width:1.25;stroke-dasharray:5 4}
+    .native{fill:#161412;stroke:#d0a070;stroke-width:1.75}
+    .div{stroke:#3c3936;stroke-width:1}
+    .wire{stroke:#76776b;stroke-width:1.5;fill:none}
+    .wire-plan{stroke:#908060;stroke-width:1.5;fill:none;stroke-dasharray:5 4}
+  </style>
+
+  <rect class="canvas" width="880" height="486" rx="6"/>
+  <rect class="rim" x="8.5" y="8.5" width="863" height="469" rx="4"/>
+
+  <!-- Legend: line style carries the status -->
+  <g transform="translate(626 26)">
+    <line x1="0" y1="5" x2="22" y2="5" stroke="#76776b" stroke-width="1.5"/>
+    <text class="cap" x="30" y="9.5">works today</text>
+    <line x1="122" y1="5" x2="144" y2="5" stroke="#908060" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text class="cap" x="152" y="9.5">planned</text>
+  </g>
+
+  <!-- Layer 1: mod scripts -->
+  <text class="caps" x="32" y="38">MOD SCRIPTS, FROM THE STEAM WORKSHOP</text>
+  <rect class="node" x="32" y="52" width="478" height="88" rx="2"/>
+  <text class="title" x="48" y="81">Rename Anything</text>
+  <text class="tag t-today" x="438" y="78">TODAY</text>
+  <text class="body" x="48" y="106">Pencils next to names, native text fields, state and</text>
+  <text class="body" x="48" y="124">city lists, a 5-day cooldown per object</text>
+
+  <rect class="node-plan" x="530" y="52" width="318" height="88" rx="2"/>
+  <text class="title" x="546" y="81">Your mod</text>
+  <text class="tag t-plan" x="768" y="78">PLANNED</text>
+  <text class="body" x="546" y="106">Calls CAPIE SDK effects</text>
+  <text class="body" x="546" y="124">(proposed names: capie_v1_*)</text>
+
+  <!-- Wires layer 1 to 2 -->
+  <line class="wire" x1="271" y1="140" x2="271" y2="186"/>
+  <line class="wire-plan" x1="689" y1="140" x2="689" y2="186"/>
+
+  <!-- Layer 2: CAPIE. Its parts are columns of one box, not boxes in a box. -->
+  <rect class="native" x="32" y="186" width="816" height="150" rx="2"/>
+  <text class="title" x="48" y="215">CAPIE</text>
+  <text class="body" x="100" y="215">Cyprian's API Extender: one native DLL, started by the CAPIE launcher</text>
+  <line class="div" x1="48" y1="232.5" x2="832" y2="232.5"/>
+
+  <text class="item" x="48" y="258">Country name and</text>
+  <text class="item" x="48" y="276">adjective</text>
+  <text class="tag t-today" x="48" y="308">TODAY</text>
+  <line class="div" x1="236.5" y1="246" x2="236.5" y2="318"/>
+
+  <text class="item" x="252" y="258">Native text field to</text>
+  <text class="item" x="252" y="276">game command</text>
+  <text class="tag t-today" x="252" y="308">TODAY</text>
+  <line class="div" x1="440.5" y1="246" x2="440.5" y2="318"/>
+
+  <text class="item-plan" x="456" y="258">Public API: effects,</text>
+  <text class="item-plan" x="456" y="276">getters, version check</text>
+  <text class="tag t-plan" x="456" y="308">PLANNED</text>
+  <line class="div" x1="644.5" y1="246" x2="644.5" y2="318"/>
+
+  <text class="item-plan" x="660" y="258">Multiplayer check: off</text>
+  <text class="item-plan" x="660" y="276">until all players confirm</text>
+  <text class="tag t-plan" x="660" y="308">PLANNED</text>
+
+  <!-- Wires layer 2 to 3 -->
+  <line class="wire" x1="271" y1="336" x2="271" y2="382"/>
+  <line class="wire" x1="609" y1="336" x2="609" y2="382"/>
+
+  <!-- Layer 3: game -->
+  <text class="caps" x="32" y="372">HEARTS OF IRON IV 1.19.3.0</text>
+  <rect class="node" x="32" y="382" width="816" height="80" rx="2"/>
+  <text class="item" x="48" y="427">Game commands</text>
+  <line class="div" x1="236.5" y1="402" x2="236.5" y2="442"/>
+  <text class="item" x="252" y="427">Localisation lookups</text>
+  <line class="div" x1="440.5" y1="402" x2="440.5" y2="442"/>
+  <text class="item" x="456" y="427">Save file</text>
+  <line class="div" x1="644.5" y1="402" x2="644.5" y2="442"/>
+  <text class="cap" x="660" y="418">Game files are</text>
+  <text class="cap" x="660" y="436">never modified</text>
+</svg>
