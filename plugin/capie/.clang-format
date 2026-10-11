@@ -1,0 +1,32 @@
+# CAPIE C++ formatting. clang-format 17+ (any LLVM build, or the VS "C++ Clang tools" component).
+# Not run in stage 2: clang-format is not installed on the build machine (see the stage-2 report).
+# Run: clang-format -i --style=file plugin/capie/src/**/*.hpp plugin/capie/src/**/*.cpp
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++20
+ColumnLimit: 120
+IndentWidth: 4
+AccessModifierOffset: -4
+NamespaceIndentation: None
+FixNamespaceComments: true
+PointerAlignment: Left
+DerivePointerAlignment: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+BreakBeforeBraces: Attach
+IncludeBlocks: Regroup
+IncludeCategories:
+  # 1. own headers ("..."), 2. Windows and third-party (<windows.h>, <MinHook.h>, <bcrypt.h>), 3. standard library.
+  - Regex: '^"'
+    Priority: 1
+  - Regex: '^<(windows|bcrypt|tlhelp32|MinHook)\.h>'
+    Priority: 2
+  - Regex: '^<'
+    Priority: 3
+SortIncludes: CaseSensitive
+# windows.h must stay before bcrypt.h/tlhelp32.h: they are not self-contained.
+IncludeIsMainRegex: '$'
+SpacesBeforeTrailingComments: 2
+ReflowComments: true

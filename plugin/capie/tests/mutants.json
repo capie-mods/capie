@@ -1,0 +1,626 @@
+[
+ {
+  "name": "launcher-baselines",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (!s.seeded) { ++counters_.observations_ignored_unseeded; return Observe::ignored_unseeded; }",
+  "replace": "if (!s.seeded) { s.seeded = true; s.acked = rev; s.observed = rev; return Observe::ignored_unseeded; }",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "tick-seeds-editor",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "result = tracker_.observe(spec.field, rev);",
+  "replace": "if (spec.role == Role::editor && !tracker_.state(spec.field).seeded) { tracker_.seed(spec.field, rev); result = Tracker::Observe::unchanged; } else result = tracker_.observe(spec.field, rev);",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "seed-overwrites",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "observe(f, rev);  // an existing seed",
+  "replace": "s.acked = rev; s.observed = rev;  // an existing seed",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "dispatch-ignores-seed",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "const bool ok = s.seeded && s.lower_streak == 0 &&",
+  "replace": "const bool ok = s.lower_streak == 0 &&",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "dispatch-no-headroom",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "rev_now == s.observed && rev_now < max_revision;",
+  "replace": "rev_now == s.observed;",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "prefill-any-role",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "model_specs[own.model].role != Role::editor) {",
+  "replace": "model_specs[own.model].role != Role::editor && false) {",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "immediate-rollback",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "rollback_confirm_reads = 3;",
+  "replace": "rollback_confirm_reads = 1;",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "plan-during-lower",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (s.lower_streak) continue;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "per-frame-retry",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (s.deferred && s.deferred_edge == edge_[i]) continue;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "deferred-sticky",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "s.deferred = false;                                              // new success",
+  "replace": "//                                                               new success",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-suspend",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (s.suspended && s.suspended_rev >= s.observed) continue;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-inflight-guard",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (inflight_.valid) return p;  // also the re-entrancy guard",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-called-counter",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "tracker_.called(plan.serial); first_success",
+  "replace": "first_success",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "lock-across-call",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "const bool returned = env_.call_refresh(before.gui, politics_view_index);",
+  "replace": "bool returned = false; { std::lock_guard<std::mutex> lock(mutex_); returned = env_.call_refresh(before.gui, politics_view_index); }",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-arm-switch",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (!env_.refresh_armed()) {",
+  "replace": "if (false) {",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-dirty-readback",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "else if (after.dirty != 1) outcome = Outcome::readback_dirty;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-identity-postcheck",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "else if (after.gui != before.gui || after.view != before.view) outcome = Outcome::postcall_identity;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "already-dirty-unlabelled",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "before.dirty == 1 ? \"ok-already-dirty\"",
+  "replace": "before.dirty == 2 ? \"ok-already-dirty\"",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-parent-root",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (parent != root) return Reject::parent_root;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-model-vt-resolve",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (model_vt != image + rva::vt_sg_model) return vt_reject(Reject::model_vt, model_vt, image + rva::vt_sg_model);",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-gui-word-diag",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (rd(mem, gui, 0, gui_word0)) diag->gui_word0 = gui_word0;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-gui-b8-diag",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (rd(mem, gui, gui_structural_offset, gui_b8)) diag->gui_b8_rva = gui_b8 ? gui_b8 - image : 0;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "gui-word0-gates",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "    uptr gui_b8 = 0;",
+  "replace": "    if (!rd(mem, gui, 0, gui_word0) || gui_word0 != image + 0x294A688) return Reject::gui_null;\n    uptr gui_b8 = 0;",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "gui-b8-gates",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "    uptr gui_b8 = 0;",
+  "replace": "    { uptr b8 = 0; if (!rd(mem, gui, gui_structural_offset, b8) || b8 != image + gui_structural_rva) return Reject::gui_null; }\n    uptr gui_b8 = 0;",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "N05-dispatch-any-role",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "model_specs[own.model].role == Role::editor;",
+  "replace": "true;",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "N08-max-revision-1000",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "max_revision = 999;",
+  "replace": "max_revision = 1000;",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "verdict-no-cap",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "else if (rev >= max_revision) { tracker_.count_dispatch_reject(); verdict = Verdict::cap_reached; }",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "verdict-no-counter-stale",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "verdict = Verdict::no_counter; }",
+  "replace": "}",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-first-success-diag",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (first_success) diag_line(own.model, \"resolve-ok-first\", plan.serial, diag);",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "N10-bind-not-clearing-invalid",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "invalid_[own.model] = kind == WindowKind::invalid;\n            carrier_bad_",
+  "replace": "carrier_bad_",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-view-vt-diag",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "return vt_reject(Reject::view_vt, view_vt, image + rva::vt_politics_view);",
+  "replace": "return Reject::view_vt;",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "no-manager-guard",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "manager_idler != idler) return Reject::manager_idler;",
+  "replace": "false) return Reject::manager_idler;",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "visibility-ignores-flags",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "return desired && core::flag::shown_not_hidden(flags) ?",
+  "replace": "return desired ?",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "hidden-drops-pending",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "tracker_.visibility(own.model, kind == WindowKind::visible);  // hidden keeps",
+  "replace": "tracker_.visibility(own.model, kind == WindowKind::visible); if (kind != WindowKind::visible) tracker_.invalid(spec.field);  // hidden keeps",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "invalid-per-frame",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (transition) tracker_.invalid(spec.field);  // edge-triggered",
+  "replace": "tracker_.invalid(spec.field);  // edge-triggered",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "bind-keeps-state",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "void bind(Field f) noexcept { ++bind_gen_[idx(f)]; reset(f); ++counters_.binds; }",
+  "replace": "void bind(Field f) noexcept { (void)f; ++counters_.binds; }",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "prefill-no-edge",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "{ std::lock_guard<std::mutex> lock(mutex_); tracker_.visibility(own.model, true); }",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "tick-hidden-services",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (kind != WindowKind::visible) return;",
+  "replace": "",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "observe-before-original",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "original(args...);\n    if (active) observe(args...);",
+  "replace": "if (active) observe(args...);\n    original(args...);",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "focus-no-transition",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "transition = known_[own.editor] && parent_visible_[own.editor] && !own.parent_visible;",
+  "replace": "transition = !own.parent_visible;",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-ignore-receiver",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "receiver == candidate + off::edit_receiver &&",
+  "replace": "",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-ignore-flag",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "&& (flags & flag::edit_active)) {",
+  "replace": ") {",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-ignore-name",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "candidate == focused && edit_named(mem, image, candidate, name) &&",
+  "replace": "candidate == focused &&",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-ignore-arm",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "if (!env_.armed()) return;",
+  "replace": "",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-bit4-visible",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "rd(mem, parent, off::parent_flags, flags) && flag::shown_not_hidden(flags);",
+  "replace": "rd(mem, parent, off::parent_flags, flags) && (flags & flag::shown) != 0;",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-bit16-ignored",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "rd(mem, parent, off::parent_flags, flags) && flag::shown_not_hidden(flags);",
+  "replace": "rd(mem, parent, off::parent_flags, flags) && (flags & flag::shown) != 0 && (flags & flag::hidden_a) == 0;",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-no-hide-log",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "root_hide = known_[own.editor] && own_visible_[own.editor] && !own.own_visible;",
+  "replace": "root_hide = false;",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-hide-source-merge",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "if (!own.parent_visible) return \"parent-hidden\";",
+  "replace": "",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-own-visible-bit16",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "out.own_visible = out.desired && flag::shown_not_hidden(out.root_flags);",
+  "replace": "out.own_visible = out.desired && (out.root_flags & flag::shown) != 0 && (out.root_flags & flag::hidden_a) == 0;",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-bind-keeps",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "lock(mutex_);\n        known_[own.editor] = false;",
+  "replace": "lock(mutex_);\n        (void)own;",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-invalid-keeps",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "if (kind == Kind::invalid) { known_[own.editor] = false; return; }",
+  "replace": "if (kind == Kind::invalid) { return; }",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-trust-return",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "focus_after != edit &&",
+  "replace": "(focus_after != edit || returned) &&",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-no-draft-check",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "const bool text_same = text_before && edit_text(mem, edit, after) && same(before, after);",
+  "replace": "const bool text_same = true;",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-lock-across-call",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "const bool returned = env_.call_focus_null(manager);",
+  "replace": "bool returned = false; { std::lock_guard<std::mutex> hold(mutex_); returned = env_.call_focus_null(manager); }",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "bridge-no-dispatch-gate",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "const bool caption_ok = caption_code == 0;",
+  "replace": "const bool caption_ok = true;",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-no-prefill-seed",
+  "file": "src/features/editor/prefill.hpp",
+  "find": "    if (prefilled) caption::caption_prefill(window, view.model);",
+  "replace": "",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-no-caption-tick",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "        caption_tick(window);\n",
+  "replace": "",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-no-caption-bind",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "    caption_bind(window);\n",
+  "replace": "",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-gate-country",
+  "file": "src/features/caption/caption_adapter.hpp",
+  "find": "model > editor::last_caption_model) return 0;  // disarmed/country",
+  "replace": "model > 2) return 0;  // disarmed/country",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-prefill-country",
+  "file": "src/features/caption/caption_adapter.hpp",
+  "find": "|| model > editor::last_caption_model) return;",
+  "replace": "|| model > 2) return;",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-gate-ignores-arm",
+  "file": "src/features/caption/caption_adapter.hpp",
+  "find": "if (!caption_armed.load(std::memory_order_acquire) || model > editor::last_caption_model) return 0;",
+  "replace": "if (model > editor::last_caption_model) return 0;",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-tick-ignores-arm",
+  "file": "src/features/caption/caption_adapter.hpp",
+  "find": "if (caption_armed.load(std::memory_order_acquire)) caption_service.on_tick(",
+  "replace": "if (true) caption_service.on_tick(",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-no-focus-tick",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "        focus_tick(window);\n",
+  "replace": "",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-focus-wrong-arg",
+  "file": "src/engine/game_calls.hpp",
+  "find": "focus_switch(manager, nullptr);",
+  "replace": "focus_switch(manager, manager);",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-no-reprefill",
+  "file": "src/features/editor/lifecycle.hpp",
+  "find": "        if (state.visible) {\n            ++state.generation;\n            state.attempted = false;\n            state.prefilled = false;\n        }",
+  "replace": "        if (state.visible) ++state.generation;",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "R02-hide-clears-attempted-only",
+  "file": "src/features/editor/lifecycle.hpp",
+  "find": "        if (state.visible) {\n            ++state.generation;\n            state.attempted = false;\n            state.prefilled = false;\n        }",
+  "replace": "        if (state.visible) {\n            ++state.generation;\n            state.attempted = false;\n        }",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "R04-hide-no-generation",
+  "file": "src/features/editor/lifecycle.hpp",
+  "find": "        if (state.visible) {\n            ++state.generation;\n            state.attempted = false;\n            state.prefilled = false;\n        }",
+  "replace": "        if (state.visible) {\n            state.attempted = false;\n            state.prefilled = false;\n        }",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "R05-invalid-also-reprefills",
+  "file": "src/features/editor/lifecycle.hpp",
+  "find": "        state.visible = false;\n        state.attempted = true;\n",
+  "replace": "        state.visible = false;\n        state.attempted = false;\n",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "B02-prefill-seed-even-if-failed",
+  "file": "src/features/editor/prefill.hpp",
+  "find": "    if (prefilled) caption::caption_prefill(window, view.model);",
+  "replace": "    caption::caption_prefill(window, view.model);",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "B03-gate-open-on-context-read-fail",
+  "file": "src/features/caption/caption_adapter.hpp",
+  "find": "if (!core::member(context, core::off::context_window, window)) return 1;  // fail-closed",
+  "replace": "if (!core::member(context, core::off::context_window, window)) return 0;  // fail-closed",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-no-stale-sentinel",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "        if (stale_eligible(context, model) &&\n            dispatch_stale(current, opaque_selector, caption_ok ? static_cast<unsigned>(StaleCode::stale) : caption_code)) {\n            return;\n        }\n",
+  "replace": "",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-sentinel-code-ignored",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "caption_ok ? static_cast<unsigned>(StaleCode::stale) : caption_code)",
+  "replace": "static_cast<unsigned>(StaleCode::stale))",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-stale-epoch-zero",
+  "file": "src/features/editor/transport.hpp",
+  "find": "epoch.raw_value = -static_cast<std::int64_t>(code) * fixed_point;",
+  "replace": "epoch.raw_value = 0;",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-stale-epoch-fixed",
+  "file": "src/features/editor/transport.hpp",
+  "find": "epoch.raw_value = -static_cast<std::int64_t>(code) * fixed_point;",
+  "replace": "epoch.raw_value = -fixed_point;",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-stale-keeps-reserved",
+  "file": "src/features/editor/transport.hpp",
+  "find": "        if (reserved_key(key)) {\n            ++sanitized;\n            continue;\n        }\n",
+  "replace": "",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-stale-any-window",
+  "file": "src/features/editor/transport.hpp",
+  "find": "inspect_window(window, view) == ViewResult::visible && view.model == model;",
+  "replace": "(inspect_window(window, view) != ViewResult::unrelated || true);",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-no-err-reserved",
+  "file": "src/features/editor/transport.hpp",
+  "find": "std::strcmp(key, key_a_err) == 0 || std::strcmp(key, key_b_err) == 0) {",
+  "replace": "false) {",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "bridge-no-error-slot",
+  "file": "src/features/editor/transport.hpp",
+  "find": "const bool error_slot = i == error_slot_index && !encoded.value;",
+  "replace": "const bool error_slot = false;",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ }
+]
