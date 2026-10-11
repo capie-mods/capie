@@ -17,3 +17,12 @@ Odpowiedzi użytkownika na punkty badania architektury
    oraz overlord, gdy jego subjectem jest inny gracz.
 7. Wskaźnik w menu głównym, możliwie nieinwazyjny — zaakceptowany.
 8. Minimalna inwazyjność, walidacja danych z modów obcych autorów — zaakceptowane.
+
+## Nazewnictwo (2026-10-11)
+
+- **Rename Anything** — mod do zmiany nazw (Workshop, skrypty/GUI).
+- **CAPIE — Cyprian's API Extender** — natywna biblioteka DLL rozszerzająca API
+  modowania HOI4; Rename Anything jest jej pierwszym konsumentem.
+- Obecne nazwy plików binarnych (`rename_anything_*.dll`, injectory, kontroler) są
+  przypięte w manifestach, testach i review; zmiana nazw plików wymaga przebudowy,
+  nowych hashy, manifestów i review — planowana jako osobny etap, nie ad hoc.
