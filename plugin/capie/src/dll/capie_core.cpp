@@ -35,33 +35,43 @@
 #include <iterator>
 
 namespace capie::country {
+namespace {
 
 using core::InitCode;
 
 /// @brief Longest path buffer for the executable path.
-inline constexpr DWORD max_path_chars = 32768;
+constexpr DWORD max_path_chars = 32768;
 /// @brief Debugger message after a successful initialization.
-inline constexpr char initialized_message[] =
+constexpr char initialized_message[] =
     "CAPIE 1.0: RN1 country localisation hooks initialized (capie_core, pinned 1.19.3.0)\n";
 
 /**
  * @brief Body of `RNInitialize`.
  * @return Result code.
  */
-inline InitCode initialize() {
-    if (active.load()) return InitCode::ok;
+InitCode initialize() {
+    if (active.load()) {
+        return InitCode::ok;
+    }
     wchar_t path[max_path_chars]{};
     if (GetModuleFileNameW(nullptr, path, max_path_chars) == 0 || core::sha256_file(path) != core::game_exe_sha256) {
         return InitCode::unsupported_executable;
     }
     auto* base = reinterpret_cast<unsigned char*>(GetModuleHandleW(nullptr));
     core::TextSection text{};
-    if (const auto located = core::locate_text(base, text); located != InitCode::ok) return located;
-    if (!core::verify_all(text, core::country_signatures)) return InitCode::signature_mismatch;
+    if (const auto located = core::locate_text(base, text); located != InitCode::ok) {
+        return located;
+    }
+    if (!core::verify_all(text, core::country_signatures)) {
+        return InitCode::signature_mismatch;
+    }
     const core::HookSpec hooks[] = {
-        {"country.lookup_n", core::rva::loc_lookup_n, reinterpret_cast<void*>(&lookup_n), reinterpret_cast<void**>(&original_n)},
-        {"country.lookup_z", core::rva::loc_lookup_z, reinterpret_cast<void*>(&lookup_z), reinterpret_cast<void**>(&original_z)},
-        {"country.exists", core::rva::loc_exists, reinterpret_cast<void*>(&exists), reinterpret_cast<void**>(&original_exists)},
+        {"country.lookup_n", core::rva::loc_lookup_n, reinterpret_cast<void*>(&lookup_n),
+         reinterpret_cast<void**>(&original_n)},
+        {"country.lookup_z", core::rva::loc_lookup_z, reinterpret_cast<void*>(&lookup_z),
+         reinterpret_cast<void**>(&original_z)},
+        {"country.exists", core::rva::loc_exists, reinterpret_cast<void*>(&exists),
+         reinterpret_cast<void**>(&original_exists)},
     };
     if (const auto installed = core::install_all_at_once(base, hooks, std::size(hooks)); installed != InitCode::ok) {
         active.store(false);
@@ -72,12 +82,14 @@ inline InitCode initialize() {
     return InitCode::ok;
 }
 
+}  // namespace
 }  // namespace capie::country
 
 /**
  * @brief Read-only capability query for the editor bridge.
  * @return `country_capabilities_v1` while initialized, otherwise 0. Loading the DLL alone is not enough.
  */
+// NOLINTNEXTLINE(readability-identifier-naming): exported ABI name
 extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
     return capie::country::active.load(std::memory_order_acquire) ? capie::country::country_capabilities_v1 : 0;
 }
@@ -87,6 +99,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
  * @param unused Ignored.
  * @return 0 on success; see `capie::core::InitCode`.
  */
+// NOLINTNEXTLINE(readability-identifier-naming): exported ABI name
 extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void* unused) {
     static_cast<void>(unused);
     try {
@@ -100,6 +113,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void* unused) {
  * @brief Keeps thread notifications (static CRT); no work in the loader lock.
  * @return TRUE.
  */
+// NOLINTNEXTLINE(readability-identifier-naming,misc-use-internal-linkage): loader entry point, external by definition
 BOOL WINAPI DllMain(HINSTANCE /*instance*/, DWORD /*reason*/, LPVOID /*reserved*/) {
     // Game exit releases the module. Unloading hooks in a live process is unsupported.
     return TRUE;

@@ -64,15 +64,25 @@ if (-not $tidy -or -not $format) {
 $capie = Split-Path -Parent $PSScriptRoot
 $database = Join-Path $capie '..\build\capie'
 if (-not (Test-Path -LiteralPath (Join-Path $database 'compile_commands.json'))) { throw 'Run plugin/capie/build.ps1 first (it writes compile_commands.json).' }
-$sources = Get-ChildItem -LiteralPath (Join-Path $capie 'src') -Recurse -Include '*.cpp', '*.hpp'
+# Formatting: every CAPIE source and the new tests. tests/legacy and tests/compat are byte-for-byte
+# copies of the accepted suites (only include lines changed) and stay in their accepted form.
+$formatted = @(Get-ChildItem -LiteralPath (Join-Path $capie 'src') -Recurse -Include '*.cpp', '*.hpp') +
+    @(Get-ChildItem -LiteralPath (Join-Path $capie 'tests') -Recurse -Include '*.cpp', '*.hpp' |
+        Where-Object { $_.FullName -notmatch '[\\/](legacy|compat)[\\/]' })
 $failed = $false
-foreach ($file in $sources) {
+foreach ($file in $formatted) {
     & $format --dry-run --Werror --style=file $file.FullName
     if ($LASTEXITCODE -ne 0) { $failed = $true }
 }
-foreach ($file in ($sources | Where-Object { $_.Extension -eq '.cpp' })) {
-    & $tidy -p $database --quiet $file.FullName
+# clang-tidy: every translation unit of compile_commands.json (debug flavor), plus the release
+# flavor of the editor composition root (different hook set and #if branch).
+$units = @(Get-Content -LiteralPath (Join-Path $database 'compile_commands.json') -Raw | ConvertFrom-Json | ForEach-Object file)
+foreach ($unit in $units) {
+    & $tidy -p $database --quiet $unit
     if ($LASTEXITCODE -ne 0) { $failed = $true }
 }
+& $tidy -p $database --quiet '--extra-arg=/UCAPIE_DEBUG_DIAGNOSTICS' '--extra-arg=/DCAPIE_DEBUG_DIAGNOSTICS=0' `
+    (Join-Path $capie 'src\dll\capie_editor.cpp')
+if ($LASTEXITCODE -ne 0) { $failed = $true }
 if ($failed) { Write-Output 'clang-tidy/clang-format: findings above'; exit 1 }
-Write-Output "clang-tidy and clang-format: clean ($($sources.Count) files)"
+Write-Output "clang-tidy ($($units.Count) units + release editor) and clang-format ($($formatted.Count) files): clean"

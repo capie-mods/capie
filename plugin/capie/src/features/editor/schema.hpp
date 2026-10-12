@@ -37,20 +37,37 @@ struct Model {
     std::size_t count;  ///< Field count (1 or 2).
 };
 
-/// @brief The five own edit fields.
+/// @brief Indices into `models` (also the caption field of leader/party and the debug model bit).
+namespace model_index {
+inline constexpr std::size_t leader = 0;   ///< Leader editor.
+inline constexpr std::size_t party = 1;    ///< Party (neutrality) editor.
+inline constexpr std::size_t country = 2;  ///< Country editor.
+}  // namespace model_index
+
+/// @brief Indices into `fields`.
+namespace field_index {
+inline constexpr std::size_t leader = 0;             ///< Leader name.
+inline constexpr std::size_t party_short = 1;        ///< Party short name.
+inline constexpr std::size_t party_long = 2;         ///< Party long name.
+inline constexpr std::size_t country_name = 3;       ///< Country name.
+inline constexpr std::size_t country_adjective = 4;  ///< Country adjective.
+}  // namespace field_index
+
+/// @brief The five own edit fields (order = `field_index`).
 inline constexpr Field fields[] = {
-    {"rn_ip_leader_edit", "rn_ip_leader_prefill", 0},
-    {"rn_ip_party_neutrality_edit", "rn_ip_party_neutrality_prefill", 1},
-    {"rn_ip_party_neutrality_long_edit", "rn_ip_party_neutrality_long_prefill", 1},
-    {"rn_ip_country_name_edit", "rn_ip_country_name_prefill", 2},
-    {"rn_ip_country_adj_edit", "rn_ip_country_adj_prefill", 2},
+    {"rn_ip_leader_edit", "rn_ip_leader_prefill", model_index::leader},
+    {"rn_ip_party_neutrality_edit", "rn_ip_party_neutrality_prefill", model_index::party},
+    {"rn_ip_party_neutrality_long_edit", "rn_ip_party_neutrality_long_prefill", model_index::party},
+    {"rn_ip_country_name_edit", "rn_ip_country_name_prefill", model_index::country},
+    {"rn_ip_country_adj_edit", "rn_ip_country_adj_prefill", model_index::country},
 };
 
-/// @brief The three own editor models.
+/// @brief The three own editor models (order = `model_index`).
 inline constexpr Model models[] = {
-    {"rn_ip_leader_gui", "rn_ip_leader_epoch", "rn_ip_leader_apply_click", 0, 1},
-    {"rn_ip_party_neutrality_gui", "rn_ip_party_neutrality_epoch", "rn_ip_party_neutrality_apply_click", 1, 2},
-    {"rn_ip_country_gui", "rn_ip_country_epoch", "rn_ip_country_apply_click", 3, 2},
+    {"rn_ip_leader_gui", "rn_ip_leader_epoch", "rn_ip_leader_apply_click", field_index::leader, 1},
+    {"rn_ip_party_neutrality_gui", "rn_ip_party_neutrality_epoch", "rn_ip_party_neutrality_apply_click",
+     field_index::party_short, 2},
+    {"rn_ip_country_gui", "rn_ip_country_epoch", "rn_ip_country_apply_click", field_index::country_name, 2},
 };
 
 /// @brief Number of fields (5).
@@ -59,16 +76,26 @@ inline constexpr std::size_t field_count = sizeof(fields) / sizeof(fields[0]);
 inline constexpr std::size_t model_count = sizeof(models) / sizeof(models[0]);
 /// @brief Most fields any model has.
 inline constexpr std::size_t max_fields_per_model = 2;
-static_assert(field_count == 5 && model_count == 3 && models[0].count == 1 && models[1].count == 2 &&
-              models[2].count == 2);
+/// @brief Expected number of fields (leader 1, party 2, country 2).
+inline constexpr std::size_t expected_field_count = 5;
+/// @brief Expected number of editor models.
+inline constexpr std::size_t expected_model_count = 3;
+static_assert(field_count == expected_field_count && model_count == expected_model_count &&
+              models[model_index::leader].count == 1 && models[model_index::party].count == 2 &&
+              models[model_index::country].count == 2);
 /// @brief Index of the country model (needs `capie_core.dll` active at dispatch).
-inline constexpr std::size_t country_model = 2;
-/// @brief Highest model index with a caption revision counter (leader 0, party 1).
-inline constexpr std::size_t last_caption_model = 1;
+inline constexpr std::size_t country_model = model_index::country;
+/// @brief Highest model index with a caption revision counter (leader, party).
+inline constexpr std::size_t last_caption_model = model_index::party;
 
-/// @brief Model names of the caption launchers (ticked for caption refresh, never edited).
-inline constexpr const char* caption_launcher_models[] = {"rn_ip_leader_launcher_gui",
-                                                          "rn_ip_party_neutrality_launcher_gui"};
+/// @brief Model name of the leader launcher (ticked for caption refresh, never edited).
+inline constexpr char leader_launcher_model[] = "rn_ip_leader_launcher_gui";
+/// @brief Model name of the party launcher (ticked for caption refresh, never edited).
+inline constexpr char party_launcher_model[] = "rn_ip_party_neutrality_launcher_gui";
+/// @brief Carrier showing the leader success counter `rn_ip_lui_rev` (editor and launcher).
+inline constexpr char leader_revision_carrier[] = "rn_ip_leader_rev";
+/// @brief Carrier showing the party success counter `rn_ip_pui_rev` (editor and launcher).
+inline constexpr char party_revision_carrier[] = "rn_ip_party_neutrality_rev";
 
 /// @brief One selector the debug flavor logs before dispatch.
 struct DebugAction {
@@ -110,7 +137,7 @@ inline constexpr std::size_t record_key_buffer = 16;
 
 /// @brief Temp variable carrying the opening epoch (or a negative sentinel).
 inline constexpr char command_epoch_key[] = "rn_ip_cmd_epoch";
-static_assert(sizeof(command_epoch_key) - 1 == 15);
+static_assert(sizeof(command_epoch_key) - 1 == max_record_key);
 /// @brief Key prefix of the first field.
 inline constexpr char field_a_prefix[] = "rn_native";
 /// @brief Key prefix of the second field.

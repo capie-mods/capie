@@ -42,16 +42,18 @@ enum class InputError {
 
 /// @brief Result of `encode_field`.
 struct InputResult {
-    std::optional<FieldCodes> value;  ///< Codes on success.
-    InputError error;                 ///< Error kind.
-    std::size_t error_index;          ///< Index of the first bad code point (32 for too_long), npos on success.
+    std::optional<FieldCodes> value;     ///< Codes on success.
+    InputError error{InputError::none};  ///< Error kind.
+    std::size_t error_index{};           ///< Index of the first bad code point (32 for too_long), npos on success.
 };
 
 /// @brief The alphabet in code order (index + 1 = code).
 inline constexpr std::u32string_view alphabet =
     U"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.'"
     U"ąćęłńóśźżĄĆĘŁŃÓŚŹŻ";
-static_assert(alphabet.size() == 84);
+/// @brief Number of characters in the alphabet (codes 1..84).
+inline constexpr std::size_t alphabet_size = 84;
+static_assert(alphabet.size() == alphabet_size);
 /// @brief Characters with render meaning in HOI4 text.
 inline constexpr std::u32string_view delimiters = U"\"[]|$§£\\{}#@";
 

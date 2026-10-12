@@ -26,12 +26,16 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#ifndef NOMINMAX
+#define NOMINMAX  // std::numeric_limits<T>::max() must not hit the windows.h macro
+#endif
 #include <windows.h>
 
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <memory>
 
 namespace capie::core {
 
@@ -41,7 +45,7 @@ using uptr = std::uintptr_t;
 using u64 = std::uint64_t;
 
 /// @brief Largest representable address; used for overflow checks before `base + offset`.
-inline constexpr uptr uptr_max = (std::numeric_limits<uptr>::max)();
+inline constexpr uptr uptr_max = std::numeric_limits<uptr>::max();
 /// @brief Mask selecting the basic page-protection value from `MEMORY_BASIC_INFORMATION::Protect`.
 inline constexpr DWORD page_access_mask = 0xFF;
 
@@ -63,8 +67,8 @@ inline constexpr DWORD page_access_mask = 0xFF;
     const auto end = cursor + size;
     while (cursor < end) {
         MEMORY_BASIC_INFORMATION region{};
-        if (VirtualQuery(reinterpret_cast<void*>(cursor), &region, sizeof(region)) == 0 ||
-            region.State != MEM_COMMIT || (region.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0) {
+        if (VirtualQuery(reinterpret_cast<void*>(cursor), &region, sizeof(region)) == 0 || region.State != MEM_COMMIT ||
+            (region.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0) {
             return false;
         }
         const DWORD access = region.Protect & page_access_mask;
@@ -126,12 +130,14 @@ inline bool guarded_copy(void* target, const void* source, std::size_t size) noe
  * @param value Receives the copy on success.
  * @return `true` when the member was copied.
  */
-template <class T> bool member(const void* object, std::size_t offset, T& value) noexcept {
+template <class T>
+bool member(const void* object, std::size_t offset, T& value) noexcept {
     const auto address = reinterpret_cast<uptr>(object);
     if (address == 0 || offset > uptr_max - address) {
         return false;
     }
-    return guarded_copy(&value, reinterpret_cast<const void*>(address + offset), sizeof(T));
+    return guarded_copy(static_cast<void*>(std::addressof(value)), reinterpret_cast<const void*>(address + offset),
+                        sizeof(T));
 }
 
 /**
@@ -163,7 +169,7 @@ struct ProcessMemory {
      * @param size Byte count.
      * @return `true` on a complete copy.
      */
-    bool read(uptr address, void* out, std::size_t size) const noexcept {
+    static bool read(uptr address, void* out, std::size_t size) noexcept {
         return guarded_copy(out, reinterpret_cast<const void*>(address), size);
     }
 };
@@ -178,7 +184,8 @@ struct ProcessMemory {
  * @param out Receives the value.
  * @return `true` on success.
  */
-template <class T, class M> bool rd(const M& mem, uptr object, uptr offset, T& out) noexcept {
+template <class T, class M>
+bool rd(const M& mem, uptr object, uptr offset, T& out) noexcept {
     if (object == 0 || offset > uptr_max - object) {
         return false;
     }

@@ -14,6 +14,9 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#ifndef NOMINMAX
+#define NOMINMAX  // std::numeric_limits<T>::max() must not hit the windows.h macro
+#endif
 #include <windows.h>
 
 #include <bcrypt.h>
@@ -29,6 +32,9 @@ inline constexpr DWORD sha256_chunk_bytes = 65536;
 inline constexpr std::size_t sha256_digest_bytes = 32;
 /// @brief Lower-case hexadecimal digits used to render digests.
 inline constexpr char hex_digits[] = "0123456789abcdef";
+
+/// @brief Mask of the low four bits of a byte (one hex digit).
+inline constexpr unsigned low_nibble_mask = 0x0F;
 
 /// @brief Raw SHA-256 digest.
 using Sha256Digest = std::array<unsigned char, sha256_digest_bytes>;
@@ -83,7 +89,7 @@ inline std::string to_hex(const Sha256Digest& digest) {
     answer.reserve(digest.size() * 2);
     for (const auto byte : digest) {
         answer += hex_digits[byte >> 4];
-        answer += hex_digits[byte & 15];
+        answer += hex_digits[byte & low_nibble_mask];
     }
     return answer;
 }

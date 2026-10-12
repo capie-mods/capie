@@ -24,6 +24,7 @@
 #include "memory.hpp"
 #include "pe_image.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -61,17 +62,17 @@ struct SlotPin {
 
 /// @brief A 32-bit data word in the image that must hold a known value.
 struct TokenPin {
-    const char* id;        ///< Identifier for tests and messages.
-    uptr rva;              ///< RVA of the DWORD.
-    std::uint32_t value;   ///< Expected value.
+    const char* id;       ///< Identifier for tests and messages.
+    uptr rva;             ///< RVA of the DWORD.
+    std::uint32_t value;  ///< Expected value.
 };
 
 /// @brief A RIP-relative operand whose target must be a known RVA.
 struct RipPin {
-    const char* id;          ///< Identifier for tests and messages.
-    uptr displacement_rva;   ///< RVA of the signed 32-bit displacement.
-    uptr next_instruction;   ///< RVA of the next instruction (RIP base of the operand).
-    uptr target;             ///< Expected target RVA.
+    const char* id;         ///< Identifier for tests and messages.
+    uptr displacement_rva;  ///< RVA of the signed 32-bit displacement.
+    uptr next_instruction;  ///< RVA of the next instruction (RIP base of the operand).
+    uptr target;            ///< Expected target RVA.
 };
 
 /// @brief Decoded pattern: bytes plus a mask (`true` = byte must match).
@@ -212,13 +213,10 @@ inline bool verify_signature(const TextSection& text, const Signature& signature
  * @param table Signature table (one consumer group).
  * @return `true` when every entry is unique at its RVA.
  */
-template <std::size_t N> bool verify_all(const TextSection& text, const Signature (&table)[N]) noexcept {
-    for (const auto& signature : table) {
-        if (!verify_signature(text, signature)) {
-            return false;
-        }
-    }
-    return true;
+template <std::size_t N>
+bool verify_all(const TextSection& text, const Signature (&table)[N]) noexcept {
+    return std::ranges::all_of(
+        table, [&text](const Signature& signature) noexcept { return verify_signature(text, signature); });
 }
 
 /**
@@ -229,7 +227,8 @@ template <std::size_t N> bool verify_all(const TextSection& text, const Signatur
  * @param pin Slot pin.
  * @return `true` when `[image + vtable + slot] == image + target`.
  */
-template <class M> bool verify_slot_pin(const M& mem, uptr image, const SlotPin& pin) noexcept {
+template <class M>
+bool verify_slot_pin(const M& mem, uptr image, const SlotPin& pin) noexcept {
     uptr slot = 0;
     return rd(mem, image + pin.vtable, pin.slot, slot) && slot == image + pin.target;
 }
@@ -242,7 +241,8 @@ template <class M> bool verify_slot_pin(const M& mem, uptr image, const SlotPin&
  * @param pin Token pin.
  * @return `true` when the DWORD equals the expected value.
  */
-template <class M> bool verify_token_pin(const M& mem, uptr image, const TokenPin& pin) noexcept {
+template <class M>
+bool verify_token_pin(const M& mem, uptr image, const TokenPin& pin) noexcept {
     std::uint32_t value = 0;
     return rd(mem, image, pin.rva, value) && value == pin.value;
 }
@@ -255,7 +255,8 @@ template <class M> bool verify_token_pin(const M& mem, uptr image, const TokenPi
  * @param pin RIP pin.
  * @return `true` when `next_instruction + displacement == target`.
  */
-template <class M> bool verify_rip_pin(const M& mem, uptr image, const RipPin& pin) noexcept {
+template <class M>
+bool verify_rip_pin(const M& mem, uptr image, const RipPin& pin) noexcept {
     std::int32_t displacement = 0;
     return rd(mem, image, pin.displacement_rva, displacement) &&
            static_cast<long long>(pin.next_instruction) + displacement == static_cast<long long>(pin.target);

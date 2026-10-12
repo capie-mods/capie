@@ -90,7 +90,8 @@ inline bool bounded_list(const void* container, std::size_t offset) noexcept {
     void* data = nullptr;
     int capacity = 0;
     int count = 0;
-    return member(container, offset + off::list_data, data) && member(container, offset + off::list_capacity, capacity) &&
+    return member(container, offset + off::list_data, data) &&
+           member(container, offset + off::list_capacity, capacity) &&
            member(container, offset + off::list_count, count) && count >= 0 && count <= max_list_count &&
            capacity >= count && capacity <= max_list_capacity &&
            readable(data, static_cast<std::size_t>(count) * sizeof(void*));
@@ -166,13 +167,15 @@ inline bool edit_identity(void* edit, const void*& name_address) noexcept {
     std::uintptr_t tb_vt = 0;
     std::uintptr_t definition_vt = 0;
     void* definition = nullptr;
-    if (!(member(edit, 0, edit_vt) && edit_vt == image_base + rva::vt_edit && member(edit, off::edit_buffer, tb_vt) &&
-          tb_vt == image_base + rva::vt_text_buffer && member(edit, off::edit_definition, definition) &&
-          member(definition, 0, definition_vt) && definition_vt == image_base + rva::vt_edit_definition)) {
-        return false;
+    const bool identified = member(edit, 0, edit_vt) && edit_vt == image_base + rva::vt_edit &&
+                            member(edit, off::edit_buffer, tb_vt) && tb_vt == image_base + rva::vt_text_buffer &&
+                            member(edit, off::edit_definition, definition) && member(definition, 0, definition_vt) &&
+                            definition_vt == image_base + rva::vt_edit_definition;
+    if (identified) {
+        name_address =
+            reinterpret_cast<const void*>(reinterpret_cast<std::uintptr_t>(definition) + off::definition_name);
     }
-    name_address = reinterpret_cast<const void*>(reinterpret_cast<std::uintptr_t>(definition) + off::definition_name);
-    return true;
+    return identified;
 }
 
 /**
@@ -185,8 +188,9 @@ inline bool edit_identity(void* edit, const void*& name_address) noexcept {
 inline bool snapshot_edit(void* edit, const char* expected, InputSnapshot& result) noexcept {
     std::uint64_t size = 0;
     std::uint64_t capacity = 0;
-    if (!edit_named(edit, expected) || !member(edit, off::edit_size, size) || !member(edit, off::edit_capacity, capacity) ||
-        size > max_codepoints || size > capacity || capacity > max_edit_capacity) {
+    if (!edit_named(edit, expected) || !member(edit, off::edit_size, size) ||
+        !member(edit, off::edit_capacity, capacity) || size > max_codepoints || size > capacity ||
+        capacity > max_edit_capacity) {
         return false;
     }
     const void* text = reinterpret_cast<void*>(reinterpret_cast<std::uintptr_t>(edit) + off::edit_text);

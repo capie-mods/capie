@@ -60,9 +60,12 @@ struct Editor {
 /// @brief The three editors.
 /// @note Derived from the shared editor schema so the names exist in one place only.
 inline constexpr Editor editors[] = {
-    {editor::models[0].name, {editor::fields[0].edit, nullptr}},
-    {editor::models[1].name, {editor::fields[1].edit, editor::fields[2].edit}},
-    {editor::models[2].name, {editor::fields[3].edit, editor::fields[4].edit}},
+    {editor::models[editor::model_index::leader].name, {editor::fields[editor::field_index::leader].edit, nullptr}},
+    {editor::models[editor::model_index::party].name,
+     {editor::fields[editor::field_index::party_short].edit, editor::fields[editor::field_index::party_long].edit}},
+    {editor::models[editor::model_index::country].name,
+     {editor::fields[editor::field_index::country_name].edit,
+      editor::fields[editor::field_index::country_adjective].edit}},
 };
 /// @brief Number of editors.
 inline constexpr std::size_t editor_count = sizeof(editors) / sizeof(editors[0]);
@@ -85,8 +88,12 @@ inline constexpr std::size_t line_capacity = 256;
  * @param name Exact name.
  * @return `true` on a match.
  */
-template <class M> bool edit_named(const M& mem, uptr image, uptr edit, const char* name) noexcept {
-    uptr vt = 0, tb_vt = 0, definition = 0, definition_vt = 0;
+template <class M>
+bool edit_named(const M& mem, uptr image, uptr edit, const char* name) noexcept {
+    uptr vt = 0;
+    uptr tb_vt = 0;
+    uptr definition = 0;
+    uptr definition_vt = 0;
     return rd(mem, edit, 0, vt) && vt == image + rva::vt_edit && rd(mem, edit, off::edit_buffer, tb_vt) &&
            tb_vt == image + rva::vt_text_buffer && rd(mem, edit, off::edit_definition, definition) &&
            rd(mem, definition, 0, definition_vt) && definition_vt == image + rva::vt_edit_definition &&
@@ -105,12 +112,18 @@ struct Text {
  * @param out Receives the text.
  * @return `false` when unreadable or oversized.
  */
-template <class M> bool edit_text(const M& mem, uptr edit, Text& out) noexcept {
-    u64 size = 0, capacity = 0;
+template <class M>
+bool edit_text(const M& mem, uptr edit, Text& out) noexcept {
+    u64 size = 0;
+    u64 capacity = 0;
     uptr data = edit + off::edit_text;
-    if (!rd(mem, edit, off::edit_size, size) || !rd(mem, edit, off::edit_capacity, capacity) || size > max_text_points ||
-        size > capacity || capacity > max_text_capacity) return false;
-    if (capacity > core::value::inline_utf32_capacity && !rd(mem, edit, off::edit_text, data)) return false;
+    if (!rd(mem, edit, off::edit_size, size) || !rd(mem, edit, off::edit_capacity, capacity) ||
+        size > max_text_points || size > capacity || capacity > max_text_capacity) {
+        return false;
+    }
+    if (capacity > core::value::inline_utf32_capacity && !rd(mem, edit, off::edit_text, data)) {
+        return false;
+    }
     out.size = size;
     return size == 0 || mem.read(data, out.points, static_cast<std::size_t>(size) * utf32_bytes);
 }
@@ -147,22 +160,40 @@ struct Own {
  * @param out Receives the copies.
  * @return Classification.
  */
-template <class M> Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
+template <class M>
+Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
     out = Own{};
-    uptr model = 0, model_vt = 0;
-    if (!rd(mem, window, off::window_model, model) || !rd(mem, model, 0, model_vt) || model_vt != image + rva::vt_sg_model)
+    uptr model = 0;
+    uptr model_vt = 0;
+    if (!rd(mem, window, off::window_model, model) || !rd(mem, model, 0, model_vt) ||
+        model_vt != image + rva::vt_sg_model) {
         return Kind::unrelated;
-    for (std::size_t i = 0; i < editor_count; ++i)
-        if (engine::string_equals(mem, model + off::model_name, editors[i].model)) { out.editor = i; break; }
-    if (out.editor == editor_count) return Kind::unrelated;
+    }
+    for (std::size_t i = 0; i < editor_count; ++i) {
+        if (engine::string_equals(mem, model + off::model_name, editors[i].model)) {
+            out.editor = i;
+            break;
+        }
+    }
+    if (out.editor == editor_count) {
+        return Kind::unrelated;
+    }
     const uptr context = window + off::window_context;
-    uptr ctx_vt = 0, ctx_window = 0, ctx_model = 0, root = 0, ctx_root = 0, root_vt = 0, parent = 0;
+    uptr ctx_vt = 0;
+    uptr ctx_window = 0;
+    uptr ctx_model = 0;
+    uptr root = 0;
+    uptr ctx_root = 0;
+    uptr root_vt = 0;
+    uptr parent = 0;
     if (!rd(mem, context, 0, ctx_vt) || ctx_vt != image + rva::vt_sg_context ||
         !rd(mem, context, off::context_window, ctx_window) || ctx_window != window ||
         !rd(mem, context, off::context_model, ctx_model) || ctx_model != model ||
-        !rd(mem, context, off::context_root, ctx_root) || !rd(mem, window, off::window_root, root) ||
-        !root || root != ctx_root || !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
-        !rd(mem, window, off::window_parent, parent)) return Kind::invalid;
+        !rd(mem, context, off::context_root, ctx_root) || !rd(mem, window, off::window_root, root) || !root ||
+        root != ctx_root || !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
+        !rd(mem, window, off::window_parent, parent)) {
+        return Kind::invalid;
+    }
     out.root = root;
     unsigned char flags = 0;
     out.parent_present = parent != 0;
@@ -184,7 +215,8 @@ template <class M> Kind inspect(const M& mem, uptr image, uptr window, Own& out)
  * `bool armed()`, `void log(const char*)`.
  * @tparam Env Environment adapter.
  */
-template <class Env> class Release {
+template <class Env>
+class Release {
 public:
     /**
      * @brief Binds the service to its environment.
@@ -207,10 +239,16 @@ public:
      * @return Source name.
      */
     static const char* hide_source(const Own& own) noexcept {
-        if (!own.parent_present) return "parent-detached";
-        if (!own.parent_visible) return "parent-hidden";        // politics panel closed/hidden
-        if (!own.desired) return "own-trigger-false";            // scripted visible trigger (e.g. flag cleared)
-        return "own-root-flags";                                 // own root hidden with parent shown
+        if (!own.parent_present) {
+            return "parent-detached";
+        }
+        if (!own.parent_visible) {
+            return "parent-hidden";  // politics panel closed/hidden
+        }
+        if (!own.desired) {
+            return "own-trigger-false";  // scripted visible trigger (e.g. flag cleared)
+        }
+        return "own-root-flags";  // own root hidden with parent shown
     }
     /**
      * @brief Post-original Bind: forget the editor's previous visibility.
@@ -218,8 +256,10 @@ public:
      */
     void on_bind(uptr window) noexcept {
         Own own{};
-        if (inspect(env_.mem(), env_.image(), window, own) == Kind::unrelated) return;
-        std::lock_guard<std::mutex> lock(mutex_);
+        if (inspect(env_.mem(), env_.image(), window, own) == Kind::unrelated) {
+            return;
+        }
+        const std::scoped_lock lock(mutex_);
         known_[own.editor] = false;
     }
     /**
@@ -227,52 +267,76 @@ public:
      * @param window Window.
      */
     void on_tick(uptr window) noexcept {
-        if (!env_.armed()) return;
+        if (!env_.armed()) {
+            return;
+        }
         Own own{};
         const auto kind = inspect(env_.mem(), env_.image(), window, own);
-        if (kind == Kind::unrelated) return;
-        bool transition = false, root_hide = false;
+        if (kind == Kind::unrelated) {
+            return;
+        }
+        bool transition = false;
+        bool root_hide = false;
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (kind == Kind::invalid) { known_[own.editor] = false; return; }
+            const std::scoped_lock lock(mutex_);
+            if (kind == Kind::invalid) {
+                known_[own.editor] = false;
+                return;
+            }
             transition = known_[own.editor] && parent_visible_[own.editor] && !own.parent_visible;
             root_hide = known_[own.editor] && own_visible_[own.editor] && !own.own_visible;
             known_[own.editor] = true;
             parent_visible_[own.editor] = own.parent_visible;
             own_visible_[own.editor] = own.own_visible;
-            if (transition) ++counters_.transitions;
-            if (root_hide) ++counters_.root_hides;
+            if (transition) {
+                ++counters_.transitions;
+            }
+            if (root_hide) {
+                ++counters_.root_hides;
+            }
         }
         if (root_hide) {
             char line[line_capacity]{};
-            std::snprintf(line, sizeof(line),
-                          "RN_HIDE event=editor-root-hidden model=%s source=%s desired=%u root_flags=0x%02X parent_flags=0x%02X "
-                          "parent_seen=%u parent_present=%u; draft is dropped on reopen (re-prefill)\r\n",
-                          editors[own.editor].model, hide_source(own), own.desired, own.root_flags, own.parent_flags,
-                          own.parent_seen, own.parent_present ? 1U : 0U);
+            static_cast<void>(std::snprintf(
+                line, sizeof(line),
+                "RN_HIDE event=editor-root-hidden model=%s source=%s desired=%u root_flags=0x%02X parent_flags=0x%02X "
+                "parent_seen=%u parent_present=%u; draft is dropped on reopen (re-prefill)\r\n",
+                editors[own.editor].model, hide_source(own), own.desired, own.root_flags, own.parent_flags,
+                own.parent_seen, own.parent_present ? 1U : 0U));
             env_.log(line);
         }
-        if (!transition) return;  // exactly once per visible->hidden parent transition
+        if (!transition) {
+            return;  // exactly once per visible->hidden parent transition
+        }
         release(own);
     }
     /// @brief Counter copy. @return Counters.
-    Counters counters() noexcept { std::lock_guard<std::mutex> lock(mutex_); return counters_; }
+    Counters counters() noexcept {
+        std::scoped_lock lock(mutex_);
+        return counters_;
+    }
 
 private:
     void release(const Own& own) noexcept {
         const auto& mem = env_.mem();
         const auto image = env_.image();
-        uptr manager = 0, focused = 0, receiver = 0;
+        uptr manager = 0;
+        uptr focused = 0;
+        uptr receiver = 0;
         const bool manager_ok = rd(mem, image, rva::manager_global, manager) && manager &&
-                                rd(mem, manager, off::manager_focus, focused) && rd(mem, manager, off::manager_receiver, receiver);
+                                rd(mem, manager, off::manager_focus, focused) &&
+                                rd(mem, manager, off::manager_receiver, receiver);
         uptr edit = 0;
         const char* field = nullptr;
         for (const char* name : editors[own.editor].fields) {
-            if (!name || !manager_ok) continue;
+            if (!name || !manager_ok) {
+                continue;
+            }
             const uptr candidate = env_.find_edit(own.root, name);
             unsigned char flags = 0;
             if (candidate && candidate == focused && edit_named(mem, image, candidate, name) &&
-                receiver == candidate + off::edit_receiver && rd(mem, candidate, off::edit_flags, flags) && (flags & flag::edit_active)) {
+                receiver == candidate + off::edit_receiver && rd(mem, candidate, off::edit_flags, flags) &&
+                (flags & flag::edit_active)) {
                 edit = candidate;
                 field = name;
                 break;
@@ -280,30 +344,49 @@ private:
         }
         char line[line_capacity]{};
         if (!edit) {
-            { std::lock_guard<std::mutex> lock(mutex_); ++counters_.no_own_focus; }
-            std::snprintf(line, sizeof(line), "RN_FOCUS event=parent-hidden model=%s parent_flags=0x%02X own_focus=0 root_flags=0x%02X desired=%u parent_seen=%u; no call\r\n",
-                          editors[own.editor].model, own.parent_flags, own.root_flags, own.desired, own.parent_seen);
+            {
+                const std::scoped_lock lock(mutex_);
+                ++counters_.no_own_focus;
+            }
+            static_cast<void>(std::snprintf(
+                line, sizeof(line),
+                "RN_FOCUS event=parent-hidden model=%s parent_flags=0x%02X own_focus=0 root_flags=0x%02X desired=%u parent_seen=%u; no call\r\n",
+                editors[own.editor].model, own.parent_flags, own.root_flags, own.desired, own.parent_seen));
             env_.log(line);
             return;
         }
-        Text before{}, after{};
+        Text before{};
+        Text after{};
         const bool text_before = edit_text(mem, edit, before);
-        { std::lock_guard<std::mutex> lock(mutex_); ++counters_.calls; }
+        {
+            const std::scoped_lock lock(mutex_);
+            ++counters_.calls;
+        }
         const bool returned = env_.call_focus_null(manager);  // no lock held; exactly one call
-        uptr focus_after = 1, receiver_after = 1;
+        uptr focus_after = 1;
+        uptr receiver_after = 1;
         unsigned char flags_after = 1;
         const bool released = returned && rd(mem, manager, off::manager_focus, focus_after) && focus_after != edit &&
-                              rd(mem, manager, off::manager_receiver, receiver_after) && receiver_after != edit + off::edit_receiver &&
+                              rd(mem, manager, off::manager_receiver, receiver_after) &&
+                              receiver_after != edit + off::edit_receiver &&
                               rd(mem, edit, off::edit_flags, flags_after) && !(flags_after & flag::edit_active);
         const bool text_same = text_before && edit_text(mem, edit, after) && same(before, after);
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (released) ++counters_.released; else ++counters_.failed;
-            if (!text_same) ++counters_.text_changed;
+            const std::scoped_lock lock(mutex_);
+            if (released) {
+                ++counters_.released;
+            } else {
+                ++counters_.failed;
+            }
+            if (!text_same) {
+                ++counters_.text_changed;
+            }
         }
-        std::snprintf(line, sizeof(line), "RN_FOCUS event=parent-hidden model=%s field=%s parent_flags=0x%02X result=%s draft=%s root_flags=0x%02X desired=%u parent_seen=%u; no retry\r\n",
-                      editors[own.editor].model, field, own.parent_flags, released ? "released" : "release-unverified",
-                      text_same ? "unchanged" : "CHANGED-OR-UNREADABLE", own.root_flags, own.desired, own.parent_seen);
+        static_cast<void>(std::snprintf(
+            line, sizeof(line),
+            "RN_FOCUS event=parent-hidden model=%s field=%s parent_flags=0x%02X result=%s draft=%s root_flags=0x%02X desired=%u parent_seen=%u; no retry\r\n",
+            editors[own.editor].model, field, own.parent_flags, released ? "released" : "release-unverified",
+            text_same ? "unchanged" : "CHANGED-OR-UNREADABLE", own.root_flags, own.desired, own.parent_seen));
         env_.log(line);
     }
     Env& env_;

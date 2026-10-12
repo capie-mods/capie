@@ -31,10 +31,10 @@ namespace capie::core {
 
 /// @brief One detour: target RVA, replacement function and the trampoline slot.
 struct HookSpec {
-    const char* id;    ///< Identifier, e.g. "editor.tick"; matches the signature id.
-    uptr rva;          ///< Target RVA inside the game image.
-    void* detour;      ///< Replacement function.
-    void** original;   ///< Receives the trampoline (call it to run the original).
+    const char* id;   ///< Identifier, e.g. "editor.tick"; matches the signature id.
+    uptr rva;         ///< Target RVA inside the game image.
+    void* detour;     ///< Replacement function.
+    void** original;  ///< Receives the trampoline (call it to run the original).
 };
 
 /**

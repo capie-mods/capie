@@ -29,12 +29,12 @@ namespace capie::editor {
 
 /// @brief Copied Enter observation awaiting the next Tick (diagnostic only).
 struct Pending {
-    bool valid{};               ///< Slot holds an observation.
-    std::uint64_t epoch{};      ///< Epoch at observation.
-    std::uint64_t generation{}; ///< Generation at observation.
-    ULONGLONG created{};        ///< `GetTickCount64()` at observation.
-    DWORD thread{};             ///< Observing thread.
-    InputSnapshot text{};       ///< Copied text.
+    std::uint64_t epoch{};       ///< Epoch at observation.
+    std::uint64_t generation{};  ///< Generation at observation.
+    ULONGLONG created{};         ///< `GetTickCount64()` at observation.
+    InputSnapshot text{};        ///< Copied text.
+    DWORD thread{};              ///< Observing thread.
+    bool valid{};                ///< Slot holds an observation.
 };
 
 /// @brief Lifecycle of one editor model.
@@ -49,12 +49,12 @@ struct Lifecycle {
 
 /// @brief Status codes logged once per change by `status_once`.
 enum class Status : unsigned {
-    none = 0,             ///< Nothing logged yet.
-    hidden = 1,           ///< Own root hidden.
-    guard_rejected = 2,   ///< Own root failed the context/root guard.
-    epoch_rejected = 3,   ///< Epoch carrier unreadable.
-    visible_valid = 4,    ///< Visible with a valid epoch.
-    bind_rejected = 5,    ///< Bind saw an invalid own root.
+    none = 0,            ///< Nothing logged yet.
+    hidden = 1,          ///< Own root hidden.
+    guard_rejected = 2,  ///< Own root failed the context/root guard.
+    epoch_rejected = 3,  ///< Epoch carrier unreadable.
+    visible_valid = 4,   ///< Visible with a valid epoch.
+    bind_rejected = 5,   ///< Bind saw an invalid own root.
 };
 
 /// @brief Lifecycle per model.

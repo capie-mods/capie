@@ -17,12 +17,13 @@
 #include "../../core/log.hpp"
 #include "diagnostics.hpp"
 #include "keylog.hpp"
-#include "trampolines.hpp"
 #include "lifecycle.hpp"
+#include "trampolines.hpp"
 #include "window_view.hpp"
 
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 namespace capie::editor {
 
@@ -85,19 +86,31 @@ inline void debug_snapshot(void* window, const View& view, ViewResult result, st
         for (std::size_t j = 0; j < model.count; ++j) {
             const auto field = model.first + j;
             void* edit = engine::guarded_find(engine::find_edit, view.root, fields[field].edit);
-            if (!engine::edit_named(edit, fields[field].edit)) { reason = "edit_identity"; break; }
-            if (!engine::visible_edit(edit)) { reason = "edit_hidden"; break; }
-            if (!engine::snapshot_edit(edit, fields[field].edit, texts[j])) { reason = "text_unreadable_or_oversize"; break; }
+            if (!engine::edit_named(edit, fields[field].edit)) {
+                reason = "edit_identity";
+                break;
+            }
+            if (!engine::visible_edit(edit)) {
+                reason = "edit_hidden";
+                break;
+            }
+            if (!engine::snapshot_edit(edit, fields[field].edit, texts[j])) {
+                reason = "text_unreadable_or_oversize";
+                break;
+            }
             copy_key_status(edit, field, statuses[j]);
         }
         View fresh{};
         std::uint64_t fresh_epoch = 0;
-        if (ok() && (inspect_window(window, fresh) != ViewResult::visible || fresh.model != view.model ||
-                     fresh.root != view.root || !read_epoch(fresh.root, view.model, fresh_epoch) || fresh_epoch != epoch)) {
+        if (ok() &&
+            (inspect_window(window, fresh) != ViewResult::visible || fresh.model != view.model ||
+             fresh.root != view.root || !read_epoch(fresh.root, view.model, fresh_epoch) || fresh_epoch != epoch)) {
             reason = "view_or_epoch_changed";
         }
         const Lifecycle after = lifecycle_copy(view.model);
-        if (ok() && !same_lifecycle(after, opening)) reason = "lifecycle_changed";
+        if (ok() && !same_lifecycle(after, opening)) {
+            reason = "lifecycle_changed";
+        }
         if (ok()) {
             for (std::size_t j = 0; j < model.count; ++j) {
                 const auto field = model.first + j;
@@ -116,31 +129,38 @@ inline void debug_snapshot(void* window, const View& view, ViewResult result, st
             View final_view{};
             std::uint64_t final_epoch = 0;
             if (inspect_window(window, final_view) != ViewResult::visible || final_view.model != view.model ||
-                final_view.root != view.root || !read_epoch(final_view.root, view.model, final_epoch) || final_epoch != epoch) {
+                final_view.root != view.root || !read_epoch(final_view.root, view.model, final_epoch) ||
+                final_epoch != epoch) {
                 reason = "final_view_or_epoch_changed";
             }
             const Lifecycle final_life = lifecycle_copy(view.model);
-            if (ok() && !same_lifecycle(final_life, opening)) reason = "final_lifecycle_changed";
+            if (ok() && !same_lifecycle(final_life, opening)) {
+                reason = "final_lifecycle_changed";
+            }
         }
     }
     char line[debug_line_capacity]{};
-    std::snprintf(line, sizeof(line),
-                  "RN_DEBUG stage=snapshot request=%llu model=%s reason=%s epoch=%llu generation=%llu "
-                  "life_visible=%u attempted=%u prefilled=%u; observation only, no Apply\r\n",
-                  static_cast<unsigned long long>(serial), model.name, reason, static_cast<unsigned long long>(epoch),
-                  static_cast<unsigned long long>(opening.generation), opening.visible ? 1U : 0U,
-                  opening.attempted ? 1U : 0U, opening.prefilled ? 1U : 0U);
+    static_cast<void>(
+        std::snprintf(line, sizeof(line),
+                      "RN_DEBUG stage=snapshot request=%llu model=%s reason=%s epoch=%llu generation=%llu "
+                      "life_visible=%u attempted=%u prefilled=%u; observation only, no Apply\r\n",
+                      static_cast<unsigned long long>(serial), model.name, reason,
+                      static_cast<unsigned long long>(epoch), static_cast<unsigned long long>(opening.generation),
+                      opening.visible ? 1U : 0U, opening.attempted ? 1U : 0U, opening.prefilled ? 1U : 0U));
     write_log(line);
-    if (!ok()) return;
+    if (!ok()) {
+        return;
+    }
     for (std::size_t j = 0; j < model.count; ++j) {
         const auto field = model.first + j;
         const auto& s = statuses[j];
-        std::snprintf(line, sizeof(line),
-                      "RN_DEBUG stage=field_status request=%llu field=%s status_mask=%u flags75=0x%02X flags271=0x%02X "
-                      "manager_present=%u widget_is_edit=%u receiver_is_edit=%u\r\n",
-                      static_cast<unsigned long long>(serial), fields[field].edit, s.mask,
-                      static_cast<unsigned>(s.flags75), static_cast<unsigned>(s.flags271), s.manager_present ? 1U : 0U,
-                      s.widget_is_edit ? 1U : 0U, s.receiver_is_edit ? 1U : 0U);
+        static_cast<void>(std::snprintf(
+            line, sizeof(line),
+            "RN_DEBUG stage=field_status request=%llu field=%s status_mask=%u flags75=0x%02X flags271=0x%02X "
+            "manager_present=%u widget_is_edit=%u receiver_is_edit=%u\r\n",
+            static_cast<unsigned long long>(serial), fields[field].edit, s.mask, static_cast<unsigned>(s.flags75),
+            static_cast<unsigned>(s.flags271), s.manager_present ? 1U : 0U, s.widget_is_edit ? 1U : 0U,
+            s.receiver_is_edit ? 1U : 0U));
         write_log(line);
         diagnostic(next_observation_id(), "debug-request-field-snapshot", field, epoch, opening.generation, &texts[j],
                    GetCurrentThreadId());
@@ -157,15 +177,20 @@ inline void service_debug(void* window) noexcept {
     const auto work = debug_control.take(GetTickCount64(), result == ViewResult::unrelated ? 0U : 1U << view.model);
     char line[request_line_capacity]{};
     if (work.changed || work.expired != 0) {
-        std::snprintf(line, sizeof(line),
-                      "RN_DEBUG stage=request request=%llu operation=%zu pending_models=0x%X expired_models=0x%X "
-                      "coalescing=latest_request ttl_ms=%llu; post-original UI tick, queued is not completed\r\n",
-                      static_cast<unsigned long long>(work.serial), static_cast<std::size_t>(work.operation),
-                      work.pending, work.expired, static_cast<unsigned long long>(core::trace::snapshot_ttl_ms));
+        static_cast<void>(
+            std::snprintf(line, sizeof(line),
+                          "RN_DEBUG stage=request request=%llu operation=%zu pending_models=0x%X expired_models=0x%X "
+                          "coalescing=latest_request ttl_ms=%llu; post-original UI tick, queued is not completed\r\n",
+                          static_cast<unsigned long long>(work.serial), static_cast<std::size_t>(work.operation),
+                          work.pending, work.expired, static_cast<unsigned long long>(core::trace::snapshot_ttl_ms)));
         write_log(line);
     }
-    if (work.snapshot) debug_snapshot(window, view, result, work.serial);
-    if (work.dump) dump_debug_ring(work.serial);
+    if (work.snapshot) {
+        debug_snapshot(window, view, result, work.serial);
+    }
+    if (work.dump) {
+        dump_debug_ring(work.serial);
+    }
 }
 
 /**
@@ -183,7 +208,9 @@ inline void debug_own_action(void* context, const MsvcString* selector) noexcept
         return;
     }
     const auto model_address = reinterpret_cast<std::uintptr_t>(model);
-    if (model_address > core::uptr_max - off::model_name) return;
+    if (model_address > core::uptr_max - off::model_name) {
+        return;
+    }
     for (const auto& action : debug_actions) {
         if (!name_equals(reinterpret_cast<void*>(model_address + off::model_name), action.model) ||
             !name_equals(selector, action.selector)) {
@@ -198,21 +225,23 @@ inline void debug_own_action(void* context, const MsvcString* selector) noexcept
         unsigned char desired = 0;
         const bool has_window = member(context, off::context_window, window);
         const auto window_address = reinterpret_cast<std::uintptr_t>(window);
-        const bool valid = has_window && window_address != 0 && window_address <= core::uptr_max - off::window_context &&
-                           reinterpret_cast<std::uintptr_t>(context) == window_address + off::window_context &&
-                           member(window, off::window_model, window_model) && window_model == model &&
-                           member(context, off::context_root, context_root) && member(window, off::window_root, root) &&
-                           root == context_root && member(root, 0, root_vt) && root_vt == image_base + rva::vt_sg_root &&
-                           member(root, off::root_flags, flags) && member(window, off::window_desired, desired) &&
-                           readable(root, off::root_readable_span) && bounded_list(root, off::root_edit_list) &&
-                           bounded_list(root, off::root_instant_list) && bounded_list(root, off::root_third_list);
+        const bool valid =
+            has_window && window_address != 0 && window_address <= core::uptr_max - off::window_context &&
+            reinterpret_cast<std::uintptr_t>(context) == window_address + off::window_context &&
+            member(window, off::window_model, window_model) && window_model == model &&
+            member(context, off::context_root, context_root) && member(window, off::window_root, root) &&
+            root == context_root && member(root, 0, root_vt) && root_vt == image_base + rva::vt_sg_root &&
+            member(root, off::root_flags, flags) && member(window, off::window_desired, desired) &&
+            readable(root, off::root_readable_span) && bounded_list(root, off::root_edit_list) &&
+            bounded_list(root, off::root_instant_list) && bounded_list(root, off::root_third_list);
         char line[request_line_capacity]{};
-        std::snprintf(line, sizeof(line),
-                      "RN_DEBUG stage=pre_dispatch model=%s selector=%s action=%s reason=%s visible=%u "
-                      "desired=%u root_flags=0x%02X; recognized selector, execution and effect not yet observed\r\n",
-                      action.model, action.selector, action.action, valid ? "fresh_context" : "context_guard_failed",
-                      valid && desired != 0 && flag::shown_not_hidden(flags) ? 1U : 0U, static_cast<unsigned>(desired),
-                      static_cast<unsigned>(flags));
+        static_cast<void>(std::snprintf(
+            line, sizeof(line),
+            "RN_DEBUG stage=pre_dispatch model=%s selector=%s action=%s reason=%s visible=%u "
+            "desired=%u root_flags=0x%02X; recognized selector, execution and effect not yet observed\r\n",
+            action.model, action.selector, action.action, valid ? "fresh_context" : "context_guard_failed",
+            valid && desired != 0 && flag::shown_not_hidden(flags) ? 1U : 0U, static_cast<unsigned>(desired),
+            static_cast<unsigned>(flags)));
         write_log(line);
         return;
     }
@@ -243,9 +272,13 @@ struct ExecuteObservation {
 inline ExecuteObservation debug_execute_command(void* command) noexcept {
     ExecuteObservation observation{};
     std::uintptr_t vt = 0;
-    if (!member(command, 0, vt) || vt != image_base + rva::vt_execute_effect) return observation;
+    if (!member(command, 0, vt) || vt != image_base + rva::vt_execute_effect) {
+        return observation;
+    }
     const auto address = reinterpret_cast<std::uintptr_t>(command);
-    if (address > core::uptr_max - off::command_model) return observation;
+    if (address > core::uptr_max - off::command_model) {
+        return observation;
+    }
     for (std::size_t model = 0; model < model_count; ++model) {
         if (!name_equals(reinterpret_cast<void*>(address + off::command_model), models[model].name) ||
             !name_equals(reinterpret_cast<void*>(address + off::command_selector), models[model].apply)) {
@@ -260,7 +293,7 @@ inline ExecuteObservation debug_execute_command(void* command) noexcept {
                                 scopes <= max_scope_count && scope_capacity >= scopes &&
                                 scope_capacity <= engine::max_vector_capacity;
         const bool vector_read = member(command, off::command_records, vector) && vector.count >= 0 &&
-                                 vector.count <= static_cast<int>(max_original_records + max_transport_records) &&
+                                 std::cmp_less_equal(vector.count, max_original_records + max_transport_records) &&
                                  vector.capacity >= vector.count && vector.capacity <= engine::max_vector_capacity &&
                                  readable(vector.data, static_cast<std::size_t>(vector.count) * sizeof(Record));
         unsigned header_mask = 0;
@@ -275,29 +308,44 @@ inline ExecuteObservation debug_execute_command(void* command) noexcept {
             for (int i = 0; i < vector.count; ++i) {
                 Record record{};
                 char key[engine::max_name_bytes + 1]{};
-                if (!engine::guarded_copy(&record, vector.data + i, sizeof(record)) || !engine::record_key(record, key)) {
+                if (!engine::guarded_copy(&record, vector.data + i, sizeof(record)) ||
+                    !engine::record_key(record, key)) {
                     records_valid = false;
                     break;
                 }
-                if (std::strcmp(key, command_epoch_key) == 0) { header_mask |= header_bit::epoch; epoch = record.raw_value; }
-                else if (std::strcmp(key, key_a_ok) == 0) { header_mask |= header_bit::a_ok; a_ok = record.raw_value; }
-                else if (std::strcmp(key, key_a_len) == 0) { header_mask |= header_bit::a_len; a_len = record.raw_value; }
-                else if (std::strcmp(key, key_b_ok) == 0) { header_mask |= header_bit::b_ok; b_ok = record.raw_value; }
-                else if (std::strcmp(key, key_b_len) == 0) { header_mask |= header_bit::b_len; b_len = record.raw_value; }
-                else if (std::strcmp(key, key_capability) == 0) { header_mask |= header_bit::capability; capability = record.raw_value; }
+                if (std::strcmp(key, command_epoch_key) == 0) {
+                    header_mask |= header_bit::epoch;
+                    epoch = record.raw_value;
+                } else if (std::strcmp(key, key_a_ok) == 0) {
+                    header_mask |= header_bit::a_ok;
+                    a_ok = record.raw_value;
+                } else if (std::strcmp(key, key_a_len) == 0) {
+                    header_mask |= header_bit::a_len;
+                    a_len = record.raw_value;
+                } else if (std::strcmp(key, key_b_ok) == 0) {
+                    header_mask |= header_bit::b_ok;
+                    b_ok = record.raw_value;
+                } else if (std::strcmp(key, key_b_len) == 0) {
+                    header_mask |= header_bit::b_len;
+                    b_len = record.raw_value;
+                } else if (std::strcmp(key, key_capability) == 0) {
+                    header_mask |= header_bit::capability;
+                    capability = record.raw_value;
+                }
             }
         }
         char line[execute_line_capacity]{};
-        std::snprintf(line, sizeof(line),
-                      "RN_DEBUG stage=pre_execute id=%lu model=%s selector=%s reason=%s records=%d scopes_read=%u "
-                      "scopes=%d header_mask=%u epoch_raw=%lld a_ok_raw=%lld a_len_raw=%lld b_ok_raw=%lld b_len_raw=%lld "
-                      "capability_raw=%lld fixed_point=%lld; queue reached Execute, target authority and effect success "
-                      "unverified\r\n",
-                      observation.id, models[model].name, models[model].apply,
-                      records_valid ? "copied_headers" : "record_guard_failed", vector.count, scope_read ? 1U : 0U,
-                      scopes, header_mask, static_cast<long long>(epoch), static_cast<long long>(a_ok),
-                      static_cast<long long>(a_len), static_cast<long long>(b_ok), static_cast<long long>(b_len),
-                      static_cast<long long>(capability), static_cast<long long>(fixed_point));
+        static_cast<void>(std::snprintf(
+            line, sizeof(line),
+            "RN_DEBUG stage=pre_execute id=%lu model=%s selector=%s reason=%s records=%d scopes_read=%u "
+            "scopes=%d header_mask=%u epoch_raw=%lld a_ok_raw=%lld a_len_raw=%lld b_ok_raw=%lld b_len_raw=%lld "
+            "capability_raw=%lld fixed_point=%lld; queue reached Execute, target authority and effect success "
+            "unverified\r\n",
+            observation.id, models[model].name, models[model].apply,
+            records_valid ? "copied_headers" : "record_guard_failed", vector.count, scope_read ? 1U : 0U, scopes,
+            header_mask, static_cast<long long>(epoch), static_cast<long long>(a_ok), static_cast<long long>(a_len),
+            static_cast<long long>(b_ok), static_cast<long long>(b_len), static_cast<long long>(capability),
+            static_cast<long long>(fixed_point)));
         write_log(line);
         break;
     }

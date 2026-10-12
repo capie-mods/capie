@@ -29,24 +29,40 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <vector>
 
-/// @brief Median ns/call of `body` over 9 runs of `iterations` calls.
-template <class Body> double measure(unsigned iterations, Body&& body) {
+namespace {
+/// @brief Number of timed runs per scenario (the median is reported).
+constexpr std::size_t runs_per_scenario = 9;
+
+/**
+ * @brief Median ns/call of `body` over 9 runs of `iterations` calls.
+ * @tparam Body Callable.
+ * @param iterations Calls per run.
+ * @param body Scenario.
+ * @return Median nanoseconds per call.
+ */
+template <class Body>
+double measure(unsigned iterations, const Body& body) {
     LARGE_INTEGER frequency{};
     QueryPerformanceFrequency(&frequency);
-    std::array<double, 9> runs{};
+    std::array<double, runs_per_scenario> runs{};
     for (auto& run : runs) {
         LARGE_INTEGER start{};
         LARGE_INTEGER stop{};
         QueryPerformanceCounter(&start);
-        for (unsigned i = 0; i < iterations; ++i) body();
+        for (unsigned i = 0; i < iterations; ++i) {
+            body();
+        }
         QueryPerformanceCounter(&stop);
-        run = static_cast<double>(stop.QuadPart - start.QuadPart) * 1e9 / static_cast<double>(frequency.QuadPart) / iterations;
+        run = static_cast<double>(stop.QuadPart - start.QuadPart) * 1e9 / static_cast<double>(frequency.QuadPart) /
+              iterations;
     }
-    std::sort(runs.begin(), runs.end());
+    std::ranges::sort(runs);
     return runs[runs.size() / 2];
 }
+}  // namespace
 
 #if CAPIE_BENCH_PART == 0
 // ================================ Editor Tick ================================================
@@ -59,8 +75,9 @@ template <class Body> double measure(unsigned iterations, Body&& body) {
 #endif
 
 namespace {
-template <class T> void put(void* object, std::size_t offset, const T& value) {
-    std::memcpy(static_cast<unsigned char*>(object) + offset, &value, sizeof(value));
+template <class T>
+void put(void* object, std::size_t offset, const T& value) {
+    std::memcpy(static_cast<unsigned char*>(object) + offset, static_cast<const void*>(&value), sizeof(value));
 }
 struct Own {
     alignas(8) std::array<unsigned char, 0xC00> window{};
@@ -85,10 +102,18 @@ struct World {
 };
 World* world = nullptr;
 void* __fastcall fake_instant(void* root, const MsvcString* name, bool, bool) {
-    if (root == world->editor.root.data() && name_equals(name, "rn_ip_leader_prefill")) return world->prefill.data();
-    if (root == world->editor.root.data() && name_equals(name, "rn_ip_leader_epoch")) return world->epoch.data();
-    if (root == world->editor.root.data() && name_equals(name, "rn_ip_leader_rev")) return world->editor.revision.data();
-    if (root == world->launcher.root.data() && name_equals(name, "rn_ip_leader_rev")) return world->launcher.revision.data();
+    if (root == world->editor.root.data() && name_equals(name, "rn_ip_leader_prefill")) {
+        return world->prefill.data();
+    }
+    if (root == world->editor.root.data() && name_equals(name, "rn_ip_leader_epoch")) {
+        return world->epoch.data();
+    }
+    if (root == world->editor.root.data() && name_equals(name, "rn_ip_leader_rev")) {
+        return world->editor.revision.data();
+    }
+    if (root == world->launcher.root.data() && name_equals(name, "rn_ip_leader_rev")) {
+        return world->launcher.revision.data();
+    }
     return nullptr;
 }
 void* __fastcall fake_edit(void* root, const MsvcString* name, bool, bool) {
@@ -97,14 +122,19 @@ void* __fastcall fake_edit(void* root, const MsvcString* name, bool, bool) {
 void __fastcall fake_set_text(void* tb, const MsvcString* text) {
     auto* edit = static_cast<unsigned char*>(tb) - 0x80;
     const char* bytes = text->capacity <= 15 ? reinterpret_cast<const char*>(text->data.small) : text->data.pointer;
-    for (std::size_t i = 0; i < text->size && i < 64; ++i) world->text[i] = static_cast<unsigned char>(bytes[i]);
+    for (std::size_t i = 0; i < text->size && i < 64; ++i) {
+        world->text[i] = static_cast<unsigned char>(bytes[i]);
+    }
     put(edit, 0xB0, static_cast<void*>(world->text));
     put(edit, 0xC0, static_cast<std::uint64_t>(text->size));
     put(edit, 0xC8, std::uint64_t{64});
 }
 void __fastcall fake_refresh_edit(void*) {}
 void __fastcall fake_tick(void*, char) {}
-void __fastcall fake_refresh(void* gui, int) { put(gui == world->gui.data() ? world->view.data() : world->view.data(), 0x44, static_cast<unsigned char>(1)); }
+void __fastcall fake_refresh(void* gui, int) {
+    static_cast<void>(gui);
+    put(world->view.data(), 0x44, static_cast<unsigned char>(1));
+}
 void __fastcall fake_focus(void*, void*) {}
 void make_own(Own& o, const char* name, World& w) {
     const auto base = image_base;
@@ -135,7 +165,8 @@ int main() {
     image_base = reinterpret_cast<std::uintptr_t>(memory);
     log_file = CreateFileW(L"bench_editor.log", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
                            FILE_ATTRIBUTE_NORMAL, nullptr);
-    auto* w = new World;
+    const auto owned = std::make_unique<World>();
+    auto* w = owned.get();
     world = w;
     auto* img = reinterpret_cast<unsigned char*>(image_base);
     put(img, 0x294E4CC, std::uint32_t{0x3AB2});
@@ -147,7 +178,7 @@ int main() {
     put(w->idler.data(), 0, image_base + 0x2968FF0);
     put(w->idler.data(), 0x6B8, static_cast<void*>(w->gui.data()));
     put(w->gui.data(), 0x180, static_cast<void*>(w->idler.data()));
-    put(w->gui.data(), 0xC8 + 8 * 12, static_cast<void*>(w->view.data()));
+    put(w->gui.data(), 0xC8 + (8 * 12), static_cast<void*>(w->view.data()));
     put(w->view.data(), 0, image_base + 0x29D9648);
     put(w->view.data(), 0x30, image_base + 0x29D96F0);
     put(w->view.data(), 0x38, static_cast<void*>(w->gui.data()));
@@ -182,9 +213,14 @@ int main() {
     active.store(true);
     caption_armed.store(true);
     focus_armed.store(true);
-    for (int i = 0; i < 10; ++i) tick_observed(w->editor.window.data(), 0);   // prefill + seed
-    for (int i = 0; i < 10; ++i) tick_observed(w->launcher.window.data(), 0);
-    const bool prefilled = lifecycle[0].prefilled && caption_service.snapshot().state(rn::caption::Field::leader).seeded;
+    for (int i = 0; i < 10; ++i) {
+        tick_observed(w->editor.window.data(), 0);  // prefill + seed
+    }
+    for (int i = 0; i < 10; ++i) {
+        tick_observed(w->launcher.window.data(), 0);
+    }
+    const bool prefilled =
+        lifecycle[0].prefilled && caption_service.snapshot().state(rn::caption::Field::leader).seeded;
     LARGE_INTEGER size_before{};
     GetFileSizeEx(log_file, &size_before);
     constexpr unsigned n = 200000;
@@ -194,11 +230,12 @@ int main() {
     const double launcher = measure(n / 10, [&] { tick_observed(w->launcher.window.data(), 0); });
     LARGE_INTEGER size_after{};
     GetFileSizeEx(log_file, &size_after);
-    std::printf("BENCH %s tick_plain_ns=%.1f tick_foreign_sg_ns=%.1f tick_editor_open_ns=%.1f tick_launcher_ns=%.1f "
-                "steady_state_log_bytes=%lld prefilled_and_seeded=%u\n",
-                BENCH_LABEL, plain, foreign, editor, launcher, static_cast<long long>(size_after.QuadPart - size_before.QuadPart),
-                prefilled ? 1U : 0U);
-    std::fflush(stdout);
+    static_cast<void>(std::printf(
+        "BENCH %s tick_plain_ns=%.1f tick_foreign_sg_ns=%.1f tick_editor_open_ns=%.1f tick_launcher_ns=%.1f "
+        "steady_state_log_bytes=%lld prefilled_and_seeded=%u\n",
+        BENCH_LABEL, plain, foreign, editor, launcher,
+        static_cast<long long>(size_after.QuadPart - size_before.QuadPart), prefilled ? 1U : 0U));
+    static_cast<void>(std::fflush(stdout));
     std::_Exit(prefilled ? 0 : 1);
 }
 
@@ -214,9 +251,15 @@ using namespace capie::country;  // NOLINT(google-build-using-namespace): bench 
 #endif
 namespace {
 const char original_text[] = "ORIGINAL";
-const char* __cdecl fake_n(const char*, int) { return original_text; }
-const char* __cdecl fake_z(const char*) { return original_text; }
-bool __cdecl fake_exists(const char*) { return false; }
+const char* __cdecl fake_n(const char*, int) {
+    return original_text;
+}
+const char* __cdecl fake_z(const char*) {
+    return original_text;
+}
+bool __cdecl fake_exists(const char*) {
+    return false;
+}
 volatile const char* sink = nullptr;
 volatile bool sink_bool = false;
 }  // namespace
@@ -236,9 +279,10 @@ int main() {
     const double n_own = measure(n / 10, [&] { sink = lookup_n(own, static_cast<int>(sizeof(own) - 1)); });
     const double z_own = measure(n / 10, [&] { sink = lookup_z(own); });
     const double z_status = measure(n, [&] { sink = lookup_z(status); });
-    std::printf("BENCH %s lookup_n_foreign_ns=%.1f lookup_z_foreign_ns=%.1f exists_foreign_ns=%.1f lookup_n_own_ns=%.1f "
-                "lookup_z_own_ns=%.1f lookup_z_status_ns=%.1f\n",
-                BENCH_LABEL, n_foreign, z_foreign, e_foreign, n_own, z_own, z_status);
+    static_cast<void>(std::printf(
+        "BENCH %s lookup_n_foreign_ns=%.1f lookup_z_foreign_ns=%.1f exists_foreign_ns=%.1f lookup_n_own_ns=%.1f "
+        "lookup_z_own_ns=%.1f lookup_z_status_ns=%.1f\n",
+        BENCH_LABEL, n_foreign, z_foreign, e_foreign, n_own, z_own, z_status));
     return 0;
 }
 #endif

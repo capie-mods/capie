@@ -49,12 +49,12 @@ inline std::atomic<std::uint64_t> key_record_sequence{0};
 
 /// @brief Bits of `KeyStatus::mask`: which reads succeeded.
 namespace status_bit {
-inline constexpr unsigned flags75 = 1;     ///< edit+75 read.
-inline constexpr unsigned flags271 = 2;    ///< edit+271 read.
-inline constexpr unsigned manager = 4;     ///< Manager global read.
-inline constexpr unsigned widget = 8;      ///< manager+158 read.
-inline constexpr unsigned receiver = 16;   ///< manager+230 read.
-inline constexpr unsigned lifecycle = 32;  ///< Lifecycle copied.
+inline constexpr unsigned flags75 = 1;                                      ///< edit+75 read.
+inline constexpr unsigned flags271 = 2;                                     ///< edit+271 read.
+inline constexpr unsigned manager = 4;                                      ///< Manager global read.
+inline constexpr unsigned widget = 8;                                       ///< manager+158 read.
+inline constexpr unsigned receiver = 16;                                    ///< manager+230 read.
+inline constexpr unsigned lifecycle = 32;                                   ///< Lifecycle copied.
 inline constexpr unsigned manager_relations = manager | widget | receiver;  ///< All manager reads.
 }  // namespace status_bit
 /// @brief Bits of `KeyRecord::mask`.
@@ -69,17 +69,17 @@ inline constexpr unsigned char routing_mask271 = core::flag::edit_active | core:
 
 /// @brief Copied routing/focus/lifecycle status of one field.
 struct KeyStatus {
-    unsigned mask{};                ///< `status_bit` read mask.
-    unsigned char flags75{};        ///< edit+75.
-    unsigned char flags271{};       ///< edit+271.
-    bool manager_present{};         ///< Manager global non-null.
-    bool widget_is_edit{};          ///< Manager focus is this edit.
-    bool receiver_is_edit{};        ///< Manager receiver is this edit's receiver.
-    bool visible{};                 ///< Lifecycle visible.
-    bool attempted{};               ///< Lifecycle attempted.
-    bool prefilled{};               ///< Lifecycle prefilled.
-    std::uint64_t epoch{};          ///< Lifecycle epoch.
-    std::uint64_t generation{};     ///< Lifecycle generation.
+    unsigned mask{};                                    ///< `status_bit` read mask.
+    unsigned char flags75{};                            ///< edit+75.
+    unsigned char flags271{};                           ///< edit+271.
+    bool manager_present{};                             ///< Manager global non-null.
+    bool widget_is_edit{};                              ///< Manager focus is this edit.
+    bool receiver_is_edit{};                            ///< Manager receiver is this edit's receiver.
+    bool visible{};                                     ///< Lifecycle visible.
+    bool attempted{};                                   ///< Lifecycle attempted.
+    bool prefilled{};                                   ///< Lifecycle prefilled.
+    std::uint64_t epoch{};                              ///< Lifecycle epoch.
+    std::uint64_t generation{};                         ///< Lifecycle generation.
     bool operator==(const KeyStatus&) const = default;  ///< Field-wise equality.
 };
 /// @brief One copied key event.
@@ -95,10 +95,10 @@ struct KeyRecord {
 static_assert(std::is_trivially_copyable_v<KeyStatus> && std::is_trivially_copyable_v<KeyRecord>);
 /// @brief Last logged status per field and per model.
 struct TickRecord {
-    bool seen{};          ///< A status was logged.
-    unsigned view{};      ///< Last `ViewResult`.
-    unsigned count{};     ///< Records logged.
-    KeyStatus status{};   ///< Last routing status.
+    bool seen{};         ///< A status was logged.
+    unsigned view{};     ///< Last `ViewResult`.
+    unsigned count{};    ///< Records logged.
+    KeyStatus status{};  ///< Last routing status.
 };
 /// @brief Tick records: fields first, then models.
 inline TickRecord tick_records[field_count + model_count]{};
@@ -158,12 +158,18 @@ inline void copy_key_lifecycle(std::size_t field, KeyStatus& out) noexcept {
  * @param out Status.
  */
 inline void copy_key_status(void* edit, std::size_t field, KeyStatus& out) noexcept {
-    if (member(edit, off::edit_visibility_flags, out.flags75)) out.mask |= status_bit::flags75;
-    if (member(edit, off::edit_flags, out.flags271)) out.mask |= status_bit::flags271;
+    if (member(edit, off::edit_visibility_flags, out.flags75)) {
+        out.mask |= status_bit::flags75;
+    }
+    if (member(edit, off::edit_flags, out.flags271)) {
+        out.mask |= status_bit::flags271;
+    }
     void* manager = nullptr;
     void* widget = nullptr;
     void* receiver = nullptr;
-    if (member(reinterpret_cast<void*>(image_base), rva::manager_global, manager)) out.mask |= status_bit::manager;
+    if (member(reinterpret_cast<void*>(image_base), rva::manager_global, manager)) {
+        out.mask |= status_bit::manager;
+    }
     out.manager_present = manager != nullptr;
     if (member(manager, off::manager_focus, widget)) {
         out.mask |= status_bit::widget;
@@ -186,9 +192,13 @@ inline void copy_key_status(void* edit, std::size_t field, KeyStatus& out) noexc
  */
 inline std::size_t own_field_of(void* edit) noexcept {
     const void* name = nullptr;
-    if (!engine::edit_identity(edit, name)) return field_count;
+    if (!engine::edit_identity(edit, name)) {
+        return field_count;
+    }
     for (std::size_t i = 0; i < field_count; ++i) {
-        if (name_equals(name, fields[i].edit)) return i;
+        if (name_equals(name, fields[i].edit)) {
+            return i;
+        }
     }
     return field_count;
 }
@@ -205,11 +215,17 @@ inline bool make_key_record(void* edit, void* event, bool wrapper, KeyRecord& ou
     out = {};
     // Own exact primary/template/TB type+name first. Never copy foreign payload.
     out.field = own_field_of(edit);
-    if (out.field == field_count) return false;
+    if (out.field == field_count) {
+        return false;
+    }
     out.wrapper = wrapper;
     out.thread = GetCurrentThreadId();
-    if (engine::guarded_copy(out.values, event, sizeof(out.values))) out.mask |= record_bit::event_words;
-    if (wrapper && member(event, off::key_wrapper_type, out.wrapper_type)) out.mask |= record_bit::wrapper_type;
+    if (engine::guarded_copy(out.values, event, sizeof(out.values))) {
+        out.mask |= record_bit::event_words;
+    }
+    if (wrapper && member(event, off::key_wrapper_type, out.wrapper_type)) {
+        out.mask |= record_bit::wrapper_type;
+    }
     copy_key_status(edit, out.field, out.status);
     return true;  // Read/visibility/focus/readiness rejection is itself observable.
 }
@@ -221,9 +237,13 @@ inline bool make_key_record(void* edit, void* event, bool wrapper, KeyRecord& ou
  */
 inline KeyCategory key_category(const KeyRecord& value) noexcept {
     // Failed/partial 8-DWORD copy cannot classify the contents as a key or poll.
-    if ((value.mask & record_bit::event_words) == 0) return KeyCategory::event_read_failed;
+    if ((value.mask & record_bit::event_words) == 0) {
+        return KeyCategory::event_read_failed;
+    }
     for (const auto word : value.values) {
-        if (word != 0) return KeyCategory::meaningful;
+        if (word != 0) {
+            return KeyCategory::meaningful;
+        }
     }
     return KeyCategory::empty_poll;  // A readable zero event can be a normal poll.
 }
@@ -247,17 +267,22 @@ inline void emit_key_record(const KeyRecord& value) noexcept {
     const auto category = static_cast<std::size_t>(key_category(value));
     const auto limit = key_record_limits[category];
     const auto slot = take_key_slot(key_record_counts[value.wrapper ? 0 : 1][value.field][category], limit);
-    if (slot == LogSlot::drop && category != static_cast<std::size_t>(KeyCategory::meaningful)) return;
+    if (slot == LogSlot::drop && category != static_cast<std::size_t>(KeyCategory::meaningful)) {
+        return;
+    }
     char line[key_line_capacity]{};
     const auto sequence = key_record_sequence.fetch_add(1, std::memory_order_relaxed) + 1;
     const char* source = value.wrapper ? "wrapper" : "tb";
     if (slot == LogSlot::cap) {
-        std::snprintf(line, sizeof(line),
-                      "RN_KEYLOG seq=%llu source=%s field=%s category=%s category_cap=%u; later originals still forwarded\r\n",
-                      static_cast<unsigned long long>(sequence), source, fields[value.field].edit,
-                      key_category_names[category], limit);
+        static_cast<void>(std::snprintf(
+            line, sizeof(line),
+            "RN_KEYLOG seq=%llu source=%s field=%s category=%s category_cap=%u; later originals still forwarded\r\n",
+            static_cast<unsigned long long>(sequence), source, fields[value.field].edit, key_category_names[category],
+            limit));
         write_log(line);
-        if (category != static_cast<std::size_t>(KeyCategory::meaningful)) return;
+        if (category != static_cast<std::size_t>(KeyCategory::meaningful)) {
+            return;
+        }
     }
     char words[key_words_capacity]{};
     std::size_t position = 0;
@@ -267,7 +292,7 @@ inline void emit_key_record(const KeyRecord& value) noexcept {
     }
     const auto& s = value.status;
     const bool event_read = (value.mask & record_bit::event_words) != 0;
-    std::snprintf(
+    static_cast<void>(std::snprintf(
         line, sizeof(line),
         "RN_KEYLOG seq=%llu source=%s field=%s category=%s thread=%lu copy_mask=%u status_mask=%u event=[%s] "
         "wrapper_type=%u flags75=0x%02X flags271=0x%02X manager_present=%u widget_is_edit=%u receiver_is_edit=%u "
@@ -280,15 +305,17 @@ inline void emit_key_record(const KeyRecord& value) noexcept {
         s.receiver_is_edit ? 1U : 0U, s.visible ? 1U : 0U, s.attempted ? 1U : 0U, s.prefilled ? 1U : 0U,
         static_cast<unsigned long long>(s.epoch), static_cast<unsigned long long>(s.generation), event_read ? 1U : 0U,
         (value.mask & record_bit::wrapper_type) != 0 ? 1U : 0U,
-        event_read && value.values[0] == core::value::key_enter ? 1U : 0U, event_read && value.values[event_modifier_word] == 0 ? 1U : 0U,
+        event_read && value.values[0] == core::value::key_enter ? 1U : 0U,
+        event_read && value.values[event_modifier_word] == 0 ? 1U : 0U,
         event_read && value.values[event_final_word] == 0 ? 1U : 0U,
-        value.wrapper && (value.mask & record_bit::wrapper_type) != 0 && value.wrapper_type == core::value::wrapper_type_key
+        value.wrapper && (value.mask & record_bit::wrapper_type) != 0 &&
+                value.wrapper_type == core::value::wrapper_type_key
             ? 1U
             : 0U,
         (s.mask & status_bit::flags271) != 0 && (s.flags271 & core::flag::edit_disabled) == 0 ? 1U : 0U,
         (s.mask & status_bit::flags75) != 0 && (s.flags75 & core::flag::shown) != 0 ? 1U : 0U,
         (s.mask & status_bit::flags271) != 0 && (s.flags271 & core::flag::edit_active) != 0 ? 1U : 0U,
-        (s.mask & status_bit::manager_relations) == status_bit::manager_relations && s.manager_present ? 1U : 0U);
+        (s.mask & status_bit::manager_relations) == status_bit::manager_relations && s.manager_present ? 1U : 0U));
     if (slot == LogSlot::record) {
         write_log(line);
     } else {
@@ -303,9 +330,13 @@ inline void emit_key_record(const KeyRecord& value) noexcept {
  * @param wrapper Source is the wrapper.
  */
 __declspec(noinline) inline void key_prelog(void* edit, void* event, bool wrapper) noexcept {
-    if (!active.load(std::memory_order_acquire)) return;
+    if (!active.load(std::memory_order_acquire)) {
+        return;
+    }
     KeyRecord record{};
-    if (make_key_record(edit, event, wrapper, record)) emit_key_record(record);
+    if (make_key_record(edit, event, wrapper, record)) {
+        emit_key_record(record);
+    }
 }
 
 /**
@@ -315,7 +346,9 @@ __declspec(noinline) inline void key_prelog(void* edit, void* event, bool wrappe
  */
 inline void key_prelog_from_buffer(void* buffer, void* event) noexcept {
     const auto address = reinterpret_cast<std::uintptr_t>(buffer);
-    if (address >= off::edit_buffer) key_prelog(reinterpret_cast<void*>(address - off::edit_buffer), event, false);
+    if (address >= off::edit_buffer) {
+        key_prelog(reinterpret_cast<void*>(address - off::edit_buffer), event, false);
+    }
 }
 
 /**
@@ -346,22 +379,25 @@ inline void emit_tick_change(std::size_t slot, const char* name, ViewResult view
         }
     }
     ReleaseSRWLockExclusive(&logger_lock);
-    if (!changed) return;
+    if (!changed) {
+        return;
+    }
     char line[tick_line_capacity]{};
     if (cap) {
-        std::snprintf(line, sizeof(line), "RN_KEYTICK kind=%s name=%s cap=%u; no heartbeat\r\n", model ? "model" : "field",
-                      name, tick_record_limit);
+        static_cast<void>(std::snprintf(line, sizeof(line), "RN_KEYTICK kind=%s name=%s cap=%u; no heartbeat\r\n",
+                                        model ? "model" : "field", name, tick_record_limit));
     } else {
-        std::snprintf(line, sizeof(line),
-                      "RN_KEYTICK kind=%s name=%s view=%u status_mask=%u flags75=0x%02X flags271=0x%02X routing75=0x%02X "
-                      "routing271=0x%02X manager_present=%u widget_is_edit=%u receiver_is_edit=%u "
-                      "life_visible=%u attempted=%u prefilled=%u epoch=%llu generation=%llu; transition only\r\n",
-                      model ? "model" : "field", name, static_cast<unsigned>(view), status.mask,
-                      static_cast<unsigned>(status.flags75), static_cast<unsigned>(status.flags271),
-                      static_cast<unsigned>(semantic.flags75), static_cast<unsigned>(semantic.flags271),
-                      status.manager_present ? 1U : 0U, status.widget_is_edit ? 1U : 0U, status.receiver_is_edit ? 1U : 0U,
-                      status.visible ? 1U : 0U, status.attempted ? 1U : 0U, status.prefilled ? 1U : 0U,
-                      static_cast<unsigned long long>(status.epoch), static_cast<unsigned long long>(status.generation));
+        static_cast<void>(std::snprintf(
+            line, sizeof(line),
+            "RN_KEYTICK kind=%s name=%s view=%u status_mask=%u flags75=0x%02X flags271=0x%02X routing75=0x%02X "
+            "routing271=0x%02X manager_present=%u widget_is_edit=%u receiver_is_edit=%u "
+            "life_visible=%u attempted=%u prefilled=%u epoch=%llu generation=%llu; transition only\r\n",
+            model ? "model" : "field", name, static_cast<unsigned>(view), status.mask,
+            static_cast<unsigned>(status.flags75), static_cast<unsigned>(status.flags271),
+            static_cast<unsigned>(semantic.flags75), static_cast<unsigned>(semantic.flags271),
+            status.manager_present ? 1U : 0U, status.widget_is_edit ? 1U : 0U, status.receiver_is_edit ? 1U : 0U,
+            status.visible ? 1U : 0U, status.attempted ? 1U : 0U, status.prefilled ? 1U : 0U,
+            static_cast<unsigned long long>(status.epoch), static_cast<unsigned long long>(status.generation)));
     }
     if (file_record) {
         write_log(line);
@@ -375,18 +411,26 @@ inline void emit_tick_change(std::size_t slot, const char* name, ViewResult view
  * @param window Ticking window.
  */
 inline void observe_key_tick(void* window) noexcept {
-    if (!active.load(std::memory_order_acquire)) return;
+    if (!active.load(std::memory_order_acquire)) {
+        return;
+    }
     View view{};
     const auto result = inspect_window(window, view);
-    if (result == ViewResult::unrelated) return;
+    if (result == ViewResult::unrelated) {
+        return;
+    }
     const auto& model = models[view.model];
     KeyStatus model_status{};
     copy_key_lifecycle(model.first, model_status);
     emit_tick_change(field_count + view.model, model.name, result, model_status, true);
-    if (result == ViewResult::invalid) return;  // No borrowed invalid-root dereference.
+    if (result == ViewResult::invalid) {
+        return;  // No borrowed invalid-root dereference.
+    }
     for (std::size_t field = model.first; field < model.first + model.count; ++field) {
         void* edit = engine::guarded_find(engine::find_edit, view.root, fields[field].edit);
-        if (!engine::edit_named(edit, fields[field].edit)) continue;
+        if (!engine::edit_named(edit, fields[field].edit)) {
+            continue;
+        }
         KeyStatus status{};
         copy_key_status(edit, field, status);
         emit_tick_change(field, fields[field].edit, result, status, false);

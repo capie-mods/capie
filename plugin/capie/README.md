@@ -81,8 +81,8 @@ is a process singleton; the accepted tests address it directly), virtual interfa
 
 ```powershell
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook'   # both flavors, all offline tests, benchmarks
-.\plugin\capie\mutation_check.ps1                           # 78 mutants
-.\plugin\capie\tools\run-clang-tidy.ps1                     # needs the VS "C++ Clang tools" component
+.\plugin\capie\mutation_check.ps1                           # 79 mutants (bridge ones in debug and release)
+uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tidy + clang-format (uv dev group)
 ```
 
 `/MT /W4 /WX /std:c++20 /permissive-` for all CAPIE C++; MinHook (third-party C) with
