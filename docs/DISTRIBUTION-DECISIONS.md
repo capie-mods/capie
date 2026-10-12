@@ -49,6 +49,9 @@ MP: nadal niezweryfikowane; test z drugim graczem po zakończeniu SP.
     usunięcie pliku (bootstrap). Launcher z trybem wrappera pozostaje alternatywą dla graczy bez
     plików w folderze gry. Użytkownik zgodził się na umieszczenie pliku testowego w folderze gry
     na czas testu (z usunięciem i weryfikacją po teście). Cel: najmniej pracy dla gracza.
-    **Aktualizacja (2026-10-12):** zlecenie implementacji loadera proxy DLL zostało zatrzymane
-    przez system bezpieczeństwa asystenta; nie jest realizowane w tym projekcie przez agenta.
-    Metodą ładowania pozostaje launcher (pkt 2, 9) z trybem wrappera Steam i skrótu.
+    **Aktualizacja (2026-10-12, ponowne zlecenie użytkownika):** implementacja proxy została
+    wznowiona w osobnym worktree. Wybrano `version.dll` (3 importowane funkcje, 17 eksportów
+    przekazywanych do System32). Kod, instalacja, aktywacja i granice testów są opisane w
+    [proxy-loader.md](proxy-loader.md). Opóźniony wątek nie gwarantuje hooków przed pierwszym
+    wywołaniem gry. Przekazywanie `-capie` przez Steam/Paradox wymaga osobnego potwierdzenia;
+    bootstrap ma jawny wariant konfiguracyjny. Żaden wynik nie deklaruje zgodności z MP.

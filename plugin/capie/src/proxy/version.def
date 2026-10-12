@@ -1,0 +1,19 @@
+LIBRARY version
+EXPORTS
+    GetFileVersionInfoA=CapieVersion0 @1
+    GetFileVersionInfoByHandle=CapieVersion1 @2
+    GetFileVersionInfoExA=CapieVersion2 @3
+    GetFileVersionInfoExW=CapieVersion3 @4
+    GetFileVersionInfoSizeA=CapieVersion4 @5
+    GetFileVersionInfoSizeExA=CapieVersion5 @6
+    GetFileVersionInfoSizeExW=CapieVersion6 @7
+    GetFileVersionInfoSizeW=CapieVersion7 @8
+    GetFileVersionInfoW=CapieVersion8 @9
+    VerFindFileA=CapieVersion9 @10
+    VerFindFileW=CapieVersion10 @11
+    VerInstallFileA=CapieVersion11 @12
+    VerInstallFileW=CapieVersion12 @13
+    VerLanguageNameA=CapieVersion13 @14
+    VerLanguageNameW=CapieVersion14 @15
+    VerQueryValueA=CapieVersion15 @16
+    VerQueryValueW=CapieVersion16 @17

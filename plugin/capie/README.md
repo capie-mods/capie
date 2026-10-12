@@ -6,6 +6,12 @@ caption-refresh bridge rev7 (3864532C…). Behaviour is equivalent; see
 `docs/evidence/session-20261011/claude-stage2/report.txt`. Supported game: `hoi4.exe`
 1.19.3.0, SHA-256 `7DC947BE…A031D5`, nothing else.
 
+The default development loading path is the opt-in `version.dll` proxy. Build with
+`build_proxy.ps1` after preparing the reviewed stage-2 DLLs, then see
+[proxy loading and acceptance limits](../../docs/proxy-loader.md). The existing launcher
+remains available. The proxy uses `current/runtime/` and requires the exact `-capie`
+argument or the explicit bootstrap config marker; it creates no injection helper process.
+
 ## Binaries (output `plugin/build/capie/`, debug flavor in `debug/`)
 
 | File | Role | Replaces |
