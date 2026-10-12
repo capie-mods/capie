@@ -8,22 +8,30 @@ description: Installing CAPIE as a player. The one-line installer, Steam launch 
 
     There is no release yet, so nothing on this page can be installed today. The installer
     script exists and has offline tests, but its release address, pinned package hash and
-    signing key are placeholders, and it refuses to install on purpose. The launcher's wrapper
-    mode, which the Steam and shortcut options need, is still in progress. This page describes
-    how installation will work.
+    signing key are placeholders, and it refuses to install on purpose. The proxy and launcher
+    modes have development builds. This page describes the intended release installation.
 
 You need Windows, Hearts of Iron IV 1.19.3.0 from Steam, and Windows PowerShell 5.1 (built into
-Windows) or PowerShell 7. You do not need administrator rights or extra modules.
+Windows) or PowerShell 7. Proxy installation needs write access to the game directory.
+The launcher alternative keeps its files in your local application data.
 
 ## How the game will start
 
-You keep your habits. You press Play in Steam, or double-click a shortcut, then pick your playset
-in the Paradox Launcher as usual. The CAPIE launcher sits in between: it checks the game, starts
-the Paradox Launcher, and loads CAPIE only into the `hoi4.exe` that this chain started.
+The default `-LoadMethod Proxy` adds one `version.dll` beside `hoi4.exe`. It forwards the
+system version APIs and loads the verified CAPIE runtime only when explicitly enabled.
+Steam and the Paradox Launcher can keep their normal launch chain.
+
+Flag activation (`-ProxyActivation Flag`, default) uses the exact `-capie` argument. Actual
+Steam/Paradox forwarding still needs an end-to-end check. The explicit fallback
+`-ProxyActivation Config` writes `proxy.enabled` under `%LOCALAPPDATA%\RenameAnything`;
+it stays enabled until the marker is removed or CAPIE is uninstalled. Removing a Steam flag
+does not disable config activation. A foreign `version.dll` is a conflict and is left intact.
+
+Use `-LoadMethod Launcher` for the existing wrapper alternative, described below.
 
 <figure class="diagram" markdown="span">
   ![Launch chain: Steam Play or a shortcut starts the CAPIE launcher, which starts the Paradox Launcher. On version 1.19.3.0 CAPIE is loaded into that game only. On an unknown version the game starts without CAPIE.](assets/shared/diagrams/launch-chain.svg)
-  <figcaption>Planned launch chain. Built and reviewed, not yet tested end to end.</figcaption>
+  <figcaption>Launcher alternative. Steam/Paradox end-to-end acceptance remains pending.</figcaption>
 </figure>
 
 ## Install with one line
@@ -54,8 +62,8 @@ irm https://raw.githubusercontent.com/OWNER/hoi4-rename-anything/TAG/tools/boots
 
 The script asks:
 
-1. Whether to install the launcher and CAPIE into `%LOCALAPPDATA%\RenameAnything\<version>`.
-2. How to start the game with CAPIE: Steam launch option, shortcut, both, or neither.
+1. Whether to install the verified CAPIE bundle into `%LOCALAPPDATA%\RenameAnything\<version>`.
+2. Proxy loading (default) or the launcher alternative, then the matching Steam/shortcut integration.
 3. For Steam and shortcuts, a warning that the game with CAPIE is not declared multiplayer
    compatible, and a confirmation.
 4. Where to put the shortcut: Desktop by default, or a folder you pick.
@@ -64,7 +72,7 @@ The script asks:
 The install folder and shortcut name still carry the Rename Anything name from before the naming
 decision. They will change with the planned rename to CAPIE.
 
-## Steam launch option
+## Steam launch option: launcher alternative
 
 With this option, pressing Play in Steam starts the game with CAPIE. The script adds the
 launcher in front of `%command%` in the game's launch options and keeps everything else you had
