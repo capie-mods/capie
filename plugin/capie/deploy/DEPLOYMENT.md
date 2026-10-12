@@ -15,6 +15,12 @@ Stage-2 release build after the clang-tidy pass (`plugin/build/capie/`):
 
 ## 1. `plugin/launcher/build.ps1` (`$inputs`, four entries)
 
+Superseded for the wrapper-mode launcher: `plugin/capie/build_launcher.ps1` pins the three
+release hashes above, copies them to `plugin/build/capie-launcher/runtime/` and generates
+`launcher_manifest.generated.hpp` (three entries: core, editor, injector). The accepted
+`plugin/launcher/` stays unchanged as the reference; the four-entry edit below only applies
+if that old candidate were ever rebuilt with CAPIE binaries.
+
 The launcher runs `bundle[dll_index + 1] PID bundle[dll_index]` for `dll_index` 0 and 2.
 One injector serves both DLLs, so the same file is listed twice and `launcher.cpp` needs
 no change:
