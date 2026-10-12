@@ -201,14 +201,15 @@ function Switch-RaCurrent {
     try {
         if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
         [IO.Directory]::Move($tmp, $link)
+        if ((Get-RaJunctionTarget $link) -ne [IO.Path]::GetFullPath($target)) { throw 'current junction verification failed.' }
+        Write-RaLog "Active version: $Version ($link)"
     } catch {
         $err = $_.Exception.Message
         if (Test-Path -LiteralPath $tmp) { [IO.Directory]::Delete($tmp, $false) }
-        if ($old -and -not (Test-Path -LiteralPath $link)) { New-Item -ItemType Junction -Path $link -Target $old | Out-Null }
+        if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
+        if ($old) { New-Item -ItemType Junction -Path $link -Target $old | Out-Null }
         throw "Could not switch the current version: $err"
     }
-    if ((Get-RaJunctionTarget $link) -ne [IO.Path]::GetFullPath($target)) { throw 'current junction verification failed.' }
-    Write-RaLog "Active version: $Version ($link)"
 }
 
 function Set-RaActiveVersion {
@@ -233,9 +234,19 @@ function Set-RaActiveVersion {
         [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$Version
     )
     $link = Get-RaCurrentLink
-    $already = ($State.InstalledVersion -eq $Version) -and ((Get-RaJunctionTarget $link) -eq [IO.Path]::GetFullPath((Get-RaVersionDir $Version)))
+    $oldTarget = Get-RaJunctionTarget $link
+    $already = ($State.InstalledVersion -eq $Version) -and ($oldTarget -eq [IO.Path]::GetFullPath((Get-RaVersionDir $Version)))
     if ($already) { return }
-    Switch-RaCurrent $Version
+    $oldProxy = $State.Proxy
+    if ($oldProxy) { Install-RaProxy -State $State -GameDir (Split-Path -Parent $oldProxy.Path) -Version $Version }
+    try { Switch-RaCurrent $Version } catch {
+        if (-not $script:RaDry -and (Get-RaJunctionTarget $link) -ne $oldTarget) {
+            if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
+            if ($oldTarget) { New-Item -ItemType Junction -Path $link -Target $oldTarget | Out-Null }
+        }
+        if ($oldProxy) { Install-RaProxy -State $State -GameDir (Split-Path -Parent $oldProxy.Path) -Version $oldProxy.Version }
+        throw
+    }
     if ($State.InstalledVersion -and $State.InstalledVersion -ne $Version) { $State.PreviousVersion = $State.InstalledVersion }
     $State.InstalledVersion = $Version
 }

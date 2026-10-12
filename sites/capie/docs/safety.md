@@ -1,5 +1,5 @@
 ---
-description: How CAPIE stays safe to run. No game files changed, no network, pinned to exact game builds, fails closed.
+description: CAPIE loading, original game file integrity, explicit activation, exact build pins and release checks.
 ---
 
 # Safety
@@ -8,22 +8,22 @@ CAPIE runs native code inside the game, so you should know exactly what it does 
 refuses to do. This page lists the rules. Each rule says whether it holds for today's
 development builds or describes the plan.
 
-## No game files are changed <span class="st st-today">Works today</span>
+## Original game files stay unchanged
 
-CAPIE never writes to the game folder. Not `hoi4.exe`, not `steam_api64.dll`, not
-`dlc_load.json`. It works in the game's memory while the game runs, and it is gone when you close
-the game. Removing CAPIE means not starting it; there is nothing in the game folder to repair.
+The default proxy installation adds one `version.dll` to the game folder. It does not modify
+`hoi4.exe` or `steam_api64.dll`. The installer refuses an existing foreign proxy, and uninstall
+removes only a file whose recorded path and verified release hash still match.
 
-The CAPIE launcher and the installer script also stay out of the game folder. The launcher opens
-`hoi4.exe` read-only to check its hash. The installer writes only to
-`%LOCALAPPDATA%\RenameAnything`, to Steam's launch options when you agree, and to a shortcut
-folder you pick.
+The launcher alternative adds no file to the game folder. Both loading methods open
+`hoi4.exe` read-only to check its hash. Runtime files and diagnostics live under
+`%LOCALAPPDATA%\RenameAnything`; Steam options and shortcuts are changed only when requested.
+Config activation remains enabled until its marker is removed; removing `-capie` alone only
+disables flag activation.
 
 ## No network <span class="st st-today">Works today</span>
 
-The DLL does not use the network. Current builds import only `KERNEL32` and `bcrypt` (the
-latter for SHA-256 checks), and no networking library is among their imports. The launcher does
-nothing in the background.
+The CAPIE runtime and proxy open no network connections. The launcher does nothing in
+the background.
 
 The only part that goes online is the installer script, and only when you run it with
 `-Install`, `-CheckUpdate` or `-Update`. It sends no identifiers and no telemetry. A planned
