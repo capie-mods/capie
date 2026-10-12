@@ -6,6 +6,138 @@
 #   4. apply to the selected accounts and record what was written in state.json.
 # ---------------------------------------------------------------------------
 
+function Get-RaWindowsArgument {
+    <#
+    .SYNOPSIS
+        Parses Windows arguments while retaining each argument's source span.
+    .DESCRIPTION
+        Follows CommandLineToArgvW quote and backslash rules for arguments following
+        the executable. Unmatched quotes consume the remaining text. Spaces and tabs
+        delimit arguments only outside quotes. Source spans permit minimal removal.
+    .PARAMETER Value
+        Argument tail without the executable name.
+    .OUTPUTS
+        System.Object[] (Value, Start, Length)
+    .EXAMPLE
+        Get-RaWindowsArgument '-ca"pie" -debug'
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Value)
+    $text = [string]$Value
+    $index = 0
+    while ($index -lt $text.Length) {
+        while ($index -lt $text.Length -and ($text[$index] -eq ' ' -or $text[$index] -eq "`t")) { $index++ }
+        if ($index -ge $text.Length) { break }
+        $start = $index
+        $quoteCount = 0
+        $argument = New-Object Text.StringBuilder
+        while ($index -lt $text.Length) {
+            if ($quoteCount -eq 0 -and ($text[$index] -eq ' ' -or $text[$index] -eq "`t")) { break }
+            $escapedQuote = $false
+            if ($text[$index] -eq '\') {
+                $slashStart = $index
+                while ($index -lt $text.Length -and $text[$index] -eq '\') { $index++ }
+                $slashes = $index - $slashStart
+                if ($index -lt $text.Length -and $text[$index] -eq '"') {
+                    [void]$argument.Append(('\' * [int][Math]::Floor($slashes / 2)))
+                    if ($slashes -band 1) { $escapedQuote = $true }
+                } else { [void]$argument.Append(('\' * $slashes)); continue }
+            }
+            if ($text[$index] -eq '"') {
+                if ($escapedQuote) { [void]$argument.Append('"') } else { $quoteCount++ }
+                $index++
+                while ($index -lt $text.Length -and $text[$index] -eq '"') {
+                    $quoteCount++
+                    if ($quoteCount -eq 3) { [void]$argument.Append('"'); $quoteCount = 0 }
+                    $index++
+                }
+                if ($quoteCount -eq 2) { $quoteCount = 0 }
+            } else { [void]$argument.Append($text[$index]); $index++ }
+        }
+        [pscustomobject]@{
+            Value = $argument.ToString(); Start = $start; Length = $index - $start; UnterminatedQuote = $quoteCount -ne 0
+        }
+    }
+}
+
+function Test-RaHasCapieFlag {
+    <#
+    .SYNOPSIS
+        Tests for a complete -capie argument outside other quoted arguments.
+    .DESCRIPTION
+        A quoted "-capie" is accepted. Substrings and text within another quoted
+        argument do not enable CAPIE. Matching follows the native case-sensitive flag.
+    .PARAMETER Value
+        Launch options string.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaHasCapieFlag '-debug_mode -capie'
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Value)
+    foreach ($token in Get-RaWindowsArgument $Value) {
+        if ($token.Value -ceq $script:RaProxyFlag) { return $true }
+    }
+    return $false
+}
+
+function Remove-RaCapieFlag {
+    <#
+    .SYNOPSIS
+        Removes only complete -capie arguments.
+    .DESCRIPTION
+        Preserves all other argument bytes; adjacent blanks around removed tokens
+        are trimmed only at the ends. Quoted text containing the flag is preserved.
+    .PARAMETER Value
+        Launch options string.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Remove-RaCapieFlag '-debug_mode -capie'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Value)
+    $result = [string]$Value
+    $tokens = @(Get-RaWindowsArgument $result)
+    for ($i = $tokens.Count - 1; $i -ge 0; $i--) {
+        $token = $tokens[$i]
+        if ($token.Value -ceq $script:RaProxyFlag) {
+            $result = $result.Remove($token.Start, $token.Length)
+        }
+    }
+    return $result.Trim()
+}
+
+function Add-RaCapieFlag {
+    <#
+    .SYNOPSIS
+        Adds a single -capie argument without adding an external wrapper.
+    .DESCRIPTION
+        Removes the old Rename Anything wrapper during migration. Existing options
+        keep their meaning. Multiple %command% tokens are rejected as ambiguous.
+    .PARAMETER Value
+        Launch options string.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Add-RaCapieFlag '-debug_mode'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Value)
+    $result = Remove-RaWrapper $Value
+    if ([regex]::Matches([string]$result, '(?i)%command%').Count -gt 1) { throw 'Existing launch options contain %command% more than once; refusing to guess.' }
+    if (Test-RaHasCapieFlag $result) { return $result }
+    if (@(Get-RaWindowsArgument $result | Where-Object { $_.UnterminatedQuote }).Count -gt 0) {
+        throw 'Existing launch options have an unterminated quote; refusing to append -capie.'
+    }
+    return (([string]$result).TrimEnd() + ' ' + $script:RaProxyFlag).TrimStart()
+}
+
 function Test-RaHasWrapper {
     <#
     .SYNOPSIS
@@ -423,6 +555,8 @@ function Set-RaSteamLaunchOption {
         Value of -SteamAccount.
     .PARAMETER LauncherPath
         Stable launcher path (current junction).
+    .PARAMETER LoadMethod
+        Proxy appends -capie; Launcher uses the existing external wrapper.
     .OUTPUTS
         None.
     .EXAMPLE
@@ -434,13 +568,19 @@ function Set-RaSteamLaunchOption {
         [Parameter(Mandatory, Position = 0)][psobject]$State,
         [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$SteamRootPath,
         [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$AccountSelector,
-        [Parameter(Mandatory, Position = 3)][ValidateNotNullOrEmpty()][string]$LauncherPath
+        [Parameter(Mandatory, Position = 3)][ValidateNotNullOrEmpty()][string]$LauncherPath,
+        [ValidateSet('Proxy', 'Launcher')][string]$LoadMethod = 'Launcher'
     )
     $accounts = @(Select-RaSteamAccount @(Get-RaSteamAccount $SteamRootPath) $AccountSelector)
     if (-not (Wait-RaSteamClosed)) { throw 'Steam is running; Steam launch option was not changed.' }
     # Compute runs inside Update-RaLocalConfig and sees this scope dynamically; the name is unique on purpose.
     $raComputeLauncher = $LauncherPath
-    $compute = { param($old) Add-RaWrapper $old $raComputeLauncher }
+    $raComputeMethod = $LoadMethod
+    $compute = {
+        param($old)
+        if ($raComputeMethod -eq 'Proxy') { Add-RaCapieFlag $old }
+        else { Add-RaWrapper (Remove-RaCapieFlag $old) $raComputeLauncher }
+    }
     foreach ($acc in $accounts) {
         $r = Update-RaLocalConfig -ConfigPath $acc.ConfigPath -Compute $compute
         $existing = @(Find-RaSteamEntry $State $acc.ConfigPath)
@@ -453,10 +593,13 @@ function Set-RaSteamLaunchOption {
             OriginalValue = $original
             WrittenValue  = $r.NewValue
             LauncherPath  = $LauncherPath
+            LoadMethod    = $LoadMethod
         }
         $State.SteamEntries = @($State.SteamEntries) + @($record)
-        $other = ((Remove-RaWrapperFragment $r.NewValue) -replace '(?i)\s*%command%.*$', '').Trim()
-        if ($other) { Write-RaLog "Note: another wrapper precedes ours in account $($acc.Id): '$other'. Compatibility is unknown." -Level WARN }
+        if ($LoadMethod -eq 'Launcher') {
+            $other = ((Remove-RaWrapperFragment $r.NewValue) -replace '(?i)\s*%command%.*$', '').Trim()
+            if ($other) { Write-RaLog "Note: another wrapper precedes ours in account $($acc.Id): '$other'. Compatibility is unknown." -Level WARN }
+        }
     }
 }
 
@@ -486,7 +629,12 @@ function Get-RaUndoValue {
         if ($null -eq $Entry.OriginalValue) { return '' }
         return [string]$Entry.OriginalValue
     }
-    return (Remove-RaWrapper $Current)
+    if ($Entry -and $Entry.PSObject.Properties['LoadMethod'] -and $Entry.LoadMethod -eq 'Proxy') {
+        # A pre-existing user flag was never ours to remove.
+        if (Test-RaHasCapieFlag $Entry.OriginalValue) { return $Current }
+        return (Remove-RaCapieFlag $Current)
+    }
+    return (Remove-RaCapieFlag (Remove-RaWrapper $Current))
 }
 
 function Remove-RaSteamLaunchOption {
@@ -517,7 +665,7 @@ function Remove-RaSteamLaunchOption {
     foreach ($acc in $accounts) {
         try {
             $info = Get-RaAppLaunchInfo (Read-RaTextFile $acc.ConfigPath).Text
-            if (Test-RaHasWrapper $info.Value) { $targets += $acc }
+            if ((Test-RaHasWrapper $info.Value) -or (Test-RaHasCapieFlag $info.Value)) { $targets += $acc }
         } catch { Write-RaLog "Account $($acc.Id): cannot read localconfig.vdf ($($_.Exception.Message)); skipped." -Level WARN }
     }
     if ($targets.Count -eq 0) {

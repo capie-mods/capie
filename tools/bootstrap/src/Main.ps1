@@ -4,7 +4,8 @@
 
 $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
-    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath'
+    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
+    'LoadMethod', 'ProxyActivation'
 )
 
 function Write-RaDone {
@@ -62,6 +63,8 @@ function Get-RaSetupPlan {
         each of which must then be confirmed (-Yes confirms).
     .PARAMETER Options
         Normalized option table.
+    .PARAMETER State
+        Existing installation preferences, or null for a fresh install.
     .OUTPUTS
         System.Management.Automation.PSCustomObject (Install, Steam, Shortcut, ShortcutFolder)
     .EXAMPLE
@@ -69,19 +72,38 @@ function Get-RaSetupPlan {
     #>
     [CmdletBinding()]
     [OutputType([psobject])]
-    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    param(
+        [Parameter(Mandatory, Position = 0)][hashtable]$Options,
+        [Parameter(Position = 1)][AllowNull()][psobject]$State
+    )
     $plan = [pscustomobject]@{
         Install        = [bool]$Options.Install
         Steam          = [bool]$Options.SteamLaunchOption
         Shortcut       = [bool]$Options.Shortcut -or [bool]$Options.ShortcutPath
         ShortcutFolder = $null
+        LoadMethod     = if ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) { $Options.LoadMethod } else { 'Proxy' }
+        ProxyActivation = if ($Options.ContainsKey('ProxyActivation') -and $Options.ProxyActivation) { $Options.ProxyActivation } else { 'Flag' }
+    }
+    if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) -and $State -and $State.InstalledVersion) {
+        $plan.LoadMethod = $State.LoadMethod
     }
     if (-not ($plan.Install -or $plan.Steam -or $plan.Shortcut)) {
         if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Uninstall.' }
         $plan.Install = Confirm-Ra (Get-RaText 'AskInstall' @($script:RaRoot)) $true
-        do { $mode = Read-RaAnswer (Get-RaText 'AskMode') } until ($script:RaStartModes.ContainsKey($mode))
+        if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod)) {
+            $defaultLoader = if ($plan.LoadMethod -eq 'Launcher') { '2' } else { '1' }
+            do { $loader = Read-RaAnswer (Get-RaText 'AskLoadMethod' @($defaultLoader)) } until ($loader -in @('', '1', '2'))
+            if ($loader) { $plan.LoadMethod = if ($loader -eq '2') { 'Launcher' } else { 'Proxy' } }
+        }
+        $modeText = if ($plan.LoadMethod -eq 'Proxy') { 'AskModeProxy' } else { 'AskMode' }
+        do { $mode = Read-RaAnswer (Get-RaText $modeText) } until (
+            $script:RaStartModes.ContainsKey($mode) -and ($plan.LoadMethod -eq 'Launcher' -or $mode -in @('1', '4'))
+        )
         $plan.Steam = $script:RaStartModes[$mode].Steam
         $plan.Shortcut = $script:RaStartModes[$mode].Shortcut
+    }
+    if ($plan.Shortcut -and $plan.LoadMethod -eq 'Proxy') {
+        throw 'Shortcuts use the launcher alternative. Choose -LoadMethod Launcher -Shortcut, or use proxy mode through Steam with -capie.'
     }
     if ($plan.Steam -or $plan.Shortcut) {
         Write-RaHost ''
@@ -127,11 +149,29 @@ function Invoke-RaSetupAction {
         [Parameter(Mandatory, Position = 1)][psobject]$State,
         [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
     )
-    $plan = Get-RaSetupPlan $Options
+    $plan = Get-RaSetupPlan -Options $Options -State $State
+    if (-not $Options.ProxyActivation -and $State.LoadMethod -eq 'Proxy') {
+        $plan.ProxyActivation = $State.ProxyActivation
+    }
+    $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
+    if ($plan.LoadMethod -eq 'Proxy' -and -not $gameDir) { throw 'HOI4 installation not found through Steam libraries; proxy was not installed.' }
+    if ($plan.LoadMethod -eq 'Launcher') {
+        Remove-RaProxy $State
+        if (-not $script:RaDry) { $State.LoadMethod = 'Launcher' }
+        Save-RaState $State
+    }
     if ($plan.Install) {
         Install-RaPackage $State $Options.PackagePath
         Save-RaState $State
     }
+    if ($plan.LoadMethod -eq 'Proxy') {
+        Install-RaProxy $State $gameDir
+        if (-not $script:RaDry) { $State.LoadMethod = 'Proxy' }
+        Save-RaState $State
+        Set-RaProxyActivation $State $plan.ProxyActivation
+    }
+    if (-not $script:RaDry) { $State.LoadMethod = $plan.LoadMethod }
+    Save-RaState $State
     $launcher = Get-RaLauncherPath
     if (($plan.Steam -or $plan.Shortcut) -and -not $script:RaDry -and -not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
         throw (Get-RaText 'NotInstalled')
@@ -140,7 +180,8 @@ function Invoke-RaSetupAction {
     if ($plan.Steam) {
         if (-not $SteamRootPath) { throw 'Steam not found.' }
         try {
-            Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount -LauncherPath $launcher
+            Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount `
+                -LauncherPath $launcher -LoadMethod $plan.LoadMethod
             Save-RaState $State
         } catch {
             $steamStepFailed = $true
@@ -254,6 +295,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         SteamAccount = $SteamAccount; RemoveSteamLaunchOption = $RemoveSteamLaunchOption; Uninstall = $Uninstall
         DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot; Language = $Language
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
+        LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

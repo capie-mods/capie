@@ -17,6 +17,7 @@ $script:RaDry = $false          # -DryRun: plan only, write nothing
 $script:RaAssumeYes = $false    # -Yes: never prompt
 $script:RaQuiet = $false        # tests: no console output
 $script:RaAfterWriteHook = $null # tests: simulate a bad write before verification
+$script:RaBeforeOwnedRemove = $null # tests: simulate a replacement after ownership verification
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string

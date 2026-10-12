@@ -29,6 +29,11 @@ $script:RaLoginUsersRootKey = 'users'
 # --- Our files ------------------------------------------------------------
 $script:RaRootDirName = 'RenameAnything'                    # under %LOCALAPPDATA%
 $script:RaLauncherExeName = 'RenameAnythingLauncher.exe'
+$script:RaProxyFileName = 'version.dll'
+$script:RaProxyBundlePath = 'proxy/version.dll'
+$script:RaProxyConfigName = 'proxy.enabled'
+$script:RaProxyConfigContent = "CAPIE_PROXY_ENABLED_V1`n"
+$script:RaProxyFlag = '-capie'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'
