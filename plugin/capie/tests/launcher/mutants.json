@@ -1,0 +1,234 @@
+[
+ {
+  "name": "tokenizer-double-quote",
+  "file": "src/launcher/command_line.hpp",
+  "find": "                    quoted = false;\n",
+  "replace": "",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "tokenizer-odd-slashes",
+  "file": "src/launcher/command_line.hpp",
+  "find": "if (slashes % 2 != 0) {",
+  "replace": "if (slashes % 2 == 0) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "options-anywhere",
+  "file": "src/launcher/command_line.hpp",
+  "find": "if (!value.starts_with(option_prefix)) {",
+  "replace": "if (index > tokens.size()) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "game-with-wrapped",
+  "file": "src/launcher/command_line.hpp",
+  "find": "if (game_seen && result.wrapped) {",
+  "replace": "if (false) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "resolve-crosses-quote",
+  "file": "src/launcher/command_line.hpp",
+  "find": "        if (end < raw.size() && raw[end] == L'\"') {\n            return;\n        }\n",
+  "replace": "",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "resolve-any-prefix",
+  "file": "src/launcher/command_line.hpp",
+  "find": "if (names_game_program(candidate) && exists(candidate)) {",
+  "replace": "if (exists(candidate)) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "names-drop-hoi4",
+  "file": "src/launcher/command_line.hpp",
+  "find": " || ends_with_nocase(path, game_exe_suffix);",
+  "replace": ";",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "tail-not-separated",
+  "file": "src/launcher/command_line.hpp",
+  "find": "        line.push_back(L' ');  // keep the program and the first argument apart\n",
+  "replace": "",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "absolute-accepts-unc",
+  "file": "src/launcher/file_pin.hpp",
+  "find": " && (path[start + 2] == L'\\\\' || path[start + 2] == L'/');",
+  "replace": ";",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "pin-shares-write",
+  "file": "src/launcher/file_pin.hpp",
+  "find": "    return Handle(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,",
+  "replace": "    return Handle(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "pin-ignores-identity",
+  "file": "src/launcher/file_pin.hpp",
+  "find": "return reopened && file_id(reopened.get()) == identity &&",
+  "replace": "return reopened &&",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "verify-ignores-hash",
+  "file": "src/launcher/file_pin.hpp",
+  "find": "if (pinned.digest != expected_sha256 || !pe_x64(pinned.file.get(), dll)) {",
+  "replace": "if (pinned.digest.size() != expected_sha256.size() || !pe_x64(pinned.file.get(), dll)) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "pe-ignores-kind",
+  "file": "src/launcher/file_pin.hpp",
+  "find": "((nt.FileHeader.Characteristics & IMAGE_FILE_DLL) != 0) == dll;",
+  "replace": "(dll || !dll);",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "ancestry-ignores-order",
+  "file": "src/launcher/process_tree.hpp",
+  "find": "if (!parent || parent->created > current->created) {",
+  "replace": "if (!parent) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "ancestry-depth",
+  "file": "src/launcher/process_tree.hpp",
+  "find": "for (unsigned depth = 0; depth < max_depth; ++depth) {",
+  "replace": "for (unsigned depth = 0; depth <= max_depth; ++depth) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "contains-any-job-answer",
+  "file": "src/launcher/process_tree.hpp",
+  "find": "IsProcessInJob(process, job_.get(), &member) != 0 && member != FALSE) {",
+  "replace": "IsProcessInJob(process, job_.get(), &member) != 0) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "no-job-assignment",
+  "file": "src/launcher/process_tree.hpp",
+  "find": "tree.attached_ = job_ready && AssignProcessToJobObject(tree.job_.get(), info.hProcess) != 0;",
+  "replace": "tree.attached_ = job_ready && info.hProcess == nullptr;",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "ready-without-settle",
+  "file": "src/launcher/readiness.hpp",
+  "find": "if (conditions && settling && settle_elapsed) {",
+  "replace": "if (conditions && settle_elapsed) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "ready-log-only",
+  "file": "src/launcher/readiness.hpp",
+  "find": "const bool conditions = seen.window_ready && seen.log_ready;",
+  "replace": "const bool conditions = seen.log_ready;",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "log-freshness",
+  "file": "src/launcher/readiness.hpp",
+  "find": "ticks(written) < game_created ||",
+  "replace": "ticks(written) + game_created < game_created ||",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "marker-count",
+  "file": "src/launcher/readiness.hpp",
+  "find": "count_marker(content, ready_log_marker) >= ready_marker_count;",
+  "replace": "count_marker(content, ready_log_marker) >= 1;",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "continue-on-nonzero",
+  "file": "src/launcher/injection.hpp",
+  "find": "result.state == HelperState::completed && result.code == 0 && own_game_alive;",
+  "replace": "result.state == HelperState::completed && own_game_alive;",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "editor-first",
+  "file": "src/launcher/injection.hpp",
+  "find": "injection_order = {bundle_core, bundle_editor};",
+  "replace": "injection_order = {bundle_editor, bundle_core};",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "job-forbids-breakaway",
+  "file": "src/launcher/process_tree.hpp",
+  "find": "limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_BREAKAWAY_OK;",
+  "replace": "limits.BasicLimitInformation.LimitFlags = 0;",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "image-not-checked",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "same_file = image && file_id(image.get()) == game_pin.identity;",
+  "replace": "same_file = true;",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "no-guardian",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "        session.guardian();\n",
+  "replace": "",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "capie-ignores-game-hash",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "report.capie_enabled = prerequisites.game.has_value() && prerequisites.bundle.has_value();",
+  "replace": "report.capie_enabled = prerequisites.bundle.has_value();",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "concurrent-game-handled",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "if (other->stamp.created >= ended) {",
+  "replace": "if (other->stamp.created >= ended || ended > 0) {",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "runtime-not-writable-ok",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "if (!runtime_writable(policy)) {",
+  "replace": "if (runtime_writable(policy)) {",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ }
+]

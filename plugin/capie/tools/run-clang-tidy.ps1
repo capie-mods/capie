@@ -1,11 +1,12 @@
 <#
 .SYNOPSIS
-    Runs clang-tidy and a clang-format check over the CAPIE sources (both build flavors).
+    Runs clang-tidy and a clang-format check over the CAPIE sources (both build flavors) and the launcher.
 
 .DESCRIPTION
     Looks for clang-tidy.exe and clang-format.exe in the Visual Studio "C++ Clang tools for
     Windows" component (VC\Tools\Llvm\x64\bin) and then in PATH. Uses
-    plugin/build/capie/compile_commands.json, which build.ps1 writes. Exits 1 when a tool
+    plugin/build/capie/compile_commands.json, which build.ps1 writes, and
+    plugin/build/capie-launcher/compile_commands.json, which build_launcher.ps1 writes. Exits 1 when a tool
     is missing (with installation instructions), when clang-tidy reports anything (all
     checks are errors, see plugin/capie/.clang-tidy) or when a file is not formatted.
     Reads sources only; never touches a game process.
@@ -84,5 +85,17 @@ foreach ($unit in $units) {
 & $tidy -p $database --quiet '--extra-arg=/UCAPIE_DEBUG_DIAGNOSTICS' '--extra-arg=/DCAPIE_DEBUG_DIAGNOSTICS=0' `
     (Join-Path $capie 'src\dll\capie_editor.cpp')
 if ($LASTEXITCODE -ne 0) { $failed = $true }
+# Launcher (src/launcher, tests/launcher): its own database, written by build_launcher.ps1.
+$launcherDatabase = Join-Path $capie '..\build\capie-launcher'
+if (Test-Path -LiteralPath (Join-Path $launcherDatabase 'compile_commands.json')) {
+    $launcherUnits = @(Get-Content -LiteralPath (Join-Path $launcherDatabase 'compile_commands.json') -Raw | ConvertFrom-Json | ForEach-Object file)
+    foreach ($unit in $launcherUnits) {
+        & $tidy -p $launcherDatabase --quiet $unit
+        if ($LASTEXITCODE -ne 0) { $failed = $true }
+    }
+    $units += $launcherUnits
+} else {
+    Write-Output 'Launcher database missing (run plugin/capie/build_launcher.ps1): launcher units not analysed'
+}
 if ($failed) { Write-Output 'clang-tidy/clang-format: findings above'; exit 1 }
 Write-Output "clang-tidy ($($units.Count) units + release editor) and clang-format ($($formatted.Count) files): clean"

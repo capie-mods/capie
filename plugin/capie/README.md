@@ -89,6 +89,28 @@ uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tid
 `/W4` only. Nothing here starts, injects into or reads a game process; the EXE is read
 as a file for the static signature checks.
 
+## Launcher (`src/launcher/`, output `plugin/build/capie-launcher/`)
+
+`RenameAnythingLauncher.exe` in wrapper mode: Steam launch option
+`"...\RenameAnythingLauncher.exe" %command%`, the bootstrap's shortcut
+(`... "<game>\dowser.exe"`), or a double-click (finds the game, starts its Paradox
+Launcher). It starts the given `dowser.exe`/`hoi4.exe` unchanged inside a job object,
+binds only a `hoi4.exe` from that tree (job membership, or a running parent chain with
+older creation times), waits for the main menu (responsive window + two
+`Executing History from` lines in this session's game.log + 15 s) and runs
+`capie_injector.exe PID ABS_PATH` for `capie_core.dll`, then `capie_editor.dll`.
+Unknown game hash or damaged bundle: the game runs without CAPIE and the player gets a
+non-blocking notice. It stays alive until the started tree ends and logs to
+`%LOCALAPPDATA%\RenameAnything\launcher.log`; no network code. The accepted
+`plugin/launcher/` candidate is unchanged and stays the reference.
+
+```powershell
+pwsh -File .\plugin\capie\build_launcher.ps1             # pinned CAPIE inputs, build, unit + flow tests (fakes), CLI cases
+pwsh -File .\plugin\capie\launcher_mutation_check.ps1    # launcher mutants (tests/launcher/mutants.json)
+```
+`tools/run-clang-tidy.ps1` also analyses the launcher once `build_launcher.ps1` has written
+its `compile_commands.json`.
+
 ## Deployment
 
 Nothing in the accepted launcher or bootstrap manifests is changed by this stage. The
