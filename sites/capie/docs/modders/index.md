@@ -1,20 +1,20 @@
 ---
-description: How HOI4 mods will use CAPIE. Overview of the planned script contract, the reserved capie_ prefix and what already works.
+description: How HOI4 mods use CAPIE. Overview of the script contract (API level 2), the SDK, the reserved capie_ prefix and what still needs a test in the game.
 ---
 
 # For modders
 
-!!! proposed "Proposed, subject to change"
+!!! proposed "Built, not yet tested in the game"
 
-    The public CAPIE API does not exist yet. The mechanism underneath it runs Rename Anything
-    today, in single player, under Rename Anything's own private names (`rn_*`). The `capie_*`
-    names, file names and code on these pages are a proposal. They will change before the first
-    release, and nothing here should go into a published mod yet.
+    CAPIE 1.1 implements the public contract (API level 2) and the script SDK exists, with
+    offline tests. The mechanism underneath runs Rename Anything in single player today, under
+    its private names. The public names have not run in the game yet, so do not publish a mod
+    that depends on them before the in-game test.
 
-CAPIE is meant to become a library any HOI4 mod can build on, so that modders get these
-abilities without shipping native code themselves. The first goal is to open up what Rename
-Anything already does: free text names for countries, leaders and parties, text typed into a
-native field, and a reliable way to know whether CAPIE is loaded and which version it is.
+CAPIE is a library any HOI4 mod can build on, so that modders get these abilities without
+shipping native code: text the player types into a real text field of your own window, names
+for countries, states, characters and parties built from that text, and a reliable way to know
+whether CAPIE is loaded and which version it is.
 
 ## The decided shape
 
@@ -25,7 +25,9 @@ native field, and a reliable way to know whether CAPIE is loaded and which versi
   parser would understand) may come later as an extra layer over variant B. They need more
   reverse engineering and would produce parser errors whenever CAPIE is missing.
 - The script SDK ships as its own Steam Workshop item with its own repository, so every mod uses
-  one copy.
+  one copy. Its source is `sdk/capie-script-sdk/` in this repository, with a demo mod.
+- CAPIE is one option among native extenders. [Alternatives](../alternatives.md) compares it
+  with `hoi4_lua` and proxy-DLL loaders.
 - Every mod built on CAPIE shows an indicator when CAPIE is missing, and the main menu shows
   "CAPIE loaded" or "CAPIE missing". See [Indicators](indicators.md).
 - Mods pin a minimum API level and degrade gracefully when it is not there. See
@@ -37,7 +39,8 @@ Everything that starts with `capie_` (or `CAPIE_` in localisation) belongs to CA
 effects and triggers, variables, temporary variables, flags, localisation keys and GUI element
 names. Do not define anything with that prefix in your own mod. CAPIE removes script-set copies
 of its reserved command records before it adds its own, so a value you set yourself would be
-dropped or ignored.
+dropped or ignored. The one exception is your editor's GUI names, which follow the
+[grammar](contract.md#editor-names) `capie_v1_ed__<mod>__<editor>` so that CAPIE can find them.
 
 The code blocks on these pages colour `capie_` names differently so that you can see at a glance
 which names belong to CAPIE:
@@ -67,7 +70,9 @@ from parts while the game runs.
 
 | Page | What it covers |
 |---|---|
-| [Script contract](contract.md) | Variant B: inputs, outputs, an Apply button, the hard rule about where CAPIE data exists |
+| [Script contract](contract.md) | Editor names, the records CAPIE adds, sentinels, alphabet, the hard rule about where CAPIE data exists |
+| [Building an editor](editors.md) | A complete one-field editor from the SDK's demo mod |
+| [Text tools](text-tools.md) | Work buffer, trim, validation, text slots, setters, error codes |
 | [Detecting CAPIE](detection.md) | The three detection signals and which one to use for what |
 | [Indicators](indicators.md) | The "mod requires CAPIE but it is missing" snippet and the main-menu line |
 | [Versions and fallback](versioning.md) | API levels, release versions, deprecation, graceful degradation |

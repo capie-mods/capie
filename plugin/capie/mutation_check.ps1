@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Mutation check of the CAPIE caption core, focus release, editor bridge and bounded reader (79 mutants).
+    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract (93 mutants).
 
 .DESCRIPTION
     Reads tests/mutants.json: each mutant is one exact, unique textual replacement in one
@@ -12,9 +12,9 @@
     Before any mutant, every suite is compiled and run unmutated in the same folder layout
     for every flavor; it must report 0 failures, otherwise the script stops (infrastructure
     problem, not a kill). A compile error is a kill only when it is not an include/path
-    error (C1083 or C1041 stop the script). Editor-bridge mutants run in both flavors
+    error (C1083 or C1041 stop the script). Editor-bridge and public-editor mutants run in both flavors
     (CAPIE_DEBUG_DIAGNOSTICS=1 and 0) and are killed only when killed in both; the
-    caption, focus and memory suites do not depend on the flavor and run once.
+    caption, focus, memory and public-keys suites do not depend on the flavor and run once.
     A mutant is killed by a compile error, failing checks, a crash or the timeout. Any
     survivor fails the script. Never touches a game process.
 
@@ -71,6 +71,7 @@ try {
 } finally { Pop-Location }
 $objects = @('buffer.obj', 'hook.obj', 'trampoline.obj', 'hde64.obj') | ForEach-Object { Join-Path $WorkRoot $_ }
 $bridgeSuite = 'tests/legacy/editor_integration_test.cpp'
+$dualFlavorSuites = @($bridgeSuite, 'tests/public_editor_test.cpp')
 
 function New-Tree {
     <#
@@ -145,7 +146,7 @@ $mutants = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot 'tests\mutants.js
 $baselineDir = Join-Path $WorkRoot 'base'
 New-Tree $baselineDir
 foreach ($suite in ($mutants | Select-Object suite, summary -Unique)) {
-    $flavors = if ($suite.suite -eq $bridgeSuite) { @(1, 0) } else { @(1) }
+    $flavors = if ($suite.suite -in $dualFlavorSuites) { @(1, 0) } else { @(1) }
     foreach ($flavor in $flavors) {
         $result = Invoke-Suite $baselineDir $suite.suite $suite.summary $flavor
         if ($result.Kind -ne 'passed') { throw "baseline $($suite.suite) flavor $flavor is not clean: $($result.Text)" }
@@ -168,7 +169,7 @@ foreach ($mutant in $mutants) {
     if ($count -ne 1) { throw "mutant $($mutant.name): find text matched $count times (must be exactly 1)" }
     [IO.File]::WriteAllText($target, $original.Replace($find, $mutant.replace))
     $counts[$mutant.suite] = 1 + [int]($counts[$mutant.suite])
-    $flavors = if ($mutant.suite -eq $bridgeSuite) { @(1, 0) } else { @(1) }
+    $flavors = if ($mutant.suite -in $dualFlavorSuites) { @(1, 0) } else { @(1) }
     $killedEverywhere = $true
     foreach ($flavor in $flavors) {
         $result = Invoke-Suite $dir $mutant.suite $mutant.summary $flavor

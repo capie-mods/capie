@@ -4,7 +4,7 @@ description: What works in CAPIE today, what is in progress and what is only pla
 
 # Status
 
-Last updated 2026-10-11. Everything marked <span class="st st-today">Works today</span> was
+Last updated 2026-10-12. Everything marked <span class="st st-today">Works today</span> was
 checked in the game on HOI4 1.19.3.0 (Windows, Steam), single player, with development builds.
 The repository's `docs/test-report.md` and run notes hold the evidence and the limits of each
 test.
@@ -25,6 +25,23 @@ test.
 | No network imports | Current builds import only `KERNEL32` and `bcrypt` |
 | Local Windows Defender scan of current candidate builds | "Found no threats"; one engine, not VirusTotal |
 
+## Built for CAPIE 1.1, needs an in-game test
+
+CAPIE 1.1 (API level 2) and the script SDK are built and pass their offline tests (unit,
+integration on fake game memory, mutation checks, static checks of the generated script). None
+of it has run in the game.
+
+| Item | Page |
+|---|---|
+| Text editors for any mod through the name grammar `capie_v1_ed__<mod>__<editor>` (up to 4 fields, 32 editors per session) | [Script contract](modders/contract.md#editor-names) |
+| Prefill of grammar editors from carriers, once per opening, never over a focused field | [Building an editor](modders/editors.md) |
+| `CAPIE_STATUS`, `CAPIE_API`, `CAPIE_BUILD` localisation keys | [Detecting CAPIE](modders/detection.md) |
+| Wider alphabet: 8 punctuation marks, Latin-1 and Latin Extended-A letters (264 codes) | [Script contract](modders/contract.md#alphabet) |
+| SDK text tools in plain script: trim, validation, four text slots, setters | [Text tools](modders/text-tools.md) |
+| Multiplayer version check and CAPIE check window | [Multiplayer](multiplayer.md#version-check) |
+| Permission triggers and the lobby rule `capie_v1_edit_rights` | [Permissions](permissions.md) |
+| Demo mod with two editors | [Building an editor](modders/editors.md) |
+
 ## In progress
 
 | Item | Where it stands |
@@ -40,15 +57,13 @@ test.
 
 | Item | Page |
 |---|---|
-| Public script SDK (variant B, `capie_v1_*`) as its own Workshop item | [Script contract](modders/contract.md) |
-| Detection signals `CAPIE_STATUS`, `capie_cap`, `capie_v1_seen` | [Detecting CAPIE](modders/detection.md) |
-| "CAPIE missing" indicator and main-menu line | [Indicators](modders/indicators.md) |
-| Versioned contract; Rename Anything pins a CAPIE release | [Versions and fallback](modders/versioning.md) |
-| Multiplayer level L0: features off and a banner until every player confirms | [Multiplayer](multiplayer.md) |
-| Host permissions through a lobby game rule; overlord over a player subject | [Permissions](permissions.md) |
+| Publishing the script SDK as its own Workshop item and repository | [For modders](modders/index.md) |
+| Main-menu line "CAPIE loaded" or "CAPIE missing" | [Indicators](modders/indicators.md#main-menu) |
+| Rename Anything on the public editor names; Rename Anything pins a CAPIE release | [Versions and fallback](modders/versioning.md) |
+| Focus on open, select-all, typing cap and Escape for grammar editors | [Building an editor](modders/editors.md#what-is-not-there-yet) |
 | Signature table, offline scanner, `versions.json` | [Game updates](game-updates.md) |
 | Opt-in runtime verification for unknown game builds (all or nothing) | [Safety](safety.md#unknown-builds) |
-| Wider alphabets (Cyrillic, accents, umlauts), if the game supports them | [Script contract](modders/contract.md#text-limits) |
+| Cyrillic, which depends on the game language's fonts | [Script contract](modders/contract.md#alphabet) |
 | Signed releases and VirusTotal links | [Safety](safety.md#signed-releases) |
 | Native script keywords (variant A), maybe | [For modders](modders/index.md) |
 | Splitting the repository into CAPIE and Rename Anything | |

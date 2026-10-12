@@ -1,175 +1,173 @@
 ---
-description: The proposed CAPIE script contract (variant B). Inputs and outputs as variables, an Apply button example, and where CAPIE data exists.
+description: The CAPIE 1.1 script contract (API level 2). Editor names, the records CAPIE adds to the Apply command, sentinels, the alphabet and the hard rule about where CAPIE data exists.
 ---
 
-# Script contract (variant B)
+# Script contract (API level 2)
 
-!!! proposed "Proposed, subject to change"
+!!! proposed "Built, not yet tested in the game"
 
-    Every `capie_*` name on this page is a proposal. The mechanism works today inside Rename
-    Anything under private names (`rn_native_cap`, `rn_pair_err`); the generic SDK is not
-    written yet.
+    CAPIE 1.1 and the script SDK implement everything on this page, and offline tests cover the
+    native side. None of it has run in the game yet. Rows marked
+    <span class="st st-progress">needs in-game test</span> are the open checks. The full,
+    versioned text is `plugin/capie/CONTRACT.md` in the repository.
 
 ## How it works
 
-Variant B uses nothing the game's parser does not already understand. A mod sets temporary
-variables, calls scripted effects from the CAPIE script SDK, and reads results back from
-temporary variables. CAPIE's native side adds data to the player's own game command; the SDK's
-scripts read that data, check it, and call the game's own setters.
+The contract is variant B: plain HOI4 script, nothing the game's parser does not already know.
+You name your editor GUI after a fixed grammar. When the player clicks Apply, CAPIE copies the
+typed text into temporary variables of that player's own command. Your effect then calls the SDK,
+which reads the variables, checks them and calls the game's own setters.
 
 <figure class="diagram" markdown="span">
   ![The player clicks Apply. CAPIE adds capie_cap and the typed text to the player's own command. The effect runs on every client with the same input. The SDK checks capie_cap and calls the game's setter. Without CAPIE the effect sets capie_err to 10 and changes nothing.](../assets/shared/diagrams/variant-b-flow.svg)
   <figcaption>The same script runs with or without CAPIE. Only the branch differs.</figcaption>
 </figure>
 
-Why this shape:
+- A mod built this way loads without errors when CAPIE is missing, after a game patch, or on a
+  machine that never had CAPIE.
+- In multiplayer the branch input travels inside the command, so every client should take the
+  same branch. That is the design; it has not been tested with two players.
+- The contract does not depend on the game build. After a patch your mod needs no update while
+  CAPIE catches up; it shows "CAPIE missing" in the meantime.
 
-- A mod that uses variant B loads without errors when CAPIE is missing, after a game patch, or on
-  a machine that never had CAPIE.
-- In multiplayer, the branch input (`capie_cap`) travels inside the command, so every client
-  should take the same branch. That is a design goal; it has not been tested with two players.
-- The contract does not depend on the game build. After a patch, mods need no update while CAPIE
-  catches up; they show "CAPIE missing" in the meantime.
+## Versions
 
-## SDK files
+| Number | Value | Where you read it |
+|---|---|---|
+| API level | `2` | `temp_var:capie_cap` in the command, localisation key `CAPIE_API` |
+| Release | `1.1.0` | localisation key `CAPIE_BUILD` |
+| Build number | `10100` | `temp_var:capie_ver` (used by the multiplayer check) |
 
-The SDK is plain script with the major version in every path and name, so two mods pinned to
-different major versions can coexist:
+Require an API level (`capie_min_api`), never a release. See
+[Versions and fallback](versioning.md).
+
+## Editor names
+
+CAPIE recognises your editor by its names alone. It parses them exactly; there is no substring
+search and no registration file.
 
 ```text
-common/scripted_triggers/capie_sdk_v1_triggers.txt
-common/scripted_effects/capie_sdk_v1_effects.txt
-localisation/english/capie_sdk_v1_l_english.yml
+id                 [a-z0-9]{1,12}                         mod id and editor id
+scripted GUI       capie_v1_ed__<mod>__<editor>           the key in common/scripted_guis
+Apply effect       capie_v1_ed__<mod>__<editor>_apply_click
+                   (button capie_v1_ed__<mod>__<editor>_apply)
+edit box n         capie_v1_f__<mod>__<editor>__<n>       n = 1..4, consecutive from 1
+prefill carrier n  capie_v1_pf__<mod>__<editor>__<n>      instantTextBox, optional
+epoch carrier      capie_v1_ep__<mod>__<editor>           instantTextBox, required
 ```
 
-The SDK ships as its own Steam Workshop item; your mod lists it as a dependency. Do not edit SDK
-files. A changed copy is a bug, not a customisation point.
+- Upper case, underscores inside an id, a third `__` part or a 13th character make the name
+  something else, and CAPIE leaves the window alone.
+- Up to 32 editors per game session and 8 per mod id, first come first served. When the limit is
+  reached, Apply still reaches your effect with sentinel `-2`, so you can tell the player.
+- The mod id `capie` belongs to the SDK.
+- Other buttons of the window (Open, Cancel, anything else) run as plain script.
 
-## Inputs and outputs
+These names are the one exception to the reserved `capie_` prefix: they are yours, and their
+shape is how CAPIE finds them.
 
-Vanilla scripted effects take no parameters, so the SDK works with temporary variables:
+[Building an editor](editors.md) walks through a complete example.
 
-| Direction | Name | Meaning |
-|---|---|---|
-| In | `capie_min_api` | Lowest API level your effect needs |
-| In (from CAPIE) | `capie_cap` | API level CAPIE wrote into this command; absent without CAPIE |
-| Out | `capie_err` | `0` success, `10` CAPIE missing, other values name the problem |
-| Out | `capie_err_field` | Which field failed validation, for multi-field editors |
+## The epoch
 
-## Example: an Apply button
+The epoch carrier is a hidden text box that shows a positive whole number your mod stores, for
+example `[?ROOT.mymod_epoch|0]`. Raise it when the editor opens and after every successful Apply
+or Cancel. CAPIE reads it when the window becomes visible (a new value means a new opening),
+prefills the fields once per opening, and sends the value with every Apply. The SDK accepts an
+Apply only when that value equals the stored one, so a double click or Enter plus a click cannot
+apply twice.
 
-<span class="proposed-tag">Proposed, subject to change</span>
+## What CAPIE adds to the Apply command
 
-```paradox title="common/scripted_guis/my_mod_rename.txt"
-# PROPOSED SYNTAX. Nothing below exists yet.
-my_mod_rename_window = {
-	context_type = player_context
-	window_name = "capie_v1_ed__mymod__country"   # name grammar, see below
-	effects = {
-		capie_v1_ed__mymod__country_apply_click = {
-			set_temp_variable = { capie_min_api = 1 }
-			if = {
-				limit = { capie_v1_cmd_api_at_least = yes }
-				# Check authority again here: the effect does not repeat visible/enabled triggers.
-				capie_v1_require_own_country = yes            # sets capie_err if ROOT is not the actor
-				if = {
-					limit = { check_variable = { temp_var:capie_err = 0 } }
-					capie_v1_set_country_name_from_fields = yes   # decode, validate, set cosmetic tag
-				}
-			}
-			else = {
-				set_temp_variable = { capie_err = 10 }       # CAPIE missing: show the status line
-			}
-		}
-	}
-}
-```
+| Record | Value |
+|---|---|
+| `capie_cap` | API level, `2` |
+| `capie_ver` | build number, `10100` |
+| `capie_epoch` | the epoch read from the carrier, or `-code` (below) |
+| `capie_nf` | number of fields, 0 to 4 |
+| `capie_f<n>_err` | `0` valid, otherwise a field error (below) |
+| `capie_f<n>_at` | position of the first rejected character, `0` when none |
+| `capie_f<n>_len` | number of characters, `0` for an invalid field |
+| `capie_f<n>_0` .. `capie_f<n>_31` | character codes, `0` past the length |
 
-The trigger the example calls would be a one-liner in the SDK:
+Before adding anything, CAPIE removes every incoming record whose name starts with `capie_`, so a
+save or a stale value cannot supply them. That does not stop your own effect from setting
+`capie_cap`; it is a presence signal, not a permission.
 
-<span class="proposed-tag">Proposed, subject to change</span>
+When the window is visible but CAPIE cannot send the text, Apply still runs once, carrying only
+`capie_cap`, `capie_ver` and a negative `capie_epoch`:
 
-```paradox title="common/scripted_triggers/capie_sdk_v1_triggers.txt"
-# PROPOSED SYNTAX.
-# True when the current command carries capie_cap >= temp_var:capie_min_api.
-capie_v1_cmd_api_at_least = {
-	check_variable = { temp_var:capie_cap >= temp_var:capie_min_api }
-}
-```
+| `capie_epoch` | Reason |
+|---|---|
+| `-1` | The opening is not ready or changed (first frame after opening, a rebind, a new epoch) |
+| `-2` | Editor limit of the session reached |
+| `-3` | Layout invalid: a gap between fields, a fifth field, or a field name on a widget that is not an edit box |
 
-`capie_v1_set_country_name_from_fields` would wrap what Rename Anything does today: decode the
-transported character codes, validate them, and build the cosmetic tag with `meta_effect`. The
-body Rename Anything runs now looks like this (private names, works today):
+When the window is not visible, CAPIE drops the click.
 
-```paradox title="What the SDK would wrap (Rename Anything today, shortened)"
-rn_apply_country_name = {
-	if = {
-		limit = {
-			rn_country_rename_enabled = yes
-			check_variable = { rn_cname_len > 0 }
-			check_variable = { rn_cadj_len > 0 }
-		}
-		meta_effect = {
-			text = { set_cosmetic_tag = "RN1|[N]|[J]|" }
-			N = "[ROOT.RN_N_0][ROOT.RN_N_1] ... [ROOT.RN_N_31]"   # one scripted loc per character
-			J = "[ROOT.RN_J_0][ROOT.RN_J_1] ... [ROOT.RN_J_31]"
-		}
-		set_country_flag = rn_custom_name
-	}
-}
-```
+| `capie_f<n>_err` | Meaning |
+|---|---|
+| 1 | empty |
+| 2 | more than 32 characters |
+| 3 | invalid Unicode |
+| 4 | control character |
+| 5 | a character with meaning in the game's text: `" [ ] \| $ § £ \ { } # @` |
+| 6 | outside the alphabet |
 
-Leader, party, state, city and character variants would wrap the vanilla setters the same way.
+CAPIE never trims, normalises or cuts input. An invalid field does not stop the command; the
+other fields still arrive, and the SDK decides.
 
 ## The hard rule: where CAPIE data exists
 
 !!! warning "Command data exists only inside the command"
 
-    `capie_cap` and the transported text are temporary records of one game command. They exist
-    only while that command's effect runs. In `visible` and `enabled` triggers, in on-actions
-    and in any other effect they are absent, so a `capie_v1_cmd_*` trigger there is always false.
+    `capie_cap` and the typed text are temporary records of one game command. They exist only
+    while that command's effect runs. In `visible` and `enabled` triggers, in on-actions and in
+    any other effect they are absent.
 
-    Use [the other detection signals](detection.md) to decide what to show. Use `capie_cap`
-    to decide what to do.
+    Use [the other detection signals](detection.md) to decide what to show. Use `capie_cap`,
+    through `capie_v1_begin`, to decide what to do.
 
 ## Rules every effect must follow
 
-1. Check authority inside the effect. When the player clicks, the game runs the effect without
-   repeating the button's `visible` or `enabled` triggers. See [Permissions](../permissions.md).
-2. Gate on `capie_cap` inside the effect, never on a flag or a variable stored in the save.
-3. On failure, set `capie_err`, show a status line, and change nothing. Never partially apply
-   a multi-field edit.
+1. Check authority inside the effect. The game runs the effect without repeating the button's
+   `visible` or `enabled` triggers, and it does not tell the effect who clicked. See
+   [Permissions](../permissions.md).
+2. Start with `capie_v1_begin`. Never gate on a flag or a variable stored in the save.
+3. On failure, set `capie_err`, show a status line, and change nothing. Do not apply half of a
+   multi-field edit.
 4. Never use `career_profile_has_player_flag` or any other local-player state inside an effect.
    Branching on local state in a synchronised effect risks an out-of-sync game.
 
-## Text limits
+## Alphabet
 
-The limits come from the transport that works in Rename Anything today:
+| Codes | Characters |
+|---|---|
+| 1..84 | `a-z`, `A-Z`, `0-9`, space, `-`, `.`, `'`, 18 Polish letters (Rename Anything's table, unchanged) |
+| 85..92 | `,` `!` `?` `(` `)` `&` `:` `/` |
+| 93..152 | Latin-1 letters `À`..`ÿ`, without `×`, `÷` and the Polish `Ó ó` already above |
+| 153..264 | Latin Extended-A `Ā`..`ſ`, without the Polish letters already above |
 
-- At most 32 characters per field. Longer input is rejected, never cut.
-- Letters `a-z`, `A-Z`, digits, space, `-`, `.`, `'`, and the 18 Polish letters. Other
-  characters are rejected with an error. Wider alphabets (Cyrillic, accents, umlauts) are planned,
-  as far as the game's fonts, parser and transport handle them; that still needs research.
-- The country name path also rejects `| " \ [ ] $ { } #` and `@`, control characters, and invalid
-  UTF-8.
+The table is defined once in the SDK (`tools/capie_charset.py`); a build check proves the native
+encoder holds the same list.
 
-## Registering your own editor
+Use a font that draws every character for edit boxes and for text that shows typed names:
+`hoi_16mbs`, `hoi_18mbs`, `hoi_18`, `hoi_20b`, `hoi_20bs`, `hoi_26mbs`, `hoi_16typewriter`,
+`hoi_22typewriter`, `Arial12`, `hoi_16tooltip3`, `hoi_33`, `cg_16b`, `cg_18b`. The `garamond_*`,
+`vic_*` and `hoi_18b` fonts have no Latin Extended-A, which includes the Polish letters.
 
-Today CAPIE recognises only Rename Anything's own window and button names. For other mods it
-would recognise a strict name grammar instead of reading registration files:
+Typing these characters, including through dead keys, and drawing them in names is
+<span class="st st-progress">needs in-game test</span>. Cyrillic is not supported: the main
+fonts have no Cyrillic glyphs, and the game switches to separate fonts only for the Russian
+language.
 
-<span class="proposed-tag">Proposed, subject to change</span>
+## Rename Anything's private names
 
-```text
-window (model):   capie_v1_ed__<modid>__<editor>
-field (editBox):  capie_v1_f__<modid>__<editor>__<n>      n = 1..4
-Open selector:    capie_v1_ed__<modid>__<editor>_open_click
-Apply selector:   capie_v1_ed__<modid>__<editor>_apply_click
-modid, editor:    [a-z0-9]{1,12}
-```
-
-CAPIE would parse these names exactly, not by substring search, and cap the number of editors
-per mod and per session.
+Rename Anything keeps its own names in CAPIE 1.1 (`rn_ip_*` editors, `rn_native*` records,
+`RN_PLUGIN_STATUS`, the 84-code alphabet). CAPIE recognises them exactly as before and adds no
+`capie_*` record to them. Its editors use behaviour the public contract does not offer yet, such
+as the refresh of the Politics panel after Apply. The move onto the grammar is planned for the
+next tested release and described in the SDK's `MIGRATION.md`.
 
 ## Highlighting in these docs
 

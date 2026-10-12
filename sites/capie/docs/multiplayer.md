@@ -32,39 +32,47 @@ From reading the game's code and from single-player runs:
 - CAPIE must never change game state on one machine outside a command to "fix" a mismatch. That
   would itself cause an out-of-sync game.
 
-## The plan: a version check in script <span class="st st-planned">Planned</span> { #version-check }
+## The version check in script <span class="st st-progress">Built, needs a two-machine test</span> { #version-check }
 
-CAPIE does not kick anyone and does not touch the network. Instead, every CAPIE feature stays off
-for everyone until every human player has shown the same CAPIE version, and a banner says so.
+CAPIE does not kick anyone and does not touch the network. Instead, every CAPIE feature built on
+the SDK stays off for everyone until every human player has shown the same CAPIE build, and a
+banner says so.
 
 <figure class="diagram" markdown="span">
   ![Players 1 and 2 have run the same CAPIE version, Player 3 has not. A banner says CAPIE features are off because Player 3 has not confirmed. When Player 3 confirms, features switch on for everyone.](assets/shared/diagrams/mp-l0.svg)
   <figcaption>Lock and banner. Deterministic script on synchronised state.</figcaption>
 </figure>
 
-1. Every command CAPIE annotates carries one more record, the CAPIE version as a small number
-   (`capie_ver`), next to the capability record.
-2. The command's effect runs on every client and stores that number on the issuing player's
-   country, for example `set_variable = { capie_ver_seen = temp_var:capie_ver }`.
-3. The script compares human countries (`is_ai = no`). While any of them has no stored version,
-   or a different one, CAPIE features stay off for everyone and a banner names who is missing,
-   for example: "CAPIE features are off in this session: Player 3 has not confirmed CAPIE 1.0."
-4. A player without CAPIE sends no version at all, which the script sees as a missing value.
+1. Every Apply of a grammar editor carries the build number `capie_ver` (`10100` for CAPIE
+   1.1.0), next to `capie_cap`.
+2. `capie_v1_begin` runs on every client and stores that number on the issuing player's country
+   (`capie_v1_ver`, flag `capie_v1_seen`). A command without `capie_cap` clears both.
+3. It then recomputes the global flag `capie_v1_mp_ok`: set when every country with `is_ai = no`
+   reports the same number as the issuing player. `global.capie_v1_mp_missing` counts the ones
+   that do not.
+4. In multiplayer (more than one human country) an SDK Apply without `capie_v1_mp_ok` fails with
+   `capie_err = 16` and changes nothing. In single player the check passes as soon as the player
+   has CAPIE.
+5. The SDK's CAPIE check window (`capie_v1_ed__capie__hello`, a grammar editor without fields)
+   appears while the flag is unset. Each player presses its button once per session; the click
+   counts even when the window is not ready, because every annotated command carries
+   `capie_cap` and `capie_ver`.
 
-<span class="proposed-tag">Proposed, subject to change</span>
-
-```paradox
-# PROPOSED. Runs first in every CAPIE-annotated command.
-if = {
-	limit = { check_variable = { temp_var:capie_ver > 0 } }
-	set_variable = { capie_ver_seen = temp_var:capie_ver }
-}
-
-# PROPOSED. A scripted trigger: true while some human country is missing or different.
-capie_v1_mp_mismatch = {
-	any_country = {
-		is_ai = no
-		NOT = { check_variable = { capie_ver_seen = global.capie_ver_expected } }
+```paradox title="capie_sdk_v1_effects.txt (generated, shortened)"
+capie_v1_mp_recompute = {
+	set_temp_variable = { capie_v = temp_var:capie_ver }
+	set_global_flag = capie_v1_mp_ok
+	set_variable = { global.capie_v1_mp_missing = 0 }
+	every_country = {
+		limit = {
+			is_ai = no
+			OR = {
+				NOT = { has_country_flag = capie_v1_seen }
+				NOT = { check_variable = { capie_v1_ver = temp_var:capie_v } }
+			}
+		}
+		clr_global_flag = capie_v1_mp_ok
+		add_to_variable = { global.capie_v1_mp_missing = 1 }
 	}
 }
 ```
@@ -72,11 +80,12 @@ capie_v1_mp_mismatch = {
 Limits of this design:
 
 - A player is detected only after they issued at least one CAPIE command, so each player first
-  needs a small "CAPIE check" button or an editor action. An automatic check without a click
+  presses the CAPIE check button or applies an editor. An automatic check without a click
   would require CAPIE to send a command on its own, which is a new and riskier path that is not
   planned without a separate review.
 - A player who joins later controls a human country without a stored version, so the session
-  locks again until they confirm. A player who leaves hands the country back to the AI, which
+  locks again until they confirm. A version stored in the save by a player who later joins
+  without CAPIE stays until that player presses the button or applies an editor. A player who leaves hands the country back to the AI, which
   drops out of the check. Both behaviours are expected, not tested.
 - It cannot refuse or kick a player. That would take code at the network level, which CAPIE
   does not have and will not add. The original request to reject players without CAPIE was

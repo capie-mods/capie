@@ -630,5 +630,117 @@
   "replace": "(region.Protect & PAGE_NOACCESS) != 0",
   "suite": "tests/memory_test.cpp",
   "summary": "memory tests:"
+ },
+ {
+  "name": "public-keeps-spoofed-capie",
+  "file": "src/features/editor/transport.hpp",
+  "find": "        if (current.public_model != nullptr && public_reserved_key(key)) {",
+  "replace": "        if (current.public_model == nullptr && public_reserved_key(key)) {",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-no-sentinel",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "        if (!dispatch_public_sentinel(current, opaque_selector, static_cast<PublicSentinel>(code))) {",
+  "replace": "        if (true) {",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-mod-limit-off-by-one",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "same_mod < max_editors_per_mod",
+  "replace": "same_mod <= max_editors_per_mod",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-gap-accepted",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "        if (gap || n == grammar::max_fields || !edit_named(edit, name)) {",
+  "replace": "        if (n == grammar::max_fields || !edit_named(edit, name)) {",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-fifth-field-accepted",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "        if (gap || n == grammar::max_fields || !edit_named(edit, name)) {",
+  "replace": "        if (gap || !edit_named(edit, name)) {",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-prefill-over-focus",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "    if (focused) {\n        return PrefillStep::skipped;\n    }\n",
+  "replace": "",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-legacy-alphabet",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "Alphabet::extended);",
+  "replace": "Alphabet::legacy);",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-sentinel-positive",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "    epoch.raw_value = -epoch.raw_value;\n",
+  "replace": "",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-hidden-forwarded",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "        bridge_rejected(current.id, \"public-editor-not-live-dropped\");\n        return true;",
+  "replace": "        return false;",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-prefilter-blocks-grammar",
+  "file": "src/features/editor/window_view.hpp",
+  "find": "    return grammar::may_be_model(std::string_view(bytes, static_cast<std::size_t>(header.size)));",
+  "replace": "    return false;",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-no-bind-reset",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "    public_bind(window);\n",
+  "replace": "",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-at-zero-based",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "encoded.error_index + 1;",
+  "replace": "encoded.error_index;",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-api-key-wrong",
+  "file": "src/features/country/country_names.hpp",
+  "find": "        return core::capie_api_text;",
+  "replace": "        return core::capie_release;",
+  "suite": "tests/public_keys_test.cpp",
+  "summary": "public keys tests:"
+ },
+ {
+  "name": "public-claim-z-rn-only",
+  "file": "src/features/country/country_names.hpp",
+  "find": "    return (key[0] == claim_prefix[0] && key[1] == claim_prefix[1]) ||\n           (key[0] == public_claim_prefix[0] && key[1] == public_claim_prefix[1]);",
+  "replace": "    return key[0] == claim_prefix[0] && key[1] == claim_prefix[1];",
+  "suite": "tests/public_keys_test.cpp",
+  "summary": "public keys tests:"
  }
 ]

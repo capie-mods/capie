@@ -21,17 +21,21 @@
  * would have returned "unrelated" without side effects, so they are skipped. It uses the
  * looser byte comparison of the caption/focus cores, which accepts a superset of what the
  * strict bridge comparison accepts, so it can never hide a window an observer wants. If
- * it says "maybe", each observer still runs its full fresh guard.
+ * it says "maybe", each observer still runs its full fresh guard. Names that start with the
+ * public grammar prefix (`capie_v1_ed__`, see `public_names.hpp`) also pass, so the
+ * grammar-editor observer can parse them; every other observer rejects them by name.
  */
 #pragma once
 #include "../../engine/game_calls.hpp"
 #include "../../engine/msvc_string.hpp"
 #include "../../engine/widgets.hpp"
+#include "public_names.hpp"
 #include "schema.hpp"
 
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <string_view>
 
 namespace capie::editor {
 
@@ -61,6 +65,39 @@ struct View {
 };
 
 /**
+ * @brief Checks the window/context/root chain of a recognized window and its visibility.
+ * @param window Scripted window passed to the hook.
+ * @param model Its model object (already identified by name).
+ * @param out Receives the root (when valid); `out.model` is left to the caller.
+ * @return `invalid`, `hidden` or `visible`.
+ */
+inline ViewResult inspect_chain(void* window, void* model, View& out) noexcept {
+    const auto address = reinterpret_cast<std::uintptr_t>(window);
+    if (address > core::uptr_max - off::window_context) {
+        return ViewResult::invalid;
+    }
+    void* context = reinterpret_cast<void*>(address + off::window_context);
+    std::uintptr_t ctx_vt = 0;
+    std::uintptr_t root_vt = 0;
+    void* ctx_window = nullptr;
+    void* ctx_model = nullptr;
+    void* ctx_root = nullptr;
+    unsigned char flags = 0;
+    unsigned char desired = 0;
+    if (!member(context, 0, ctx_vt) || ctx_vt != image_base + rva::vt_sg_context ||
+        !member(context, off::context_window, ctx_window) || ctx_window != window ||
+        !member(context, off::context_model, ctx_model) || ctx_model != model ||
+        !member(context, off::context_root, ctx_root) || !member(window, off::window_root, out.root) ||
+        ctx_root != out.root || !member(out.root, 0, root_vt) || root_vt != image_base + rva::vt_sg_root ||
+        !member(out.root, off::root_flags, flags) || !member(window, off::window_desired, desired) ||
+        !readable(out.root, off::root_readable_span) || !bounded_list(out.root, off::root_edit_list) ||
+        !bounded_list(out.root, off::root_instant_list) || !bounded_list(out.root, off::root_third_list)) {
+        return ViewResult::invalid;
+    }
+    return desired != 0 && flag::shown_not_hidden(flags) ? ViewResult::visible : ViewResult::hidden;
+}
+
+/**
  * @brief Inspects a window freshly.
  * @param window Scripted window passed to the hook.
  * @param out Receives the model index (when recognized) and root (when valid).
@@ -88,42 +125,20 @@ inline ViewResult inspect_window(void* window, View& out) noexcept {
     if (!recognized) {
         return ViewResult::unrelated;
     }
-    const auto address = reinterpret_cast<std::uintptr_t>(window);
-    if (address > core::uptr_max - off::window_context) {
-        return ViewResult::invalid;
-    }
-    void* context = reinterpret_cast<void*>(address + off::window_context);
-    std::uintptr_t ctx_vt = 0;
-    std::uintptr_t root_vt = 0;
-    void* ctx_window = nullptr;
-    void* ctx_model = nullptr;
-    void* ctx_root = nullptr;
-    unsigned char flags = 0;
-    unsigned char desired = 0;
-    if (!member(context, 0, ctx_vt) || ctx_vt != image_base + rva::vt_sg_context ||
-        !member(context, off::context_window, ctx_window) || ctx_window != window ||
-        !member(context, off::context_model, ctx_model) || ctx_model != model ||
-        !member(context, off::context_root, ctx_root) || !member(window, off::window_root, out.root) ||
-        ctx_root != out.root || !member(out.root, 0, root_vt) || root_vt != image_base + rva::vt_sg_root ||
-        !member(out.root, off::root_flags, flags) || !member(window, off::window_desired, desired) ||
-        !readable(out.root, off::root_readable_span) || !bounded_list(out.root, off::root_edit_list) ||
-        !bounded_list(out.root, off::root_instant_list) || !bounded_list(out.root, off::root_third_list)) {
-        return ViewResult::invalid;
-    }
-    return desired != 0 && flag::shown_not_hidden(flags) ? ViewResult::visible : ViewResult::hidden;
+    return inspect_chain(window, model, out);
 }
 
 /**
- * @brief Reads the opening epoch from a model's epoch carrier.
+ * @brief Reads an opening epoch from a named carrier.
  * @param root Root widget of a freshly inspected visible window.
- * @param model Model index.
+ * @param name Epoch carrier name.
  * @param result Receives the epoch (>= 1).
  * @return `false` when the carrier is missing, empty, too long, non-decimal, zero or
  *         too large to scale by `fixed_point`.
  */
-inline bool read_epoch(void* root, std::size_t model, std::uint64_t& result) noexcept {
+inline bool read_epoch_carrier(void* root, const char* name, std::uint64_t& result) noexcept {
     Utf8Snapshot text{};
-    if (!carrier(root, models[model].epoch, text, false) || text.size == 0 || text.size > max_epoch_digits) {
+    if (!carrier(root, name, text, false) || text.size == 0 || text.size > max_epoch_digits) {
         return false;
     }
     std::uint64_t value = 0;
@@ -139,6 +154,18 @@ inline bool read_epoch(void* root, std::size_t model, std::uint64_t& result) noe
     }
     result = value;
     return true;
+}
+
+/**
+ * @brief Reads the opening epoch from a model's epoch carrier.
+ * @param root Root widget of a freshly inspected visible window.
+ * @param model Model index.
+ * @param result Receives the epoch (>= 1).
+ * @return `false` when the carrier is missing, empty, too long, non-decimal, zero or
+ *         too large to scale by `fixed_point`.
+ */
+inline bool read_epoch(void* root, std::size_t model, std::uint64_t& result) noexcept {
+    return read_epoch_carrier(root, models[model].epoch, result);
 }
 
 /// @brief Every model name any Tick observer accepts (editor bridge, caption, focus).
@@ -195,7 +222,19 @@ inline bool window_may_be_own(void* window) noexcept {
             return true;
         }
     }
-    return false;
+    // Grammar editors of other mods (public contract): prefix and length only; the public
+    // observer parses the whole name with its own fresh read.
+    if (header.size < grammar::min_model_name || header.size > grammar::max_model_name) {
+        return false;
+    }
+    if (!bytes_read) {
+        if (header.capacity <= engine::sso_capacity) {
+            std::memcpy(bytes, header.data.small, sizeof(header.data.small));
+        } else if (!engine::guarded_copy(bytes, header.data.pointer, static_cast<std::size_t>(header.size))) {
+            return false;
+        }
+    }
+    return grammar::may_be_model(std::string_view(bytes, static_cast<std::size_t>(header.size)));
 }
 
 }  // namespace capie::editor

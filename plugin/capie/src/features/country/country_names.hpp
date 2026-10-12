@@ -5,14 +5,18 @@
  * The three hooked localisation entry points (`lookup_n`, `lookup_z`, `exists`) run for
  * every localised string the game draws, from any thread, many times per frame. For
  * almost all of them the answer is "not ours", so the first thing each hook does is the
- * cheapest possible test: is the key at least two bytes long and does it start with `RN`?
- * Every key CAPIE answers (`RN1|...`, `RN_PLUGIN_STATUS*`) does; everything else goes to
- * the original lookup after two byte compares, with no hashing, decoding or locking.
+ * cheapest possible test: is the key at least two bytes long and does it start with `RN`
+ * or `CA`? Every key CAPIE answers (`RN1|...`, `RN_PLUGIN_STATUS*`, `CAPIE_*`) does;
+ * everything else goes to the original lookup after at most four byte compares, with no
+ * hashing, decoding or locking.
  *
  * For our keys:
- *   - `RN_PLUGIN_STATUS` and `RN_PLUGIN_STATUS_EN` return "CAPIE 1.0 loaded",
- *     `RN_PLUGIN_STATUS_PL` returns "CAPIE 1.0 załadowane" (the mod's localisation picks
+ *   - `RN_PLUGIN_STATUS` and `RN_PLUGIN_STATUS_EN` return "CAPIE 1.1 loaded",
+ *     `RN_PLUGIN_STATUS_PL` returns "CAPIE 1.1 załadowane" (Rename Anything's localisation picks
  *     the language through `$RN_PLUGIN_STATUS_EN$` / `$RN_PLUGIN_STATUS_PL$`, R5-MINOR-2);
+ *   - the public keys of the script contract (CONTRACT.md section 8): `CAPIE_STATUS`
+ *     returns "CAPIE 1.1", `CAPIE_API` the API level ("2"), `CAPIE_BUILD` the release
+ *     ("1.1.0"); the SDK localisation holds their fallbacks;
  *   - `RN1|Name|Adjective|` (+ `_DEF`, `_ADJ`) returns the name or adjective.
  * Decoded RN1 keys are cached by key: a shared lock and one hash lookup without
  * allocation answer repeat queries; a miss decodes, validates and inserts under an
@@ -26,6 +30,7 @@
  * not answer, no lock is held while it runs, and its result is returned unchanged.
  */
 #pragma once
+#include "../../core/game_build.hpp"
 #include "capability.hpp"
 #include "country_protocol.hpp"
 
@@ -52,13 +57,27 @@ inline constexpr std::string_view status_key_en = "RN_PLUGIN_STATUS_EN";
 /// @brief Polish status key.
 inline constexpr std::string_view status_key_pl = "RN_PLUGIN_STATUS_PL";
 /// @brief Status text, English (also for the bare key).
-inline constexpr char status_text_en[] = "CAPIE 1.0 loaded";
+inline constexpr char status_text_en[] = "CAPIE 1.1 loaded";
 /// @brief Status text, Polish, UTF-8 ("załadowane": ł = C5 82).
 inline constexpr char status_text_pl[] =
-    "CAPIE 1.0 za\xC5\x82"
+    "CAPIE 1.1 za\xC5\x82"
     "adowane";
-/// @brief The two leading bytes shared by every key CAPIE answers.
+/// @brief The two leading bytes of Rename Anything's keys (`RN1|`, `RN_PLUGIN_STATUS*`).
 inline constexpr char claim_prefix[2] = {'R', 'N'};
+/// @brief The two leading bytes of the public keys (`CAPIE_*`).
+inline constexpr char public_claim_prefix[2] = {'C', 'A'};
+/// @brief Public status key: "CAPIE 1.1" while loaded.
+inline constexpr std::string_view public_status_key = "CAPIE_STATUS";
+/// @brief Public API level key.
+inline constexpr std::string_view public_api_key = "CAPIE_API";
+/// @brief Public release key.
+inline constexpr std::string_view public_build_key = "CAPIE_BUILD";
+/// @brief Text of `CAPIE_STATUS`.
+inline constexpr char public_status_text[] = "CAPIE 1.1";
+static_assert(std::string_view(public_status_text).ends_with(core::capie_version) &&
+                  std::string_view(status_text_en).starts_with(public_status_text) &&
+                  std::string_view(status_text_pl).starts_with(public_status_text),
+              "every status text names the version in core::capie_version");
 
 /// @brief `true` after a successful initialization; read by every hook.
 inline std::atomic<bool> active = false;
@@ -97,7 +116,18 @@ inline KeyCache& key_cache() {
  * @return `false` for every key CAPIE never answers.
  */
 inline bool may_claim(const char* key, std::size_t size) noexcept {
-    return size >= sizeof(claim_prefix) && key[0] == claim_prefix[0] && key[1] == claim_prefix[1];
+    return size >= sizeof(claim_prefix) && ((key[0] == claim_prefix[0] && key[1] == claim_prefix[1]) ||
+                                            (key[0] == public_claim_prefix[0] && key[1] == public_claim_prefix[1]));
+}
+
+/**
+ * @brief `may_claim` for a NUL-terminated key (reads at most two bytes).
+ * @param key Non-null terminated key.
+ * @return `false` for every key CAPIE never answers.
+ */
+inline bool may_claim_z(const char* key) noexcept {
+    return (key[0] == claim_prefix[0] && key[1] == claim_prefix[1]) ||
+           (key[0] == public_claim_prefix[0] && key[1] == public_claim_prefix[1]);
 }
 
 /**
@@ -111,6 +141,15 @@ inline const char* status_text(std::string_view key) noexcept {
     }
     if (key == status_key_pl) {
         return status_text_pl;
+    }
+    if (key == public_status_key) {
+        return public_status_text;
+    }
+    if (key == public_api_key) {
+        return core::capie_api_text;
+    }
+    if (key == public_build_key) {
+        return core::capie_release;
     }
     return nullptr;
 }
@@ -200,7 +239,7 @@ inline const char* lookup_n(const char* key, int length) noexcept {
  */
 inline const char* lookup_z(const char* key) noexcept {
     try {
-        if (key != nullptr && key[0] == claim_prefix[0] && key[1] == claim_prefix[1]) {
+        if (key != nullptr && may_claim_z(key)) {
             const auto n = strnlen_s(key, max_key_bytes + 1);
             if (n <= max_key_bytes) {
                 if (const auto* result = override_value(std::string_view(key, n))) {

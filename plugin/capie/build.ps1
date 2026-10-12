@@ -1,18 +1,19 @@
 <#
 .SYNOPSIS
-    Builds CAPIE 1.0 (capie_core.dll, capie_editor.dll, capie_injector.exe, capie_debug_control.exe) and runs every offline test.
+    Builds CAPIE 1.1 (capie_core.dll, capie_editor.dll, capie_injector.exe, capie_debug_control.exe) and runs every offline test.
 
 .DESCRIPTION
-    Output: plugin/build/capie/ (release flavor) and plugin/build/capie/debug/ (debug flavor:
-    key log, Execute observer, ring and RNDebugRequest; plus the pinned debug controller).
-    Tests and benchmarks are built into plugin/build/capie/tests/.
+    Output: -OutputDirectory (default plugin/build/capie/, release flavor) and its debug/
+    subfolder (debug flavor: key log, Execute observer, ring and RNDebugRequest; plus the
+    pinned debug controller). Tests and benchmarks are built into its tests/ subfolder.
 
     Compiles MinHook (third-party C, /W4 without /WX), then every CAPIE source with
     /MT /W4 /WX /std:c++20. Runs the ported accepted suites (inherited debug-bridge suite,
     caption core, focus release, integration in both flavors, trace ring, country protocol,
     editor input, country status), the new tests (signature table vs EXE file, country
-    differential vs the accepted candidate source, hot-path benchmarks) and the Python
-    signature-table equivalence check.
+    differential vs the accepted candidate source, hot-path benchmarks), the public-contract
+    tests (grammar and alphabet, CAPIE_* keys, grammar editors in both flavors) and the Python
+    checks (signature table, status localisation, native alphabet vs the SDK table).
 
     It never starts, inspects, injects into or reads memory of a game process. The EXE is
     only read as a file for the static fingerprint checks. Refuses to overwrite a locked
@@ -33,6 +34,11 @@
 .PARAMETER SkipBenchmarks
     Do not run the hot-path benchmarks.
 
+.PARAMETER OutputDirectory
+    Output folder relative to the repository root (default plugin\build\capie). Use a separate
+    folder (for example plugin\build\capie-v11) while plugin\build\capie holds binaries that
+    other scripts pin by hash.
+
 .OUTPUTS
     None. Prints a summary line per step.
 
@@ -46,7 +52,8 @@ param(
     [string]$VisualStudioDir = '',
     [string]$GameExe = 'C:\Program Files (x86)\Steam\steamapps\common\Hearts of Iron IV\hoi4.exe',
     [string]$Python = 'python',
-    [switch]$SkipBenchmarks
+    [switch]$SkipBenchmarks,
+    [ValidateNotNullOrEmpty()][string]$OutputDirectory = 'plugin\build\capie'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -55,7 +62,7 @@ $script:CapieDir = $PSScriptRoot
 $script:SourceDir = Join-Path $PSScriptRoot 'src'
 $script:TestDir = Join-Path $PSScriptRoot 'tests'
 $script:RepoDir = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$script:OutDir = Join-Path $script:RepoDir 'plugin\build\capie'
+$script:OutDir = Join-Path $script:RepoDir $OutputDirectory
 $script:DebugDir = Join-Path $script:OutDir 'debug'
 $script:TestOutDir = Join-Path $script:OutDir 'tests'
 $script:ObjDir = Join-Path $script:OutDir 'obj'
@@ -239,6 +246,7 @@ $tidyFiles = @('dll\capie_core.cpp', 'dll\capie_editor.cpp', 'tools\capie_inject
         ForEach-Object { Join-Path $script:SourceDir $_ }) +
     @('memory_test.cpp', 'signature_exe_test.cpp', 'country_cache_test.cpp', 'editor_hotpath_test.cpp', 'bench\hotpath_bench.cpp' |
         ForEach-Object { Join-Path $script:TestDir $_ })
+$tidyFiles += @('public_names_test.cpp', 'public_keys_test.cpp', 'public_editor_test.cpp') | ForEach-Object { Join-Path $script:TestDir $_ }
 $database = foreach ($file in $tidyFiles) {
     [ordered]@{
         directory = $script:OutDir
@@ -268,12 +276,21 @@ Invoke-Test 'legacy\editor_integration_test.cpp' 'editor_integration_test_debug.
 Invoke-Test 'legacy\editor_integration_test.cpp' 'editor_integration_test_release.exe' @('/UNDEBUG', '/DCAPIE_DEBUG_DIAGNOSTICS=0') @() $script:MinHookObjects | Out-Null
 Invoke-Test 'editor_hotpath_test.cpp' 'editor_hotpath_test_debug.exe' @('/DCAPIE_DEBUG_DIAGNOSTICS=1') @($debugEditor) $script:MinHookObjects | Out-Null
 Invoke-Test 'editor_hotpath_test.cpp' 'editor_hotpath_test_release.exe' @('/DCAPIE_DEBUG_DIAGNOSTICS=0') @((Join-Path $script:OutDir 'capie_editor.dll')) $script:MinHookObjects | Out-Null
+# Public contract, API level 2 (CONTRACT.md): grammar and alphabet, CAPIE_* keys, grammar editors in both flavors.
+Invoke-Test -Source 'public_names_test.cpp' -Output 'public_names_test.exe' | Out-Null
+Invoke-Test -Source 'public_keys_test.cpp' -Output 'public_keys_test.exe' -Link $script:MinHookObjects | Out-Null
+foreach ($flavor in 1, 0) {
+    $name = if ($flavor -eq 1) { 'public_editor_test_debug.exe' } else { 'public_editor_test_release.exe' }
+    Invoke-Test -Source 'public_editor_test.cpp' -Output $name -Flags @("/DCAPIE_DEBUG_DIAGNOSTICS=$flavor") -Link $script:MinHookObjects | Out-Null
+}
 
 # 4. Signature table equivalence with the accepted sources.
 & $Python -I (Join-Path $script:TestDir 'check_signature_table.py')
 if ($LASTEXITCODE -ne 0) { throw 'Signature table differs from the accepted sources' }
 & $Python -I (Join-Path $script:TestDir 'check_status_localisation.py')
 if ($LASTEXITCODE -ne 0) { throw 'CAPIE status localisation contract failed' }
+& $Python -I (Join-Path $script:TestDir 'check_alphabet.py')
+if ($LASTEXITCODE -ne 0) { throw 'Native alphabet differs from the SDK character table' }
 
 # 5. Benchmarks (old rev7/country-status sources vs CAPIE release/debug).
 if (-not $SkipBenchmarks) {

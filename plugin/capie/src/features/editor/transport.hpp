@@ -22,6 +22,10 @@
  * -code`, see `StaleCode`) so the script can tell the player what to do (RN6/R5).
  *
  * Exactly one original dispatch per click; no retry; no lock across it.
+ *
+ * The same frame, record copy and constructor substitution also carry the Apply of a
+ * grammar editor (`public_editor.hpp`): such a frame names its model and selector in
+ * `public_model`/`public_apply`, and every incoming `capie_*` record is removed as well.
  */
 #pragma once
 #include "../../core/game_build.hpp"
@@ -29,30 +33,34 @@
 #include "../country/capability.hpp"
 #include "diagnostics.hpp"
 #include "lifecycle.hpp"
+#include "public_schema.hpp"
 #include "trampolines.hpp"
 #include "window_view.hpp"
 
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <string_view>
 #include <utility>
 
 namespace capie::editor {
 
 /// @brief Stack-bound state of one own dispatch; never stored in lifecycle/pending state.
 struct Origin {
-    void* context{};                                                 ///< Window context of the click.
-    const MsvcString* model_name{};                                  ///< Model name inside the model object.
-    const MsvcString* selector{};                                    ///< Selector passed to Dispatch.
-    const void* scope{};                                             ///< context + 3C0 (constructor scope argument).
-    const TempVector* source{};                                      ///< context + 470 (original record vector).
-    Record records[max_original_records + max_transport_records]{};  ///< Substituted records.
-    TempVector view{};                                               ///< Vector handed to the constructor.
-    unsigned ctor_calls{};                                           ///< Constructor calls seen in this frame.
-    unsigned long id{};                                              ///< Observation id.
-    std::uint64_t epoch{};                                           ///< Opening epoch.
-    std::uint64_t generation{};                                      ///< Opening generation.
-    std::size_t model{model_count};                                  ///< Model index.
+    void* context{};                                             ///< Window context of the click.
+    const MsvcString* model_name{};                              ///< Model name inside the model object.
+    const MsvcString* selector{};                                ///< Selector passed to Dispatch.
+    const void* scope{};                                         ///< context + 3C0 (constructor scope argument).
+    const TempVector* source{};                                  ///< context + 470 (original record vector).
+    Record records[max_original_records + max_frame_records]{};  ///< Substituted records.
+    TempVector view{};                                           ///< Vector handed to the constructor.
+    unsigned ctor_calls{};                                       ///< Constructor calls seen in this frame.
+    unsigned long id{};                                          ///< Observation id.
+    std::uint64_t epoch{};                                       ///< Opening epoch.
+    std::uint64_t generation{};                                  ///< Opening generation.
+    std::size_t model{model_count};                              ///< Model index (own editors).
+    const char* public_model{};  ///< Grammar editor: model name (registry storage, immutable), else null.
+    const char* public_apply{};  ///< Grammar editor: Apply selector (registry storage, immutable), else null.
 };
 
 /// @brief The dispatch frame of the current thread, if any.
@@ -245,6 +253,15 @@ inline bool still_current(const Origin& current, const InputSnapshot (&snapshots
 }
 
 /**
+ * @brief Whether a record key belongs to the public contract (removed from grammar Apply vectors).
+ * @param key Key.
+ * @return `true` for every key starting with `capie_`.
+ */
+inline bool public_reserved_key(const char* key) noexcept {
+    return std::string_view(key).starts_with(public_reserved_prefix);
+}
+
+/**
  * @brief Whether a record key is reserved for the bridge (removed from incoming vectors).
  * @param key Key.
  * @return `true` for headers, error slots, epoch, capability and `rn_native(b)_0..31`.
@@ -322,6 +339,10 @@ inline CopyResult copy_original_records(Origin& current, TempVector& source, std
         char key[engine::max_name_bytes + 1]{};
         if (!engine::guarded_copy(&record, source.data + i, sizeof(record)) || !engine::record_key(record, key)) {
             return CopyResult::bad_record;
+        }
+        if (current.public_model != nullptr && public_reserved_key(key)) {
+            ++sanitized;
+            continue;
         }
         if (reserved_key(key)) {
             ++sanitized;
@@ -430,6 +451,22 @@ inline bool prepare_transport(Origin& current, const InputSnapshot (&snapshots)[
 }
 
 /**
+ * @brief Whether the constructor's names are exactly those of the dispatch frame.
+ * @param current Dispatch frame.
+ * @param gui Model name argument.
+ * @param selector Selector argument.
+ * @return `true` for the frame's own model and Apply selector (own or grammar editor).
+ */
+inline bool frame_names(const Origin& current, const MsvcString* gui, const MsvcString* selector) noexcept {
+    if (current.public_model != nullptr) {
+        return current.public_apply != nullptr && name_equals(gui, current.public_model) &&
+               name_equals(selector, current.public_apply);
+    }
+    return current.model < model_count && name_equals(gui, models[current.model].name) &&
+           name_equals(selector, models[current.model].apply);
+}
+
+/**
  * @brief Hook body of the effect constructor: substitutes the record view for our own dispatch only.
  * @param self Effect being constructed.
  * @param gui Model name argument.
@@ -443,8 +480,7 @@ inline void* __fastcall constructor_bridged(void* self, const MsvcString* gui, c
     Origin* current = origin;
     if (!active.load(std::memory_order_acquire) || current == nullptr || gui != current->model_name ||
         selector != current->selector || scope != current->scope || source != current->source ||
-        current->model >= model_count || !name_equals(gui, models[current->model].name) ||
-        !name_equals(selector, models[current->model].apply)) {
+        !frame_names(*current, gui, selector)) {
         return original_ctor(self, gui, selector, scope, source);
     }
     ++current->ctor_calls;

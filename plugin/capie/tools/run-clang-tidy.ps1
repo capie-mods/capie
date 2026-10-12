@@ -14,6 +14,10 @@
 .PARAMETER VisualStudioDir
     Visual Studio folder; empty means "find it with vswhere".
 
+.PARAMETER BuildDirectory
+    Folder with build.ps1's compile_commands.json, relative to the repository root (default
+    plugin\build\capie; use the -OutputDirectory value given to build.ps1).
+
 .OUTPUTS
     System.String. Tool output and a summary line.
 
@@ -22,7 +26,10 @@
 #>
 [CmdletBinding()]
 [OutputType([string])]
-param([string]$VisualStudioDir = '')
+param(
+    [string]$VisualStudioDir = '',
+    [ValidateNotNullOrEmpty()][string]$BuildDirectory = 'plugin\build\capie'
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -63,7 +70,7 @@ if (-not $tidy -or -not $format) {
     exit 1
 }
 $capie = Split-Path -Parent $PSScriptRoot
-$database = Join-Path $capie '..\build\capie'
+$database = Join-Path (Join-Path $capie '..\..') $BuildDirectory
 if (-not (Test-Path -LiteralPath (Join-Path $database 'compile_commands.json'))) { throw 'Run plugin/capie/build.ps1 first (it writes compile_commands.json).' }
 # Formatting: every CAPIE source and the new tests. tests/legacy and tests/compat are byte-for-byte
 # copies of the accepted suites (only include lines changed) and stay in their accepted form.

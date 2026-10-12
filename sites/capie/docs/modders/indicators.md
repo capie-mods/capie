@@ -8,7 +8,7 @@ Players need to see when a mod expects CAPIE and CAPIE is not there. A silent fa
 acceptable. Every mod built on CAPIE therefore ships a small, discreet indicator, and the main
 menu shows one line that says whether CAPIE is loaded.
 
-## "This mod requires CAPIE, but it is missing" <span class="st st-planned">Planned</span>
+## "This mod requires CAPIE, but it is missing" <span class="st st-progress">In the SDK, needs in-game test</span>
 
 Inside a campaign the indicator sits where the feature that needs CAPIE would be. For Rename
 Anything that is the country pencil on the Politics title line: without CAPIE the pencil is
@@ -20,41 +20,43 @@ panel, just a tooltip:
 
 It is never a pop-up and never a blocking dialog.
 
-The snippet uses [signal S1](detection.md#s1-status-localisation-key): a text box whose
+The snippet uses [signal S1](detection.md#s1-localisation-keys): a text box whose
 localisation CAPIE overrides at draw time. No trigger is involved, so it is correct the moment
 the panel opens.
 
-<span class="proposed-tag">Proposed, subject to change</span>
+The SDK ships the snippet as `snippets/capie_v1_indicator.gui.txt`:
 
-```paradox title="interface/my_mod_capie_indicator.gui"
-# PROPOSED. Place it inside your own panel, where the CAPIE feature would be.
-instantTextBoxType = {
-	name = "my_mod_capie_status"
+```paradox title="interface/my_mod.gui (inside your own window)"
+instantTextboxType = {
+	name = "mymod_capie_status"
 	position = { x = 0 y = 0 }
-	font = "Arial12"
-	text = "MY_MOD_CAPIE_LINE"
-	maxWidth = 408
-	maxHeight = 14
+	font = "hoi_16mbs"
+	text = "MYMOD_CAPIE_LINE"
+	maxWidth = 160
+	maxHeight = 18
+	fixedsize = yes
+	pdx_tooltip = "MYMOD_CAPIE_TT"
 }
 ```
 
-```paradox-loc title="localisation/english/my_mod_l_english.yml"
+```paradox-loc title="localisation/english/mymod_l_english.yml"
 l_english:
- MY_MOD_CAPIE_LINE: "$CAPIE_STATUS$"
+ MYMOD_CAPIE_LINE:0 "$CAPIE_STATUS$"
+ MYMOD_CAPIE_TT:0 "My Mod types names through CAPIE. Without it the editors stay read-only."
 ```
 
-When CAPIE is loaded it returns its own text for `CAPIE_STATUS` (for example `CAPIE 1.0`, or
-nothing if the design calls for nothing). Two details still need a test in the game: whether an
-empty or single-space result draws cleanly, and whether a `£` text icon can carry the warning
-glyph.
+With CAPIE 1.1 loaded, `CAPIE_STATUS` reads `CAPIE 1.1` in the text colour; without it the
+SDK's fallback `CAPIE missing` is drawn in orange. Two details still need a test in the game:
+whether an empty or single-space result would draw cleanly (for designs that want nothing shown
+while CAPIE is there), and whether a `£` text icon can carry the warning glyph.
 
-## Main menu: "CAPIE loaded" or "CAPIE missing" <span class="st st-planned">Planned</span>
+## Main menu: "CAPIE loaded" or "CAPIE missing" <span class="st st-planned">Planned</span> { #main-menu }
 
 One line in the bottom-left corner of the main menu, in `Arial12`:
 
 | State | Line |
 |---|---|
-| CAPIE loaded | `CAPIE 1.0 loaded` (version reported by CAPIE) |
+| CAPIE loaded | `CAPIE 1.1 loaded` (version reported by CAPIE) |
 | A mod in the playset needs CAPIE, CAPIE not loaded | `CAPIE missing: a mod in your playset needs it` |
 | No enabled mod uses CAPIE | nothing |
 
@@ -86,7 +88,7 @@ instantTextBoxType = {
 
 ```paradox-loc
 l_english:
- CAPIE_MENU_STATUS: "§OCAPIE missing: a mod in your playset needs it§!"   # CAPIE overrides with "CAPIE 1.0 loaded"
+ CAPIE_MENU_STATUS: "§OCAPIE missing: a mod in your playset needs it§!"   # CAPIE would override with "CAPIE 1.1 loaded"
 ```
 
 Open questions before this can ship: whether main-menu text goes through the lookups CAPIE
