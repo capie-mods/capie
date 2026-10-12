@@ -25,6 +25,24 @@
 #  - misc-non-private-member-variables-in-classes: plain data structs.
 #  - cppcoreguidelines-macro-usage: the one flavor macro (CAPIE_DEBUG_DIAGNOSTICS) is a build switch.
 #  - misc-include-cleaner: headers include what the unity composition roots need.
+#  - portability-avoid-pragma-once: the only targets are MSVC and clang-cl on Windows, both
+#    support `#pragma once`; include guards would add a second naming scheme for nothing.
+#  - performance-no-int-to-ptr: engine addresses are integers by nature (image base + RVA,
+#    object + offset); turning them into pointers is the job of the engine adapter layer and
+#    every resulting pointer is only read through the bounded readers.
+#  - modernize-use-designated-initializers: the signature table, schema tables and log
+#    tables are dense positional rows documented by their struct fields; designated
+#    initializers would triple the width of every row, and check_signature_table.py parses
+#    the positional form to compare it with the accepted sources.
+#  - performance-enum-size: none of these enums is stored in arrays or hot structures;
+#    InitCode must stay 32-bit (it is the DWORD exit code), and narrowing the others only
+#    adds casts at the printf call sites.
+#  - cppcoreguidelines-pro-bounds-avoid-unchecked-container-access: every std::array index
+#    is bounded by its loop or by a modulo of the array size; .at() would add throwing paths
+#    to noexcept hook code.
+#  - cppcoreguidelines-avoid-const-or-ref-data-members: the caption/focus services hold a
+#    reference to their environment adapter, which outlives them (both are process globals);
+#    a pointer would only add a null state that cannot occur.
 #  - bugprone-exception-escape is kept: hook bodies are noexcept and catch(...) internally.
 Checks: >
   -*,
@@ -43,16 +61,22 @@ Checks: >
   -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
   google-build-using-namespace,
   google-explicit-constructor,
   misc-*,
   -misc-non-private-member-variables-in-classes,
   -misc-include-cleaner,
   modernize-*,
+  -modernize-use-designated-initializers,
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-arrays,
   performance-*,
+  -performance-no-int-to-ptr,
+  -performance-enum-size,
   portability-*,
+  -portability-avoid-pragma-once,
   readability-*,
   -readability-identifier-length,
   -readability-implicit-bool-conversion
@@ -60,6 +84,10 @@ WarningsAsErrors: '*'
 HeaderFilterRegex: 'plugin[/\\]capie[/\\]src[/\\].*'
 FormatStyle: file
 CheckOptions:
+  - key: misc-const-correctness.WarnPointersAsPointers
+    # Game functions take non-const pointers (void*, widget*); pointee-const suggestions do
+    # not fit the engine ABI. Pointers themselves (`T* const`) are still checked.
+    value: false
   - key: readability-function-cognitive-complexity.Threshold
     # Guard chains are long linear && sequences; 60 keeps them while catching real nesting.
     value: 60

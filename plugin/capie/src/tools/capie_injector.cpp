@@ -24,6 +24,7 @@
 
 #include <tlhelp32.h>
 
+#include <algorithm>
 #include <cwchar>
 #include <filesystem>
 #include <iostream>
@@ -39,18 +40,24 @@ constexpr DWORD max_path_chars = 32768;
 /// @brief Exit code used when `GetExitCodeThread` fails.
 constexpr DWORD unknown_exit_code = 99;
 
-/// @brief Process exit codes of the injector.
-enum ExitCode : int {
-    exit_ok = 0,
-    exit_usage = 2,
-    exit_open_process = 3,
-    exit_wrong_image = 10,
-    exit_already_loaded = 11,
-    exit_remote_setup = 12,
-    exit_load_resolution = 13,
-    exit_initialize_refused = 14,
-    exit_timeout = 15,
-};
+/// @brief Exit code: success.
+constexpr int exit_ok = 0;
+/// @brief Exit code: bad command line or DLL name.
+constexpr int exit_usage = 2;
+/// @brief Exit code: target process cannot be opened.
+constexpr int exit_open_process = 3;
+/// @brief Exit code: target is not the pinned hoi4.exe.
+constexpr int exit_wrong_image = 10;
+/// @brief Exit code: a module with this file name is already loaded.
+constexpr int exit_already_loaded = 11;
+/// @brief Exit code: remote LoadLibraryW could not be prepared.
+constexpr int exit_remote_setup = 12;
+/// @brief Exit code: loaded module or RNInitialize not found.
+constexpr int exit_load_resolution = 13;
+/// @brief Exit code: RNInitialize refused or failed.
+constexpr int exit_initialize_refused = 14;
+/// @brief Exit code: a remote call timed out (state uncertain).
+constexpr int exit_timeout = 15;
 
 /**
  * @brief Base address of a module in another process.
@@ -60,17 +67,17 @@ enum ExitCode : int {
  */
 uintptr_t module_address(DWORD pid, const wchar_t* name) {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
-    if (snapshot == INVALID_HANDLE_VALUE) return 0;
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
     MODULEENTRY32W entry{};
     entry.dwSize = sizeof(entry);
     uintptr_t answer = 0;
-    if (Module32FirstW(snapshot, &entry) != 0) {
-        do {
-            if (_wcsicmp(entry.szModule, name) == 0) {
-                answer = reinterpret_cast<uintptr_t>(entry.modBaseAddr);
-                break;
-            }
-        } while (Module32NextW(snapshot, &entry) != 0);
+    for (bool more = Module32FirstW(snapshot, &entry) != 0; more; more = Module32NextW(snapshot, &entry) != 0) {
+        if (_wcsicmp(entry.szModule, name) == 0) {
+            answer = reinterpret_cast<uintptr_t>(entry.modBaseAddr);
+            break;
+        }
     }
     CloseHandle(snapshot);
     return answer;
@@ -88,13 +95,17 @@ enum class CallResult { completed, not_started, uncertain };
  * @return Outcome; `uncertain` means the thread may still be running.
  */
 CallResult remote_call(HANDLE process, uintptr_t function, void* argument, DWORD& result) {
-    HANDLE thread =
-        CreateRemoteThread(process, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(function), argument, 0, nullptr);
-    if (thread == nullptr) return CallResult::not_started;
+    HANDLE thread = CreateRemoteThread(process, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(function),
+                                       argument, 0, nullptr);
+    if (thread == nullptr) {
+        return CallResult::not_started;
+    }
     // Do not free a remote argument while the remote thread could still use it.
     const DWORD wait = WaitForSingleObject(thread, remote_wait_ms);
     const bool completed = wait == WAIT_OBJECT_0;
-    if (completed && GetExitCodeThread(thread, &result) == 0) result = unknown_exit_code;
+    if (completed && GetExitCodeThread(thread, &result) == 0) {
+        result = unknown_exit_code;
+    }
     CloseHandle(thread);
     return completed ? CallResult::completed : CallResult::uncertain;
 }
@@ -105,10 +116,7 @@ CallResult remote_call(HANDLE process, uintptr_t function, void* argument, DWORD
  * @return `true` for an exact (case-sensitive, as before) match.
  */
 bool accepted_name(const std::filesystem::path& name) {
-    for (const auto* accepted : accepted_dll_names) {
-        if (name == accepted) return true;
-    }
-    return false;
+    return std::ranges::any_of(accepted_dll_names, [&name](const wchar_t* accepted) { return name == accepted; });
 }
 
 }  // namespace
@@ -119,7 +127,7 @@ bool accepted_name(const std::filesystem::path& name) {
  * @param argv PID and absolute DLL path.
  * @return Exit code (see file comment).
  */
-int wmain(int argc, wchar_t** argv) {
+int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): process entry point
     if (argc != 3) {
         std::wcerr << L"Usage: capie_injector.exe PID ABSOLUTE_DLL_PATH\n";
         return exit_usage;
@@ -130,10 +138,11 @@ int wmain(int argc, wchar_t** argv) {
         std::wcerr << L"Invalid PID\n";
         return exit_usage;
     }
-    const DWORD pid = static_cast<DWORD>(pid_long);
+    const auto pid = static_cast<DWORD>(pid_long);
     const auto dll = std::filesystem::absolute(argv[2]);
     if (!std::filesystem::is_regular_file(dll) || !accepted_name(dll.filename())) {
-        std::wcerr << L"Expected the built " << capie::core::core_dll_name << L" or " << capie::core::editor_dll_name << L"\n";
+        std::wcerr << L"Expected the built " << capie::core::core_dll_name << L" or " << capie::core::editor_dll_name
+                   << L"\n";
         return exit_usage;
     }
     HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION |
@@ -181,7 +190,9 @@ int wmain(int argc, wchar_t** argv) {
     if (remote_owner == 0 || remote_path == nullptr ||
         WriteProcessMemory(process, remote_path, dll_text.c_str(), bytes, &written) == 0 || written != bytes) {
         std::wcerr << L"LoadLibrary remote call failed: " << GetLastError() << L"\n";
-        if (remote_path != nullptr) VirtualFreeEx(process, remote_path, 0, MEM_RELEASE);
+        if (remote_path != nullptr) {
+            VirtualFreeEx(process, remote_path, 0, MEM_RELEASE);
+        }
         CloseHandle(process);
         return exit_remote_setup;
     }
@@ -189,7 +200,9 @@ int wmain(int argc, wchar_t** argv) {
     if (load_status != CallResult::completed) {
         // A timed-out thread might still dereference remote_path. Keep that one allocation alive
         // until game exit; never unload or try a second injection.
-        if (load_status == CallResult::not_started) VirtualFreeEx(process, remote_path, 0, MEM_RELEASE);
+        if (load_status == CallResult::not_started) {
+            VirtualFreeEx(process, remote_path, 0, MEM_RELEASE);
+        }
         std::wcerr << L"Remote load did not complete within 30 seconds. State uncertain; restart game before retry.\n";
         CloseHandle(process);
         return exit_timeout;
@@ -201,7 +214,9 @@ int wmain(int argc, wchar_t** argv) {
     const auto init = local_module != nullptr ? GetProcAddress(local_module, "RNInitialize") : nullptr;
     if (remote_module == 0 || init == nullptr) {
         std::wcerr << L"DLL load/export resolution failed\n";
-        if (local_module != nullptr) FreeLibrary(local_module);
+        if (local_module != nullptr) {
+            FreeLibrary(local_module);
+        }
         CloseHandle(process);
         return exit_load_resolution;
     }

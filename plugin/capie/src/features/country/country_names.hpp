@@ -39,6 +39,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 namespace capie::country {
 
@@ -53,8 +54,9 @@ inline constexpr std::string_view status_key_pl = "RN_PLUGIN_STATUS_PL";
 /// @brief Status text, English (also for the bare key).
 inline constexpr char status_text_en[] = "CAPIE 1.0 loaded";
 /// @brief Status text, Polish, UTF-8 ("załadowane": ł = C5 82).
-inline constexpr char status_text_pl[] = "CAPIE 1.0 za\xC5\x82"
-                                         "adowane";
+inline constexpr char status_text_pl[] =
+    "CAPIE 1.0 za\xC5\x82"
+    "adowane";
 /// @brief The two leading bytes shared by every key CAPIE answers.
 inline constexpr char claim_prefix[2] = {'R', 'N'};
 
@@ -69,15 +71,24 @@ struct KeyHash {
      * @param key Key bytes.
      * @return Hash value.
      */
-    std::size_t operator()(std::string_view key) const noexcept {
-        return std::hash<std::string_view>{}(key);
-    }
+    std::size_t operator()(std::string_view key) const noexcept { return std::hash<std::string_view>{}(key); }
 };
 
-/// @brief Guards `key_cache`; shared for lookups, exclusive for inserts. Never held across a game call.
+/// @brief Guards `key_cache()`; shared for lookups, exclusive for inserts. Never held across a game call.
 inline std::shared_mutex cache_mutex;
-/// @brief RN1 key -> interned answer. Entries are never erased (the game may keep the pointers).
-inline std::unordered_map<std::string, std::unique_ptr<const std::string>, KeyHash, std::equal_to<>> key_cache;
+/// @brief Type of the RN1 key cache.
+using KeyCache = std::unordered_map<std::string, std::unique_ptr<const std::string>, KeyHash, std::equal_to<>>;
+
+/**
+ * @brief RN1 key -> interned answer. Entries are never erased (the game may keep the pointers).
+ * @return The process-wide cache, created on first use.
+ * @note Created inside a hook body (which catches allocation failure), not during DLL load:
+ *       the MSVC unordered_map constructor allocates and could throw at static initialization.
+ */
+inline KeyCache& key_cache() {
+    static KeyCache cache;
+    return cache;
+}
 
 /**
  * @brief Cheapest "could this be ours" test, applied before anything else.
@@ -116,7 +127,7 @@ inline const char* country_value(std::string_view key) {
     }
     {
         const std::shared_lock lock(cache_mutex);
-        if (const auto found = key_cache.find(key); found != key_cache.end()) {
+        if (const auto found = key_cache().find(key); found != key_cache().end()) {
             return found->second->c_str();
         }
     }
@@ -126,9 +137,10 @@ inline const char* country_value(std::string_view key) {
     }
     const auto& value = decoded->adjective_key ? decoded->adjective : decoded->name;
     const std::unique_lock lock(cache_mutex);
-    auto found = key_cache.find(key);
-    if (found == key_cache.end()) {
-        found = key_cache.emplace(std::string(key), std::make_unique<const std::string>(value)).first;
+    auto& cache = key_cache();
+    auto found = cache.find(key);
+    if (found == cache.end()) {
+        found = cache.emplace(std::string(key), std::make_unique<const std::string>(value)).first;
     }
     return found->second->c_str();
 }
@@ -170,7 +182,7 @@ inline Exists original_exists = nullptr;
  */
 inline const char* lookup_n(const char* key, int length) noexcept {
     try {
-        if (key != nullptr && length >= 0 && static_cast<std::size_t>(length) <= max_key_bytes &&
+        if (key != nullptr && length >= 0 && std::cmp_less_equal(length, max_key_bytes) &&
             may_claim(key, static_cast<std::size_t>(length))) {
             if (const auto* result = override_value(std::string_view(key, static_cast<std::size_t>(length)))) {
                 return result;

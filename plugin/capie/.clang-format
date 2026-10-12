@@ -18,15 +18,20 @@ AllowShortBlocksOnASingleLine: Never
 BreakBeforeBraces: Attach
 IncludeBlocks: Regroup
 IncludeCategories:
-  # 1. own headers ("..."), 2. Windows and third-party (<windows.h>, <MinHook.h>, <bcrypt.h>), 3. standard library.
+  # 1. own headers ("..."), 2. <windows.h> (must precede every other Win32 header),
+  # 3. other Win32 and third-party headers (<bcrypt.h>, <tlhelp32.h>, <MinHook.h>), 4. standard library.
   - Regex: '^"'
     Priority: 1
-  - Regex: '^<(windows|bcrypt|tlhelp32|MinHook)\.h>'
+  - Regex: '^<windows\.h>'
     Priority: 2
-  - Regex: '^<'
+  - Regex: '^<(bcrypt|tlhelp32|MinHook)\.h>'
     Priority: 3
+  - Regex: '^<'
+    Priority: 4
 SortIncludes: CaseSensitive
-# windows.h must stay before bcrypt.h/tlhelp32.h: they are not self-contained.
 IncludeIsMainRegex: '$'
 SpacesBeforeTrailingComments: 2
 ReflowComments: true
+# Signature hex strings stay one literal each (grep-able against the RE evidence and parsed by
+# tests/check_signature_table.py); lines may exceed the column limit for them.
+BreakStringLiterals: false

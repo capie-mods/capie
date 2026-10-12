@@ -22,6 +22,9 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#ifndef NOMINMAX
+#define NOMINMAX  // std::numeric_limits<T>::max() must not hit the windows.h macro
+#endif
 #include <windows.h>
 
 #include <array>
@@ -38,7 +41,7 @@ constexpr std::size_t ring_capacity = 256;
 /// @brief Maximum stored bytes per line including the terminator; longer lines are truncated.
 constexpr std::size_t line_capacity = 4096;
 /// @brief Largest 64-bit value; sequence and overflow counters saturate at it.
-constexpr std::uint64_t counter_max = (std::numeric_limits<std::uint64_t>::max)();
+constexpr std::uint64_t counter_max = std::numeric_limits<std::uint64_t>::max();
 
 /// @brief Metadata stamped on every ring entry.
 struct Stamp {
@@ -50,9 +53,9 @@ struct Stamp {
 
 /// @brief One retained line.
 struct Entry {
-    Stamp stamp{};                    ///< Stamp copied at append time.
-    std::size_t size{};               ///< Stored text length.
-    char text[line_capacity]{};       ///< Copied text (not NUL-terminated beyond `size`).
+    Stamp stamp{};               ///< Stamp copied at append time.
+    std::size_t size{};          ///< Stored text length.
+    char text[line_capacity]{};  ///< Copied text (not NUL-terminated beyond `size`).
 };
 
 /// @brief Snapshot of the ring, oldest line first.
@@ -151,6 +154,7 @@ public:
 
 /// @brief Scalar opcodes accepted from the debug controller.
 enum class Operation : std::uintptr_t {
+    none = 0,      ///< No request yet (never accepted from the controller).
     snapshot = 1,  ///< Snapshot every own editor model on its next visible Tick, then dump.
     dump = 2,      ///< Dump the ring.
     pause = 3,     ///< Stop recording into the ring, then dump.
@@ -225,9 +229,7 @@ public:
      * @brief Lock-free test used by the per-frame Tick before `take()`.
      * @return `false` only when `take()` would return an empty `Work`.
      */
-    [[nodiscard]] bool has_work() const noexcept {
-        return busy_.load(std::memory_order_acquire);
-    }
+    [[nodiscard]] bool has_work() const noexcept { return busy_.load(std::memory_order_acquire); }
 
     /**
      * @brief Takes the work due for one ticking window (UI thread).

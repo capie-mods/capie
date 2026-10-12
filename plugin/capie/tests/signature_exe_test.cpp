@@ -13,6 +13,7 @@
 #include "../src/core/game_build.hpp"
 #include "../src/core/signature_table.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
@@ -33,7 +34,7 @@ void check(bool ok, const char* label) {
     ++checks;
     if (!ok) {
         ++failures;
-        std::printf("FAIL %s\n", label);
+        static_cast<void>(std::printf("FAIL %s\n", label));
     }
 }
 
@@ -58,15 +59,18 @@ struct FileMemory {
      * @return `false` outside raw section data.
      */
     bool read(capie::core::uptr address, void* out, std::size_t size) const {
-        if (address < capie::core::game_preferred_base) return false;
-        const auto rva = address - capie::core::game_preferred_base;
-        for (const auto& s : *sections) {
-            if (rva >= s.va && rva + size <= static_cast<capie::core::uptr>(s.va) + s.raw_size) {
-                std::memcpy(out, data->data() + s.raw + (rva - s.va), size);
-                return true;
-            }
+        if (address < capie::core::game_preferred_base) {
+            return false;
         }
-        return false;
+        const auto rva = address - capie::core::game_preferred_base;
+        const auto found = std::ranges::find_if(*sections, [rva, size](const Section& s) {
+            return rva >= s.va && rva + size <= static_cast<capie::core::uptr>(s.va) + s.raw_size;
+        });
+        if (found == sections->end()) {
+            return false;
+        }
+        std::memcpy(out, data->data() + found->raw + (rva - found->va), size);
+        return true;
     }
 };
 
@@ -85,12 +89,15 @@ int check_table(const capie::core::TextSection* text, const capie::core::Signatu
         capie::core::Pattern pattern{};
         const bool decoded = capie::core::decode_pattern(signature.hex, pattern);
         check(decoded, signature.id);
-        if (text == nullptr || !decoded) continue;
+        if (text == nullptr || !decoded) {
+            continue;
+        }
         const bool ok = capie::core::unique_at(*text, signature.rva, pattern);
         check(ok, signature.id);
         ok_count += ok ? 1 : 0;
-        std::printf("  %-8s %-22s %07llX %3zuB %s\n", label, signature.id, static_cast<unsigned long long>(signature.rva),
-                    pattern.size, ok ? "unique-at-rva" : "BAD");
+        static_cast<void>(std::printf("  %-8s %-22s %07llX %3zuB %s\n", label, signature.id,
+                                      static_cast<unsigned long long>(signature.rva), pattern.size,
+                                      ok ? "unique-at-rva" : "BAD"));
     }
     return ok_count;
 }
@@ -104,7 +111,7 @@ int check_table(const capie::core::TextSection* text, const capie::core::Signatu
  * @return 0 when every check passed.
  */
 int main(int argc, char** argv) {
-    std::setvbuf(stdout, nullptr, _IONBF, 0);
+    static_cast<void>(std::setvbuf(stdout, nullptr, _IONBF, 0));
     using namespace capie::core;  // NOLINT(google-build-using-namespace): test brevity
     check(country_signature_count == 3 && editor_signature_count == 11 && caption_signature_count == 25 &&
               focus_signature_count == 8,
@@ -117,8 +124,16 @@ int main(int argc, char** argv) {
         std::ifstream file(argv[1], std::ios::binary);
         if (file) {
             data.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-            auto u32 = [&](std::size_t o) { std::uint32_t v = 0; std::memcpy(&v, data.data() + o, 4); return v; };
-            auto u16 = [&](std::size_t o) { std::uint16_t v = 0; std::memcpy(&v, data.data() + o, 2); return v; };
+            auto u32 = [&](std::size_t o) {
+                std::uint32_t v = 0;
+                std::memcpy(&v, data.data() + o, 4);
+                return v;
+            };
+            auto u16 = [&](std::size_t o) {
+                std::uint16_t v = 0;
+                std::memcpy(&v, data.data() + o, 2);
+                return v;
+            };
             const auto e = u32(0x3C);
             const auto count = u16(e + 6);
             const auto optional = u16(e + 20);
@@ -140,7 +155,7 @@ int main(int argc, char** argv) {
             }
             check(text_view != nullptr, ".text present");
         } else {
-            std::printf("EXE not found: table-only checks\n");
+            static_cast<void>(std::printf("EXE not found: table-only checks\n"));
         }
     }
     int verified = 0;
@@ -169,9 +184,11 @@ int main(int argc, char** argv) {
         const bool rip = verify_rip_pin(memory, game_preferred_base, focus_manager_rip_pin);
         check(rip, focus_manager_rip_pin.id);
         pins += rip ? 1 : 0;
-        std::printf("signature EXE check: %d/47 signatures unique at RVA (3 country, 11 editor, 25 caption, 8 focus); "
-                    "%d/9 pins (6 slot, 2 token, 1 RIP)\n", verified, pins);
+        static_cast<void>(std::printf(
+            "signature EXE check: %d/47 signatures unique at RVA (3 country, 11 editor, 25 caption, 8 focus); "
+            "%d/9 pins (6 slot, 2 token, 1 RIP)\n",
+            verified, pins));
     }
-    std::printf("signature tests: %d checks, %d failures\n", checks, failures);
+    static_cast<void>(std::printf("signature tests: %d checks, %d failures\n", checks, failures));
     return failures != 0 ? 1 : 0;
 }

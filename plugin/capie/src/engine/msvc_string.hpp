@@ -48,8 +48,14 @@ struct MsvcString {
     std::uint64_t size;      ///< Length in bytes, without terminator.
     std::uint64_t capacity;  ///< Allocated capacity; <= 15 means inline.
 };
-static_assert(sizeof(MsvcString) == 0x20 && offsetof(MsvcString, size) == 0x10 &&
-              offsetof(MsvcString, capacity) == 0x18);
+/// @brief Size of an MSVC `std::string` (x64 release CRT).
+inline constexpr std::size_t msvc_string_bytes = 0x20;
+/// @brief Offset of `size` in an MSVC string.
+inline constexpr std::size_t msvc_string_size_offset = 0x10;
+/// @brief Offset of `capacity` in an MSVC string.
+inline constexpr std::size_t msvc_string_capacity_offset = 0x18;
+static_assert(sizeof(MsvcString) == msvc_string_bytes && offsetof(MsvcString, size) == msvc_string_size_offset &&
+              offsetof(MsvcString, capacity) == msvc_string_capacity_offset);
 
 /**
  * @brief Builds a string view-like object over caller bytes for a single game call.
@@ -114,7 +120,8 @@ inline bool name_equals(const void* native, const char* expected) noexcept {
  * @param expected Expected NUL-terminated name.
  * @return `true` when size and bytes match.
  */
-template <class M> bool string_equals(const M& mem, uptr native, const char* expected) noexcept {
+template <class M>
+bool string_equals(const M& mem, uptr native, const char* expected) noexcept {
     struct Raw {
         union {
             unsigned char small[16];

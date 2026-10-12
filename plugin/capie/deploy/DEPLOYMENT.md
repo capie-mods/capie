@@ -5,13 +5,13 @@ in-game test of the CAPIE build, these replacements are needed. SHA-256 values m
 taken from the reviewed build; MSVC output is not bit-reproducible across rebuilds (PE
 timestamps), so the values below are those of the stage-2 build only.
 
-Stage-2 release build (`plugin/build/capie/`):
+Stage-2 release build after the clang-tidy pass (`plugin/build/capie/`):
 
 | File | SHA-256 |
 | --- | --- |
-| capie_core.dll | F2EFC6A52659081CFA46DB53AA7ABA797EB5DD8D32554DD412DB34A8261370C1 |
-| capie_editor.dll | 8FAE87F161CB7EC903C6462EEB81FA0FB0698F833C82F5D39E60E56753C4CD3C |
-| capie_injector.exe | BDC5D0A51B0185114E1A4849DF48D89D6A422C90464D80C185F2C9471E70A7E3 |
+| capie_core.dll | D95B510D71F78AC5F5AB83C2EE38A803E6B5D6B651B7EBB4AD281820EB93BE00 |
+| capie_editor.dll | 742D655E2DC92AF036C09FB6F4E808039040D9F696D8908E6D4FAED02C433CCA |
+| capie_injector.exe | 3370A9855FFCD21480A764257627E9197D57C767C3EFEFDF5601153B47EEE64D |
 
 ## 1. `plugin/launcher/build.ps1` (`$inputs`, four entries)
 

@@ -1,0 +1,18 @@
+# Offline tests: the parent configuration plus four test-specific exceptions.
+#  - readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers: fixture offsets, fake
+#    addresses, iteration counts and expected log counts are the literal expectations of a
+#    test; naming each one would hide what is being asserted.
+#  - bugprone-suspicious-include: tests include the composition roots (capie_core.cpp,
+#    capie_editor.cpp) on purpose, to reach the internal hook bodies and state.
+#  - readability-named-parameter: fake game functions keep the game signature and ignore
+#    the arguments they do not need.
+#  - bugprone-exception-escape: a test main that throws terminates with a non-zero exit
+#    code, which the build script reports as a failure; that is the intended behaviour.
+# tests/legacy and tests/compat are not analysed at all (see tools/run-clang-tidy.ps1).
+InheritParentConfig: true
+Checks: >
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -bugprone-suspicious-include,
+  -readability-named-parameter,
+  -bugprone-exception-escape

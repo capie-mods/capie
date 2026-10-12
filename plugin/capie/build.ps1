@@ -232,8 +232,14 @@ try {
 Write-Host "Built release flavor in $script:OutDir and debug flavor in $script:DebugDir"
 
 # compile_commands.json for clang-tidy (tools/run-clang-tidy.ps1); debug flavor covers every code path.
-$database = foreach ($source in 'dll\capie_core.cpp', 'dll\capie_editor.cpp', 'tools\capie_injector.cpp', 'tools\capie_debug_control.cpp') {
-    $file = Join-Path $script:SourceDir $source
+# Sources plus the new offline tests (tests/legacy and tests/compat are copies of accepted code
+# and are not analysed). The release flavor of capie_editor.cpp is analysed separately by the
+# tidy script with /DCAPIE_DEBUG_DIAGNOSTICS=0.
+$tidyFiles = @('dll\capie_core.cpp', 'dll\capie_editor.cpp', 'tools\capie_injector.cpp', 'tools\capie_debug_control.cpp' |
+        ForEach-Object { Join-Path $script:SourceDir $_ }) +
+    @('memory_test.cpp', 'signature_exe_test.cpp', 'country_cache_test.cpp', 'editor_hotpath_test.cpp', 'bench\hotpath_bench.cpp' |
+        ForEach-Object { Join-Path $script:TestDir $_ })
+$database = foreach ($file in $tidyFiles) {
     [ordered]@{
         directory = $script:OutDir
         file      = $file
@@ -252,6 +258,7 @@ Invoke-Test 'legacy\trace_ring_test.cpp' 'trace_ring_test.exe' | Out-Null
 Invoke-Test 'legacy\caption_refresh_test.cpp' 'caption_refresh_test.exe' @() $exeArgs | Out-Null
 Invoke-Test 'legacy\focus_release_test.cpp' 'focus_release_test.exe' @() $exeArgs | Out-Null
 Invoke-Test 'legacy\country_status_test.cpp' 'country_status_test.exe' @() @() $script:MinHookObjects | Out-Null
+Invoke-Test 'memory_test.cpp' 'memory_test.exe' | Out-Null
 Invoke-Test 'signature_exe_test.cpp' 'signature_exe_test.exe' @() $exeArgs | Out-Null
 Invoke-Test 'country_cache_test.cpp' 'country_cache_test.exe' @() @() $script:MinHookObjects | Out-Null
 # The inherited suite loads capie_editor.dll into its own (non-game) process for the wrong-host check.

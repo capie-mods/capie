@@ -47,7 +47,8 @@ using engine::visible_edit;
 inline bool same_opening(std::size_t model, std::uint64_t epoch, std::uint64_t generation) noexcept {
     AcquireSRWLockShared(&state_lock);
     const auto& current = lifecycle[model];
-    const bool same = current.visible && current.attempted && current.epoch == epoch && current.generation == generation;
+    const bool same =
+        current.visible && current.attempted && current.epoch == epoch && current.generation == generation;
     ReleaseSRWLockShared(&state_lock);
     return same;
 }
@@ -62,8 +63,8 @@ inline bool same_opening(std::size_t model, std::uint64_t epoch, std::uint64_t g
  */
 inline bool same_view(void* window, const View& view, std::uint64_t epoch, View& fresh) noexcept {
     std::uint64_t fresh_epoch = 0;
-    return inspect_window(window, fresh) == ViewResult::visible && fresh.model == view.model && fresh.root == view.root &&
-           read_epoch(fresh.root, view.model, fresh_epoch) && fresh_epoch == epoch;
+    return inspect_window(window, fresh) == ViewResult::visible && fresh.model == view.model &&
+           fresh.root == view.root && read_epoch(fresh.root, view.model, fresh_epoch) && fresh_epoch == epoch;
 }
 
 /**
@@ -75,7 +76,7 @@ inline bool same_view(void* window, const View& view, std::uint64_t epoch, View&
  * @param id Observation id for the log.
  */
 inline void prefill_open(void* window, const View& view, std::uint64_t epoch, std::uint64_t generation,
-                         unsigned long id) {
+                         unsigned long id) noexcept {
     // Prepare all fields before any SetText. A failed/partial attempt is not retried.
     void* edits[max_fields_per_model]{};
     Utf8Snapshot text[max_fields_per_model]{};
@@ -119,9 +120,9 @@ inline void prefill_open(void* window, const View& view, std::uint64_t epoch, st
         const auto native = engine::borrowed_string(text[j].bytes, text[j].size);
         InputSnapshot check{};
         bool focused = false;
-        if (!edit_named(edits[j], fields[field].edit) || !visible_edit(edits[j]) || !read_input_active(edits[j], focused) ||
-            focused || !guarded_set(edits[j], &native) || !snapshot_edit(edits[j], fields[field].edit, check) ||
-            !same_text(check, text[j].decoded)) {
+        if (!edit_named(edits[j], fields[field].edit) || !visible_edit(edits[j]) ||
+            !read_input_active(edits[j], focused) || focused || !guarded_set(edits[j], &native) ||
+            !snapshot_edit(edits[j], fields[field].edit, check) || !same_text(check, text[j].decoded)) {
             diagnostic(id, "prefill-write-readback-failed-reopen-required", field, epoch, generation);
             return;
         }
@@ -134,9 +135,10 @@ inline void prefill_open(void* window, const View& view, std::uint64_t epoch, st
         }
         bool opening = same_opening(view.model, epoch, generation);
         void* fresh_edit = guarded_find(find_edit, fresh_view.root, fields[field].edit);
-        if (!opening || fresh_edit != edits[j] || !edit_named(fresh_edit, fields[field].edit) || !visible_edit(fresh_edit) ||
-            !read_input_active(fresh_edit, focused) || focused || !snapshot_edit(fresh_edit, fields[field].edit, check) ||
-            !same_text(check, text[j].decoded) || !guarded_refresh(fresh_edit)) {
+        if (!opening || fresh_edit != edits[j] || !edit_named(fresh_edit, fields[field].edit) ||
+            !visible_edit(fresh_edit) || !read_input_active(fresh_edit, focused) || focused ||
+            !snapshot_edit(fresh_edit, fields[field].edit, check) || !same_text(check, text[j].decoded) ||
+            !guarded_refresh(fresh_edit)) {
             diagnostic(id, "prefill-render-refresh-failed-reopen-required", field, epoch, generation);
             return;
         }
@@ -166,7 +168,9 @@ inline void prefill_open(void* window, const View& view, std::uint64_t epoch, st
     }
     ReleaseSRWLockExclusive(&state_lock);
     // Caption seed: only after this opening's one-shot prefill fully succeeded (no lock held).
-    if (prefilled) caption::caption_prefill(window, view.model);
+    if (prefilled) {
+        caption::caption_prefill(window, view.model);
+    }
 }
 
 /**
@@ -176,14 +180,17 @@ inline void prefill_open(void* window, const View& view, std::uint64_t epoch, st
  * @param generation Generation.
  * @param id Observation id.
  */
-inline void consume_diagnostic(const View& view, std::uint64_t epoch, std::uint64_t generation, unsigned long id) noexcept {
+inline void consume_diagnostic(const View& view, std::uint64_t epoch, std::uint64_t generation,
+                               unsigned long id) noexcept {
     for (std::size_t i = models[view.model].first; i < models[view.model].first + models[view.model].count; ++i) {
         Pending request{};
         AcquireSRWLockExclusive(&state_lock);
         request = pending[i];
         pending[i] = {};
         ReleaseSRWLockExclusive(&state_lock);
-        if (!request.valid) continue;
+        if (!request.valid) {
+            continue;
+        }
         void* edit = guarded_find(find_edit, view.root, fields[i].edit);
         InputSnapshot current{};
         const auto age = GetTickCount64() - request.created;
@@ -200,10 +207,12 @@ inline void consume_diagnostic(const View& view, std::uint64_t epoch, std::uint6
  * @brief Post-original Tick observer of the editor lifecycle.
  * @param window Ticking window.
  */
-inline void observe_tick(void* window) {
+inline void observe_tick(void* window) noexcept {
     View view{};
     const auto result = inspect_window(window, view);
-    if (result == ViewResult::unrelated) return;
+    if (result == ViewResult::unrelated) {
+        return;
+    }
     if (result != ViewResult::visible) {
         status_once(view.model, result == ViewResult::hidden ? Status::hidden : Status::guard_rejected,
                     result == ViewResult::hidden ? "own-root-hidden" : "own-root-guard-rejected");
@@ -236,7 +245,9 @@ inline void observe_tick(void* window) {
     }
     ReleaseSRWLockExclusive(&state_lock);
     const auto id = next_observation_id();
-    if (attempt) prefill_open(window, view, epoch, generation, id);
+    if (attempt) {
+        prefill_open(window, view, epoch, generation, id);
+    }
     if constexpr (debug_diagnostics) {
         consume_diagnostic(view, epoch, generation, id);  // Enter observations exist only in the debug flavor
     }

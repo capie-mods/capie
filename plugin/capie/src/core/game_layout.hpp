@@ -121,21 +121,22 @@ inline constexpr std::uintptr_t gui_structural = 0x3085170;
 /// @brief Byte offsets inside engine objects.
 namespace off {
 // ---- Scripted window ----------------------------------------------------------------------
-inline constexpr std::uintptr_t window_idler = 0xE0;       ///< Idler pointer (B88BEE).
-inline constexpr std::uintptr_t window_model = 0xE8;       ///< Model pointer (runtime-proven).
-inline constexpr std::uintptr_t window_manager = 0xF0;     ///< Token-map owner; manager identity is OPEN (equality guard only).
-inline constexpr std::uintptr_t window_root = 0xF8;        ///< Root widget (runtime-proven).
-inline constexpr std::uintptr_t window_parent = 0x100;     ///< Parent root (B863F9).
-inline constexpr std::uintptr_t window_parent_sg = 0x108;  ///< Parent scripted GUI (B8649E).
-inline constexpr std::uintptr_t window_context = 0x110;    ///< Embedded context object (runtime-proven).
+inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (B88BEE).
+inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model pointer (runtime-proven).
+/// @brief Token-map owner; manager identity is OPEN (used as an equality guard only).
+inline constexpr std::uintptr_t window_manager = 0xF0;
+inline constexpr std::uintptr_t window_root = 0xF8;          ///< Root widget (runtime-proven).
+inline constexpr std::uintptr_t window_parent = 0x100;       ///< Parent root (B863F9).
+inline constexpr std::uintptr_t window_parent_sg = 0x108;    ///< Parent scripted GUI (B8649E).
+inline constexpr std::uintptr_t window_context = 0x110;      ///< Embedded context object (runtime-proven).
 inline constexpr std::uintptr_t window_parent_seen = 0xB78;  ///< Parent-visible cache byte (diagnostic copy only).
-inline constexpr std::uintptr_t window_desired = 0xB79;    ///< Visible-trigger result byte (runtime-proven).
+inline constexpr std::uintptr_t window_desired = 0xB79;      ///< Visible-trigger result byte (runtime-proven).
 
 // ---- Window context (at window + window_context) -------------------------------------------
-inline constexpr std::uintptr_t context_window = 0x10;  ///< Back-pointer to the window.
-inline constexpr std::uintptr_t context_model = 0x20;   ///< Model pointer.
-inline constexpr std::uintptr_t context_root = 0x28;    ///< Root widget pointer.
-inline constexpr std::uintptr_t context_scope = 0x3C0;  ///< Scope passed to the effect constructor (B867EE).
+inline constexpr std::uintptr_t context_window = 0x10;    ///< Back-pointer to the window.
+inline constexpr std::uintptr_t context_model = 0x20;     ///< Model pointer.
+inline constexpr std::uintptr_t context_root = 0x28;      ///< Root widget pointer.
+inline constexpr std::uintptr_t context_scope = 0x3C0;    ///< Scope passed to the effect constructor (B867EE).
 inline constexpr std::uintptr_t context_records = 0x470;  ///< Temp-variable record vector (B8684D).
 /// @brief Highest context offset used; the context address must not wrap when it is added.
 inline constexpr std::uintptr_t context_extent = context_records;
@@ -148,16 +149,16 @@ inline constexpr std::uintptr_t model_parent_window_len = 0x60;  ///< parent_win
 inline constexpr std::uintptr_t model_parent_sg_len = 0x80;      ///< parent_scripted_gui name length (B86414).
 
 // ---- Root widget ------------------------------------------------------------------------------
-inline constexpr std::uintptr_t root_flags = 0xA5;            ///< Visibility flag byte.
-inline constexpr std::uintptr_t root_instant_list = 0x11E0;   ///< instantTextBox child list.
-inline constexpr std::uintptr_t root_edit_list = 0x1240;      ///< Edit-box child list.
-inline constexpr std::uintptr_t root_third_list = 0x1330;     ///< Third child list checked by the render bridge.
-inline constexpr std::size_t root_readable_span = 0x1360;     ///< Bytes of the root checked readable by the bridge.
+inline constexpr std::uintptr_t root_flags = 0xA5;           ///< Visibility flag byte.
+inline constexpr std::uintptr_t root_instant_list = 0x11E0;  ///< instantTextBox child list.
+inline constexpr std::uintptr_t root_edit_list = 0x1240;     ///< Edit-box child list.
+inline constexpr std::uintptr_t root_third_list = 0x1330;    ///< Third child list checked by the render bridge.
+inline constexpr std::size_t root_readable_span = 0x1360;    ///< Bytes of the root checked readable by the bridge.
 
 // ---- Bounded child list (data, capacity, count) ---------------------------------------------
-inline constexpr std::uintptr_t list_data = 0x0;       ///< Element pointer array.
-inline constexpr std::uintptr_t list_capacity = 0x8;   ///< int32 capacity.
-inline constexpr std::uintptr_t list_count = 0xC;      ///< int32 count.
+inline constexpr std::uintptr_t list_data = 0x0;      ///< Element pointer array.
+inline constexpr std::uintptr_t list_capacity = 0x8;  ///< int32 capacity.
+inline constexpr std::uintptr_t list_count = 0xC;     ///< int32 count.
 
 // ---- CEditBox ----------------------------------------------------------------------------------
 inline constexpr std::uintptr_t edit_definition = 0x60;        ///< Definition object pointer.
@@ -179,27 +180,27 @@ inline constexpr std::uintptr_t manager_receiver = 0x230;  ///< Active text rece
 inline constexpr std::uintptr_t manager_idler = 0x18;      ///< Idler of the token-map owner (equality guard).
 
 // ---- Key event ------------------------------------------------------------------------------------
-inline constexpr std::size_t key_event_words = 8;            ///< DWORDs copied from a key event.
-inline constexpr std::uintptr_t key_wrapper_type = 0x7C;     ///< Wrapper event type DWORD.
+inline constexpr std::size_t key_event_words = 8;         ///< DWORDs copied from a key event.
+inline constexpr std::uintptr_t key_wrapper_type = 0x7C;  ///< Wrapper event type DWORD.
 
 // ---- Scripted window effect command ----------------------------------------------------------------
-inline constexpr std::uintptr_t command_records = 0x28;      ///< Record vector.
+inline constexpr std::uintptr_t command_records = 0x28;         ///< Record vector.
 inline constexpr std::uintptr_t command_scope_capacity = 0x48;  ///< Scope list capacity.
-inline constexpr std::uintptr_t command_scope_count = 0x4C;  ///< Scope list count.
-inline constexpr std::uintptr_t command_selector = 0x58;     ///< Selector name.
-inline constexpr std::uintptr_t command_model = 0x78;        ///< Model name.
-inline constexpr std::uintptr_t effect_records = 0x28;       ///< Record vector of a constructed effect.
+inline constexpr std::uintptr_t command_scope_count = 0x4C;     ///< Scope list count.
+inline constexpr std::uintptr_t command_selector = 0x58;        ///< Selector name.
+inline constexpr std::uintptr_t command_model = 0x78;           ///< Model name.
+inline constexpr std::uintptr_t effect_records = 0x28;          ///< Record vector of a constructed effect.
 
 // ---- Idler, GUI container, politics view -------------------------------------------------------------
-inline constexpr std::uintptr_t idler_gui = 0x6B8;   ///< GUI container (DCCF30 body).
-inline constexpr std::uintptr_t gui_idler = 0x180;   ///< Back-pointer to the idler (B62D55).
-inline constexpr std::uintptr_t gui_views = 0xC8;    ///< View pointer array (B6E225).
+inline constexpr std::uintptr_t idler_gui = 0x6B8;      ///< GUI container (DCCF30 body).
+inline constexpr std::uintptr_t gui_idler = 0x180;      ///< Back-pointer to the idler (B62D55).
+inline constexpr std::uintptr_t gui_views = 0xC8;       ///< View pointer array (B6E225).
 inline constexpr std::uintptr_t gui_structural = 0xB8;  ///< Allocator global copy (diagnostic only).
-inline constexpr std::uintptr_t view_observer = 0x30;  ///< Observer subobject (B6E242).
-inline constexpr std::uintptr_t view_gui = 0x38;       ///< GUI container back-pointer (12371DB).
-inline constexpr std::uintptr_t view_dirty = 0x44;     ///< Dirty byte (observer+0x14).
-inline constexpr std::uintptr_t view_idler = 0x570;    ///< Idler (1237358).
-inline constexpr std::uintptr_t view_root = 0x578;     ///< View root (12374F0).
+inline constexpr std::uintptr_t view_observer = 0x30;   ///< Observer subobject (B6E242).
+inline constexpr std::uintptr_t view_gui = 0x38;        ///< GUI container back-pointer (12371DB).
+inline constexpr std::uintptr_t view_dirty = 0x44;      ///< Dirty byte (observer+0x14).
+inline constexpr std::uintptr_t view_idler = 0x570;     ///< Idler (1237358).
+inline constexpr std::uintptr_t view_root = 0x578;      ///< View root (12374F0).
 
 // ---- Vtable slots ---------------------------------------------------------------------------------------
 inline constexpr std::uintptr_t slot_view_visible = 0x28;      ///< Politics view visibility.
@@ -213,12 +214,12 @@ inline constexpr std::uintptr_t parent_flags = root_flags;     ///< Parent root 
 
 /// @brief Widget/root visibility bits in the flag byte at `root_flags` / `edit_visibility_flags`.
 namespace flag {
-inline constexpr unsigned char hidden_a = 0x04;   ///< Hidden (bit 2).
-inline constexpr unsigned char shown = 0x08;      ///< Shown (bit 3).
-inline constexpr unsigned char hidden_b = 0x10;   ///< Hidden (bit 4).
+inline constexpr unsigned char hidden_a = 0x04;                   ///< Hidden (bit 2).
+inline constexpr unsigned char shown = 0x08;                      ///< Shown (bit 3).
+inline constexpr unsigned char hidden_b = 0x10;                   ///< Hidden (bit 4).
 inline constexpr unsigned char hidden_any = hidden_a | hidden_b;  ///< Any hidden bit.
-inline constexpr unsigned char edit_active = 0x01;    ///< edit+271 bit 0: focused/receiving input.
-inline constexpr unsigned char edit_disabled = 0x02;  ///< edit+271 bit 1: disabled.
+inline constexpr unsigned char edit_active = 0x01;                ///< edit+271 bit 0: focused/receiving input.
+inline constexpr unsigned char edit_disabled = 0x02;              ///< edit+271 bit 1: disabled.
 
 /**
  * @brief Visible test shared by every guard: shown bit set and no hidden bit.
@@ -234,11 +235,11 @@ constexpr bool shown_not_hidden(unsigned char flags) noexcept {
 namespace value {
 inline constexpr std::uint32_t token_politics_tab = 0x3AB2;    ///< `politics_tab` token id.
 inline constexpr std::uint32_t token_player_context = 0x3A70;  ///< `player_context` token id.
-inline constexpr int politics_view_index = 12;  ///< Politics view slot in gui+C8 ((128-C8)/8, B62D69).
-inline constexpr int gui_view_limit = 0x17;     ///< B6E210 ignores index 23 (`cmp edx,17`).
-inline constexpr std::uint32_t key_enter = 0x0D;  ///< Enter in key event word 0.
-inline constexpr std::uint32_t wrapper_type_key = 1;  ///< Wrapper event type of a key event.
-inline constexpr std::size_t inline_utf32_capacity = 3;  ///< Edit text is stored inline up to this capacity.
+inline constexpr int politics_view_index = 12;                 ///< Politics view slot in gui+C8 ((128-C8)/8, B62D69).
+inline constexpr int gui_view_limit = 0x17;                    ///< B6E210 ignores index 23 (`cmp edx,17`).
+inline constexpr std::uint32_t key_enter = 0x0D;               ///< Enter in key event word 0.
+inline constexpr std::uint32_t wrapper_type_key = 1;           ///< Wrapper event type of a key event.
+inline constexpr std::size_t inline_utf32_capacity = 3;        ///< Edit text is stored inline up to this capacity.
 }  // namespace value
 
 }  // namespace capie::core

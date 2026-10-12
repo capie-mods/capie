@@ -134,7 +134,7 @@ inline bool read_epoch(void* root, std::size_t model, std::uint64_t& result) noe
         }
         value = (value * 10) + c - '0';  // NOLINT(readability-magic-numbers): decimal base
     }
-    if (value == 0 || value > static_cast<std::uint64_t>((std::numeric_limits<std::int64_t>::max)() / fixed_point)) {
+    if (value == 0 || value > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max() / fixed_point)) {
         return false;
     }
     result = value;
@@ -143,7 +143,11 @@ inline bool read_epoch(void* root, std::size_t model, std::uint64_t& result) noe
 
 /// @brief Every model name any Tick observer accepts (editor bridge, caption, focus).
 inline constexpr const char* tick_model_names[] = {
-    models[0].name, models[1].name, models[2].name, caption_launcher_models[0], caption_launcher_models[1],
+    models[model_index::leader].name,
+    models[model_index::party].name,
+    models[model_index::country].name,
+    leader_launcher_model,
+    party_launcher_model,
 };
 
 /**
@@ -166,7 +170,8 @@ inline bool window_may_be_own(void* window) noexcept {
     }
     // Same acceptance rule as engine::string_equals, with the header and bytes read once.
     engine::MsvcString header{};
-    if (!engine::guarded_copy(&header, reinterpret_cast<const void*>(model_address + off::model_name), sizeof(header)) ||
+    if (!engine::guarded_copy(&header, reinterpret_cast<const void*>(model_address + off::model_name),
+                              sizeof(header)) ||
         header.size > header.capacity || header.capacity > engine::max_string_capacity ||
         header.size > engine::max_name_bytes) {
         return false;

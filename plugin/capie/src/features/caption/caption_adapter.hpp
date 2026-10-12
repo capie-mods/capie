@@ -45,9 +45,9 @@ inline bool caption_carrier_text(void* root, const char* name, engine::Utf8Snaps
 struct CaptionEnv {
     CaptionMemory memory{};  ///< Memory policy.
     /// @brief Memory policy. @return Reference.
-    const CaptionMemory& mem() const noexcept { return memory; }
+    [[nodiscard]] const CaptionMemory& mem() const noexcept { return memory; }
     /// @brief Image base. @return Base.
-    uptr image() const noexcept { return engine::image_base; }
+    [[nodiscard]] static uptr image() noexcept { return engine::image_base; }
     /**
      * @brief Fresh carrier lookup.
      * @param root Root widget.
@@ -57,9 +57,11 @@ struct CaptionEnv {
      * @param size Receives the length.
      * @return `false` when missing, unreadable or longer than `cap`.
      */
-    bool carrier(uptr root, const char* name, char* out, std::size_t cap, std::size_t& size) noexcept {
+    static bool carrier(uptr root, const char* name, char* out, std::size_t cap, std::size_t& size) noexcept {
         engine::Utf8Snapshot text{};
-        if (!caption_carrier_text(reinterpret_cast<void*>(root), name, text) || text.size > cap) return false;
+        if (!caption_carrier_text(reinterpret_cast<void*>(root), name, text) || text.size > cap) {
+            return false;
+        }
         std::memcpy(out, text.bytes, text.size);
         size = text.size;
         return true;
@@ -70,15 +72,26 @@ struct CaptionEnv {
      * @param index View index.
      * @return `false` on fault.
      */
-    bool call_refresh(uptr gui, int index) noexcept { return engine::caption_call(reinterpret_cast<void*>(gui), index); }
+    static bool call_refresh(uptr gui, int index) noexcept {
+        return engine::caption_call(reinterpret_cast<void*>(gui), index);
+    }
     /// @brief Operational switch. @return `caption_armed`.
-    bool refresh_armed() const noexcept { return caption_armed.load(std::memory_order_acquire); }
+    [[nodiscard]] static bool refresh_armed() noexcept { return caption_armed.load(std::memory_order_acquire); }
     /**
      * @brief Writes a caption line (lifecycle channel).
      * @param line Text.
      */
-    void log(const char* line) noexcept { core::logging::write_log(line); }
+    static void log(const char* line) noexcept { core::logging::write_log(line); }
 };
+
+static_assert(static_cast<unsigned>(Service<CaptionEnv>::Verdict::allowed) == 0 &&
+                  static_cast<unsigned>(Service<CaptionEnv>::Verdict::stale) ==
+                      static_cast<unsigned>(editor::StaleCode::stale) &&
+                  static_cast<unsigned>(Service<CaptionEnv>::Verdict::no_counter) ==
+                      static_cast<unsigned>(editor::StaleCode::no_counter) &&
+                  static_cast<unsigned>(Service<CaptionEnv>::Verdict::cap_reached) ==
+                      static_cast<unsigned>(editor::StaleCode::counter_limit),
+              "a caption verdict is forwarded as the sentinel epoch -code: the numbers must match StaleCode");
 
 /// @brief The adapter instance.
 inline CaptionEnv caption_env{};
@@ -91,7 +104,9 @@ inline Service<CaptionEnv> caption_service(caption_env);
  * @param model Editor model index.
  */
 inline void caption_prefill(void* window, std::size_t model) noexcept {
-    if (!caption_armed.load(std::memory_order_acquire) || model > editor::last_caption_model) return;
+    if (!caption_armed.load(std::memory_order_acquire) || model > editor::last_caption_model) {
+        return;
+    }
     caption_service.on_prefill(reinterpret_cast<uptr>(window));
 }
 
@@ -104,9 +119,13 @@ inline void caption_prefill(void* window, std::size_t model) noexcept {
  *         3 counter at the 999 limit (reopen does not fix 2 or 3).
  */
 inline unsigned caption_dispatch_verdict(void* context, std::size_t model) noexcept {
-    if (!caption_armed.load(std::memory_order_acquire) || model > editor::last_caption_model) return 0;  // disarmed/country: unchanged
+    if (!caption_armed.load(std::memory_order_acquire) || model > editor::last_caption_model) {
+        return 0;  // disarmed/country: unchanged
+    }
     void* window = nullptr;
-    if (!core::member(context, core::off::context_window, window)) return 1;  // fail-closed
+    if (!core::member(context, core::off::context_window, window)) {
+        return 1;  // fail-closed
+    }
     return static_cast<unsigned>(caption_service.on_dispatch_verdict(reinterpret_cast<uptr>(window)));
 }
 
@@ -125,7 +144,9 @@ inline bool caption_dispatch_allowed(void* context, std::size_t model) noexcept 
  * @param window Window.
  */
 inline void caption_tick(void* window) noexcept {
-    if (caption_armed.load(std::memory_order_acquire)) caption_service.on_tick(reinterpret_cast<uptr>(window));
+    if (caption_armed.load(std::memory_order_acquire)) {
+        caption_service.on_tick(reinterpret_cast<uptr>(window));
+    }
 }
 
 /**
@@ -133,7 +154,9 @@ inline void caption_tick(void* window) noexcept {
  * @param window Window.
  */
 inline void caption_bind(void* window) noexcept {
-    if (caption_armed.load(std::memory_order_acquire)) caption_service.on_bind(reinterpret_cast<uptr>(window));
+    if (caption_armed.load(std::memory_order_acquire)) {
+        caption_service.on_bind(reinterpret_cast<uptr>(window));
+    }
 }
 
 }  // namespace capie::caption

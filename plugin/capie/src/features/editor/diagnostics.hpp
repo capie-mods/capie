@@ -110,7 +110,13 @@ inline bool encode_utf8(const std::uint32_t* points, std::size_t count, char* ou
  * @return 1..4.
  */
 constexpr std::size_t utf8_length(std::uint32_t cp) noexcept {
-    return cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+    if (cp < 0x80) {
+        return 1;
+    }
+    if (cp < 0x800) {
+        return 2;
+    }
+    return cp < 0x10000 ? 3 : 4;
 }
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
@@ -129,10 +135,11 @@ inline void diagnostic(unsigned long id, const char* event, std::size_t field, s
                        std::uint64_t generation, const InputSnapshot* text = nullptr, DWORD producer = 0) noexcept {
     char line[inline_line_capacity]{};
     if (text == nullptr || !debug_diagnostics) {
-        std::snprintf(line, sizeof(line),
-                      "RN_INLINE id=%lu event=%s field=%s epoch=%llu generation=%llu thread=%lu; no Apply\r\n", id,
-                      event, fields[field].edit, static_cast<unsigned long long>(epoch),
-                      static_cast<unsigned long long>(generation), GetCurrentThreadId());
+        static_cast<void>(
+            std::snprintf(line, sizeof(line),
+                          "RN_INLINE id=%lu event=%s field=%s epoch=%llu generation=%llu thread=%lu; no Apply\r\n", id,
+                          event, fields[field].edit, static_cast<unsigned long long>(epoch),
+                          static_cast<unsigned long long>(generation), GetCurrentThreadId()));
     } else {
         char encoded[(max_codepoints * escaped_bytes_per_point) + 1]{};
         std::size_t escaped = 0;
@@ -146,22 +153,22 @@ inline void diagnostic(unsigned long id, const char* event, std::size_t field, s
         std::size_t position = 0;
         std::size_t utf8_bytes = 0;
         for (std::size_t i = 0; i < text->size; ++i) {
-            position += static_cast<std::size_t>(std::snprintf(codepoints + position, sizeof(codepoints) - position,
-                                                               "%s%04X", i != 0 ? " " : "",
-                                                               static_cast<unsigned>(text->points[i])));
+            position +=
+                static_cast<std::size_t>(std::snprintf(codepoints + position, sizeof(codepoints) - position, "%s%04X",
+                                                       i != 0 ? " " : "", static_cast<unsigned>(text->points[i])));
             if (valid) {
                 utf8_bytes += utf8_length(text->points[i]);
             }
         }
-        std::snprintf(line, sizeof(line),
-                      "RN_INLINE id=%lu event=%s field=%s epoch=%llu generation=%llu producer_thread=%lu "
-                      "consumer_thread=%lu utf32_len=%zu utf8_valid=%u utf8_bytes=%zu escaped_bytes=%zu text=\"%s\" "
-                      "codepoints=[%s] strict_input_ok=%u input_error=%u error_index=%zu; no Apply\r\n",
-                      id, event, fields[field].edit, static_cast<unsigned long long>(epoch),
-                      static_cast<unsigned long long>(generation), producer, GetCurrentThreadId(), text->size,
-                      valid ? 1U : 0U, utf8_bytes, valid ? escaped : 0, valid ? encoded : "<invalid scalar>",
-                      codepoints, converted.value ? 1U : 0U, static_cast<unsigned>(converted.error),
-                      converted.error_index);
+        static_cast<void>(std::snprintf(
+            line, sizeof(line),
+            "RN_INLINE id=%lu event=%s field=%s epoch=%llu generation=%llu producer_thread=%lu "
+            "consumer_thread=%lu utf32_len=%zu utf8_valid=%u utf8_bytes=%zu escaped_bytes=%zu text=\"%s\" "
+            "codepoints=[%s] strict_input_ok=%u input_error=%u error_index=%zu; no Apply\r\n",
+            id, event, fields[field].edit, static_cast<unsigned long long>(epoch),
+            static_cast<unsigned long long>(generation), producer, GetCurrentThreadId(), text->size, valid ? 1U : 0U,
+            utf8_bytes, valid ? escaped : 0, valid ? encoded : "<invalid scalar>", codepoints,
+            converted.value ? 1U : 0U, static_cast<unsigned>(converted.error), converted.error_index));
     }
     write_log(line);
 }
@@ -173,7 +180,7 @@ inline void diagnostic(unsigned long id, const char* event, std::size_t field, s
  */
 inline void bridge_rejected(unsigned long id, const char* reason) noexcept {
     char line[short_line_capacity]{};
-    std::snprintf(line, sizeof(line), "RN_IEBR id=%lu guard=%s; no retry\r\n", id, reason);
+    static_cast<void>(std::snprintf(line, sizeof(line), "RN_IEBR id=%lu guard=%s; no retry\r\n", id, reason));
     write_log(line);
 }
 
