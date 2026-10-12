@@ -204,6 +204,32 @@ inline void consume_diagnostic(const View& view, std::uint64_t epoch, std::uint6
 }
 
 /**
+ * @brief Records a visible window with a valid epoch (shared by own and grammar editors).
+ * @param state Lifecycle.
+ * @param epoch Epoch read from the carrier.
+ * @param generation Receives the opening's generation.
+ * @param attempt Set to `true` when this call claims the opening's one-shot prefill.
+ * @return `true` when the epoch changed (a new opening started).
+ * @pre `state_lock` held exclusively.
+ */
+inline bool see_visible(Lifecycle& state, std::uint64_t epoch, std::uint64_t& generation, bool& attempt) noexcept {
+    const bool fresh = state.epoch != epoch;
+    if (fresh) {
+        state.attempted = false;
+        state.prefilled = false;
+        state.epoch = epoch;
+        ++state.generation;
+    }
+    state.visible = true;
+    generation = state.generation;
+    if (!state.attempted) {
+        state.attempted = true;
+        attempt = true;
+    }
+    return fresh;
+}
+
+/**
  * @brief Post-original Tick observer of the editor lifecycle.
  * @param window Ticking window.
  */
@@ -229,19 +255,8 @@ inline void observe_tick(void* window) noexcept {
     bool attempt = false;
     std::uint64_t generation = 0;
     AcquireSRWLockExclusive(&state_lock);
-    auto& state = lifecycle[view.model];
-    if (state.epoch != epoch) {
-        state.attempted = false;
-        state.prefilled = false;
-        state.epoch = epoch;
-        ++state.generation;
+    if (see_visible(lifecycle[view.model], epoch, generation, attempt)) {
         clear_pending(view.model);
-    }
-    state.visible = true;
-    generation = state.generation;
-    if (!state.attempted) {
-        state.attempted = true;
-        attempt = true;
     }
     ReleaseSRWLockExclusive(&state_lock);
     const auto id = next_observation_id();

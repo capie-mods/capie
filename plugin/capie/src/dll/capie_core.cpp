@@ -4,7 +4,8 @@
  *
  * This DLL hooks the three localisation lookups of the pinned `hoi4.exe` so that RN1
  * cosmetic tags show the player's country name and adjective, and so that the mod's
- * status line reads "CAPIE 1.0 loaded" / "CAPIE 1.0 załadowane". All logic lives in
+ * status line reads "CAPIE 1.1 loaded" / "CAPIE 1.1 załadowane", and the public keys `CAPIE_STATUS`,
+ * `CAPIE_API`, `CAPIE_BUILD` answer "CAPIE 1.1", "2" and "1.1.0". All logic lives in
  * `features/country/country_names.hpp`; this file only verifies the image and installs
  * the hooks.
  *
@@ -43,7 +44,7 @@ using core::InitCode;
 constexpr DWORD max_path_chars = 32768;
 /// @brief Debugger message after a successful initialization.
 constexpr char initialized_message[] =
-    "CAPIE 1.0: RN1 country localisation hooks initialized (capie_core, pinned 1.19.3.0)\n";
+    "CAPIE 1.1: RN1 country localisation hooks initialized (capie_core, pinned 1.19.3.0)\n";
 
 /**
  * @brief Body of `RNInitialize`.

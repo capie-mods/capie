@@ -4,10 +4,11 @@ description: The three signals a mod can use to tell whether CAPIE is loaded, ho
 
 # Detecting CAPIE
 
-!!! proposed "Proposed, subject to change"
+!!! proposed "Built, not yet tested in the game"
 
-    The signals below generalise mechanisms that work in Rename Anything today
-    (`RN_PLUGIN_STATUS`, `rn_native_cap`). The `CAPIE_*` and `capie_*` names are proposals.
+    The three signals below exist in CAPIE 1.1 and the script SDK. They generalise mechanisms
+    that work in Rename Anything today (`RN_PLUGIN_STATUS`, `rn_native_cap`), but the `CAPIE_*`
+    keys and `capie_*` records have not been seen in the game yet.
 
 A mod asks "is CAPIE here?" for three different reasons: to draw an indicator, to decide whether
 an effect may run, and to choose which editor to show. One signal cannot answer all three,
@@ -16,86 +17,82 @@ most likely source of bugs.
 
 | Signal | Always fresh? | Where you can read it | Use it for |
 |---|---|---|---|
-| S1. Status localisation key `CAPIE_STATUS` | Yes, evaluated whenever the text is drawn | Any text: GUI, tooltips, possibly the main menu | Indicators |
+| S1. Localisation keys `CAPIE_STATUS`, `CAPIE_API`, `CAPIE_BUILD` | Yes, evaluated whenever the text is drawn | Any text: GUI, tooltips, possibly the main menu | Indicators |
 | S2. Command record `capie_cap` | Yes, per command; a save cannot fake it | Only inside the effect of a command CAPIE annotated | The only hard check before an effect that needs CAPIE |
-| S3. Hint flag `capie_v1_seen` on the country | No: stale after loading a save without CAPIE, until the next command | `visible` and `enabled` triggers, AI, other mods | Cosmetic choices only, such as which editor to show |
+| S3. Flag `capie_v1_seen` and variable `capie_v1_ver` on the country | No: stale after loading a save without CAPIE, until the next command | `visible` and `enabled` triggers, AI, other mods | Cosmetic choices only, such as which editor to show |
 
-## S1: status localisation key
+## S1: localisation keys
 
-CAPIE overrides a few reserved localisation keys when the game draws them. Your localisation
-file holds the fallback text, which is what players see when CAPIE is missing:
+`capie_core.dll` answers three keys whenever the game draws them. The SDK's localisation holds
+the fallbacks, which players see when CAPIE is missing:
 
-<span class="proposed-tag">Proposed, subject to change</span>
+| Key | With CAPIE 1.1 | Without CAPIE |
+|---|---|---|
+| `CAPIE_STATUS` | `CAPIE 1.1` | `CAPIE missing` (orange) |
+| `CAPIE_API` | `2` | `0` |
+| `CAPIE_BUILD` | `1.1.0` | `-` |
 
-```paradox-loc title="localisation/english/capie_sdk_v1_l_english.yml (UTF-8 with BOM)"
+Nest them in your own keys:
+
+```paradox-loc title="localisation/english/my_mod_l_english.yml"
 l_english:
- CAPIE_STATUS: "§OCAPIE missing§!"            # fallback; CAPIE replaces it when loaded
- CAPIE_STATUS_TT: "Rename Anything needs CAPIE, which is not loaded. Start the game with the CAPIE launcher."
- MYMOD_CAPIE_LINE: "$CAPIE_STATUS$"           # nest it in your own keys
+ MY_MOD_CAPIE_LINE:0 "$CAPIE_STATUS$"
 ```
 
-The mechanism works today: Rename Anything's `RN_PLUGIN_STATUS` key reads
-`DLL: INACTIVE (RN1)` from the mod and `DLL: ACTIVE (RN1)` once CAPIE overrides it, and nesting
-through `$...$` works. Because the text is resolved when it is drawn, S1 is correct right after
-loading a save without CAPIE.
+The mechanism works today: Rename Anything's `RN_PLUGIN_STATUS` key reads "CAPIE 1.0 loaded"
+with CAPIE and the mod's fallback without it, and nesting through `$...$` works. Because the
+text is resolved when it is drawn, S1 is right immediately after loading a save without CAPIE.
 
 S1 is text. A trigger cannot read it, so it cannot decide what a script does.
 
 ## S2: the command record
 
-When CAPIE is loaded, it adds `capie_cap` (the API level) to every command it annotates and
-strips any copy a script set before. Inside the effect of that command:
-
-<span class="proposed-tag">Proposed, subject to change</span>
+When CAPIE is loaded, it adds `capie_cap` (the API level) to the Apply command of every grammar
+editor and removes any copy that came from elsewhere. `capie_v1_begin` reads it for you:
 
 ```paradox
-# PROPOSED. Valid only inside the effect of an annotated command.
-if = {
-	limit = { check_variable = { temp_var:capie_cap > 0 } }
-	# CAPIE is loaded on the machine that sent this command
-}
-else = {
-	set_temp_variable = { capie_err = 10 }   # CAPIE missing; change nothing
-}
+set_temp_variable = { capie_open_epoch = my_mod_epoch }
+capie_v1_begin = yes
+# capie_err = 10: CAPIE missing; 11: older than capie_min_api; 0: go on
 ```
 
-Rename Anything uses this today with the private record `rn_native_cap` and error code
+Rename Anything uses the same pattern with its private record `rn_native_cap` and error code
 `rn_pair_err = 10`.
 
-S2 tells you CAPIE is present. It is not permission to act; check
-[authority](../permissions.md) separately.
+S2 tells you CAPIE is present on the machine that sent the command. It is not permission to act;
+check [authority](../permissions.md) separately.
 
 ## S3: the hint flag
 
-GUI triggers run outside any command, so they cannot see S2. For layout decisions the SDK keeps a
-hint on the country:
+GUI triggers run outside any command, so they cannot see S2. `capie_v1_begin` therefore notes
+the result on the acting country, through `capie_v1_note_presence`:
 
-<span class="proposed-tag">Proposed, subject to change</span>
-
-```paradox
-# PROPOSED. Every annotated command runs this first.
+```paradox title="capie_sdk_v1_effects.txt (generated)"
 capie_v1_note_presence = {
 	if = {
 		limit = { check_variable = { temp_var:capie_cap > 0 } }
-		set_country_flag = capie_v1_seen
-		set_variable = { capie_v1_api = temp_var:capie_cap }
+		ROOT = {
+			set_variable = { capie_v1_ver = temp_var:capie_ver }
+			set_country_flag = capie_v1_seen
+		}
 	}
 	else = {
-		clr_country_flag = capie_v1_seen
+		ROOT = { clear_variable = capie_v1_ver clr_country_flag = capie_v1_seen }
 	}
+	capie_v1_mp_recompute = yes
 }
 ```
 
 The flag is saved with the game, so it can be wrong right after loading a save on a machine
 without CAPIE. That is acceptable only because a wrong hint can at worst show an editor whose
-Apply then fails cleanly with "CAPIE missing. Nothing was changed." It must never lead to a wrong
-rename.
+Apply then fails cleanly with "CAPIE is not loaded. Nothing was changed." It must never lead to a
+wrong rename. The same values feed the [multiplayer check](../multiplayer.md#version-check).
 
 ## Recipe
 
-1. Every annotated command (Open and Apply of your editor) runs `capie_v1_note_presence` first.
+1. Every Apply effect starts with `capie_v1_begin`.
 2. GUI `visible` triggers use S3 only to choose a layout.
-3. Every effect that needs CAPIE checks S2 and reports `capie_err = 10` otherwise.
+3. Every effect that needs CAPIE stops when `capie_err` is not 0.
 4. Indicators use S1.
 
 Whether `on_startup` also fires when a save is loaded is not known. The recipe does not rely on

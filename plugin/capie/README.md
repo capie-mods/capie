@@ -12,6 +12,33 @@ The default development loading path is the opt-in `version.dll` proxy. Build wi
 remains available. The proxy uses `current/runtime/` and requires the exact `-capie`
 argument or the explicit bootstrap config marker; it creates no injection helper process.
 
+## Public contract, API level 2 (CAPIE 1.1)
+
+`CONTRACT.md` is the versioned contract for other mods; the script side is
+`sdk/capie-script-sdk/`. What 1.1 adds to the binaries, with no new hook and no new pin:
+
+- `capie_editor.dll`: text editors of any mod that names its scripted GUI
+  `capie_v1_ed__<mod>__<editor>` (`features/editor/public_names.hpp` parser,
+  `public_schema.hpp` records and limits, `public_editor.hpp` registry, opening, prefill,
+  Apply transport and sentinels). Up to 4 fields, 32 editors per session, 8 per mod. Records
+  `capie_cap`, `capie_ver`, `capie_epoch`, `capie_nf`, `capie_f<n>_*`; every incoming
+  `capie_*` record is removed first. Extended 264-code alphabet for these editors only.
+- `capie_core.dll`: `CAPIE_STATUS` ("CAPIE 1.1"), `CAPIE_API` ("2"), `CAPIE_BUILD` ("1.1.0");
+  `RN_PLUGIN_STATUS*` now reads "CAPIE 1.1 loaded".
+- Rename Anything's editors keep their frozen legacy names and records (`CONTRACT.md` 11).
+
+Build 1.1 into its own folder while `plugin/build/capie/` holds the accepted 1.0 binaries that
+the launcher, the proxy and `deploy/DEPLOYMENT.md` pin by hash:
+
+```powershell
+.\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook' -OutputDirectory 'plugin\build\capie-v11'
+uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1 -BuildDirectory plugin\build\capie-v11
+```
+
+New offline tests: `public_names_test.cpp` (grammar, alphabet), `public_keys_test.cpp`
+(`CAPIE_*` keys), `public_editor_test.cpp` (grammar editors on the real hook bodies, both
+flavors), `check_alphabet.py` (native table equals the SDK table); 14 more mutants.
+
 ## Binaries (output `plugin/build/capie/`, debug flavor in `debug/`)
 
 | File | Role | Replaces |
@@ -54,7 +81,8 @@ src/engine/    adapters: how CAPIE talks to the game
 src/features/  behaviour
   country/   protocol (RN1 decoding), country_names (hooks, status, key cache), capability
   editor/    schema (all names), window_view (+ per-frame pre-filter), lifecycle, prefill,
-             transport (Apply), input_codes, diagnostics, keylog + debug_observer (debug only)
+             transport (Apply), input_codes, diagnostics, keylog + debug_observer (debug only),
+             public_names / public_schema / public_editor (grammar editors, API level 2)
   caption/   caption_refresh (core, templated over memory), caption_adapter (wiring)
   focus/     focus_release (core), focus_adapter (wiring)
 src/dll/       composition roots: capie_core.cpp, capie_editor.cpp (hook bodies, init, exports)
@@ -87,7 +115,7 @@ is a process singleton; the accepted tests address it directly), virtual interfa
 
 ```powershell
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook'   # both flavors, all offline tests, benchmarks
-.\plugin\capie\mutation_check.ps1                           # 79 mutants (bridge ones in debug and release)
+.\plugin\capie\mutation_check.ps1                           # 93 mutants (bridge and public-editor ones in debug and release)
 uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tidy + clang-format (uv dev group)
 ```
 

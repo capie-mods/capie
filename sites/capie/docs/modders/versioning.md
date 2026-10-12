@@ -4,18 +4,21 @@ description: CAPIE API levels, release versions, build indices, deprecation, and
 
 # Versions and fallback
 
-!!! proposed "Proposed, subject to change"
+!!! proposed "Built, not yet released"
 
-    This versioning scheme is accepted as a direction. No CAPIE version has been released, so no
-    number on this page is real yet.
+    CAPIE 1.1 (API level 2) carries these numbers in its binaries and in the script SDK. It has
+    not been released or tested in the game yet.
 
 ## Three numbers
 
 | Number | Example | What it identifies | Who compares it |
 |---|---|---|---|
-| API level | `1` | What the script contract offers | Your mod, through `capie_cap >= N` |
-| Release version | `1.0.3` (SemVer) | One set of binaries | Players, the installer, release notes |
-| Version number (`capie_ver`) | `103` | One release, as a small integer that fits a script variable | The multiplayer check |
+| API level | `2` (`CAPIE_API`) | What the script contract offers | Your mod, through `capie_min_api` |
+| Release version | `1.1.0` (SemVer, `CAPIE_BUILD`) | One set of binaries | Players, the installer, release notes |
+| Build number (`capie_ver`) | `10100` (major × 10000 + minor × 100 + patch) | One release, as an integer that fits a script variable | The multiplayer check |
+
+API level 1 was CAPIE 1.0, which served only Rename Anything's private names. Level 2 adds the
+editor grammar, the `capie_*` records, the wider alphabet and the `CAPIE_*` keys.
 
 The API level only goes up, and only when the script contract gains something. A release that
 adds support for a new game build without changing the contract keeps the same API level, so mods
@@ -25,17 +28,16 @@ need no update.
 
 Your mod states the lowest API level it needs and checks it inside the effect:
 
-<span class="proposed-tag">Proposed, subject to change</span>
-
 ```paradox
-set_temp_variable = { capie_min_api = 1 }
+set_temp_variable = { capie_min_api = 2 }
+set_temp_variable = { capie_open_epoch = my_mod_epoch }
+capie_v1_begin = yes
+# capie_err = 10: CAPIE missing; 11: CAPIE older than capie_min_api
 if = {
-	limit = { capie_v1_cmd_api_at_least = yes }
+	limit = { capie_v1_ok = yes }
 	# use the feature
 }
-else = {
-	set_temp_variable = { capie_err = 10 }   # missing or too old: show the status line
-}
+capie_v1_report = yes                        # show the status line either way
 ```
 
 Rename Anything is the exception: it ships with CAPIE and pins a CAPIE release.
@@ -55,9 +57,10 @@ same time.
 
 CAPIE writes use of deprecated names to its log. It does not show them to players.
 
-Rename Anything's private protocol stays frozen: `rn_native_cap`, `RN_PLUGIN_STATUS` and the
-`RN1|` cosmetic tag prefix. During the binary rename CAPIE would emit both `rn_native_cap` and
-`capie_cap`. `RN1|` stays because existing saves contain it.
+Rename Anything's private protocol stays frozen in 1.1: `rn_native_cap`, `RN_PLUGIN_STATUS`, its
+editor names and the 84-code alphabet. CAPIE recognises it exactly as before. The `RN1|` cosmetic
+tag prefix is also the public country-name protocol of the SDK and stays because existing saves
+contain it.
 
 ## Graceful degradation
 
@@ -77,5 +80,5 @@ What stays in the save without CAPIE:
 | Leader, party, character | Vanilla setter text | Unchanged; CAPIE was needed only to type it |
 | Country name and adjective | `cosmetic_tag = "RN1\|...\|"` | Expected to show the original name. Seen with the mod enabled and CAPIE not loaded; not yet tested with the mod disabled |
 
-A mod that uses cosmetic tags itself would overwrite a custom country name. The SDK plans a
-trigger, `capie_v1_has_custom_country_name`, so that focus trees can check first.
+A mod that uses cosmetic tags itself would overwrite a custom country name, and the other way
+round. A trigger that lets focus trees check for a custom name first is not part of API level 2.

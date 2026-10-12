@@ -5,12 +5,15 @@
  * This DLL turns the mod's scripted inline editors into real text fields. It hooks the
  * scripted-window Tick, Bind and Dispatch functions and the effect constructor of the
  * pinned `hoi4.exe`, and wires the features in a fixed order:
- *   Tick (after the original): editor lifecycle and one-shot prefill -> [debug: key tick,
- *        debug requests] -> caption refresh -> focus release;
- *   Bind (after the original): caption reset -> focus reset -> lifecycle reset;
+ *   Tick (after the original): editor lifecycle and one-shot prefill -> grammar editors of
+ *        other mods (`public_editor.hpp`) -> [debug: key tick, debug requests] -> caption
+ *        refresh -> focus release;
+ *   Bind (after the original): caption reset -> focus reset -> grammar editor reset ->
+ *        lifecycle reset;
  *   Dispatch (before the original, own Apply only): [debug: pre-dispatch log] -> caption
  *        gate -> field capture -> transport build -> re-check -> one original dispatch
- *        (or a payload-free sentinel / a logged drop);
+ *        (or a payload-free sentinel / a logged drop); a grammar Apply goes through the
+ *        same steps in `public_dispatch` (no caption gate, `capie_*` records);
  *   effect constructor: substitutes the record vector for our own dispatch frame only.
  * The debug flavor additionally hooks the edit-box key handler and wrapper (key log) and
  * Execute (command observation), exactly as the accepted rev7 bridge did; the release
@@ -43,6 +46,7 @@
 #include "../features/editor/keylog.hpp"
 #include "../features/editor/lifecycle.hpp"
 #include "../features/editor/prefill.hpp"
+#include "../features/editor/public_editor.hpp"
 #include "../features/editor/transport.hpp"
 #include "../features/editor/window_view.hpp"
 #include "../features/focus/focus_adapter.hpp"
@@ -104,6 +108,7 @@ void __fastcall tick_observed(void* window, char force) noexcept {
     const bool own = window_may_be_own(window);
     if (own) {
         observe_tick(window);
+        public_observe_tick(window);
         if constexpr (debug_diagnostics) {
             observe_key_tick(window);
         }
@@ -132,6 +137,7 @@ void __fastcall bind_observed(void* window) noexcept {
     }
     caption_bind(window);
     focus_bind(window);
+    public_bind(window);
     View view{};
     const auto result = inspect_window(window, view);
     if (result == ViewResult::unrelated) {
@@ -262,8 +268,15 @@ void __fastcall dispatch_observed(void* context, void* opaque_selector) noexcept
     }
     const MsvcString* model_name = nullptr;
     std::size_t model = model_count;
-    if (!active.load(std::memory_order_acquire) || !own_commit(context, selector, model_name, model)) {
+    if (!active.load(std::memory_order_acquire)) {
         original_dispatch(context, opaque_selector);
+        return;
+    }
+    if (!own_commit(context, selector, model_name, model)) {
+        // Grammar editors of other mods (public contract); anything else is forwarded unchanged.
+        if (!public_dispatch(context, opaque_selector)) {
+            original_dispatch(context, opaque_selector);
+        }
         return;
     }
     const unsigned caption_code = caption_dispatch_verdict(context, model);

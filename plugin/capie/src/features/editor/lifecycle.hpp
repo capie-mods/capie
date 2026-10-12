@@ -38,6 +38,8 @@ struct Pending {
 };
 
 /// @brief Lifecycle of one editor model.
+/// @note Field order is kept: the accepted suites in tests/legacy initialize it positionally.
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding): 8 bytes per editor, order pinned by tests
 struct Lifecycle {
     bool visible{};              ///< Window seen visible in the current generation.
     bool attempted{};            ///< One-shot prefill attempted in this opening.
@@ -76,14 +78,13 @@ inline void clear_pending(std::size_t model) noexcept {
 }
 
 /**
- * @brief Ends the current opening because the window is hidden or invalid.
- * @param model Model index.
+ * @brief Ends the current opening of one lifecycle (shared by own and grammar editors).
+ * @param state Lifecycle.
  * @param hidden `true` for a valid hidden window (re-prefill on the next show); `false`
  *        for an invalid context or epoch (no re-prefill in the same epoch).
+ * @pre `state_lock` held exclusively.
  */
-inline void reset_model(std::size_t model, bool hidden) noexcept {
-    AcquireSRWLockExclusive(&state_lock);
-    auto& state = lifecycle[model];
+inline void end_opening(Lifecycle& state, bool hidden) noexcept {
     if (hidden) {
         // Panel close replaces the editor widget on reopen; re-prefill on next show so Apply
         // is not silently dropped (RN3 PID3044). The draft is intentionally dropped.
@@ -101,8 +102,35 @@ inline void reset_model(std::size_t model, bool hidden) noexcept {
         state.prefilled = false;
         ++state.generation;
     }
+}
+
+/**
+ * @brief Ends the current opening because the window is hidden or invalid.
+ * @param model Model index.
+ * @param hidden `true` for a valid hidden window (re-prefill on the next show); `false`
+ *        for an invalid context or epoch (no re-prefill in the same epoch).
+ */
+inline void reset_model(std::size_t model, bool hidden) noexcept {
+    AcquireSRWLockExclusive(&state_lock);
+    end_opening(lifecycle[model], hidden);
     clear_pending(model);
     ReleaseSRWLockExclusive(&state_lock);
+}
+
+/**
+ * @brief Full reset of one lifecycle to "not seen" (shared by own and grammar editors).
+ * @param state Lifecycle.
+ * @return The new generation.
+ * @pre `state_lock` held exclusively.
+ */
+inline std::uint64_t rebind_opening(Lifecycle& state) noexcept {
+    state.visible = false;
+    state.attempted = false;
+    state.prefilled = false;
+    state.epoch = 0;
+    ++state.generation;
+    state.last_status = 0;
+    return state.generation;
 }
 
 /**
@@ -112,17 +140,31 @@ inline void reset_model(std::size_t model, bool hidden) noexcept {
  */
 inline std::uint64_t reset_bound_model(std::size_t model) noexcept {
     AcquireSRWLockExclusive(&state_lock);
-    auto& state = lifecycle[model];
-    state.visible = false;
-    state.attempted = false;
-    state.prefilled = false;
-    state.epoch = 0;
-    ++state.generation;
-    state.last_status = 0;
+    const auto generation = rebind_opening(lifecycle[model]);
     clear_pending(model);
-    const auto generation = state.generation;
     ReleaseSRWLockExclusive(&state_lock);
     return generation;
+}
+
+/**
+ * @brief Whether one lifecycle is ready for Apply in `epoch` (and optionally `generation`).
+ * @param state Lifecycle (own or grammar editor).
+ * @param epoch Epoch read at the start of the Apply.
+ * @param generation In: expected generation (when `compare_generation`); out: current generation otherwise.
+ * @param compare_generation Require the generation to be unchanged.
+ * @return `true` when visible, attempted, prefilled and in the same epoch (and generation).
+ * @note Takes `state_lock` shared.
+ */
+inline bool opening_ready(const Lifecycle& state, std::uint64_t epoch, std::uint64_t& generation,
+                          bool compare_generation) noexcept {
+    AcquireSRWLockShared(&state_lock);
+    const bool ready = state.visible && state.attempted && state.prefilled && state.epoch == epoch &&
+                       (!compare_generation || state.generation == generation);
+    if (ready && !compare_generation) {
+        generation = state.generation;
+    }
+    ReleaseSRWLockShared(&state_lock);
+    return ready;
 }
 
 /**
@@ -138,15 +180,7 @@ inline bool ready_model(std::size_t model, std::uint64_t epoch, std::uint64_t& g
     if (model >= model_count) {
         return false;
     }
-    AcquireSRWLockShared(&state_lock);
-    const auto& state = lifecycle[model];
-    const bool ready = state.visible && state.attempted && state.prefilled && state.epoch == epoch &&
-                       (!compare_generation || state.generation == generation);
-    if (ready && !compare_generation) {
-        generation = state.generation;
-    }
-    ReleaseSRWLockShared(&state_lock);
-    return ready;
+    return opening_ready(lifecycle[model], epoch, generation, compare_generation);
 }
 
 /**

@@ -25,6 +25,8 @@ nav = [
   { "For modders" = [
     "modders/index.md",
     { "Script contract" = "modders/contract.md" },
+    { "Building an editor" = "modders/editors.md" },
+    { "Text tools" = "modders/text-tools.md" },
     { "Detecting CAPIE" = "modders/detection.md" },
     { "Indicators" = "modders/indicators.md" },
     { "Versions and fallback" = "modders/versioning.md" },
@@ -33,6 +35,7 @@ nav = [
   { "Permissions" = "permissions.md" },
   { "Game updates" = "game-updates.md" },
   { "Architecture" = "architecture.md" },
+  { "Alternatives" = "alternatives.md" },
   { "Status" = "status.md" },
   { "FAQ" = "faq.md" },
 ]
