@@ -39,3 +39,13 @@ MP: nadal niezweryfikowane; test z drugim graczem po zakończeniu SP.
    modami. Launcher wstrzykuje DLL tylko do `hoi4.exe` będącego potomkiem procesu,
    który sam uruchomił. Zgodność z innymi modami nadpisującymi okno polityki
    (`countrypoliticsview.gui`) lub te same scripted GUI wymaga osobnej oceny.
+10. **Główna metoda ładowania CAPIE: proxy DLL w folderze gry (2026-10-12, zgoda użytkownika).**
+    Mały loader pod nazwą biblioteki systemowej ładowanej przez `hoi4.exe` z folderu gry
+    (kandydat `version.dll`; wybór nazwy po analizie importów i konfliktów) przekazuje wszystkie
+    eksporty do oryginału z System32 i aktywuje CAPIE wyłącznie świadomie (flaga `-capie` w
+    opcjach uruchamiania Steam lub — jeśli Paradox Launcher jej nie przekazuje — plik
+    konfiguracyjny ustawiany przez bootstrap), po weryfikacji hashy gry i paczki CAPIE z
+    `%LOCALAPPDATA%\RenameAnything\current\`. Nieznana wersja gry → nic nie ładuje. Odinstalowanie:
+    usunięcie pliku (bootstrap). Launcher z trybem wrappera pozostaje alternatywą dla graczy bez
+    plików w folderze gry. Użytkownik zgodził się na umieszczenie pliku testowego w folderze gry
+    na czas testu (z usunięciem i weryfikacją po teście). Cel: najmniej pracy dla gracza.
