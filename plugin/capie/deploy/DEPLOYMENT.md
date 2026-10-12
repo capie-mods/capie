@@ -1,5 +1,21 @@
 # Switching the launcher and bootstrap to CAPIE binaries (prepared, not applied)
 
+## Proxy package layout
+
+`plugin/capie/build_proxy.ps1` builds the opt-in proxy from the reviewed core/editor hashes
+below. For a future signed release, place its `plugin/build/capie-proxy/version.dll` at
+`proxy/version.dll` inside the package. Keep `capie_core.dll` and `capie_editor.dll` under
+`runtime/`; the proxy resolves them from the installed `current/runtime/`. Include the
+matching launcher/injector and MinHook license for the launcher alternative.
+
+The signed release manifest must list the proxy and every runtime file with the actual
+reviewed hashes. Rebuild the proxy whenever either payload hash changes, since its trust
+pins are compiled in. The bootstrap's unpublished release configuration remains a
+placeholder; this change does not publish or silently repin a release.
+
+Development startup acceptance and cleanup evidence:
+[proxy-loader.md](../../../docs/proxy-loader.md).
+
 Stage 2 does not touch the accepted manifests. After independent review and a full
 in-game test of the CAPIE build, these replacements are needed. SHA-256 values must be
 taken from the reviewed build; MSVC output is not bit-reproducible across rebuilds (PE

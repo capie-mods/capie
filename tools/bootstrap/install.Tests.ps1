@@ -253,6 +253,8 @@ function New-TestPackage {
         Kind of damage to apply.
     .PARAMETER Version
         Manifest version.
+    .PARAMETER WithProxy
+        Include a proxy asset with distinct bytes for each release.
     .OUTPUTS
         System.Collections.Hashtable (Zip, Manifest)
     .EXAMPLE
@@ -263,7 +265,8 @@ function New-TestPackage {
     param(
         [Parameter(Mandatory, Position = 0)][string]$Dir,
         [Parameter(Position = 1)][ValidateSet('none', 'filehash', 'extra', 'zipslip', 'missing')][string]$Tamper = 'none',
-        [string]$Version = '0.1.0'
+        [string]$Version = '0.1.0',
+        [switch]$WithProxy
     )
     $src = Join-Path $Dir 'pkgsrc'
     New-Item -ItemType Directory -Force -Path (Join-Path $src 'runtime') | Out-Null
@@ -272,6 +275,7 @@ function New-TestPackage {
         'LICENSE.MinHook.txt'                 = 'license'
         'runtime/rename_anything_country.dll' = 'dll-bytes'
     }
+    if ($WithProxy) { $files['proxy/version.dll'] = 'proxy-' + $Version }
     $manifest = [ordered]@{ Version = $Version; ZipName = "RA-$Version-$Tamper.zip"; ZipSha256 = ''; Files = [ordered]@{}; SupportedGameSha256 = @() }
     foreach ($k in $files.Keys) {
         $bytes = $utf8.GetBytes($files[$k])
@@ -330,6 +334,7 @@ function Reset-Env {
     $script:RaQuiet = $true
     $script:RaLang = 'en'
     $script:RaAfterWriteHook = $null
+    $script:RaBeforeOwnedRemove = $null
     $script:RaGetSteamProcess = { @() }
     $desk = Join-Path $dir 'Desktop'
     New-Item -ItemType Directory -Force -Path $desk | Out-Null
@@ -655,7 +660,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         New-Item -ItemType Directory -Path $custom | Out-Null
         $gameBefore = Get-TreeHash (Join-Path $steam 'steamapps')
 
-        $code = Invoke-RaMain @{
+        $code = Invoke-RaMain @{ LoadMethod = 'Launcher'
             Install = $true; SteamLaunchOption = $true; ShortcutPath = $custom; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en'
         }
         $code | Should Be 0
@@ -682,11 +687,11 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $sh = New-Object -ComObject WScript.Shell; $s = $sh.CreateShortcut($foreign); $s.TargetPath = (Join-Path $env:WINDIR 'System32\notepad.exe'); $s.Save()
         # Uninstall with Steam running must not remove anything.
         $script:RaGetSteamProcess = { @('fake') }
-        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 1
         Test-Path $launcher | Should Be $true
         Test-Path $lnk | Should Be $true
         $script:RaGetSteamProcess = { @() }
-        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg)) $origCfg | Should Be $true
         Test-Path $lnk | Should Be $false
         Test-Path $foreign | Should Be $true
@@ -704,7 +709,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         }
         $cfg222 = Join-Path $steam 'userdata\222\config\localconfig.vdf'
         $orig222 = [IO.File]::ReadAllBytes($cfg222)
-        (Invoke-RaMain @{ RemoveSteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; RemoveSteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
         (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam 'userdata\111\config\localconfig.vdf')).Text).Value | Should Be '-debug_mode -nomusic'
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg222)) $orig222 | Should Be $true
         @(Get-ChildItem (Split-Path $cfg222) -Filter '*.renameanything-*').Count | Should Be 0
@@ -716,7 +721,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText '' -NoApp); '222' = (New-LocalConfigText (New-AppBlock $null)) }
         $pkg = New-TestPackage $dir
         $script:RaPinnedRelease = $pkg.Manifest
-        $options = @{
+        $options = @{ LoadMethod = 'Launcher'
             Install = $true; SteamLaunchOption = $true; SteamAccount = 'all'; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en'
         }
         (Invoke-RaMain $options) | Should Be 0
@@ -724,7 +729,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         foreach ($id in '111', '222') {
             (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam "userdata\$id\config\localconfig.vdf")).Text).Value | Should Be "`"$launcher`" %command%"
         }
-        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
         foreach ($id in '111', '222') {
             (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam "userdata\$id\config\localconfig.vdf")).Text).Value | Should Be ''
         }
@@ -737,10 +742,13 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $pkg = New-TestPackage $dir
         $script:RaPinnedRelease = $pkg.Manifest
         # Install for real first so the Steam/shortcut steps have a launcher, then dry-run those.
-        (Invoke-RaMain @{ Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
         $before = Get-TreeHash $dir
-        (Invoke-RaMain @{ SteamLaunchOption = $true; Shortcut = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-        (Invoke-RaMain @{ Uninstall = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{
+            LoadMethod = 'Launcher'; SteamLaunchOption = $true; Shortcut = $true
+            DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en'
+        }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
         (Get-TreeHash $dir) -join '|' | Should Be ($before -join '|')
     }
 
@@ -752,8 +760,8 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $script:RaPinnedRelease = $pkg.Manifest
         $desk = & $script:RaDesktopPath
         Write-Utf8 (Join-Path $desk $script:RaShortcutFileName) 'not a shortcut'
-        (Invoke-RaMain @{ Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-        $lnkResult = Invoke-RaMain @{ Shortcut = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        $lnkResult = Invoke-RaMain @{ LoadMethod = 'Launcher'; Shortcut = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }
         $lnkResult | Should Be 1
         [IO.File]::ReadAllText((Join-Path $desk $script:RaShortcutFileName)) | Should Be 'not a shortcut'
     }
@@ -773,7 +781,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         foreach ($a in 't', '3', 'n', '2', 't') { $script:answers.Enqueue($a) }  # install, both, decline Steam, picker, confirm shortcut
         $script:RaAssumeYes = $false
         $script:RaReadHost = { $script:answers.Dequeue() }
-        (Invoke-RaMain @{ PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'pl' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'pl' }) | Should Be 0
         $script:answers.Count | Should Be 0
         Test-Path (Join-Path $picked $script:RaShortcutFileName) | Should Be $true
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg)) $origCfg | Should Be $true
@@ -861,7 +869,10 @@ function Initialize-UpdateEnv {
     $script:RaGitHubRepo = 'test-owner/test-repo'
     $p1 = New-TestPackage (Join-Path $dir 'v1') -Version '0.1.0'
     $script:RaPinnedRelease = $p1.Manifest
-    $options = @{ Install = $true; SteamLaunchOption = $true; Shortcut = $true; Yes = $true; PackagePath = $p1.Zip; SteamRoot = $steam; Language = 'en' }
+    $options = @{
+        LoadMethod = 'Launcher'; Install = $true; SteamLaunchOption = $true; Shortcut = $true
+        Yes = $true; PackagePath = $p1.Zip; SteamRoot = $steam; Language = 'en'
+    }
     # Pester 3.4 'Should' can emit a value; keep the helper's output to the one hashtable.
     $null = (Invoke-RaMain $options) | Should Be 0
     return @{
@@ -911,7 +922,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $script:requested.Count | Should Be 3
         $script:requested[0] | Should Be 'https://api.github.com/repos/test-owner/test-repo/releases/latest'
         @(Get-TreeHash $e.Dir | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' | Should Be ($before -join '|')
-        (Invoke-RaMain @{ CheckUpdate = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; CheckUpdate = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
     }
     It '-Update switches current without touching Steam config/shortcut; -Rollback returns; third version prunes the oldest' {
         $e = Initialize-UpdateEnv 'upd-flow'
@@ -919,7 +930,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $lnk = Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName
         $lnkBefore = [IO.File]::ReadAllBytes($lnk)
         [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         $st = Read-RaState
         $st.InstalledVersion | Should Be '0.2.0'
@@ -928,24 +939,24 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($lnk)) $lnkBefore | Should Be $true
         @(Get-ChildItem (Split-Path $e.Cfg) -Filter '*.renameanything-backup-*').Count | Should Be 1
         # Up to date: second -Update does nothing.
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         (Read-RaState).PreviousVersion | Should Be '0.1.0'
         # Rollback
-        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.1.0'
         (Read-RaState).PreviousVersion | Should Be '0.2.0'
         # Roll forward again via -Update (0.2.0 already present and verified)
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         # 0.3.0 -> keep 0.3.0 (current) and 0.2.0 (previous), prune 0.1.0
         [void](New-SignedRelease -Dir $e.Dir -Version '0.3.0' -KeyPath $e.Key)
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.3.0'
         Test-Path (Join-Path $script:RaRoot '0.1.0') | Should Be $false
         Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $true
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($e.Cfg)) $cfgBefore | Should Be $true
         # Uninstall removes the junction and all versions, keeps only the log; Steam option restored
-        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         @(Get-ChildItem $script:RaRoot -Force | ForEach-Object Name) -join ',' | Should Be 'bootstrap.log'
         (Get-RaAppLaunchInfo (Read-RaTextFile $e.Cfg).Text).Value | Should Be '-debug_mode'
     }
@@ -953,7 +964,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $e = Initialize-UpdateEnv 'upd-badsig'
         $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
         $script:fakeWeb["$($r.Base)/release-manifest.json"] = $utf8.GetBytes(([IO.File]::ReadAllText($r.ManifestPath)).Replace('"0.2.0"', '"0.2.1"'))
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.1.0'
         Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
         Test-Path (Join-Path $script:RaRoot '0.2.1') | Should Be $false
@@ -963,7 +974,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $other = Join-Path $e.Dir 'other.private.xml'
         [void](& $signScript -NewKey -PrivateKeyPath $other -KeySize 2048)
         [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $other)
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.1.0'
     }
     It 'valid signature but ZIP with a different hash is refused (fail-closed), current unchanged' {
@@ -971,7 +982,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
         $bad = New-TestPackage (Join-Path $e.Dir 'bad') -Tamper 'filehash' -Version '0.2.0'
         $script:fakeWeb["$($r.Base)/$($r.ZipName)"] = [IO.File]::ReadAllBytes($bad.Zip)
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.1.0'
         Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
         @(Get-ChildItem $script:RaRoot -Force -Filter 'download-*').Count | Should Be 0
@@ -1001,18 +1012,21 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
         $script:fakeWeb = @{}
         $script:requested.Clear()
-        $options = @{ Update = $true; ManifestPath = $r.ManifestPath; PackagePath = $r.Zip; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }
+        $options = @{
+            LoadMethod = 'Launcher'; Update = $true; ManifestPath = $r.ManifestPath
+            PackagePath = $r.Zip; Yes = $true; SteamRoot = $e.Steam; Language = 'en'
+        }
         (Invoke-RaMain $options) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         $script:requested.Count | Should Be 0
     }
     It 'rollback refuses when the previous version is missing or modified' {
         $e = Initialize-UpdateEnv 'upd-rbfail'
-        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
         [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
         [IO.File]::WriteAllText((Join-Path $script:RaRoot '0.1.0\runtime\rename_anything_country.dll'), 'tampered')
-        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.2.0'
     }
 }
@@ -1229,13 +1243,15 @@ Describe 'Extracted functions' {
         $script:answers = New-Object System.Collections.Queue
         foreach ($a in 'n', '9', '1', 't') { $script:answers.Enqueue($a) }
         $script:RaReadHost = { $script:answers.Dequeue() }
-        $plan = Get-RaSetupPlan @{ Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null }
+        $plan = Get-RaSetupPlan @{ LoadMethod = 'Launcher'; Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null }
         $plan.Install | Should Be $false
         $plan.Steam | Should Be $true
         $plan.Shortcut | Should Be $false
         $script:answers.Count | Should Be 0
         $script:RaAssumeYes = $true
-        Assert-RaThrow { Get-RaSetupPlan @{ Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null } } 'With -Yes'
+        Assert-RaThrow {
+            Get-RaSetupPlan @{ LoadMethod = 'Launcher'; Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null }
+        } 'With -Yes'
     }
     It 'Test-RaReleaseAssetUrl accepts only this repository''s release downloads' {
         [void](Reset-Env 'asset-url')
@@ -1298,5 +1314,236 @@ Describe 'Extracted functions' {
         $withBom = ConvertTo-RaFileContent 'a' $true
         $withBom.Count | Should Be 4
         $withBom[0] | Should Be 0xEF
+    }
+}
+
+Describe 'CAPIE proxy installation and ownership' {
+    It 'interactive Proxy menu re-asks unsupported shortcut choices without changing the selected method' {
+        [void](Reset-Env 'proxy-menu')
+        $script:RaAssumeYes = $false
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($answer in @('n', '', '2', '3', '4')) { $script:answers.Enqueue($answer) }
+        $script:RaReadHost = { $script:answers.Dequeue() }
+        $plan = Get-RaSetupPlan @{ Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null }
+        $plan.LoadMethod | Should Be 'Proxy'
+        $plan.Shortcut | Should Be $false
+        $plan.Steam | Should Be $false
+        $script:answers.Count | Should Be 0
+    }
+    It 'interactive explicit Proxy choice overrides a saved Launcher preference' {
+        [void](Reset-Env 'proxy-menu-existing')
+        $script:RaAssumeYes = $false
+        $state = New-RaState
+        $state.InstalledVersion = '0.1.0'
+        $state.LoadMethod = 'Launcher'
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($answer in @('n', '1', '4')) { $script:answers.Enqueue($answer) }
+        $script:RaReadHost = { $script:answers.Dequeue() }
+        $plan = Get-RaSetupPlan -Options @{
+            Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null
+        } -State $state
+        $plan.LoadMethod | Should Be 'Proxy'
+        $script:answers.Count | Should Be 0
+    }
+    It 'requires a complete, case-sensitive activation argument and preserves quoted text' {
+        Test-RaHasCapieFlag '-debug_mode -capie' | Should Be $true
+        Test-RaHasCapieFlag '"-capie"' | Should Be $true
+        foreach ($value in @('-capie-extra', '-CAPIE', '"description -capie text"', 'prefix"-capie"', '"-capie"suffix')) {
+            Test-RaHasCapieFlag $value | Should Be $false
+        }
+        Add-RaCapieFlag '-debug_mode' | Should Be '-debug_mode -capie'
+        Add-RaCapieFlag '-debug_mode -capie' | Should Be '-debug_mode -capie'
+        Remove-RaCapieFlag '"description -capie text" -capie' | Should Be '"description -capie text"'
+        Test-RaHasCapieFlag '-ca"pie"' | Should Be $true
+        Remove-RaCapieFlag '-debug -ca"pie"' | Should Be '-debug'
+        Test-RaHasCapieFlag '-debug " -capie' | Should Be $false
+        Assert-RaThrow { Add-RaCapieFlag '-debug " -capie' } 'unterminated quote'
+        Test-RaHasCapieFlag '""" -capie' | Should Be $true
+        Test-RaHasCapieFlag '"""" -capie' | Should Be $false
+    }
+    It 'default install copies only verified proxy, appends the Steam flag, and uninstall restores original files' {
+        $dir = Reset-Env 'proxy-default'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions" "-debug_mode"')) }
+        $game = Get-RaGameDir $steam
+        $before = Get-TreeHash $game
+        $cfg = Join-Path $steam 'userdata\111\config\localconfig.vdf'
+        $cfgBefore = [IO.File]::ReadAllBytes($cfg)
+        $pkg = New-TestPackage $dir -WithProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        $state = Read-RaState
+        $state.LoadMethod | Should Be 'Proxy'
+        $state.Proxy.Path | Should Be (Join-Path $game 'version.dll')
+        Test-RaOwnProxy $state $state.Proxy.Path | Should Be $true
+        (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value | Should Be '-debug_mode -capie'
+        Test-Path (Join-Path $script:RaRoot 'proxy.enabled') | Should Be $false
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        (Get-TreeHash $game) -join '|' | Should Be ($before -join '|')
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg)) $cfgBefore | Should Be $true
+    }
+    It 'foreign version.dll is neither overwritten nor deleted, including when the state has been lost' {
+        $dir = Reset-Env 'proxy-foreign'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $path = Join-Path (Get-RaGameDir $steam) 'version.dll'
+        Write-Utf8 $path 'foreign-tool'
+        $pkg = New-TestPackage $dir -WithProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 1
+        [IO.File]::ReadAllText($path) | Should Be 'foreign-tool'
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        [IO.File]::ReadAllText($path) | Should Be 'foreign-tool'
+    }
+    It 'launcher-only releases require explicit Launcher mode and leave the game folder unchanged' {
+        $dir = Reset-Env 'proxy-old-release'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage $dir
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Invoke-RaMain @{ Install = $true; Shortcut = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Read-RaState).LoadMethod | Should Be 'Launcher'
+        Test-Path (Join-Path (Get-RaGameDir $steam) 'version.dll') | Should Be $false
+    }
+    It 'Config activation is explicit, survives state round trip, and Flag removes the owned marker' {
+        $dir = Reset-Env 'proxy-config'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage $dir -WithProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ Install = $true; ProxyActivation = 'Config'; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        $path = Join-Path $script:RaRoot 'proxy.enabled'
+        [IO.File]::ReadAllText($path) | Should BeExactly "CAPIE_PROXY_ENABLED_V1`n"
+        $state = Read-RaState
+        $state.ProxyConfigSha256 | Should Be (Get-RaFileSha256 $path)
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Read-RaState).ProxyActivation | Should Be 'Config'
+        [IO.File]::ReadAllText($path) | Should BeExactly "CAPIE_PROXY_ENABLED_V1`n"
+        Set-RaProxyActivation $state Flag
+        Test-Path $path | Should Be $false
+    }
+    It 'switching to Launcher removes owned proxy and marker before activating a launcher-only release' {
+        $dir = Reset-Env 'proxy-to-launcher'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
+        $script:RaPinnedRelease = $p1.Manifest
+        (Invoke-RaMain @{ Install = $true; ProxyActivation = 'Config'; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0'
+        $script:RaPinnedRelease = $p2.Manifest
+        (Invoke-RaMain @{
+            LoadMethod = 'Launcher'; Install = $true; SteamLaunchOption = $true
+            Yes = $true; SteamRoot = $steam; PackagePath = $p2.Zip
+        }) | Should Be 0
+        $state = Read-RaState
+        $state.InstalledVersion | Should Be '0.2.0'
+        $state.LoadMethod | Should Be 'Launcher'
+        $null -eq $state.Proxy | Should Be $true
+        Test-Path (Join-Path (Get-RaGameDir $steam) 'version.dll') | Should Be $false
+        Test-Path (Join-Path $script:RaRoot 'proxy.enabled') | Should Be $false
+        $cfg = Join-Path $steam 'userdata\111\config\localconfig.vdf'
+        Test-RaHasWrapper (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value | Should Be $true
+    }
+    It 'modified activation config is retained and blocks uninstall before bundle removal' {
+        [void](Reset-Env 'proxy-config-foreign')
+        Initialize-RaRoot
+        $path = Join-Path $script:RaRoot 'proxy.enabled'
+        Write-Utf8 $path 'foreign-data'
+        $state = New-RaState
+        Assert-RaThrow { Set-RaProxyActivation $state Config } 'left untouched'
+        Assert-RaThrow { Invoke-RaUninstall $state $null } 'left untouched'
+        [IO.File]::ReadAllText($path) | Should Be 'foreign-data'
+    }
+    It 'a replacement racing owned DLL or marker removal is restored and never deleted' {
+        $dir = Reset-Env 'proxy-remove-race'
+        foreach ($name in @('version.dll', 'proxy.enabled')) {
+            $path = Join-Path $dir $name
+            Write-Utf8 $path 'owned-file'
+            $hash = Get-RaFileSha256 $path
+            $script:RaBeforeOwnedRemove = { param($replacementPath) Write-Utf8 $replacementPath 'foreign-replacement' }
+            try { Assert-RaThrow { Remove-RaOwnedFile -Path $path -Sha256 $hash } 'File changed during removal' }
+            finally { $script:RaBeforeOwnedRemove = $null }
+            [IO.File]::ReadAllText($path) | Should Be 'foreign-replacement'
+            @(Get-ChildItem -LiteralPath $dir -Filter '*.remove').Count | Should Be 0
+        }
+    }
+    It 'updating and rolling back synchronize proxy bytes and current runtime; a modified proxy blocks the switch' {
+        $dir = Reset-Env 'proxy-rollback'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
+        $script:RaPinnedRelease = $p1.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        $state = Read-RaState
+        $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0' -WithProxy
+        [void](Install-RaVersion $p2.Manifest $p2.Zip $null)
+        Set-RaActiveVersion $state '0.2.0'
+        [IO.File]::ReadAllText($state.Proxy.Path) | Should Be 'proxy-0.2.0'
+        Invoke-RaRollback $state
+        [IO.File]::ReadAllText($state.Proxy.Path) | Should Be 'proxy-0.1.0'
+        $state.InstalledVersion | Should Be '0.1.0'
+        Write-Utf8 $state.Proxy.Path 'foreign-replacement'
+        Assert-RaThrow { Set-RaActiveVersion $state '0.2.0' } 'left untouched'
+        $state.InstalledVersion | Should Be '0.1.0'
+        (Get-RaJunctionTarget (Get-RaCurrentLink)) | Should Be (Get-RaVersionDir '0.1.0')
+        Remove-RaProxy $state
+        [IO.File]::ReadAllText((Join-Path (Get-RaGameDir $steam) 'version.dll')) | Should Be 'foreign-replacement'
+    }
+    It 'a locked owned proxy keeps the active version and ownership state for a later retry' {
+        $dir = Reset-Env 'proxy-locked'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
+        $script:RaPinnedRelease = $p1.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        $state = Read-RaState
+        $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0' -WithProxy
+        [void](Install-RaVersion $p2.Manifest $p2.Zip $null)
+        $lock = [IO.File]::Open($state.Proxy.Path, 'Open', 'Read', 'Read')
+        try { Assert-RaThrow { Set-RaActiveVersion $state '0.2.0' } } finally { $lock.Dispose() }
+        Test-RaOwnProxy $state $state.Proxy.Path | Should Be $true
+        $state.InstalledVersion | Should Be '0.1.0'
+        (Get-RaJunctionTarget (Get-RaCurrentLink)) | Should Be (Get-RaVersionDir '0.1.0')
+    }
+    It 'failure after replacing current restores both the old junction and owned proxy before returning' {
+        $dir = Reset-Env 'proxy-switch-failure'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
+        $script:RaPinnedRelease = $p1.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        $state = Read-RaState
+        $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0' -WithProxy
+        [void](Install-RaVersion $p2.Manifest $p2.Zip $null)
+        $script:RaQuiet = $false
+        $script:RaWriteHost = {
+            param($message, $color)
+            [void]$color
+            if ($message -like 'Active version: 0.2.0*') { throw 'Injected failure after current was switched.' }
+        }
+        Assert-RaThrow { Set-RaActiveVersion $state '0.2.0' } 'Injected failure'
+        $state.InstalledVersion | Should Be '0.1.0'
+        $null -eq $state.PreviousVersion | Should Be $true
+        Test-RaOwnProxy $state $state.Proxy.Path | Should Be $true
+        [IO.File]::ReadAllText($state.Proxy.Path) | Should Be 'proxy-0.1.0'
+        (Get-RaJunctionTarget (Get-RaCurrentLink)) | Should Be (Get-RaVersionDir '0.1.0')
+    }
+    It 'directories and links named version.dll are refused and dry-run writes nothing' {
+        $dir = Reset-Env 'proxy-link'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $path = Join-Path (Get-RaGameDir $steam) 'version.dll'
+        $target = Join-Path $dir 'foreign-target'
+        New-Item -ItemType Directory -Path $target | Out-Null
+        New-Item -ItemType Junction -Path $path -Target $target | Out-Null
+        Assert-RaThrow { Get-RaProxyPath (Get-RaGameDir $steam) } 'left untouched'
+        [IO.Directory]::Delete($path, $false)
+        $pkg = New-TestPackage $dir -WithProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        $before = Get-TreeHash $dir
+        (Invoke-RaMain @{ Install = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Get-TreeHash $dir) -join '|' | Should Be ($before -join '|')
     }
 }

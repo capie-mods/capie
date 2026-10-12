@@ -5,14 +5,14 @@
 
 .DESCRIPTION
     Runs on Windows PowerShell 5.1 and PowerShell 7, without administrator rights
-    and without external modules. It never modifies the HOI4 installation, Steam
-    Workshop content or saves. See tools/bootstrap/README.md.
+    and without external modules. Proxy mode adds one version.dll to the HOI4
+    installation. Workshop content and saves are untouched. See tools/bootstrap/README.md.
 
     Interactive (no action switches):
         irm <release-url>/install.ps1 | iex
     Noninteractive:
         & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
-        .\install.ps1 -Install -Shortcut -ShortcutPath "$env:USERPROFILE\Desktop" -Yes
+        .\install.ps1 -Install -LoadMethod Launcher -Shortcut -ShortcutPath "$env:USERPROFILE\Desktop" -Yes
 
     This file is intentionally pure ASCII (Polish text uses \uXXXX escapes decoded at
     runtime), because Windows PowerShell 5.1 and `irm` may decode non-ASCII scripts
@@ -24,8 +24,14 @@
 .PARAMETER Install
     Install or verify the release pinned in this script.
 
+.PARAMETER LoadMethod
+    Proxy (default): game-local version.dll activated by -capie. Launcher: external launcher.
+
+.PARAMETER ProxyActivation
+    Flag (default): requires -capie. Config: explicit persistent activation fallback.
+
 .PARAMETER Shortcut
-    Create the game shortcut (Desktop unless -ShortcutPath is given).
+    Create the launcher shortcut; requires -LoadMethod Launcher (Desktop by default).
 
 .PARAMETER ShortcutPath
     Folder for the shortcut; implies -Shortcut.
@@ -86,6 +92,8 @@
 [OutputType([int])]
 param(
     [switch]$Install,
+    [ValidateSet('Proxy', 'Launcher')][string]$LoadMethod,
+    [ValidateSet('Flag', 'Config')][string]$ProxyActivation,
     [switch]$Shortcut,
     [string]$ShortcutPath,
     [switch]$SteamLaunchOption,
@@ -171,6 +179,11 @@ $script:RaLoginUsersRootKey = 'users'
 # --- Our files ------------------------------------------------------------
 $script:RaRootDirName = 'RenameAnything'                    # under %LOCALAPPDATA%
 $script:RaLauncherExeName = 'RenameAnythingLauncher.exe'
+$script:RaProxyFileName = 'version.dll'
+$script:RaProxyBundlePath = 'proxy/version.dll'
+$script:RaProxyConfigName = 'proxy.enabled'
+$script:RaProxyConfigContent = "CAPIE_PROXY_ENABLED_V1`n"
+$script:RaProxyFlag = '-capie'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'
@@ -267,6 +280,7 @@ $script:RaDry = $false          # -DryRun: plan only, write nothing
 $script:RaAssumeYes = $false    # -Yes: never prompt
 $script:RaQuiet = $false        # tests: no console output
 $script:RaAfterWriteHook = $null # tests: simulate a bad write before verification
+$script:RaBeforeOwnedRemove = $null # tests: simulate a replacement after ownership verification
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -456,7 +470,18 @@ function Get-RaHttpContent {
 $script:RaMessages = @{
     en = @{
         Title                      = 'Rename Anything for Hearts of Iron IV - bootstrap'
-        Intro                      = 'This script does not modify the game installation, Workshop content or saves. Log: {0}'
+        Intro                      = @(
+            'Proxy mode adds one version.dll to the game directory; Launcher mode keeps the game directory unchanged. ',
+            'Workshop and saves are untouched. Log: {0}'
+        ) -join ''
+        AskLoadMethod              = @(
+            'Loading method: 1 = proxy version.dll (recommended, requires -capie); ',
+            '2 = external launcher (no game files added). Choice [{0}]'
+        ) -join ''
+        AskModeProxy               = @(
+            'Proxy activation: 1 = add -capie to Steam launch options; 4 = install only (add -capie manually). ',
+            "Shortcuts require Launcher mode.`nChoice [1,4]"
+        ) -join ''
         AskInstall                 = 'Install/update the Rename Anything launcher and native DLLs into {0}? [Y/n]'
         AskMode                    = @(
             "How should the game start WITH the extension?`n  1 = Steam launch option (normal 'Play' button in Steam)`n  2 ",
@@ -467,14 +492,14 @@ $script:RaMessages = @{
             "type a full folder path`nChoice"
         ) -join ''
         MpWarning                  = @(
-            'WARNING: while the extension is enabled, Hearts of Iron IV runs with an injected native DLL. This setup is ',
+            'WARNING: while the extension is enabled, Hearts of Iron IV runs with CAPIE native DLLs. This setup is ',
             'NOT declared multiplayer-compatible (multiplayer has not been verified; desyncs are possible). Play ',
             "multiplayer only after undoing the change.`nHow to undo: run this script with -RemoveSteamLaunchOption (Steam ",
             'entry only) or -Uninstall (everything), or in Steam: Library > Hearts of Iron IV > Properties > General > ',
-            'Launch Options and delete the quoted ...\RenameAnythingLauncher.exe part (keep your own options). Deleting ',
-            'the shortcut is enough for the shortcut mode.'
+            'Launch Options and delete -capie (proxy mode) or the quoted ...\RenameAnythingLauncher.exe part. For Config ',
+            'activation remove %LOCALAPPDATA%\RenameAnything\proxy.enabled or run -ProxyActivation Flag -Install. Keep your own options.'
         ) -join ''
-        AskConfirmSteam            = 'Add the launcher to the HOI4 Steam launch options? [y/N]'
+        AskConfirmSteam            = 'Enable the selected loading method in the HOI4 Steam launch options? [y/N]'
         AskConfirmShortcut         = 'Create the shortcut? [y/N]'
         SteamRunning               = @(
             'Steam is running. Close Steam completely (Steam menu > Exit), then press Enter. Type Q to skip the Steam ',
@@ -500,7 +525,18 @@ $script:RaMessages = @{
     }
     pl = @{
         Title                      = 'Rename Anything dla Hearts of Iron IV \u2014 bootstrap'
-        Intro                      = 'Skrypt nie zmienia instalacji gry, zawarto\u015Bci Workshop ani zapis\u00F3w. Log: {0}'
+        Intro                      = @(
+            'Tryb Proxy dodaje version.dll do folderu gry; tryb Launcher nie zmienia tego folderu. ',
+            'Workshop i zapisy pozostaj\u0105 bez zmian. Log: {0}'
+        ) -join ''
+        AskLoadMethod              = @(
+            'Metoda: 1 = proxy version.dll (zalecane, wymaga -capie); ',
+            '2 = zewn\u0119trzny launcher (bez plik\u00F3w w folderze gry). Wyb\u00F3r [{0}]'
+        ) -join ''
+        AskModeProxy               = @(
+            'Aktywacja Proxy: 1 = dodaj -capie w opcjach Steam; 4 = sama instalacja (dodaj -capie r\u0119cznie). ',
+            "Skr\u00F3ty wymagaj\u0105 trybu Launcher.`nWyb\u00F3r [1,4]"
+        ) -join ''
         AskInstall                 = 'Zainstalowa\u0107/zaktualizowa\u0107 launcher Rename Anything i natywne DLL w {0}? [T/n]'
         AskMode                    = @(
             "Jak uruchamia\u0107 gr\u0119 Z rozszerzeniem?`n  1 = opcja uruchamiania w Steam (zwyk\u0142y przycisk ",
@@ -513,15 +549,15 @@ $script:RaMessages = @{
         ) -join ''
         MpWarning                  = @(
             'OSTRZE\u017BENIE: przy w\u0142\u0105czonym rozszerzeniu Hearts of Iron IV dzia\u0142a ze ',
-            'wstrzykni\u0119t\u0105 natywn\u0105 bibliotek\u0105 DLL. Taka konfiguracja NIE jest deklarowana jako zgodna z ',
+            'natywnymi bibliotekami DLL CAPIE. Taka konfiguracja NIE jest deklarowana jako zgodna z ',
             'trybem wieloosobowym (MP nie by\u0142 weryfikowany; mo\u017Cliwe desynchronizacje). Gr\u0119 ',
             "wieloosobow\u0105 uruchamiaj dopiero po cofni\u0119ciu zmiany.`nJak cofn\u0105\u0107: uruchom ten skrypt z ",
             '-RemoveSteamLaunchOption (tylko wpis Steam) albo -Uninstall (wszystko), albo w Steam: Biblioteka > Hearts of ',
             'Iron IV > W\u0142a\u015Bciwo\u015Bci > Og\u00F3lne > Opcje uruchamiania i usu\u0144 fragment w ',
-            'cudzys\u0142owie ...\RenameAnythingLauncher.exe (w\u0142asne opcje zostaw). W trybie skr\u00F3tu wystarczy ',
-            'usun\u0105\u0107 skr\u00F3t.'
+            '-capie (Proxy) albo w cudzys\u0142owie ...\RenameAnythingLauncher.exe. Przy aktywacji Config usu\u0144 ',
+            '%LOCALAPPDATA%\RenameAnything\proxy.enabled lub uruchom -ProxyActivation Flag -Install. W\u0142asne opcje zostaw.'
         ) -join ''
-        AskConfirmSteam            = 'Doda\u0107 launcher do opcji uruchamiania HOI4 w Steam? [t/N]'
+        AskConfirmSteam            = 'W\u0142\u0105czy\u0107 wybran\u0105 metod\u0119 w opcjach uruchamiania HOI4 w Steam? [t/N]'
         AskConfirmShortcut         = 'Utworzy\u0107 skr\u00F3t? [t/N]'
         SteamRunning               = @(
             'Steam jest uruchomiony. Zamknij Steam ca\u0142kowicie (menu Steam > Zako\u0144cz), potem naci\u015Bnij Enter. ',
@@ -1126,7 +1162,10 @@ function New-RaState {
     [CmdletBinding()]
     [OutputType([psobject])]
     param()
-    return [pscustomobject]@{ InstalledVersion = $null; PreviousVersion = $null; Shortcuts = @(); SteamEntries = @() }
+    return [pscustomobject]@{
+        InstalledVersion = $null; PreviousVersion = $null; Shortcuts = @(); SteamEntries = @()
+        LoadMethod = 'Launcher'; Proxy = $null; ProxyActivation = 'Flag'; ProxyConfigSha256 = $null
+    }
 }
 
 function Read-RaState {
@@ -1152,6 +1191,10 @@ function Read-RaState {
             if ($j.PSObject.Properties['PreviousVersion']) { $state.PreviousVersion = $j.PreviousVersion }
             if ($j.PSObject.Properties['Shortcuts']) { $state.Shortcuts = @($j.Shortcuts | Where-Object { $_ }) }
             if ($j.PSObject.Properties['SteamEntries']) { $state.SteamEntries = @($j.SteamEntries | Where-Object { $_ }) }
+            if ($j.PSObject.Properties['LoadMethod'] -and $j.LoadMethod -in @('Proxy', 'Launcher')) { $state.LoadMethod = $j.LoadMethod }
+            if ($j.PSObject.Properties['Proxy']) { $state.Proxy = $j.Proxy }
+            if ($j.PSObject.Properties['ProxyActivation'] -and $j.ProxyActivation -in @('Flag', 'Config')) { $state.ProxyActivation = $j.ProxyActivation }
+            if ($j.PSObject.Properties['ProxyConfigSha256']) { $state.ProxyConfigSha256 = $j.ProxyConfigSha256 }
         } catch { Write-RaLog "state.json unreadable, ignoring: $($_.Exception.Message)" -Level WARN }
     }
     return $state
@@ -1180,6 +1223,10 @@ function Save-RaState {
         PreviousVersion  = $State.PreviousVersion
         Shortcuts        = @($State.Shortcuts)
         SteamEntries     = @($State.SteamEntries)
+        LoadMethod       = $State.LoadMethod
+        Proxy            = $State.Proxy
+        ProxyActivation  = $State.ProxyActivation
+        ProxyConfigSha256 = $State.ProxyConfigSha256
     } | ConvertTo-Json -Depth $script:RaJsonDepth
     [IO.File]::WriteAllText((Get-RaStatePath), $json, (New-Object System.Text.UTF8Encoding($false)))
 }
@@ -2083,14 +2130,15 @@ function Switch-RaCurrent {
     try {
         if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
         [IO.Directory]::Move($tmp, $link)
+        if ((Get-RaJunctionTarget $link) -ne [IO.Path]::GetFullPath($target)) { throw 'current junction verification failed.' }
+        Write-RaLog "Active version: $Version ($link)"
     } catch {
         $err = $_.Exception.Message
         if (Test-Path -LiteralPath $tmp) { [IO.Directory]::Delete($tmp, $false) }
-        if ($old -and -not (Test-Path -LiteralPath $link)) { New-Item -ItemType Junction -Path $link -Target $old | Out-Null }
+        if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
+        if ($old) { New-Item -ItemType Junction -Path $link -Target $old | Out-Null }
         throw "Could not switch the current version: $err"
     }
-    if ((Get-RaJunctionTarget $link) -ne [IO.Path]::GetFullPath($target)) { throw 'current junction verification failed.' }
-    Write-RaLog "Active version: $Version ($link)"
 }
 
 function Set-RaActiveVersion {
@@ -2115,9 +2163,19 @@ function Set-RaActiveVersion {
         [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$Version
     )
     $link = Get-RaCurrentLink
-    $already = ($State.InstalledVersion -eq $Version) -and ((Get-RaJunctionTarget $link) -eq [IO.Path]::GetFullPath((Get-RaVersionDir $Version)))
+    $oldTarget = Get-RaJunctionTarget $link
+    $already = ($State.InstalledVersion -eq $Version) -and ($oldTarget -eq [IO.Path]::GetFullPath((Get-RaVersionDir $Version)))
     if ($already) { return }
-    Switch-RaCurrent $Version
+    $oldProxy = $State.Proxy
+    if ($oldProxy) { Install-RaProxy -State $State -GameDir (Split-Path -Parent $oldProxy.Path) -Version $Version }
+    try { Switch-RaCurrent $Version } catch {
+        if (-not $script:RaDry -and (Get-RaJunctionTarget $link) -ne $oldTarget) {
+            if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
+            if ($oldTarget) { New-Item -ItemType Junction -Path $link -Target $oldTarget | Out-Null }
+        }
+        if ($oldProxy) { Install-RaProxy -State $State -GameDir (Split-Path -Parent $oldProxy.Path) -Version $oldProxy.Version }
+        throw
+    }
     if ($State.InstalledVersion -and $State.InstalledVersion -ne $Version) { $State.PreviousVersion = $State.InstalledVersion }
     $State.InstalledVersion = $Version
 }
@@ -2159,6 +2217,279 @@ function Remove-RaUnusedVersion {
 }
 #endregion Shared/VersionStore.ps1
 
+#region Features/Proxy.ps1
+# ---------------------------------------------------------------------------
+# Proxy installation. No foreign file is overwritten, renamed or removed.
+# ---------------------------------------------------------------------------
+
+function Get-RaProxyPath {
+    <#
+    .SYNOPSIS
+        Resolves the proxy destination in a verified game directory.
+    .DESCRIPTION
+        Requires a normal directory containing hoi4.exe; refuses reparse points at
+        the directory, executable or destination. Never creates a game directory.
+    .PARAMETER GameDir
+        Game directory discovered through Steam.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaProxyPath (Get-RaGameDir $steam)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$GameDir)
+    $dir = Get-Item -LiteralPath $GameDir -Force -ErrorAction Stop
+    $exe = Get-Item -LiteralPath (Join-Path $dir.FullName $script:RaGameExeName) -Force -ErrorAction Stop
+    if (-not $dir.PSIsContainer -or $exe.PSIsContainer -or (Test-RaReparsePoint $dir) -or (Test-RaReparsePoint $exe)) {
+        throw 'Proxy destination must be a normal HOI4 directory containing a normal hoi4.exe.'
+    }
+    $path = Join-Path $dir.FullName $script:RaProxyFileName
+    $existing = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+    if ($existing -and ($existing.PSIsContainer -or (Test-RaReparsePoint $existing))) {
+        throw "Proxy destination is a directory or link; left untouched: $path"
+    }
+    return $path
+}
+
+function Test-RaOwnProxy {
+    <#
+    .SYNOPSIS
+        Verifies an installed proxy against its ownership record and release manifest.
+    .DESCRIPTION
+        Both the recorded path and hash must match; the hash must also occur in the
+        stored verified release manifest. Missing, changed or linked files fail closed.
+    .PARAMETER State
+        Installer ownership state.
+    .PARAMETER Path
+        Expected game proxy path.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaOwnProxy $state $path
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State, [Parameter(Mandatory, Position = 1)][string]$Path)
+    if (-not $State.Proxy) { return $false }
+    try {
+        if ([IO.Path]::GetFullPath($State.Proxy.Path) -ine [IO.Path]::GetFullPath($Path)) { return $false }
+        if ([IO.Path]::GetFileName($Path) -ine $script:RaProxyFileName) { return $false }
+        if (-not (Test-RaSha256Text $State.Proxy.Sha256)) { return $false }
+        $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+        if ($item.PSIsContainer -or (Test-RaReparsePoint $item)) { return $false }
+        $manifest = Read-RaStoredManifest $State.Proxy.Version
+        return ($manifest -and $manifest.Files.Contains($script:RaProxyBundlePath) -and
+            $manifest.Files[$script:RaProxyBundlePath] -ieq $State.Proxy.Sha256 -and
+            (Get-RaFileSha256 $Path) -ieq $State.Proxy.Sha256)
+    } catch { return $false }
+}
+
+function Remove-RaOwnedFile {
+    <#
+    .SYNOPSIS
+        Quarantines and re-verifies an owned file before deleting it.
+    .DESCRIPTION
+        Moving within its directory makes a racing replacement observable. Only the
+        random quarantine path with the expected hash is deleted. A different file
+        is restored, or preserved under the reported recovery path if restoration fails.
+    .PARAMETER Path
+        Recorded owned file path.
+    .PARAMETER Sha256
+        Hash established by the ownership record.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Remove-RaOwnedFile -Path $state.Proxy.Path -Sha256 $state.Proxy.Sha256
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Sha256
+    )
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    if ($item.PSIsContainer -or (Test-RaReparsePoint $item) -or (Get-RaFileSha256 $Path) -ine $Sha256) {
+        throw "Owned file changed before removal; left untouched: $Path"
+    }
+    if ($script:RaDry) { Write-RaLog "[dry-run] would remove owned file $Path" -Level PLAN; return }
+    $quarantine = $Path + '.' + (New-RaUniqueName) + '.remove'
+    if ($script:RaBeforeOwnedRemove) { & $script:RaBeforeOwnedRemove $Path }
+    try {
+        [IO.File]::Move($Path, $quarantine)
+        $moved = Get-Item -LiteralPath $quarantine -Force
+        if ($moved.PSIsContainer -or (Test-RaReparsePoint $moved) -or (Get-RaFileSha256 $quarantine) -ine $Sha256) {
+            throw "File changed during removal; preserving it: $Path"
+        }
+        [IO.File]::Delete($quarantine)
+    } catch {
+        $errorMessage = $_.Exception.Message
+        if ((Test-Path -LiteralPath $quarantine) -and -not (Test-Path -LiteralPath $Path)) {
+            try { [IO.File]::Move($quarantine, $Path) } catch {
+                throw "Removal failed: $errorMessage. Recovery file preserved at $quarantine"
+            }
+        }
+        if (Test-Path -LiteralPath $quarantine) { throw "Removal failed: $errorMessage. Recovery file preserved at $quarantine" }
+        throw $errorMessage
+    }
+}
+
+function Set-RaProxyActivation {
+    <#
+    .SYNOPSIS
+        Enables the explicit config fallback or removes our previous fallback marker.
+    .DESCRIPTION
+        Flag mode is the default. Config mode writes only the documented ASCII marker.
+        An existing marker is changed or deleted only when its saved hash still matches.
+    .PARAMETER State
+        Installer state, modified in memory.
+    .PARAMETER Activation
+        Flag or Config.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Set-RaProxyActivation $state Config
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State, [Parameter(Mandatory, Position = 1)][ValidateSet('Flag', 'Config')][string]$Activation)
+    $path = Join-Path $script:RaRoot $script:RaProxyConfigName
+    $exists = Test-Path -LiteralPath $path
+    if ($exists) {
+        $item = Get-Item -LiteralPath $path -Force
+        if ($item.PSIsContainer -or (Test-RaReparsePoint $item) -or -not $State.ProxyConfigSha256 -or
+            (Get-RaFileSha256 $path) -ine $State.ProxyConfigSha256) { throw "Foreign or modified activation config left untouched: $path" }
+    }
+    if ($script:RaDry) { Write-RaLog "[dry-run] proxy activation: $Activation ($path)" -Level PLAN; return }
+    if ($Activation -eq 'Config') {
+        Initialize-RaRoot
+        $bytes = [Text.Encoding]::ASCII.GetBytes($script:RaProxyConfigContent)
+        if (-not $exists) {
+            $stream = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+            try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
+        }
+        $State.ProxyConfigSha256 = Get-RaFileSha256 $path
+    } else {
+        if ($exists) { Remove-RaOwnedFile -Path $path -Sha256 $State.ProxyConfigSha256 }
+        $State.ProxyConfigSha256 = $null
+    }
+    $State.ProxyActivation = $Activation
+}
+
+function Install-RaProxy {
+    <#
+    .SYNOPSIS
+        Installs or updates the proxy from a fully verified release.
+    .DESCRIPTION
+        Uses a new temporary file and an atomic replace for a previously owned file.
+        New destinations use File.Move, which cannot overwrite a racing foreign file.
+        The previous proxy is restored if installation or verification fails.
+    .PARAMETER State
+        Installer state, modified in memory.
+    .PARAMETER GameDir
+        Verified HOI4 installation directory.
+    .PARAMETER Version
+        Installed release to use (defaults to the state's active version).
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Install-RaProxy $state $gameDir
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$GameDir,
+        [Parameter(Position = 2)][AllowNull()][AllowEmptyString()][string]$Version
+    )
+    $path = Get-RaProxyPath $GameDir
+    if (-not $Version) { $Version = $State.InstalledVersion }
+    $manifest = Read-RaStoredManifest $Version
+    $exists = Test-Path -LiteralPath $path
+    if ($exists -and -not (Test-RaOwnProxy $State $path)) {
+        throw "Foreign or modified version.dll left untouched: $path. Choose -LoadMethod Launcher or resolve the conflict manually."
+    }
+    if ($script:RaDry) { Write-RaLog "[dry-run] would install verified proxy $path from $Version" -Level PLAN; return }
+    if (-not $manifest -or -not $manifest.Files.Contains($script:RaProxyBundlePath)) {
+        throw 'Release does not contain the signed proxy/version.dll asset. Use -LoadMethod Launcher for an older release.'
+    }
+    $sourceDir = Get-RaVersionDir $Version
+    if (-not (Test-RaInstalledVersion $manifest $sourceDir)) { throw 'Release bundle failed verification; proxy was not installed.' }
+    if ($State.Proxy -and $State.Proxy.Path -ine $path) {
+        throw 'A proxy is already recorded in another game directory. Uninstall it before choosing another directory.'
+    }
+    $sha = $manifest.Files[$script:RaProxyBundlePath].ToUpperInvariant()
+    if ($exists -and (Get-RaFileSha256 $path) -eq $sha) { $State.Proxy = [pscustomobject]@{ Path = $path; Sha256 = $sha; Version = $Version }; return }
+    $tmp = $path + '.' + (New-RaUniqueName) + '.tmp'
+    $backup = $path + '.' + (New-RaUniqueName) + '.bak'
+    $installed = $false
+    $success = $false
+    $oldRecord = $State.Proxy
+    try {
+        [IO.File]::Copy((Join-Path $sourceDir ($script:RaProxyBundlePath -replace '/', '\')), $tmp, $false)
+        if ((Get-RaFileSha256 $tmp) -ne $sha) { throw 'Staged proxy hash mismatch.' }
+        if ($exists) {
+            if (-not (Test-RaOwnProxy $State $path)) { throw 'Proxy changed during installation; left untouched.' }
+            [IO.File]::Replace($tmp, $path, $backup)
+        } else { [IO.File]::Move($tmp, $path) }
+        $installed = $true
+        if ($exists -and (Get-RaFileSha256 $backup) -ine $oldRecord.Sha256) { throw 'Proxy changed during replacement; restoring the preserved file.' }
+        if ((Get-RaFileSha256 $path) -ne $sha) { throw 'Installed proxy hash mismatch.' }
+        $State.Proxy = [pscustomobject]@{ Path = $path; Sha256 = $sha; Version = $Version }
+        Write-RaLog "Installed CAPIE proxy: $path ($sha)"
+        $success = $true
+    } catch {
+        $State.Proxy = $oldRecord
+        if ($installed -and (Test-Path -LiteralPath $backup)) { [IO.File]::Replace($backup, $path, $null) }
+        elseif ($installed -and (Test-Path -LiteralPath $path) -and (Get-RaFileSha256 $path) -eq $sha) { [IO.File]::Delete($path) }
+        throw
+    } finally {
+        if (Test-Path -LiteralPath $tmp) { [IO.File]::Delete($tmp) }
+        # A failed restoration must retain its recovery copy.
+        if ($success -and (Test-Path -LiteralPath $backup)) { [IO.File]::Delete($backup) }
+    }
+}
+
+function Remove-RaProxy {
+    <#
+    .SYNOPSIS
+        Removes only a hash-proven owned proxy and its activation marker.
+    .DESCRIPTION
+        Modified DLLs remain in place. A locked owned DLL causes failure before bundle
+        removal, preserving the state needed to retry after closing the game.
+    .PARAMETER State
+        Installer state, modified in memory.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Remove-RaProxy $state
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State)
+    if ($State.Proxy) {
+        $path = $State.Proxy.Path
+        if (Test-Path -LiteralPath $path) {
+            if (Test-RaOwnProxy $State $path) {
+                [void](Get-RaProxyPath (Split-Path -Parent $path))
+                if ($script:RaDry) { Write-RaLog "[dry-run] would remove owned proxy $path" -Level PLAN }
+                else { Remove-RaOwnedFile -Path $path -Sha256 $State.Proxy.Sha256; Write-RaLog "Removed owned proxy $path" }
+            } else { Write-RaLog "Foreign or modified proxy left untouched: $path" -Level WARN }
+        }
+        if (-not $script:RaDry) { $State.Proxy = $null }
+    }
+    $config = Join-Path $script:RaRoot $script:RaProxyConfigName
+    if (Test-Path -LiteralPath $config) {
+        $item = Get-Item -LiteralPath $config -Force
+        if (-not $item.PSIsContainer -and -not (Test-RaReparsePoint $item) -and $State.ProxyConfigSha256 -and
+            (Get-RaFileSha256 $config) -ieq $State.ProxyConfigSha256) {
+            if ($script:RaDry) { Write-RaLog "[dry-run] would remove owned activation marker $config" -Level PLAN }
+            else { Remove-RaOwnedFile -Path $config -Sha256 $State.ProxyConfigSha256; $State.ProxyConfigSha256 = $null }
+        } else { throw "Foreign or modified activation config left untouched: $config. Move it out before uninstalling the bundle." }
+    }
+}
+#endregion Features/Proxy.ps1
+
 #region Features/SteamLaunchOption.ps1
 # ---------------------------------------------------------------------------
 # Slice: Steam launch option.
@@ -2167,6 +2498,138 @@ function Remove-RaUnusedVersion {
 #   3. update the file with backup, byte-exact verification and restore,
 #   4. apply to the selected accounts and record what was written in state.json.
 # ---------------------------------------------------------------------------
+
+function Get-RaWindowsArgument {
+    <#
+    .SYNOPSIS
+        Parses Windows arguments while retaining each argument's source span.
+    .DESCRIPTION
+        Follows CommandLineToArgvW quote and backslash rules for arguments following
+        the executable. Unmatched quotes consume the remaining text. Spaces and tabs
+        delimit arguments only outside quotes. Source spans permit minimal removal.
+    .PARAMETER Value
+        Argument tail without the executable name.
+    .OUTPUTS
+        System.Object[] (Value, Start, Length)
+    .EXAMPLE
+        Get-RaWindowsArgument '-ca"pie" -debug'
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Value)
+    $text = [string]$Value
+    $index = 0
+    while ($index -lt $text.Length) {
+        while ($index -lt $text.Length -and ($text[$index] -eq ' ' -or $text[$index] -eq "`t")) { $index++ }
+        if ($index -ge $text.Length) { break }
+        $start = $index
+        $quoteCount = 0
+        $argument = New-Object Text.StringBuilder
+        while ($index -lt $text.Length) {
+            if ($quoteCount -eq 0 -and ($text[$index] -eq ' ' -or $text[$index] -eq "`t")) { break }
+            $escapedQuote = $false
+            if ($text[$index] -eq '\') {
+                $slashStart = $index
+                while ($index -lt $text.Length -and $text[$index] -eq '\') { $index++ }
+                $slashes = $index - $slashStart
+                if ($index -lt $text.Length -and $text[$index] -eq '"') {
+                    [void]$argument.Append(('\' * [int][Math]::Floor($slashes / 2)))
+                    if ($slashes -band 1) { $escapedQuote = $true }
+                } else { [void]$argument.Append(('\' * $slashes)); continue }
+            }
+            if ($text[$index] -eq '"') {
+                if ($escapedQuote) { [void]$argument.Append('"') } else { $quoteCount++ }
+                $index++
+                while ($index -lt $text.Length -and $text[$index] -eq '"') {
+                    $quoteCount++
+                    if ($quoteCount -eq 3) { [void]$argument.Append('"'); $quoteCount = 0 }
+                    $index++
+                }
+                if ($quoteCount -eq 2) { $quoteCount = 0 }
+            } else { [void]$argument.Append($text[$index]); $index++ }
+        }
+        [pscustomobject]@{
+            Value = $argument.ToString(); Start = $start; Length = $index - $start; UnterminatedQuote = $quoteCount -ne 0
+        }
+    }
+}
+
+function Test-RaHasCapieFlag {
+    <#
+    .SYNOPSIS
+        Tests for a complete -capie argument outside other quoted arguments.
+    .DESCRIPTION
+        A quoted "-capie" is accepted. Substrings and text within another quoted
+        argument do not enable CAPIE. Matching follows the native case-sensitive flag.
+    .PARAMETER Value
+        Launch options string.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaHasCapieFlag '-debug_mode -capie'
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Value)
+    foreach ($token in Get-RaWindowsArgument $Value) {
+        if ($token.Value -ceq $script:RaProxyFlag) { return $true }
+    }
+    return $false
+}
+
+function Remove-RaCapieFlag {
+    <#
+    .SYNOPSIS
+        Removes only complete -capie arguments.
+    .DESCRIPTION
+        Preserves all other argument bytes; adjacent blanks around removed tokens
+        are trimmed only at the ends. Quoted text containing the flag is preserved.
+    .PARAMETER Value
+        Launch options string.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Remove-RaCapieFlag '-debug_mode -capie'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Value)
+    $result = [string]$Value
+    $tokens = @(Get-RaWindowsArgument $result)
+    for ($i = $tokens.Count - 1; $i -ge 0; $i--) {
+        $token = $tokens[$i]
+        if ($token.Value -ceq $script:RaProxyFlag) {
+            $result = $result.Remove($token.Start, $token.Length)
+        }
+    }
+    return $result.Trim()
+}
+
+function Add-RaCapieFlag {
+    <#
+    .SYNOPSIS
+        Adds a single -capie argument without adding an external wrapper.
+    .DESCRIPTION
+        Removes the old Rename Anything wrapper during migration. Existing options
+        keep their meaning. Multiple %command% tokens are rejected as ambiguous.
+    .PARAMETER Value
+        Launch options string.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Add-RaCapieFlag '-debug_mode'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Value)
+    $result = Remove-RaWrapper $Value
+    if ([regex]::Matches([string]$result, '(?i)%command%').Count -gt 1) { throw 'Existing launch options contain %command% more than once; refusing to guess.' }
+    if (Test-RaHasCapieFlag $result) { return $result }
+    if (@(Get-RaWindowsArgument $result | Where-Object { $_.UnterminatedQuote }).Count -gt 0) {
+        throw 'Existing launch options have an unterminated quote; refusing to append -capie.'
+    }
+    return (([string]$result).TrimEnd() + ' ' + $script:RaProxyFlag).TrimStart()
+}
 
 function Test-RaHasWrapper {
     <#
@@ -2585,6 +3048,8 @@ function Set-RaSteamLaunchOption {
         Value of -SteamAccount.
     .PARAMETER LauncherPath
         Stable launcher path (current junction).
+    .PARAMETER LoadMethod
+        Proxy appends -capie; Launcher uses the existing external wrapper.
     .OUTPUTS
         None.
     .EXAMPLE
@@ -2596,13 +3061,19 @@ function Set-RaSteamLaunchOption {
         [Parameter(Mandatory, Position = 0)][psobject]$State,
         [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$SteamRootPath,
         [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$AccountSelector,
-        [Parameter(Mandatory, Position = 3)][ValidateNotNullOrEmpty()][string]$LauncherPath
+        [Parameter(Mandatory, Position = 3)][ValidateNotNullOrEmpty()][string]$LauncherPath,
+        [ValidateSet('Proxy', 'Launcher')][string]$LoadMethod = 'Launcher'
     )
     $accounts = @(Select-RaSteamAccount @(Get-RaSteamAccount $SteamRootPath) $AccountSelector)
     if (-not (Wait-RaSteamClosed)) { throw 'Steam is running; Steam launch option was not changed.' }
     # Compute runs inside Update-RaLocalConfig and sees this scope dynamically; the name is unique on purpose.
     $raComputeLauncher = $LauncherPath
-    $compute = { param($old) Add-RaWrapper $old $raComputeLauncher }
+    $raComputeMethod = $LoadMethod
+    $compute = {
+        param($old)
+        if ($raComputeMethod -eq 'Proxy') { Add-RaCapieFlag $old }
+        else { Add-RaWrapper (Remove-RaCapieFlag $old) $raComputeLauncher }
+    }
     foreach ($acc in $accounts) {
         $r = Update-RaLocalConfig -ConfigPath $acc.ConfigPath -Compute $compute
         $existing = @(Find-RaSteamEntry $State $acc.ConfigPath)
@@ -2615,10 +3086,13 @@ function Set-RaSteamLaunchOption {
             OriginalValue = $original
             WrittenValue  = $r.NewValue
             LauncherPath  = $LauncherPath
+            LoadMethod    = $LoadMethod
         }
         $State.SteamEntries = @($State.SteamEntries) + @($record)
-        $other = ((Remove-RaWrapperFragment $r.NewValue) -replace '(?i)\s*%command%.*$', '').Trim()
-        if ($other) { Write-RaLog "Note: another wrapper precedes ours in account $($acc.Id): '$other'. Compatibility is unknown." -Level WARN }
+        if ($LoadMethod -eq 'Launcher') {
+            $other = ((Remove-RaWrapperFragment $r.NewValue) -replace '(?i)\s*%command%.*$', '').Trim()
+            if ($other) { Write-RaLog "Note: another wrapper precedes ours in account $($acc.Id): '$other'. Compatibility is unknown." -Level WARN }
+        }
     }
 }
 
@@ -2648,7 +3122,12 @@ function Get-RaUndoValue {
         if ($null -eq $Entry.OriginalValue) { return '' }
         return [string]$Entry.OriginalValue
     }
-    return (Remove-RaWrapper $Current)
+    if ($Entry -and $Entry.PSObject.Properties['LoadMethod'] -and $Entry.LoadMethod -eq 'Proxy') {
+        # A pre-existing user flag was never ours to remove.
+        if (Test-RaHasCapieFlag $Entry.OriginalValue) { return $Current }
+        return (Remove-RaCapieFlag $Current)
+    }
+    return (Remove-RaCapieFlag (Remove-RaWrapper $Current))
 }
 
 function Remove-RaSteamLaunchOption {
@@ -2679,7 +3158,7 @@ function Remove-RaSteamLaunchOption {
     foreach ($acc in $accounts) {
         try {
             $info = Get-RaAppLaunchInfo (Read-RaTextFile $acc.ConfigPath).Text
-            if (Test-RaHasWrapper $info.Value) { $targets += $acc }
+            if ((Test-RaHasWrapper $info.Value) -or (Test-RaHasCapieFlag $info.Value)) { $targets += $acc }
         } catch { Write-RaLog "Account $($acc.Id): cannot read localconfig.vdf ($($_.Exception.Message)); skipped." -Level WARN }
     }
     if ($targets.Count -eq 0) {
@@ -2975,9 +3454,7 @@ function Invoke-RaRollback {
         throw "Previous version $prev is missing or failed verification; cannot roll back."
     }
     $cur = $State.InstalledVersion
-    Switch-RaCurrent $prev
-    $State.InstalledVersion = $prev
-    $State.PreviousVersion = $cur
+    Set-RaActiveVersion $State $prev
     Write-RaLog "Rolled back to $prev (kept $cur as previous)."
 }
 #endregion Features/Update.ps1
@@ -3260,6 +3737,7 @@ function Invoke-RaUninstall {
     } else {
         Write-RaLog 'Steam not found; skipping launch options.' -Level WARN
     }
+    Remove-RaProxy $State
     Remove-RaOwnShortcut $State
     if (-not (Test-Path -LiteralPath $script:RaRoot)) { return }
     $log = Get-RaLogPath
@@ -3290,7 +3768,8 @@ function Invoke-RaUninstall {
 
 $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
-    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath'
+    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
+    'LoadMethod', 'ProxyActivation'
 )
 
 function Write-RaDone {
@@ -3348,6 +3827,8 @@ function Get-RaSetupPlan {
         each of which must then be confirmed (-Yes confirms).
     .PARAMETER Options
         Normalized option table.
+    .PARAMETER State
+        Existing installation preferences, or null for a fresh install.
     .OUTPUTS
         System.Management.Automation.PSCustomObject (Install, Steam, Shortcut, ShortcutFolder)
     .EXAMPLE
@@ -3355,19 +3836,38 @@ function Get-RaSetupPlan {
     #>
     [CmdletBinding()]
     [OutputType([psobject])]
-    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    param(
+        [Parameter(Mandatory, Position = 0)][hashtable]$Options,
+        [Parameter(Position = 1)][AllowNull()][psobject]$State
+    )
     $plan = [pscustomobject]@{
         Install        = [bool]$Options.Install
         Steam          = [bool]$Options.SteamLaunchOption
         Shortcut       = [bool]$Options.Shortcut -or [bool]$Options.ShortcutPath
         ShortcutFolder = $null
+        LoadMethod     = if ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) { $Options.LoadMethod } else { 'Proxy' }
+        ProxyActivation = if ($Options.ContainsKey('ProxyActivation') -and $Options.ProxyActivation) { $Options.ProxyActivation } else { 'Flag' }
+    }
+    if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) -and $State -and $State.InstalledVersion) {
+        $plan.LoadMethod = $State.LoadMethod
     }
     if (-not ($plan.Install -or $plan.Steam -or $plan.Shortcut)) {
         if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Uninstall.' }
         $plan.Install = Confirm-Ra (Get-RaText 'AskInstall' @($script:RaRoot)) $true
-        do { $mode = Read-RaAnswer (Get-RaText 'AskMode') } until ($script:RaStartModes.ContainsKey($mode))
+        if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod)) {
+            $defaultLoader = if ($plan.LoadMethod -eq 'Launcher') { '2' } else { '1' }
+            do { $loader = Read-RaAnswer (Get-RaText 'AskLoadMethod' @($defaultLoader)) } until ($loader -in @('', '1', '2'))
+            if ($loader) { $plan.LoadMethod = if ($loader -eq '2') { 'Launcher' } else { 'Proxy' } }
+        }
+        $modeText = if ($plan.LoadMethod -eq 'Proxy') { 'AskModeProxy' } else { 'AskMode' }
+        do { $mode = Read-RaAnswer (Get-RaText $modeText) } until (
+            $script:RaStartModes.ContainsKey($mode) -and ($plan.LoadMethod -eq 'Launcher' -or $mode -in @('1', '4'))
+        )
         $plan.Steam = $script:RaStartModes[$mode].Steam
         $plan.Shortcut = $script:RaStartModes[$mode].Shortcut
+    }
+    if ($plan.Shortcut -and $plan.LoadMethod -eq 'Proxy') {
+        throw 'Shortcuts use the launcher alternative. Choose -LoadMethod Launcher -Shortcut, or use proxy mode through Steam with -capie.'
     }
     if ($plan.Steam -or $plan.Shortcut) {
         Write-RaHost ''
@@ -3413,11 +3913,29 @@ function Invoke-RaSetupAction {
         [Parameter(Mandatory, Position = 1)][psobject]$State,
         [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
     )
-    $plan = Get-RaSetupPlan $Options
+    $plan = Get-RaSetupPlan -Options $Options -State $State
+    if (-not $Options.ProxyActivation -and $State.LoadMethod -eq 'Proxy') {
+        $plan.ProxyActivation = $State.ProxyActivation
+    }
+    $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
+    if ($plan.LoadMethod -eq 'Proxy' -and -not $gameDir) { throw 'HOI4 installation not found through Steam libraries; proxy was not installed.' }
+    if ($plan.LoadMethod -eq 'Launcher') {
+        Remove-RaProxy $State
+        if (-not $script:RaDry) { $State.LoadMethod = 'Launcher' }
+        Save-RaState $State
+    }
     if ($plan.Install) {
         Install-RaPackage $State $Options.PackagePath
         Save-RaState $State
     }
+    if ($plan.LoadMethod -eq 'Proxy') {
+        Install-RaProxy $State $gameDir
+        if (-not $script:RaDry) { $State.LoadMethod = 'Proxy' }
+        Save-RaState $State
+        Set-RaProxyActivation $State $plan.ProxyActivation
+    }
+    if (-not $script:RaDry) { $State.LoadMethod = $plan.LoadMethod }
+    Save-RaState $State
     $launcher = Get-RaLauncherPath
     if (($plan.Steam -or $plan.Shortcut) -and -not $script:RaDry -and -not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
         throw (Get-RaText 'NotInstalled')
@@ -3426,7 +3944,8 @@ function Invoke-RaSetupAction {
     if ($plan.Steam) {
         if (-not $SteamRootPath) { throw 'Steam not found.' }
         try {
-            Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount -LauncherPath $launcher
+            Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount `
+                -LauncherPath $launcher -LoadMethod $plan.LoadMethod
             Save-RaState $State
         } catch {
             $steamStepFailed = $true
@@ -3540,6 +4059,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         SteamAccount = $SteamAccount; RemoveSteamLaunchOption = $RemoveSteamLaunchOption; Uninstall = $Uninstall
         DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot; Language = $Language
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
+        LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

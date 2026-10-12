@@ -5,14 +5,14 @@
 
 .DESCRIPTION
     Runs on Windows PowerShell 5.1 and PowerShell 7, without administrator rights
-    and without external modules. It never modifies the HOI4 installation, Steam
-    Workshop content or saves. See tools/bootstrap/README.md.
+    and without external modules. Proxy mode adds one version.dll to the HOI4
+    installation. Workshop content and saves are untouched. See tools/bootstrap/README.md.
 
     Interactive (no action switches):
         irm <release-url>/install.ps1 | iex
     Noninteractive:
         & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
-        .\install.ps1 -Install -Shortcut -ShortcutPath "$env:USERPROFILE\Desktop" -Yes
+        .\install.ps1 -Install -LoadMethod Launcher -Shortcut -ShortcutPath "$env:USERPROFILE\Desktop" -Yes
 
     This file is intentionally pure ASCII (Polish text uses \uXXXX escapes decoded at
     runtime), because Windows PowerShell 5.1 and `irm` may decode non-ASCII scripts
@@ -24,8 +24,14 @@
 .PARAMETER Install
     Install or verify the release pinned in this script.
 
+.PARAMETER LoadMethod
+    Proxy (default): game-local version.dll activated by -capie. Launcher: external launcher.
+
+.PARAMETER ProxyActivation
+    Flag (default): requires -capie. Config: explicit persistent activation fallback.
+
 .PARAMETER Shortcut
-    Create the game shortcut (Desktop unless -ShortcutPath is given).
+    Create the launcher shortcut; requires -LoadMethod Launcher (Desktop by default).
 
 .PARAMETER ShortcutPath
     Folder for the shortcut; implies -Shortcut.
@@ -86,6 +92,8 @@
 [OutputType([int])]
 param(
     [switch]$Install,
+    [ValidateSet('Proxy', 'Launcher')][string]$LoadMethod,
+    [ValidateSet('Flag', 'Config')][string]$ProxyActivation,
     [switch]$Shortcut,
     [string]$ShortcutPath,
     [switch]$SteamLaunchOption,

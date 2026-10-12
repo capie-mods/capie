@@ -32,6 +32,7 @@ function Invoke-RaUninstall {
     } else {
         Write-RaLog 'Steam not found; skipping launch options.' -Level WARN
     }
+    Remove-RaProxy $State
     Remove-RaOwnShortcut $State
     if (-not (Test-Path -LiteralPath $script:RaRoot)) { return }
     $log = Get-RaLogPath
