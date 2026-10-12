@@ -112,3 +112,16 @@ przechodzą; potem niezależne review i pełny test w grze.
    pełna diagnostyka tylko w wariancie debug — zaakceptowane, do potwierdzenia w grze.
 3. clang-tidy/clang-format: użytkownik zgodził się, by root sam zainstalował komponent VS
    „C++ Clang tools for Windows” (zaplanowane na kolejną sesję).
+
+## Decyzje roadmapy funkcji CAPIE (2026-10-12, po api-gap-analysis.md)
+
+1. Kolejność (decyzja root): najpierw C1 publiczne pola tekstowe dla innych modów (+C8 prefill/fokus,
+   C4 klucze statusu, C5 narzędzia tekstowe SDK, C3 alfabet łaciński) w v1.1 — najwyższa potrzeba
+   i brak nowego RE; C6 portrety w v1.2 po osobnej sesji RE (RQ1–RQ3).
+2. Funkcje wyłącznie wyświetlające (C2 odświeżanie widoków, C6 portrety, C7 nazwa gracza) mogą
+   wyłączać się osobno, gdy ich piny przestaną pasować po patchu — wyjątek od zasady
+   „wszystko albo nic”, która nadal obowiązuje dla funkcji zmieniających stan i transportu.
+3. Rozszerzony alfabet łaciński w v1.1; cyrylica później (fonty, język gry).
+4. Dokumentacja CAPIE otwarcie wymienia alternatywy (`hoi4_lua`, injector oparty na proxy DLL).
+5. Profiler scripted GUI (C11) publiczny, wyłącznie w wariancie debug (decyzja root: odpowiada
+   na zgłaszane przez modderów problemy wydajności; brak wpływu na release).
