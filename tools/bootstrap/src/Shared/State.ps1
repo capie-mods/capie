@@ -39,7 +39,10 @@ function New-RaState {
     [CmdletBinding()]
     [OutputType([psobject])]
     param()
-    return [pscustomobject]@{ InstalledVersion = $null; PreviousVersion = $null; Shortcuts = @(); SteamEntries = @() }
+    return [pscustomobject]@{
+        InstalledVersion = $null; PreviousVersion = $null; Shortcuts = @(); SteamEntries = @()
+        LoadMethod = 'Launcher'; Proxy = $null; ProxyActivation = 'Flag'; ProxyConfigSha256 = $null
+    }
 }
 
 function Read-RaState {
@@ -65,6 +68,10 @@ function Read-RaState {
             if ($j.PSObject.Properties['PreviousVersion']) { $state.PreviousVersion = $j.PreviousVersion }
             if ($j.PSObject.Properties['Shortcuts']) { $state.Shortcuts = @($j.Shortcuts | Where-Object { $_ }) }
             if ($j.PSObject.Properties['SteamEntries']) { $state.SteamEntries = @($j.SteamEntries | Where-Object { $_ }) }
+            if ($j.PSObject.Properties['LoadMethod'] -and $j.LoadMethod -in @('Proxy', 'Launcher')) { $state.LoadMethod = $j.LoadMethod }
+            if ($j.PSObject.Properties['Proxy']) { $state.Proxy = $j.Proxy }
+            if ($j.PSObject.Properties['ProxyActivation'] -and $j.ProxyActivation -in @('Flag', 'Config')) { $state.ProxyActivation = $j.ProxyActivation }
+            if ($j.PSObject.Properties['ProxyConfigSha256']) { $state.ProxyConfigSha256 = $j.ProxyConfigSha256 }
         } catch { Write-RaLog "state.json unreadable, ignoring: $($_.Exception.Message)" -Level WARN }
     }
     return $state
@@ -93,6 +100,10 @@ function Save-RaState {
         PreviousVersion  = $State.PreviousVersion
         Shortcuts        = @($State.Shortcuts)
         SteamEntries     = @($State.SteamEntries)
+        LoadMethod       = $State.LoadMethod
+        Proxy            = $State.Proxy
+        ProxyActivation  = $State.ProxyActivation
+        ProxyConfigSha256 = $State.ProxyConfigSha256
     } | ConvertTo-Json -Depth $script:RaJsonDepth
     [IO.File]::WriteAllText((Get-RaStatePath), $json, (New-Object System.Text.UTF8Encoding($false)))
 }

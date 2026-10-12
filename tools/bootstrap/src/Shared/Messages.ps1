@@ -5,7 +5,18 @@
 $script:RaMessages = @{
     en = @{
         Title                      = 'Rename Anything for Hearts of Iron IV - bootstrap'
-        Intro                      = 'This script does not modify the game installation, Workshop content or saves. Log: {0}'
+        Intro                      = @(
+            'Proxy mode adds one version.dll to the game directory; Launcher mode keeps the game directory unchanged. ',
+            'Workshop and saves are untouched. Log: {0}'
+        ) -join ''
+        AskLoadMethod              = @(
+            'Loading method: 1 = proxy version.dll (recommended, requires -capie); ',
+            '2 = external launcher (no game files added). Choice [{0}]'
+        ) -join ''
+        AskModeProxy               = @(
+            'Proxy activation: 1 = add -capie to Steam launch options; 4 = install only (add -capie manually). ',
+            "Shortcuts require Launcher mode.`nChoice [1,4]"
+        ) -join ''
         AskInstall                 = 'Install/update the Rename Anything launcher and native DLLs into {0}? [Y/n]'
         AskMode                    = @(
             "How should the game start WITH the extension?`n  1 = Steam launch option (normal 'Play' button in Steam)`n  2 ",
@@ -16,14 +27,14 @@ $script:RaMessages = @{
             "type a full folder path`nChoice"
         ) -join ''
         MpWarning                  = @(
-            'WARNING: while the extension is enabled, Hearts of Iron IV runs with an injected native DLL. This setup is ',
+            'WARNING: while the extension is enabled, Hearts of Iron IV runs with CAPIE native DLLs. This setup is ',
             'NOT declared multiplayer-compatible (multiplayer has not been verified; desyncs are possible). Play ',
             "multiplayer only after undoing the change.`nHow to undo: run this script with -RemoveSteamLaunchOption (Steam ",
             'entry only) or -Uninstall (everything), or in Steam: Library > Hearts of Iron IV > Properties > General > ',
-            'Launch Options and delete the quoted ...\RenameAnythingLauncher.exe part (keep your own options). Deleting ',
-            'the shortcut is enough for the shortcut mode.'
+            'Launch Options and delete -capie (proxy mode) or the quoted ...\RenameAnythingLauncher.exe part. For Config ',
+            'activation remove %LOCALAPPDATA%\RenameAnything\proxy.enabled or run -ProxyActivation Flag -Install. Keep your own options.'
         ) -join ''
-        AskConfirmSteam            = 'Add the launcher to the HOI4 Steam launch options? [y/N]'
+        AskConfirmSteam            = 'Enable the selected loading method in the HOI4 Steam launch options? [y/N]'
         AskConfirmShortcut         = 'Create the shortcut? [y/N]'
         SteamRunning               = @(
             'Steam is running. Close Steam completely (Steam menu > Exit), then press Enter. Type Q to skip the Steam ',
@@ -49,7 +60,18 @@ $script:RaMessages = @{
     }
     pl = @{
         Title                      = 'Rename Anything dla Hearts of Iron IV \u2014 bootstrap'
-        Intro                      = 'Skrypt nie zmienia instalacji gry, zawarto\u015Bci Workshop ani zapis\u00F3w. Log: {0}'
+        Intro                      = @(
+            'Tryb Proxy dodaje version.dll do folderu gry; tryb Launcher nie zmienia tego folderu. ',
+            'Workshop i zapisy pozostaj\u0105 bez zmian. Log: {0}'
+        ) -join ''
+        AskLoadMethod              = @(
+            'Metoda: 1 = proxy version.dll (zalecane, wymaga -capie); ',
+            '2 = zewn\u0119trzny launcher (bez plik\u00F3w w folderze gry). Wyb\u00F3r [{0}]'
+        ) -join ''
+        AskModeProxy               = @(
+            'Aktywacja Proxy: 1 = dodaj -capie w opcjach Steam; 4 = sama instalacja (dodaj -capie r\u0119cznie). ',
+            "Skr\u00F3ty wymagaj\u0105 trybu Launcher.`nWyb\u00F3r [1,4]"
+        ) -join ''
         AskInstall                 = 'Zainstalowa\u0107/zaktualizowa\u0107 launcher Rename Anything i natywne DLL w {0}? [T/n]'
         AskMode                    = @(
             "Jak uruchamia\u0107 gr\u0119 Z rozszerzeniem?`n  1 = opcja uruchamiania w Steam (zwyk\u0142y przycisk ",
@@ -62,15 +84,15 @@ $script:RaMessages = @{
         ) -join ''
         MpWarning                  = @(
             'OSTRZE\u017BENIE: przy w\u0142\u0105czonym rozszerzeniu Hearts of Iron IV dzia\u0142a ze ',
-            'wstrzykni\u0119t\u0105 natywn\u0105 bibliotek\u0105 DLL. Taka konfiguracja NIE jest deklarowana jako zgodna z ',
+            'natywnymi bibliotekami DLL CAPIE. Taka konfiguracja NIE jest deklarowana jako zgodna z ',
             'trybem wieloosobowym (MP nie by\u0142 weryfikowany; mo\u017Cliwe desynchronizacje). Gr\u0119 ',
             "wieloosobow\u0105 uruchamiaj dopiero po cofni\u0119ciu zmiany.`nJak cofn\u0105\u0107: uruchom ten skrypt z ",
             '-RemoveSteamLaunchOption (tylko wpis Steam) albo -Uninstall (wszystko), albo w Steam: Biblioteka > Hearts of ',
             'Iron IV > W\u0142a\u015Bciwo\u015Bci > Og\u00F3lne > Opcje uruchamiania i usu\u0144 fragment w ',
-            'cudzys\u0142owie ...\RenameAnythingLauncher.exe (w\u0142asne opcje zostaw). W trybie skr\u00F3tu wystarczy ',
-            'usun\u0105\u0107 skr\u00F3t.'
+            '-capie (Proxy) albo w cudzys\u0142owie ...\RenameAnythingLauncher.exe. Przy aktywacji Config usu\u0144 ',
+            '%LOCALAPPDATA%\RenameAnything\proxy.enabled lub uruchom -ProxyActivation Flag -Install. W\u0142asne opcje zostaw.'
         ) -join ''
-        AskConfirmSteam            = 'Doda\u0107 launcher do opcji uruchamiania HOI4 w Steam? [t/N]'
+        AskConfirmSteam            = 'W\u0142\u0105czy\u0107 wybran\u0105 metod\u0119 w opcjach uruchamiania HOI4 w Steam? [t/N]'
         AskConfirmShortcut         = 'Utworzy\u0107 skr\u00F3t? [t/N]'
         SteamRunning               = @(
             'Steam jest uruchomiony. Zamknij Steam ca\u0142kowicie (menu Steam > Zako\u0144cz), potem naci\u015Bnij Enter. ',

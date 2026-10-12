@@ -61,6 +61,7 @@ $script:BuildFragments = @(
     'Shared/Manifest.ps1',
     'Shared/Steam.ps1',
     'Shared/VersionStore.ps1',
+    'Features/Proxy.ps1',
     'Features/SteamLaunchOption.ps1',
     'Features/Install.ps1',
     'Features/Update.ps1',

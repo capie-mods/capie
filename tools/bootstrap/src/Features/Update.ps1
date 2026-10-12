@@ -230,8 +230,6 @@ function Invoke-RaRollback {
         throw "Previous version $prev is missing or failed verification; cannot roll back."
     }
     $cur = $State.InstalledVersion
-    Switch-RaCurrent $prev
-    $State.InstalledVersion = $prev
-    $State.PreviousVersion = $cur
+    Set-RaActiveVersion $State $prev
     Write-RaLog "Rolled back to $prev (kept $cur as previous)."
 }
