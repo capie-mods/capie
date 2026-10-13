@@ -48,7 +48,6 @@ a modified client can send arbitrary commands in vanilla multiplayer too.
 ```paradox title="common/game_rules/capie_sdk_v1_rules.txt (SDK)"
 capie_v1_edit_rights = {
 	name = "CAPIE_V1_RULE_EDIT_RIGHTS"
-	desc = "CAPIE_V1_RULE_EDIT_RIGHTS_DESC"
 	group = "RULE_GROUP_GAMEPLAY"
 	default = { name = "CAPIE_V1_OWN" text = "CAPIE_V1_RULE_OWN" desc = "CAPIE_V1_RULE_OWN_DESC" }
 	option = { name = "CAPIE_V1_OPEN" text = "CAPIE_V1_RULE_OPEN" desc = "CAPIE_V1_RULE_OPEN_DESC" allow_achievements = yes }

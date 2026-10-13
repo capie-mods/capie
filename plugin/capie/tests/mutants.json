@@ -658,16 +658,16 @@
  {
   "name": "public-gap-accepted",
   "file": "src/features/editor/public_editor.hpp",
-  "find": "        if (gap || n == grammar::max_fields || !edit_named(edit, name)) {",
-  "replace": "        if (n == grammar::max_fields || !edit_named(edit, name)) {",
+  "find": "        if (gap || n == grammar::max_fields) {",
+  "replace": "        if (n == grammar::max_fields) {",
   "suite": "tests/public_editor_test.cpp",
   "summary": "public editor tests:"
  },
  {
   "name": "public-fifth-field-accepted",
   "file": "src/features/editor/public_editor.hpp",
-  "find": "        if (gap || n == grammar::max_fields || !edit_named(edit, name)) {",
-  "replace": "        if (gap || !edit_named(edit, name)) {",
+  "find": "        if (gap || n == grammar::max_fields) {",
+  "replace": "        if (gap) {",
   "suite": "tests/public_editor_test.cpp",
   "summary": "public editor tests:"
  },
@@ -742,5 +742,53 @@
   "replace": "    return key[0] == claim_prefix[0] && key[1] == claim_prefix[1];",
   "suite": "tests/public_keys_test.cpp",
   "summary": "public keys tests:"
+ },
+ {
+  "name": "public-miss-is-nullptr",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "        if (!edit_named(guarded_find(find_edit, root, name), name)) {",
+  "replace": "        if (guarded_find(find_edit, root, name) == nullptr) {",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-still-current-skips-text",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "        if (!same_text(fresh.texts[field], snapshot.texts[field])) {\n            return false;\n        }\n",
+  "replace": "",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "input-legacy-uses-extended",
+  "file": "src/features/editor/input_codes.hpp",
+  "find": "    return encode_field(text, Alphabet::legacy);",
+  "replace": "    return encode_field(text, Alphabet::extended);",
+  "suite": "tests/public_names_test.cpp",
+  "summary": "public names tests:"
+ },
+ {
+  "name": "input-table-ignores-choice",
+  "file": "src/features/editor/input_codes.hpp",
+  "find": "    return choice == Alphabet::extended ? extended_alphabet : alphabet;",
+  "replace": "    return extended_alphabet;",
+  "suite": "tests/public_names_test.cpp",
+  "summary": "public names tests:"
+ },
+ {
+  "name": "input-code-off-by-one",
+  "file": "src/features/editor/input_codes.hpp",
+  "find": "static_cast<std::uint16_t>(code_index + 1)",
+  "replace": "static_cast<std::uint16_t>(code_index + 2)",
+  "suite": "tests/public_names_test.cpp",
+  "summary": "public names tests:"
+ },
+ {
+  "name": "input-too-long-boundary",
+  "file": "src/features/editor/input_codes.hpp",
+  "find": "    if (text.size() > max_field_length) {",
+  "replace": "    if (text.size() >= max_field_length) {",
+  "suite": "tests/public_names_test.cpp",
+  "summary": "public names tests:"
  }
 ]

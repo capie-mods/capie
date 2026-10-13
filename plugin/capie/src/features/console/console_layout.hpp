@@ -131,6 +131,21 @@ using ActionFn = ActionResult* (*)(ActionResult* out, const TempVector* argv, st
 using AddOrReplaceFn = void (*)(void* console, const TempVector* source);
 /// @brief `129CA0(string, bytes, size)`: MSVC `std::string::assign` on the game's heap.
 using AssignFn = MsvcString* (*)(MsvcString* self, const char* bytes, std::size_t size);
+/// @brief `10E10C0(out_tag, name)`: country tag from a name string (copies the name; read only).
+using TagParseFn = void* (*)(void* out_tag, const MsvcString* name);
+/// @brief `BB4390(tag)`: country object of a tag (array lookup in the game state; read only).
+using CountryOfFn = void* (*)(const void* tag);
+/// @brief Id of the calling thread.
+using ThreadIdFn = std::uint32_t (*)();
+/// @brief Writes one NUL-terminated log line.
+using LogFn = void (*)(const char* line);
+
+/// @brief RVA of the tag parser called by `set_cosmetic_tag` at 28258E.
+inline constexpr uptr tag_parse_rva = 0x10E10C0;
+/// @brief RVA of the country lookup called by `set_cosmetic_tag` at 2825A2.
+inline constexpr uptr country_of_rva = 0xBB4390;
+/// @brief Offset of the cosmetic tag string in a country (`711279 lea rsi,[rcx+1488]`).
+inline constexpr uptr country_cosmetic_tag = 0x1488;
 
 /**
  * @brief Writes an empty MSVC string, as `282560` does for its result.

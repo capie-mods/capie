@@ -24,8 +24,10 @@
 #include "../../src/features/console/console_line.hpp"
 #include "../../src/features/console/console_text.hpp"
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <deque>
 #include <string>
 #include <string_view>
@@ -211,19 +213,19 @@ void plan_tests() {
 
     plan = plan_typed(CommandId::mod_command, R"(demo echo "ab" "")");
     const std::string expected =
-        "set_temp_variable = { capie_cap = 3 } set_temp_variable = { capie_ver = 10100 } "
+        "FROM = { set_temp_variable = { capie_cap = 3 } set_temp_variable = { capie_ver = 10100 } "
         "set_temp_variable = { capie_src = 2 } set_temp_variable = { capie_nf = 2 } "
         "set_temp_variable = { capie_f1_err = 0 } set_temp_variable = { capie_f1_at = 0 } "
         "set_temp_variable = { capie_f1_len = 2 } set_temp_variable = { capie_f1_0 = 1 } "
         "set_temp_variable = { capie_f1_1 = 2 } "
         "set_temp_variable = { capie_f2_err = 0 } set_temp_variable = { capie_f2_at = 0 } "
         "set_temp_variable = { capie_f2_len = 0 } "
-        "capie_v1_cmd__demo__echo = yes";
+        "capie_v1_cmd__demo__echo = yes }";
     check(plan.delegate == Delegate::eval_effect && plan.token_count == 1 && plan.tokens[0].view() == expected,
           "inline effect: " + std::string(plan.tokens[0].view()));
     plan = plan_typed(CommandId::mod_command, "demo ping");
     check(plan.delegate == Delegate::eval_effect &&
-              plan.tokens[0].view().ends_with("capie_nf = 0 } capie_v1_cmd__demo__ping = yes"),
+              plan.tokens[0].view().ends_with("capie_nf = 0 } capie_v1_cmd__demo__ping = yes }"),
           "mod command without arguments");
     plan = plan_typed(CommandId::mod_command, "capie echo");
     check(plan.delegate == Delegate::none && plan.message.view().starts_with("CAPIE: invalid mod id"),
@@ -235,6 +237,26 @@ void plan_tests() {
     plan = plan_typed(CommandId::mod_command, "demo e-cho");
     check(plan.delegate == Delegate::none && plan.message.view().starts_with("CAPIE: invalid command id"),
           "bad command id");
+    plan = plan_typed(CommandId::mod_command, R"(demo "echo")");
+    check(plan.delegate == Delegate::none && plan.message.view().starts_with("CAPIE: invalid command id"),
+          "quoted command id");
+    plan = plan_typed(CommandId::reset_nation_name, "GER");
+    check(plan.requires_capie_tag, "reset requires a CAPIE tag");
+    plan = plan_typed(CommandId::change_nation_name, "GER Reich");
+    check(!plan.requires_capie_tag, "rename has no precondition");
+    check(console::is_capie_cosmetic("RN1|a|b|") && !console::is_capie_cosmetic("RN1") &&
+              !console::is_capie_cosmetic("GER_fascist") && !console::is_capie_cosmetic(""),
+          "CAPIE cosmetic prefix");
+    check(console::reset_refusal("GER", "").view() == "CAPIE: GER has no cosmetic tag; nothing to reset",
+          "refusal without a tag");
+    check(console::reset_refusal("FRA", "FRA_alt").view() ==
+              "CAPIE: FRA uses cosmetic tag 'FRA_alt' from the game or a mod; reset_nation_name only removes CAPIE "
+              "names (nothing changed)",
+          "refusal names the tag");
+    const std::string odd_tag = std::string("a") + '\x01' + "b" + std::string(60, 'z');
+    const auto odd = console::reset_refusal("ITA", odd_tag);
+    check(odd.view().find("'a?b") != std::string_view::npos && odd.view().find("...'") != std::string_view::npos,
+          "refusal sanitises and shortens: " + std::string(odd.view()));
     plan = plan_typed(CommandId::mod_command, "demo echo a b c d e");
     check(plan.delegate == Delegate::none && plan.message.view() == "CAPIE: too many arguments at byte 19",
           "five arguments");
@@ -281,18 +303,21 @@ struct DelegateCall {
 
 /// @brief All fake game state.
 struct FakeGame {
-    FakeConsoleHeader header{};                 ///< Console header.
-    std::vector<layout::CommandEntry> entries;  ///< Entry array (data of `header`).
-    std::deque<std::string> heap;               ///< Strings "allocated by the game".
-    std::vector<DelegateCall> calls;            ///< Delegate calls.
-    unsigned add_calls = 0;                     ///< Calls of add_or_replace.
-    bool drop_on_add = false;                   ///< Fake add that silently does nothing.
-    bool corrupt_on_add = false;                ///< Fake add that stores another action.
-    bool wrong_context_on_add = false;          ///< Fake add that stores another context.
-    bool multiplayer = false;                   ///< Gate B.
-    bool ironman = false;                       ///< Gate C.
-    std::deque<std::string> alias_storage;      ///< Alias bytes (deque: addresses stay stable).
-    uptr console_slot = 0;                      ///< The singleton pointer.
+    FakeConsoleHeader header{};                           ///< Console header.
+    std::vector<layout::CommandEntry> entries;            ///< Entry array (data of `header`).
+    std::deque<std::string> heap;                         ///< Strings "allocated by the game".
+    std::vector<DelegateCall> calls;                      ///< Delegate calls.
+    unsigned add_calls = 0;                               ///< Calls of add_or_replace.
+    bool drop_on_add = false;                             ///< Fake add that silently does nothing.
+    bool corrupt_on_add = false;                          ///< Fake add that stores another action.
+    bool wrong_context_on_add = false;                    ///< Fake add that stores another context.
+    bool multiplayer = false;                             ///< Gate B.
+    bool ironman = false;                                 ///< Gate C.
+    std::deque<std::string> alias_storage;                ///< Alias bytes (deque: addresses stay stable).
+    uptr console_slot = 0;                                ///< The singleton pointer.
+    std::array<std::vector<unsigned char>, 5> countries;  ///< Country objects by tag index (1..4).
+    std::uint32_t thread = 100;                           ///< Thread id the fake game reports.
+    std::vector<std::string> log;                         ///< Bridge log lines.
 };
 /**
  * @brief The fake game (function-local static: constructed on first use, not at load).
@@ -520,6 +545,8 @@ std::string dispatch(std::string_view typed) {
  * @brief Builds a fresh fake game with the three delegates and a few vanilla commands.
  * @param state Storage.
  */
+void set_cosmetic(std::size_t index, const std::string& cosmetic);
+
 void reset_game(FakeGame& state) {
     state = FakeGame{};
     state.entries.reserve(64);  // keep entry addresses stable while a test holds none
@@ -530,6 +557,66 @@ void reset_game(FakeGame& state) {
     add_vanilla("eval_effect", fake_eval_effect);
     add_vanilla("whitepeace", fake_other, "wp");
     state.console_slot = reinterpret_cast<uptr>(&state.header);
+    set_cosmetic(0, "");
+    set_cosmetic(1, "RN1|Neues Reich|neu|");
+    set_cosmetic(2, "FRA_alt");
+    set_cosmetic(3, "");
+    set_cosmetic(4, "ITA_x");
+}
+
+/**
+ * @brief Fake `10E10C0`: writes the tag index (GER 1, FRA 2, POL 3, ITA 4, else 0).
+ * @param out Tag object.
+ * @param name Tag name.
+ * @return `out`.
+ */
+void* fake_tag_parse(void* out, const MsvcString* name) {
+    const std::string tag = bytes_of(*name);
+    std::int32_t index = 0;
+    const std::array<const char*, 4> known{"GER", "FRA", "POL", "ITA"};
+    for (std::size_t i = 0; i < known.size(); ++i) {
+        index = tag == known[i] ? static_cast<std::int32_t>(i + 1) : index;
+    }
+    std::memcpy(out, &index, sizeof(index));
+    return out;
+}
+
+/**
+ * @brief Fake `BB4390`: the country object of a tag index (index 0 has an object, as in the game array).
+ * @param tag Tag object.
+ * @return Country, or null.
+ */
+void* fake_country_of(const void* tag) {
+    std::int32_t index = 0;
+    std::memcpy(&index, tag, sizeof(index));
+    if (index < 0 ||
+        static_cast<std::size_t>(index) >= game->countries.size()) {  // index 0: like the game, a slot exists
+        return nullptr;
+    }
+    return game->countries[static_cast<std::size_t>(index)].data();
+}
+
+/**
+ * @brief Sets a fake country's cosmetic tag.
+ * @param index Tag index.
+ * @param cosmetic Tag text.
+ */
+void set_cosmetic(std::size_t index, const std::string& cosmetic) {
+    auto& country = game->countries[index];
+    country.assign(layout::country_cosmetic_tag + sizeof(MsvcString), 0);
+    game->heap.push_back(cosmetic);
+    const auto value = capie::engine::borrowed_string(game->heap.back().c_str(), game->heap.back().size());
+    std::memcpy(country.data() + layout::country_cosmetic_tag, &value, sizeof(value));
+}
+
+/** @brief Fake thread id. @return The fake game's current thread. */
+std::uint32_t fake_thread() {
+    return game->thread;
+}
+
+/** @brief Fake log sink. @param line Line. */
+void fake_log(const char* line) {
+    game->log.emplace_back(line);
 }
 
 /**
@@ -545,6 +632,10 @@ console::NativeApi fake_api(FakeGame& state) {
     api.set_cosmetic_tag = reinterpret_cast<uptr>(&fake_set_cosmetic);
     api.drop_cosmetic_tag = reinterpret_cast<uptr>(&fake_drop_cosmetic);
     api.eval_effect = reinterpret_cast<uptr>(&fake_eval_effect);
+    api.tag_parse = fake_tag_parse;
+    api.country_of = fake_country_of;
+    api.current_thread = fake_thread;
+    api.log = fake_log;
     api.verified = true;
     return api;
 }
@@ -676,10 +767,19 @@ void bridge_tests() {
           "usage without arguments");
     check(dispatch("reset_nation_name GER").empty() && state.calls.back().name == "drop_cosmetic_tag" &&
               state.calls.back().tokens == std::vector<std::string>{"GER"},
-          "reset goes through drop_cosmetic_tag");
+          "reset of a CAPIE name goes through drop_cosmetic_tag");
+    auto calls_now = state.calls.size();
+    check(dispatch("reset_nation_name FRA").starts_with("CAPIE: FRA uses cosmetic tag 'FRA_alt'") &&
+              state.calls.size() == calls_now,
+          "reset keeps a story cosmetic tag");
+    check(dispatch("reset_nation_name POL") == "CAPIE: POL has no cosmetic tag; nothing to reset" &&
+              state.calls.size() == calls_now,
+          "reset without a cosmetic tag");
+    check(dispatch("reset_nation_name SWE") == "Invalid tag for the command" && state.calls.size() == calls_now,
+          "reset of an unknown tag");
     check(dispatch("capie_cmd demo echo hi").empty() && state.calls.back().name == "eval_effect" &&
-              state.calls.back().tokens.size() == 1 &&
-              state.calls.back().tokens[0].ends_with("capie_v1_cmd__demo__echo = yes"),
+              state.calls.back().tokens.size() == 1 && state.calls.back().tokens[0].starts_with("FROM = { ") &&
+              state.calls.back().tokens[0].ends_with("capie_v1_cmd__demo__echo = yes }"),
           "mod command goes through eval_effect");
     check(dispatch("no_such_command x") == "Unknown command", "unknown command stays vanilla");
 
@@ -717,7 +817,45 @@ void bridge_tests() {
     // Unreadable argv.
     live.run(&result, nullptr, console::ConsoleBridge<FakeMemory>::context_of(console::CommandId::reset_nation_name));
     check(bytes_of(result.message) == "CAPIE: could not read the command line", "null argv refused");
+
+    // Thread check: registration happened on thread 100; an action on another thread is refused and logged.
+    check(!state.log.empty() && state.log[0].find("first action on thread 100") != std::string::npos,
+          "first action logs the thread");
+    calls_now = state.calls.size();
+    state.thread = 200;
+    check(dispatch("change_nation_name GER Reich").starts_with("CAPIE: console commands refused (wrong thread") &&
+              state.calls.size() == calls_now &&
+              state.log.back().find("thread 200 differs from Tick thread 100") != std::string::npos,
+          "other thread refused and logged");
+    state.thread = 100;
+    check(dispatch("change_nation_name GER Reich").empty() && state.calls.size() == calls_now + 1,
+          "same thread works again");
     bridge = nullptr;
+
+    // run() before registration (valid context) is refused.
+    reset_game(state);
+    {
+        console::ConsoleBridge<FakeMemory> idle(mem, fake_api(state), action);
+        layout::ActionResult idle_result{};
+        idle.run(&idle_result, &empty,
+                 console::ConsoleBridge<FakeMemory>::context_of(console::CommandId::change_nation_name));
+        check(bytes_of(idle_result.message) == "CAPIE: console commands inactive" && state.calls.empty(),
+              "unregistered bridge refuses a valid context");
+    }
+
+    // configure() is ignored after registration started.
+    reset_game(state);
+    {
+        console::ConsoleBridge<FakeMemory> configured(mem, console::NativeApi{}, 0);
+        configured.configure(fake_api(state), action);
+        check(configured.try_register() == Registration::registered, "configure before registration");
+        configured.configure(console::NativeApi{}, 0);
+        layout::ActionResult configured_result{};
+        configured.run(&configured_result, &empty,
+                       console::ConsoleBridge<FakeMemory>::context_of(console::CommandId::change_nation_name));
+        check(bytes_of(configured_result.message).starts_with("Usage: change_nation_name"),
+              "configure after registration is ignored");
+    }
 }
 
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)

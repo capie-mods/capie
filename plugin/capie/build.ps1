@@ -39,6 +39,11 @@
     folder (for example plugin\build\capie-v11) while plugin\build\capie holds binaries that
     other scripts pin by hash.
 
+.PARAMETER Console
+    Developer build with the console-command candidate (CAPIE_CONSOLE_CANDIDATE=1, see
+    src/features/console/). Without -OutputDirectory the output goes to
+    plugin\build\capie-console-dev. Never use it for a release or a launcher package.
+
 .OUTPUTS
     None. Prints a summary line per step.
 
@@ -53,8 +58,12 @@ param(
     [string]$GameExe = 'C:\Program Files (x86)\Steam\steamapps\common\Hearts of Iron IV\hoi4.exe',
     [string]$Python = 'python',
     [switch]$SkipBenchmarks,
-    [ValidateNotNullOrEmpty()][string]$OutputDirectory = 'plugin\build\capie'
+    [ValidateNotNullOrEmpty()][string]$OutputDirectory = 'plugin\build\capie',
+    [switch]$Console
 )
+if ($Console -and -not $PSBoundParameters.ContainsKey('OutputDirectory')) {
+    $OutputDirectory = 'plugin\build\capie-console-dev'  # developer-only output, never the default folder
+}
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -68,6 +77,7 @@ $script:TestOutDir = Join-Path $script:OutDir 'tests'
 $script:ObjDir = Join-Path $script:OutDir 'obj'
 $script:CommonFlags = @('/nologo', '/O2', '/MT', '/W4', '/utf-8', '/DWIN32_LEAN_AND_MEAN', '/DNOMINMAX')
 $script:CppFlags = $script:CommonFlags + @('/WX', '/std:c++20', '/EHsc', '/permissive-')
+if ($Console) { $script:CppFlags += '/DCAPIE_CONSOLE_CANDIDATE=1' }  # src/features/console/ wiring
 
 function Import-VisualStudioEnvironment {
     <#
@@ -279,9 +289,12 @@ Invoke-Test 'editor_hotpath_test.cpp' 'editor_hotpath_test_release.exe' @('/DCAP
 # Public contract, API level 2 (CONTRACT.md): grammar and alphabet, CAPIE_* keys, grammar editors in both flavors.
 Invoke-Test -Source 'public_names_test.cpp' -Output 'public_names_test.exe' | Out-Null
 Invoke-Test -Source 'public_keys_test.cpp' -Output 'public_keys_test.exe' -Link $script:MinHookObjects | Out-Null
+# The demo mod's real .gui is checked against the native layout rule (in-game failure PID45148).
+$demoGui = Join-Path $script:RepoDir 'sdk\capie-script-sdk\examples\capie_demo\interface\mydemo.gui'
 foreach ($flavor in 1, 0) {
     $name = if ($flavor -eq 1) { 'public_editor_test_debug.exe' } else { 'public_editor_test_release.exe' }
-    Invoke-Test -Source 'public_editor_test.cpp' -Output $name -Flags @("/DCAPIE_DEBUG_DIAGNOSTICS=$flavor") -Link $script:MinHookObjects | Out-Null
+    Invoke-Test -Source 'public_editor_test.cpp' -Output $name -Flags @("/DCAPIE_DEBUG_DIAGNOSTICS=$flavor") -Arguments @($demoGui) `
+        -Link $script:MinHookObjects | Out-Null
 }
 
 # 4. Signature table equivalence with the accepted sources.
@@ -302,5 +315,9 @@ if (-not $SkipBenchmarks) {
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_editor_debug.exe' @('/DCAPIE_BENCH_LEGACY=0', '/DCAPIE_DEBUG_DIAGNOSTICS=1') @() $script:MinHookObjects | Out-Null
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_country_legacy.exe' @('/DCAPIE_BENCH_PART=1', '/DCAPIE_BENCH_LEGACY=1', ('/I' + $legacyCountry)) @() $script:MinHookObjects | Out-Null
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_country_capie.exe' @('/DCAPIE_BENCH_PART=1', '/DCAPIE_BENCH_LEGACY=0') @() $script:MinHookObjects | Out-Null
+}
+if ($Console) {
+    & (Join-Path $script:TestDir 'console\run_console_tests.ps1') -VisualStudioDir $VisualStudioDir -OutputDirectory (Join-Path $OutputDirectory 'console-tests')
+    Write-Host 'CONSOLE DEVELOPER BUILD (CAPIE_CONSOLE_CANDIDATE=1): not for a release or a launcher package.'
 }
 Write-Host "CAPIE build and offline tests passed: $script:OutDir"

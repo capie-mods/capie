@@ -75,7 +75,7 @@ inline constexpr std::uint64_t public_build_number = core::capie_build_number;
 enum class PublicSentinel : unsigned {
     stale = 1,           ///< Opening not ready or changed: close and reopen.
     registry_full = 2,   ///< Session limit of grammar editors reached.
-    layout_invalid = 3,  ///< More than 4 fields, a gap, or a field that is not an edit box.
+    layout_invalid = 3,  ///< A fifth field, or a gap between fields.
 };
 
 }  // namespace capie::editor

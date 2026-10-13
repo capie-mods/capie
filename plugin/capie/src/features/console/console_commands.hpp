@@ -10,10 +10,12 @@
  *     change_nation_name <TAG> <name> [<adjective>]
  *         -> set_cosmetic_tag <TAG> RN1|<name>|<adjective>|      (adjective defaults to name)
  *     reset_nation_name <TAG>
- *         -> drop_cosmetic_tag <TAG>
+ *         -> drop_cosmetic_tag <TAG>        only when the current cosmetic tag is CAPIE's
+ *                                           (`RN1|...`); the bridge reads it first
  *     capie_cmd <mod> <command> [arg1 .. arg4]
- *         -> eval_effect <inline effect>   (records as in CONTRACT section 5.1, then
- *                                           capie_v1_cmd__<mod>__<command> = yes)
+ *         -> eval_effect "FROM = { <records> capie_v1_cmd__<mod>__<command> = yes }"
+ *            (records as in CONTRACT-console.md; FROM of eval_effect is the player's
+ *            country, ROOT is whatever object is selected, re-evidence.md section 10)
  *
  * The vanilla `set_cosmetic_tag` console action and the script effect Rename Anything uses
  * end in the same setter (`282540 -> 711260`, `361760 -> 711260`), so a console rename is
@@ -52,6 +54,23 @@ inline constexpr std::string_view mod_effect_prefix = "capie_v1_cmd__";
 inline constexpr std::string_view id_separator = "__";
 /// @brief Mod id reserved for CAPIE's own SDK.
 inline constexpr std::string_view reserved_mod_id = "capie";
+/// @brief Opens the player scope around a mod command. `eval_effect` sets FROM to the player's
+/// country (`[332F260]+520`, else `+524`, the expression `pp` uses for "the player") and ROOT
+/// to the selected object (re-evidence.md section 10), so CAPIE switches to FROM explicitly.
+inline constexpr std::string_view player_scope_open = "FROM = { ";
+/// @brief Closes the player scope.
+inline constexpr std::string_view player_scope_close = " }";
+/// @brief Longest cosmetic tag quoted back in a `reset_nation_name` refusal.
+inline constexpr std::size_t max_quoted_tag_bytes = 48;
+
+/**
+ * @brief Whether a cosmetic tag is one CAPIE (or Rename Anything) set.
+ * @param cosmetic Current cosmetic tag bytes.
+ * @return `true` for the `RN1|` protocol prefix.
+ */
+constexpr bool is_capie_cosmetic(std::string_view cosmetic) noexcept {
+    return cosmetic.starts_with(country::protocol_prefix);
+}
 
 /// @brief CAPIE's commands.
 enum class CommandId {
@@ -109,13 +128,13 @@ inline constexpr std::array<CommandSpec, command_count> command_specs{{
      R"(Usage: change_nation_name <TAG> "<name>" ["<adjective>"])"},
     {CommandId::reset_nation_name,
      "reset_nation_name",
-     "CAPIE: drops the cosmetic tag of a country (any cosmetic tag, not only CAPIE names).",
+     "CAPIE: removes a name set by change_nation_name or Rename Anything (RN1 cosmetic tag only).",
      {"<TAG>", {}, {}},
      1,
      "Usage: reset_nation_name <TAG>"},
     {CommandId::mod_command,
      "capie_cmd",
-     "CAPIE: runs the scripted effect capie_v1_cmd__<mod>__<command> with up to 4 text arguments.",
+     "CAPIE: runs scripted effect capie_v1_cmd__<mod>__<command> in the player's country, up to 4 text args.",
      {"<mod>", "<command>", R"(["<argument>" ...])"},
      3,
      R"(Usage: capie_cmd <mod> <command> ["<argument>" ...] (up to 4 arguments))"},
@@ -180,6 +199,7 @@ struct Plan {
     std::array<Text<max_delegate_bytes>, max_delegate_tokens> tokens{};  ///< Its tokens.
     std::size_t token_count{};                                           ///< Used tokens.
     Message message{};                                                   ///< Error or usage text (when `none`).
+    bool requires_capie_tag{};  ///< Delegate only if the country's current cosmetic tag is `RN1|...`.
 };
 
 namespace detail {
@@ -293,7 +313,36 @@ inline Plan plan_reset_nation_name(const line::Arguments& args) noexcept {
     plan.delegate = Delegate::drop_cosmetic_tag;
     plan.tokens[0].add(args.at(0));
     plan.token_count = 1;
+    plan.requires_capie_tag = true;
     return plan;
+}
+
+/**
+ * @brief Message for `reset_nation_name` when the country has no CAPIE name.
+ * @param tag Country tag (already validated).
+ * @param cosmetic Current cosmetic tag (may be empty).
+ * @return Console message; the tag is quoted with non-printable bytes replaced by `?`.
+ */
+inline Message reset_refusal(std::string_view tag, std::string_view cosmetic) noexcept {
+    Message out{};
+    if (cosmetic.empty()) {
+        out.add("CAPIE: ").add(tag).add(" has no cosmetic tag; nothing to reset");
+        return out;
+    }
+    constexpr char first_printable = 0x20;
+    constexpr char last_printable = 0x7e;
+    std::array<char, max_quoted_tag_bytes> shown{};
+    const std::size_t count = cosmetic.size() < shown.size() ? cosmetic.size() : shown.size();
+    for (std::size_t index = 0; index < count; ++index) {
+        const char c = cosmetic[index];
+        shown[index] = (c >= first_printable && c <= last_printable) ? c : '?';
+    }
+    out.add("CAPIE: ").add(tag).add(" uses cosmetic tag '").add(std::string_view(shown.data(), count));
+    if (cosmetic.size() > shown.size()) {
+        out.add("...");
+    }
+    out.add("' from the game or a mod; reset_nation_name only removes CAPIE names (nothing changed)");
+    return out;
 }
 
 /**
@@ -327,6 +376,7 @@ inline Plan plan_mod_command(const line::Arguments& args) noexcept {
         }
     }
     auto& effect = plan.tokens[0];
+    effect.add(player_scope_open);
     detail::record(effect, "capie_cap", console_api_level);
     detail::record(effect, "capie_ver", core::capie_build_number);
     detail::record(effect, "capie_src", console_source);
@@ -342,7 +392,12 @@ inline Plan plan_mod_command(const line::Arguments& args) noexcept {
             detail::field_record(effect, field + 1, suffix.view(), codes.codes[index]);
         }
     }
-    effect.add(mod_effect_prefix).add(args.at(0)).add(id_separator).add(args.at(1)).add(" = yes");
+    effect.add(mod_effect_prefix)
+        .add(args.at(0))
+        .add(id_separator)
+        .add(args.at(1))
+        .add(" = yes")
+        .add(player_scope_close);
     if (effect.overflow) {
         plan = Plan{};
         plan.message.add("CAPIE: arguments too long for one command");

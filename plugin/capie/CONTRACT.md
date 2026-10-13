@@ -51,7 +51,9 @@ epoch carrier      capie_v1_ep__<mod>__<editor>           instantTextBox, requir
 - The grammar applies to the scripted GUI key, which is what the game passes to the hooks.
   `window_name` may be anything; the SDK examples use the same string.
 - An editor has 0 to 4 fields. CAPIE finds field `n` with the game's own edit-box lookup in the
-  window; the field count is the number of consecutive fields found from 1. An editor with
+  window; the field count is the number of consecutive fields found from 1. The lookup
+  searches edit boxes only and answers a miss with the game's null edit box, so a field exists
+  exactly when the lookup returns an edit box whose definition has that name. An editor with
   no field is allowed: its Apply carries only the header records (used by the SDK's CAPIE check
   button).
 - The longest model name is 13 + 12 + 2 + 12 = 39 bytes, the longest selector 51 bytes. Both
@@ -126,7 +128,7 @@ with only `capie_cap`, `capie_ver` and `capie_epoch = -code`:
 |---|---|---|
 | `-1` | Opening not ready or changed while capturing (first frame after opening, a rebind, the epoch changed, a field disappeared, prefill still running) | Close and reopen the editor |
 | `-2` | Editor registry full (section 3 limits) | Nothing in this session; a mod author issue |
-| `-3` | Editor layout invalid: more than 4 fields, or a field that is not one of the game's edit boxes | A mod author issue |
+| `-3` | Editor layout invalid: a fifth field (`__5`), or a gap (field `n + 1` without field `n`) | A mod author issue |
 
 When the editor window is not visible or not consistent, CAPIE drops the click and logs it;
 the game's own effect does not run. This matches Rename Anything's rule for a click that
