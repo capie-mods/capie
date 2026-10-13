@@ -14,6 +14,9 @@
 .PARAMETER OutputDirectory
     Output folder relative to the repository root (default plugin\build\capie-console\tests).
 
+.PARAMETER GameExe
+    hoi4.exe for the wiring pin check (read as a file only). Missing file = table checks only.
+
 .OUTPUTS
     None. Prints the summary line of each run.
 
@@ -24,7 +27,8 @@
 [OutputType([void])]
 param(
     [string]$VisualStudioDir = '',
-    [ValidateNotNullOrEmpty()][string]$OutputDirectory = 'plugin\build\capie-console\tests'
+    [ValidateNotNullOrEmpty()][string]$OutputDirectory = 'plugin\build\capie-console\tests',
+    [string]$GameExe = 'C:\Program Files (x86)\Steam\steamapps\common\Hearts of Iron IV\hoi4.exe'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -56,5 +60,15 @@ try {
         $lines | Select-Object -Last 20 | ForEach-Object { Write-Host "  $_" }
         if ($code -ne 0) { throw "$exe failed (exit $code)" }
     }
+    # Wiring pins against the game EXE file (read only); without the file only the tables are checked.
+    $pins = 'console_pins_exe_test.exe'
+    & cl.exe @flags (Join-Path $PSScriptRoot 'console_pins_exe_test.cpp') /link "/OUT:$pins"
+    if ($LASTEXITCODE -ne 0) { throw "$pins compilation failed (exit $LASTEXITCODE)" }
+    $pinArgs = [string[]]@()
+    if (Test-Path -LiteralPath $GameExe) { $pinArgs = [string[]]@($GameExe) } else { Write-Host '  (game EXE not found: pin checks skipped)' }
+    $lines = & (Join-Path $out $pins) @pinArgs 2>&1
+    $code = $LASTEXITCODE
+    $lines | Select-Object -Last 20 | ForEach-Object { Write-Host "  $_" }
+    if ($code -ne 0) { throw "$pins failed (exit $code)" }
 } finally { Pop-Location }
 Write-Host "Console candidate tests passed: $out"

@@ -37,7 +37,7 @@ uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1 -BuildDirecto
 
 New offline tests: `public_names_test.cpp` (grammar, alphabet), `public_keys_test.cpp`
 (`CAPIE_*` keys), `public_editor_test.cpp` (grammar editors on the real hook bodies, both
-flavors), `check_alphabet.py` (native table equals the SDK table); 14 more mutants.
+flavors), `check_alphabet.py` (native table equals the SDK table); 20 more mutants.
 
 ## Binaries (output `plugin/build/capie/`, debug flavor in `debug/`)
 
@@ -115,7 +115,7 @@ is a process singleton; the accepted tests address it directly), virtual interfa
 
 ```powershell
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook'   # both flavors, all offline tests, benchmarks
-.\plugin\capie\mutation_check.ps1                           # 93 mutants (bridge and public-editor ones in debug and release)
+.\plugin\capie\mutation_check.ps1                           # 99 mutants (bridge and public-editor ones in debug and release)
 uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tidy + clang-format (uv dev group)
 ```
 

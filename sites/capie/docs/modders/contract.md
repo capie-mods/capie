@@ -101,7 +101,7 @@ When the window is visible but CAPIE cannot send the text, Apply still runs once
 |---|---|
 | `-1` | The opening is not ready or changed (first frame after opening, a rebind, a new epoch) |
 | `-2` | Editor limit of the session reached |
-| `-3` | Layout invalid: a gap between fields, a fifth field, or a field name on a widget that is not an edit box |
+| `-3` | Layout invalid: a gap between fields, or a fifth field |
 
 When the window is not visible, CAPIE drops the click.
 

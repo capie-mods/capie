@@ -8,6 +8,11 @@
  * FindInstantText, SetText, edit refresh, Dispatch, the effect constructor) are fakes. No
  * game process, no hooks installed. Runs in both flavors.
  *
+ * The fake lookups behave like the game's: a miss returns a null widget, never nullptr
+ * (FindEdit returns the window's CNullEditBox, day2-native-editor-contract.txt section 3).
+ * With the path of the demo mod's `.gui` as the first argument, the test also parses that
+ * file and runs each grammar window it declares through the native layout rule.
+ *
  * Covered: registration of two mods, prefill from carriers (and not over a focused field),
  * payload records and codes, spoofed `capie_*` records removed, extended alphabet and
  * field errors, zero-field editors, the three sentinels, dropped clicks of hidden windows,
@@ -16,11 +21,16 @@
  */
 #include "../src/dll/capie_editor.cpp"
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -244,25 +254,43 @@ FakeWindow* window_of(void* root) {
     return nullptr;
 }
 
-/// @brief Fake FindEdit.
+/// @brief CNullEditBox primary vtable: FindEdit's result for a miss (day2-native-editor-contract.txt 3).
+constexpr std::uintptr_t vt_null_edit = 0x2B558B0;
+/// @brief The game's null edit box (FindEdit never returns nullptr for a miss).
+alignas(
+    8) std::array<unsigned char, edit_bytes> null_edit{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief Stand-in for the null text box FindInstantText returns on a miss (not the instant vtable).
+alignas(8) std::array<unsigned char,
+                      carrier_bytes> null_instant{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief When non-null: the edit whose text changes on its `change_on_lookup`-th lookup (MINOR-V1).
+FakeEdit* change_edit = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief Lookups of `change_edit` so far.
+unsigned change_lookups = 0;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief Lookup at which `change_edit`'s text changes.
+unsigned change_on_lookup = 0;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+
+/// @brief Fake FindEdit: like the game, a miss returns the null edit box, never nullptr.
 void* __fastcall fake_find_edit(void* root, const MsvcString* name, bool /*a*/, bool /*b*/) {
     auto* w = window_of(root);
     if (w == nullptr) {
-        return nullptr;
+        return null_edit.data();
     }
     for (auto& e : w->edits) {
         if (e.present && name_equals(name, e.name.c_str())) {
+            if (&e == change_edit && ++change_lookups == change_on_lookup) {
+                type_text(e, U"changed after capture");
+            }
             return e.edit.data();
         }
     }
-    return nullptr;
+    return null_edit.data();
 }
 
 /// @brief Fake FindInstantText.
 void* __fastcall fake_find_instant(void* root, const MsvcString* name, bool /*a*/, bool /*b*/) {
     auto* w = window_of(root);
     if (w == nullptr) {
-        return nullptr;
+        return null_instant.data();
     }
     if (w->epoch.present && name_equals(name, w->epoch.name.c_str())) {
         return w->epoch.widget.data();
@@ -272,7 +300,7 @@ void* __fastcall fake_find_instant(void* root, const MsvcString* name, bool /*a*
             return c.widget.data();
         }
     }
-    return nullptr;
+    return null_instant.data();
 }
 
 /// @brief Fake text-buffer SetText: decodes UTF-8 into the owning edit.
@@ -577,6 +605,167 @@ void sentinel_tests() {
     check(captured.size() == 1 && value_of("capie_cap") == 5, "no frame: constructor unchanged");
 }
 
+/// @brief MINOR-V1: a field whose text changes between capture and dispatch drops the Apply.
+void recheck_tests() {
+    auto& faction = *windows.front();
+    type_text(faction.edits[0], U"Stable");
+    click(faction, apply_of(faction));
+    check(value_of("capie_f1_len") == 6, "baseline Apply before the change test");
+    // Lookups of field 1 in one Apply: layout (1), capture (2), final re-check (3).
+    change_edit = faction.edits.data();
+    change_lookups = 0;
+    change_on_lookup = 3;
+    const auto before = dispatch_originals;
+    click(faction, apply_of(faction));
+    check(dispatch_originals == before && captured.empty(), "text changed after capture: Apply dropped");
+    change_edit = nullptr;
+    click(faction, apply_of(faction));
+    check(dispatch_originals == before + 1 && value_of("capie_f1_len") == 21, "next Apply sends the current text");
+}
+
+/// @brief One block of a parsed .gui file.
+struct GuiNode {
+    std::string type;               ///< Block key (containerWindowType, editBoxType, ...).
+    std::string name;               ///< Value of its name attribute.
+    std::vector<GuiNode> children;  ///< Nested blocks.
+};
+
+/**
+ * @brief Splits HOI4 script into tokens (comments dropped, quoted strings kept whole).
+ * @param text File text.
+ * @return Tokens.
+ */
+std::vector<std::string> gui_tokens(const std::string& text) {
+    std::vector<std::string> tokens;
+    std::size_t i = 0;
+    while (i < text.size()) {
+        const char c = text[i];
+        if (c == '#') {
+            const auto end = text.find('\n', i);
+            i = end == std::string::npos ? text.size() : end;
+        } else if (c == '"') {
+            const auto end = text.find('"', i + 1);
+            const auto stop = end == std::string::npos ? text.size() : end + 1;
+            tokens.push_back(text.substr(i, stop - i));
+            i = stop;
+        } else if (c == '{' || c == '}' || c == '=') {
+            tokens.emplace_back(1, c);
+            ++i;
+        } else if (std::isspace(static_cast<unsigned char>(c)) != 0) {
+            ++i;
+        } else {
+            const auto start = i;
+            while (i < text.size() && std::isspace(static_cast<unsigned char>(text[i])) == 0 && text[i] != '=' &&
+                   text[i] != '{' && text[i] != '}' && text[i] != '#') {
+                ++i;
+            }
+            tokens.push_back(text.substr(start, i - start));
+        }
+    }
+    return tokens;
+}
+
+/**
+ * @brief Parses the blocks and their names of a HOI4 .gui file.
+ * @param text File text.
+ * @return Root node (type "file").
+ */
+GuiNode parse_gui(const std::string& text) {
+    GuiNode root{"file", "", {}};
+    std::vector<GuiNode*> stack{&root};
+    const auto tokens = gui_tokens(text);
+    for (std::size_t t = 0; t < tokens.size(); ++t) {
+        const bool assign = t + 2 < tokens.size() && tokens[t + 1] == "=";
+        if (tokens[t] == "}" && stack.size() > 1) {
+            stack.pop_back();
+        } else if (assign && tokens[t + 2] == "{") {
+            stack.back()->children.push_back({tokens[t], "", {}});
+            stack.push_back(&stack.back()->children.back());
+            t += 2;
+        } else if (assign && tokens[t] == "name" && tokens[t + 2].size() >= 2 && tokens[t + 2].front() == '"') {
+            stack.back()->name = tokens[t + 2].substr(1, tokens[t + 2].size() - 2);
+            t += 2;
+        }
+    }
+    return root;
+}
+
+/**
+ * @brief Collects the names of every descendant block of one type (the game's lookups recurse).
+ * @param node Window.
+ * @param type Block key.
+ * @param out Receives the names.
+ */
+// NOLINTNEXTLINE(misc-no-recursion): .gui nesting depth is bounded by the file (test helper)
+void collect(const GuiNode& node, const std::string& type, std::vector<std::string>& out) {
+    for (const auto& child : node.children) {
+        if (child.type == type) {
+            out.push_back(child.name);
+        }
+        collect(child, type, out);
+    }
+}
+
+/**
+ * @brief Whether a list holds a name.
+ * @param names List.
+ * @param name Name.
+ * @return `true` when present.
+ */
+bool has(const std::vector<std::string>& names, std::string_view name) {
+    return std::ranges::find(names, name) != names.end();
+}
+
+/**
+ * @brief The demo mod's real .gui through the native layout rule (in-game failure, PID45148).
+ * @param path Path of `examples/capie_demo/interface/mydemo.gui`.
+ */
+void demo_gui_tests(const char* path) {
+    std::ifstream file(path, std::ios::binary);
+    const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    check(!text.empty(), "demo .gui readable");
+    const auto root = parse_gui(text);
+    std::size_t editors = 0;
+    for (const auto& gui_types : root.children) {
+        for (const auto& window : gui_types.children) {
+            const auto id = grammar::parse_model(window.name);
+            if (window.type != "containerWindowType" || !id) {
+                continue;
+            }
+            ++editors;
+            std::vector<std::string> edits;
+            std::vector<std::string> carriers;
+            collect(window, "editBoxType", edits);
+            collect(window, "instantTextboxType", carriers);
+            unsigned mask = 0;
+            std::size_t field_total = 0;
+            for (std::size_t n = 1; n <= grammar::max_fields + 1; ++n) {
+                if (has(edits, grammar::field_name(*id, n).view())) {
+                    mask |= 1U << (n - 1);
+                    ++field_total;
+                }
+            }
+            const bool epoch = has(carriers, grammar::epoch_name(*id).view());
+            auto& w = make_window(window.name, mask, epoch ? "1" : "");
+            for (std::size_t n = 0; n < grammar::max_fields; ++n) {
+                if (has(carriers, grammar::prefill_name(*id, n + 1).view())) {
+                    set_carrier(w.prefills[n], "Seed");
+                }
+            }
+            tick_observed(w.window.data(), 0);
+            const auto slot = find_public(window.name);
+            const std::string label = "demo " + window.name;
+            check(epoch && field_total >= 1 && slot != max_public_editors && public_layout[slot] == Layout::valid &&
+                      public_field_count[slot] == field_total,
+                  label + ": layout valid with every field of the .gui");
+            click(w, apply_of(w));
+            check(value_of("capie_epoch") == 1 && value_of("capie_nf") == static_cast<std::int64_t>(field_total),
+                  label + ": Apply carries the payload, no sentinel");
+        }
+    }
+    check(editors == 2, "demo .gui has two grammar editors");
+}
+
 /// @brief Registry limits: 8 per mod, 32 per session, then sentinel -2.
 void registry_tests() {
     // mymod already has faction, late, gap, five, noepoch, hidden (6) -> two more fit.
@@ -616,7 +805,7 @@ void registry_tests() {
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
     static_cast<void>(std::setvbuf(stdout, nullptr, _IONBF, 0));
     void* memory = VirtualAlloc(nullptr, image_bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (memory == nullptr) {
@@ -624,6 +813,7 @@ int main() {
         return 1;
     }
     image_base = reinterpret_cast<std::uintptr_t>(memory);
+    put(null_edit.data(), 0, image_base + vt_null_edit);
     capie::core::logging::log_file =
         CreateFileW(L"public_editor_test.log", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
                     FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -640,6 +830,12 @@ int main() {
     payload_tests();
     second_mod_tests();
     sentinel_tests();
+    recheck_tests();
+    if (argc > 1) {
+        demo_gui_tests(argv[1]);
+    } else {
+        std::printf("demo .gui scenario skipped (no path argument)\n");
+    }
     registry_tests();
     std::printf("public editor tests: %u checks, %u failures\n", checks, failures);
     static_cast<void>(std::fflush(stdout));

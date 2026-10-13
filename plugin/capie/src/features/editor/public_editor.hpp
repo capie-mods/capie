@@ -17,10 +17,10 @@
  * Opening (post-Tick). Same lifecycle as the own editors (`lifecycle.hpp`, shared helpers):
  * the window must pass the context/root chain check of `window_view.hpp`, the epoch
  * carrier must hold a valid epoch, a new epoch starts a new opening. The first visible Tick
- * of an opening finds the fields (1..4, consecutive, each an edit box; a fifth field or a
- * gap makes the layout invalid), writes each field that has a prefill carrier and no
- * keyboard focus, reads it back, and then marks the opening ready. A failed or skipped
- * prefill is logged and does not block Apply, because Apply reads every field afresh.
+ * of an opening finds the fields (1..4, consecutive; a fifth field or a gap makes the
+ * layout invalid; a lookup miss is the game's null edit box, not nullptr), writes each field that has a prefill carrier
+ * and no keyboard focus, reads it back, and then marks the opening ready. A failed or skipped prefill is logged and
+ * does not block Apply, because Apply reads every field afresh.
  *
  * Apply (Dispatch, before the original). A click whose model parses and whose selector is
  * exactly the built `..._apply_click` is a grammar Apply. CAPIE checks the visible window,
@@ -237,7 +237,7 @@ inline ViewResult inspect_public(void* window, View& view, Registration& registr
 }
 
 /**
- * @brief Discovers the field layout of an opening.
+ * @brief Discovers the field layout of an opening (fields 1..4 consecutive, no fifth field).
  * @param root Root widget of a fresh visible view.
  * @param editor Registry slot.
  * @param count Receives the field count (valid layouts).
@@ -248,12 +248,14 @@ inline Layout discover_fields(void* root, const PublicEditor& editor, std::size_
     bool gap = false;
     for (std::size_t n = 0; n <= grammar::max_fields; ++n) {
         const char* name = editor.fields[n].c_str();
-        void* edit = guarded_find(find_edit, root, name);
-        if (edit == nullptr) {
+        // FindEdit never returns null for a miss: it returns the window's CNullEditBox
+        // (day2-native-editor-contract.txt section 3). A field exists only when the result is
+        // a CEditBox whose definition has exactly this name; anything else is a miss.
+        if (!edit_named(guarded_find(find_edit, root, name), name)) {
             gap = true;
             continue;
         }
-        if (gap || n == grammar::max_fields || !edit_named(edit, name)) {
+        if (gap || n == grammar::max_fields) {
             return Layout::invalid;
         }
         ++count;

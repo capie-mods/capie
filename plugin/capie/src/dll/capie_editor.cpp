@@ -50,6 +50,9 @@
 #include "../features/editor/transport.hpp"
 #include "../features/editor/window_view.hpp"
 #include "../features/focus/focus_adapter.hpp"
+#if CAPIE_CONSOLE_CANDIDATE
+#include "../features/console/console_wiring.hpp"  // developer build only (build.ps1 -Console)
+#endif
 
 #include <MinHook.h>
 
@@ -103,6 +106,9 @@ void __fastcall tick_observed(void* window, char force) noexcept {
     if (!active.load(std::memory_order_acquire)) {
         return;
     }
+#if CAPIE_CONSOLE_CANDIDATE
+    console::wiring::on_tick();  // registers the console commands once, on this (game) thread
+#endif
     // Performance: one cheap identity read decides whether any observer can care about this
     // window; for every other window the observers would all return "unrelated".
     const bool own = window_may_be_own(window);
@@ -495,6 +501,10 @@ InitCode initialize() {
     engine::find_instant = reinterpret_cast<engine::FindWidget>(image_base + rva::find_instant);
     engine::set_text = reinterpret_cast<engine::SetText>(image_base + rva::text_buffer_set);
     engine::refresh_edit = reinterpret_cast<engine::RefreshEdit>(image_base + rva::edit_refresh);
+#if CAPIE_CONSOLE_CANDIDATE
+    // Code bytes only; a failure turns the console feature off and is logged, the editor continues.
+    static_cast<void>(console::wiring::prepare(text));
+#endif
     HMODULE pinned = nullptr;
     if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
                            reinterpret_cast<LPCWSTR>(&own_module), &pinned) == 0) {

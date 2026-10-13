@@ -63,6 +63,10 @@ struct NativeApi {
     uptr set_cosmetic_tag{};                  ///< Expected action of `set_cosmetic_tag`.
     uptr drop_cosmetic_tag{};                 ///< Expected action of `drop_cosmetic_tag`.
     uptr eval_effect{};                       ///< Expected action of `eval_effect`.
+    layout::TagParseFn tag_parse{};           ///< `10E10C0`: country tag from a name (read only).
+    layout::CountryOfFn country_of{};         ///< `BB4390`: country object of a tag (read only).
+    layout::ThreadIdFn current_thread{};      ///< `GetCurrentThreadId` in the game; a fake in tests.
+    layout::LogFn log{};                      ///< One log line (may be null).
     bool verified{};                          ///< Signature, hash and layout checks passed.
 };
 
@@ -76,6 +80,31 @@ enum class Registration {
     unreadable,        ///< The console or its array could not be read; nothing was added.
     readback_failed,   ///< Added, but the read-back did not find CAPIE's actions (log and stop).
 };
+
+/**
+ * @brief Log name of a registration state.
+ * @param state State.
+ * @return Short name.
+ */
+constexpr const char* registration_name(Registration state) noexcept {
+    switch (state) {
+        case Registration::disabled:
+            return "disabled";
+        case Registration::waiting:
+            return "waiting";
+        case Registration::registered:
+            return "registered";
+        case Registration::name_collision:
+            return "name_collision";
+        case Registration::missing_delegate:
+            return "missing_delegate";
+        case Registration::unreadable:
+            return "unreadable";
+        case Registration::readback_failed:
+            return "readback_failed";
+    }
+    return "unknown";
+}
 
 namespace detail {
 
@@ -191,6 +220,19 @@ public:
      */
     ConsoleBridge(const M& mem, const NativeApi& api, uptr action) noexcept : mem_(mem), api_(api), action_(action) {}
 
+    /**
+     * @brief Sets the game addresses and the action before the first registration attempt.
+     * @param api Game addresses.
+     * @param action Address of the registered action.
+     * @note Ignored once registration has started or ended, so a live entry never changes.
+     */
+    void configure(const NativeApi& api, uptr action) noexcept {
+        if (state_ == Registration::waiting && registration_thread_ == 0) {
+            api_ = api;
+            action_ = action;
+        }
+    }
+
     /// @brief Current state. @return State.
     [[nodiscard]] Registration state() const noexcept { return state_; }
 
@@ -205,9 +247,11 @@ public:
         if constexpr (!candidate_enabled) {
             return state_ = Registration::disabled;
         }
-        if (!api_.verified || api_.add_or_replace == nullptr || api_.assign == nullptr || action_ == 0) {
+        if (!api_.verified || api_.add_or_replace == nullptr || api_.assign == nullptr || api_.tag_parse == nullptr ||
+            api_.country_of == nullptr || api_.current_thread == nullptr || action_ == 0) {
             return state_ = Registration::disabled;
         }
+        registration_thread_ = api_.current_thread();
         uptr console = 0;
         if (!mem_.read(api_.console_slot, &console, sizeof(console))) {
             return state_ = Registration::unreadable;
@@ -260,6 +304,22 @@ public:
             say(out, "CAPIE: console commands inactive");
             return out;
         }
+        if (const auto thread = api_.current_thread(); thread != registration_thread_) {
+            Message line{};
+            line.add("CAPIE_CONSOLE refused: action thread ")
+                .add_number(thread)
+                .add(" differs from Tick thread ")
+                .add_number(registration_thread_);
+            note(line.view());
+            say(out, "CAPIE: console commands refused (wrong thread, see capie_editor.log)");
+            return out;
+        }
+        if (!thread_logged_) {
+            thread_logged_ = true;
+            Message line{};
+            line.add("CAPIE_CONSOLE first action on thread ").add_number(registration_thread_).add(" (same as Tick)");
+            note(line.view());
+        }
         const auto command = static_cast<CommandId>(id);
         Tokens tokens{};
         if (!read_tokens(argv, tokens)) {
@@ -270,6 +330,18 @@ public:
         if (plan.delegate == Delegate::none) {
             say(out, plan.message.view());
             return out;
+        }
+        if (plan.requires_capie_tag) {
+            CosmeticText cosmetic{};
+            if (!read_cosmetic(plan.tokens[0].view(), cosmetic)) {
+                say(out, "Invalid tag for the command");  // the vanilla text for an unknown tag
+                return out;
+            }
+            if (!is_capie_cosmetic(cosmetic.view())) {
+                const auto refusal = reset_refusal(plan.tokens[0].view(), cosmetic.view());
+                say(out, refusal.view());
+                return out;
+            }
         }
         uptr console = 0;
         LiveEntry delegate{};
@@ -299,6 +371,43 @@ public:
     }
 
 private:
+    /// @brief Longest cosmetic tag CAPIE reads (an RN1 tag is at most 4 + 128 + 1 + 128 + 1 bytes).
+    static constexpr std::size_t max_cosmetic_bytes = 512;
+    /// @brief Storage of a country tag object written by `10E10C0` (the game uses at most 8 bytes).
+    static constexpr std::size_t tag_object_bytes = 16;
+    /// @brief A cosmetic tag copied out of the country.
+    using CosmeticText = detail::ReadText<max_cosmetic_bytes>;
+
+    /**
+     * @brief Writes one log line when a sink is configured.
+     * @param text Line without line break.
+     */
+    void note(std::string_view text) const noexcept {
+        if (api_.log != nullptr) {
+            Message line{};
+            line.add(text);
+            api_.log(line.bytes.data());
+        }
+    }
+
+    /**
+     * @brief Reads the current cosmetic tag of a country with the game's own lookups (read only).
+     * @param tag Validated three-character tag.
+     * @param out Receives the tag bytes (empty when none).
+     * @return `false` for an unknown tag or unreadable memory.
+     */
+    [[nodiscard]] bool read_cosmetic(std::string_view tag, CosmeticText& out) const noexcept {
+        alignas(alignof(std::uint64_t)) std::array<unsigned char, tag_object_bytes> tag_object{};
+        const auto name = engine::borrowed_string(tag.data(), tag.size());
+        api_.tag_parse(tag_object.data(), &name);
+        std::int32_t index = 0;
+        if (!mem_.read(reinterpret_cast<uptr>(tag_object.data()), &index, sizeof(index)) || index <= 0) {
+            return false;  // 282593: the vanilla command treats tag <= 0 as invalid
+        }
+        const auto country = reinterpret_cast<uptr>(api_.country_of(tag_object.data()));
+        return country != 0 && detail::read_string(mem_, country + layout::country_cosmetic_tag, out);
+    }
+
     /// @brief Tokens of one line, copied out of game memory.
     struct Tokens {
         std::array<char, line::max_line_bytes + max_tokens> storage{};  ///< Token bytes.
@@ -480,6 +589,8 @@ private:
     NativeApi api_;                                              ///< Game addresses.
     uptr action_;                                                ///< CAPIE's registered action.
     Registration state_{Registration::waiting};                  ///< Registration state.
+    std::uint32_t registration_thread_{};                        ///< Tick thread that registered.
+    bool thread_logged_{};                                       ///< First-action thread line written.
     std::array<layout::CommandEntry, command_count> entries_{};  ///< Source entries for the add call.
 };
 

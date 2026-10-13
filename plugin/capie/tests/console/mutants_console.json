@@ -190,5 +190,69 @@
   "replace": "entry.release_flag = 0;",
   "suite": "tests/console/console_test.cpp",
   "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-reset-any-tag",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "if (!is_capie_cosmetic(cosmetic.view())) {",
+  "replace": "if (false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-reset-unknown-tag",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": " || index <= 0) {",
+  "replace": ") {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-thread-check-off",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "thread != registration_thread_) {",
+  "replace": "false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-run-unregistered",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "            state_ != Registration::registered) {",
+  "replace": "            false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-configure-anytime",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "if (state_ == Registration::waiting && registration_thread_ == 0) {",
+  "replace": "if (true) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-no-player-scope",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "    effect.add(player_scope_open);\n",
+  "replace": "",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-quoted-command-id",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "if (args.items[1].quoted || ",
+  "replace": "if (",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-refusal-unsanitised",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "? c : '?';",
+  "replace": "? c : c;",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
  }
 ]
