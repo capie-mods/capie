@@ -29,6 +29,22 @@ inline constexpr std::uintptr_t loc_lookup_z = 0x239ED40;
 /// @brief `bool exists(const char* key)`; key-existence test, hooked.
 inline constexpr std::uintptr_t loc_exists = 0x239D0F0;
 
+// ---- Country name layer (hooked or read by capie_core.dll; session-20261013/custom-name-layer)
+/// @brief `u64 CCountry_UpdateNames(CCountry*)`; recomputes the cached name/adjective/definite name, hooked.
+inline constexpr std::uintptr_t update_names = 0x716580;
+/// @brief `string* CCountry_BuildNameKey(string* out, const string* tag, ...)` (8 arguments), hooked.
+inline constexpr std::uintptr_t build_name_key = 0x6ECFF0;
+/// @brief `CSetVariableEffect::Execute(effect*, context*)` (vtable 2775698 slot +0x68), hooked.
+inline constexpr std::uintptr_t set_variable_execute = 0x364C60;
+/// @brief Variable table find (FNV-1a, robin-hood probe); pinned, never called.
+inline constexpr std::uintptr_t variable_find = 0xBC4960;
+/// @brief Variable get (`container+0x10` table, value at entry+0x28); pinned, never called.
+inline constexpr std::uintptr_t variable_get = 0xBC7E80;
+/// @brief Country of a tag (`[gamestate+0x310][index]`); pinned, never called by capie_core.
+inline constexpr std::uintptr_t country_of = 0xBB4390;
+/// @brief Global pointer to the game state (read, never written).
+inline constexpr std::uintptr_t gamestate_global = 0x332F260;
+
 // ---- Scripted window manager and widgets (hooked or called by capie_editor.dll) ---------
 /// @brief `void Tick(window*, char force)`; per-frame scripted window update, hooked.
 inline constexpr std::uintptr_t window_tick = 0xB88950;
@@ -120,6 +136,19 @@ inline constexpr std::uintptr_t gui_structural = 0x3085170;
 
 /// @brief Byte offsets inside engine objects.
 namespace off {
+// ---- Country name layer (session-20261013/custom-name-layer report, sections 1.4-1.6) ------
+inline constexpr std::uintptr_t country_variables = 0x218;    ///< Variable container pointer (54265B, 542922).
+inline constexpr std::uintptr_t variables_entries = 0x18;     ///< Entry array (table +8; BC49CA, BC7EBD).
+inline constexpr std::uintptr_t variables_mask = 0x24;        ///< int32 bucket mask (table +0x14; BC49A8).
+inline constexpr std::uintptr_t variables_extra = 0x28;       ///< Byte: slots past the mask (table +0x18; BC7EA3).
+inline constexpr std::uintptr_t variable_entry_size = 0x30;   ///< Entry stride (BC49C2/BC49C6, BC4A18).
+inline constexpr std::uintptr_t variable_entry_probe = 0x4;   ///< Byte: probe distance, 0 = empty (BC49CE).
+inline constexpr std::uintptr_t variable_entry_key = 0x8;     ///< MSVC string key (BC49F5).
+inline constexpr std::uintptr_t variable_entry_value = 0x28;  ///< int64 fixed-point value (BC7EC6).
+inline constexpr std::uintptr_t set_variable_name =
+    0xC8;  ///< Effect +0x58 scoped variable, +0x70 name (364C75, 54502F).
+inline constexpr std::uintptr_t gamestate_countries = 0x310;      ///< Country pointer array (1A645B, BB44A7).
+inline constexpr std::uintptr_t gamestate_country_count = 0x31C;  ///< int32 number of countries (1A6462).
 // ---- Scripted window ----------------------------------------------------------------------
 inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (B88BEE).
 inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model pointer (runtime-proven).

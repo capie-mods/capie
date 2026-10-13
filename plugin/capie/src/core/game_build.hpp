@@ -24,16 +24,16 @@ inline constexpr char game_version[] = "1.19.3.0";
 /// @brief Preferred image base of the accepted build; RVAs are relative to the real base.
 inline constexpr std::uintptr_t game_preferred_base = 0x140000000;
 
-/// @brief CAPIE product version shown to players ("CAPIE 1.1 loaded").
-inline constexpr char capie_version[] = "1.1";
+/// @brief CAPIE product version shown to players ("CAPIE 1.2 loaded").
+inline constexpr char capie_version[] = "1.2";
 /// @brief Full release version, answered for the `CAPIE_BUILD` localisation key.
-inline constexpr char capie_release[] = "1.1.0";
+inline constexpr char capie_release[] = "1.2.0";
 /// @brief Script API level (CONTRACT.md section 1): sent as `capie_cap`, answered for `CAPIE_API`.
-inline constexpr unsigned capie_api_level = 2;
+inline constexpr unsigned capie_api_level = 4;
 /// @brief Text of `capie_api_level` for the `CAPIE_API` localisation key.
-inline constexpr char capie_api_text[] = "2";
+inline constexpr char capie_api_text[] = "4";
 /// @brief Release as one integer, major * 10000 + minor * 100 + patch; sent as `capie_ver`.
-inline constexpr unsigned capie_build_number = 10100;
+inline constexpr unsigned capie_build_number = 10200;
 
 /// @brief File name of the country/localisation DLL.
 inline constexpr wchar_t core_dll_name[] = L"capie_core.dll";
@@ -41,5 +41,7 @@ inline constexpr wchar_t core_dll_name[] = L"capie_core.dll";
 inline constexpr wchar_t editor_dll_name[] = L"capie_editor.dll";
 /// @brief Log file written next to the editor DLL.
 inline constexpr wchar_t editor_log_name[] = L"capie_editor.log";
+/// @brief Log file written next to the core DLL (name layer; counts only, never a name).
+inline constexpr wchar_t core_log_name[] = L"capie_core.log";
 
 }  // namespace capie::core

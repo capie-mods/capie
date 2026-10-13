@@ -192,7 +192,7 @@ inline bool capture_fields(Origin& current, InputSnapshot (&snapshots)[max_field
 
 /**
  * @brief Queries `capie_core.dll` afresh: loaded and initialized?
- * @return `true` only when its capability export returns `country_capabilities_v1`.
+ * @return `true` only when its capability export returns `country_capabilities_v2` (names and name layer).
  */
 inline bool country_ready() noexcept {
     using Query = DWORD(WINAPI*)();
@@ -205,7 +205,7 @@ inline bool country_ready() noexcept {
         return false;
     }
     __try {
-        return query() == country::country_capabilities_v1;
+        return query() == country::country_capabilities_v2;
     } __except (core::memory_exception(GetExceptionCode())) {
         return false;
     }

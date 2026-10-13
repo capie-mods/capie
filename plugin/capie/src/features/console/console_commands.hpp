@@ -7,26 +7,35 @@
  * (a `Plan`). The native bridge looks that command up by name in the game's own table and
  * calls it (`console_bridge.hpp`):
  *
- *     change_nation_name <TAG> <name> [<adjective>]
- *         -> set_cosmetic_tag <TAG> RN1|<name>|<adjective>|      (adjective defaults to name)
+ *     change_nation_name <TAG> <name> [<adjective>]          (adjective defaults to name)
+ *         -> eval_effect "<TAG> = { clear_array = capie_cn_n clear_array = capie_cn_a
+ *                         add_to_array = { capie_cn_n = <code> } ... (name, then adjective)
+ *                         set_variable = { capie_cn_ver = 1 }
+ *                         [drop_cosmetic_tag = yes] set_variable = { capie_cn_rev = 1 } }"
  *     reset_nation_name <TAG>
- *         -> drop_cosmetic_tag <TAG>        only when the current cosmetic tag is CAPIE's
- *                                           (`RN1|...`); the bridge reads it first
+ *         -> eval_effect "<TAG> = { clear_array = capie_cn_n clear_array = capie_cn_a
+ *                         clear_variable = capie_cn_ver
+ *                         [drop_cosmetic_tag = yes] set_variable = { capie_cn_rev = 1 } }"
  *     capie_cmd <mod> <command> [arg1 .. arg4]
  *         -> eval_effect "FROM = { <records> capie_v1_cmd__<mod>__<command> = yes }"
  *            (records as in CONTRACT-console.md; FROM of eval_effect is the player's
  *            country, ROOT is whatever object is selected, re-evidence.md section 10)
  *
- * The vanilla `set_cosmetic_tag` console action and the script effect Rename Anything uses
- * end in the same setter (`282540 -> 711260`, `361760 -> 711260`), so a console rename is
- * stored and saved exactly like an editor rename. The console itself is unavailable in
- * multiplayer and ironman; the game checks that before any command is looked up.
+ * Both name commands write the country name layer of API level 4 (CONTRACT.md section 13):
+ * the same variables an editor rename writes, so a console rename is stored, saved and shown
+ * exactly like an editor rename, and the cosmetic tag (flag, colour) is left alone. The one
+ * exception is a legacy name: when the country's current cosmetic tag is an `RN1|...` tag set
+ * by CAPIE 1.0/1.1, the bridge reads it first and the effect also drops it
+ * (`[drop_cosmetic_tag = yes]` above), which migrates the country to the layer. The console
+ * itself is unavailable in multiplayer and ironman; the game checks that before any command
+ * is looked up.
  *
  * Errors produce a message and no delegate. Pure functions over fixed buffers: no
  * allocation, no Windows API, no game memory, no exceptions.
  */
 #pragma once
 #include "../../core/game_build.hpp"
+#include "../editor/input_codes.hpp"
 #include "console_line.hpp"
 #include "console_text.hpp"
 
@@ -36,8 +45,8 @@
 
 namespace capie::console {
 
-/// @brief API level a console-originated mod command reports in `capie_cap` (candidate level 3).
-inline constexpr unsigned console_api_level = 3;
+/// @brief API level a console-originated mod command reports in `capie_cap` (the build's level, at least 3).
+inline constexpr unsigned console_api_level = core::capie_api_level;
 /// @brief Value of `capie_src` for a console-originated mod command (1 would be an editor Apply).
 inline constexpr unsigned console_source = 2;
 /// @brief Most text arguments of a mod command (same as editor fields).
@@ -60,11 +69,21 @@ inline constexpr std::string_view reserved_mod_id = "capie";
 inline constexpr std::string_view player_scope_open = "FROM = { ";
 /// @brief Closes the player scope.
 inline constexpr std::string_view player_scope_close = " }";
-/// @brief Longest cosmetic tag quoted back in a `reset_nation_name` refusal.
-inline constexpr std::size_t max_quoted_tag_bytes = 48;
+/// @brief Opens the country scope of a name command (after the tag).
+inline constexpr std::string_view layer_scope_open = " = { ";
+/// @brief Clears both code arrays of the name layer.
+inline constexpr std::string_view layer_clear = "clear_array = capie_cn_n clear_array = capie_cn_a ";
+/// @brief Marks the layer as set (format 1).
+inline constexpr std::string_view layer_set_version = "set_variable = { capie_cn_ver = 1 } ";
+/// @brief Removes the layer's format variable.
+inline constexpr std::string_view layer_clear_version = "clear_variable = capie_cn_ver ";
+/// @brief Drops a legacy `RN1|...` cosmetic tag (migration; only when the bridge saw one).
+inline constexpr std::string_view legacy_drop = "drop_cosmetic_tag = yes ";
+/// @brief Last statement of every layer change: asks CAPIE to refresh the names.
+inline constexpr std::string_view layer_commit = "set_variable = { capie_cn_rev = 1 } }";
 
 /**
- * @brief Whether a cosmetic tag is one CAPIE (or Rename Anything) set.
+ * @brief Whether a cosmetic tag is one CAPIE 1.0/1.1 (or Rename Anything) set: a legacy name.
  * @param cosmetic Current cosmetic tag bytes.
  * @return `true` for the `RN1|` protocol prefix.
  */
@@ -122,13 +141,14 @@ struct CommandSpec {
 inline constexpr std::array<CommandSpec, command_count> command_specs{{
     {CommandId::change_nation_name,
      "change_nation_name",
-     "CAPIE: renames a country through an RN1 cosmetic tag, like Rename Anything. Single player only.",
+     "CAPIE: gives a country a name (its own layer; flag and colour unchanged), like Rename Anything. Single "
+     "player only.",
      {"<TAG>", R"("<name>")", R"(["<adjective>"])"},
      3,
      R"(Usage: change_nation_name <TAG> "<name>" ["<adjective>"])"},
     {CommandId::reset_nation_name,
      "reset_nation_name",
-     "CAPIE: removes a name set by change_nation_name or Rename Anything (RN1 cosmetic tag only).",
+     "CAPIE: removes a name set by change_nation_name or Rename Anything; the game's name comes back.",
      {"<TAG>", {}, {}},
      1,
      "Usage: reset_nation_name <TAG>"},
@@ -199,7 +219,8 @@ struct Plan {
     std::array<Text<max_delegate_bytes>, max_delegate_tokens> tokens{};  ///< Its tokens.
     std::size_t token_count{};                                           ///< Used tokens.
     Message message{};                                                   ///< Error or usage text (when `none`).
-    bool requires_capie_tag{};  ///< Delegate only if the country's current cosmetic tag is `RN1|...`.
+    bool needs_cosmetic{};         ///< The bridge must read `tag`'s cosmetic tag and call `finish_layer_plan`.
+    Text<text::tag_length> tag{};  ///< Country tag of a name command.
 };
 
 namespace detail {
@@ -257,10 +278,40 @@ void field_record(Text<Capacity>& out, std::size_t field, std::string_view suffi
 
 }  // namespace detail
 
+namespace detail {
+
+/**
+ * @brief Appends `add_to_array = { <array> = <code> }` for every code of a text.
+ * @param out Effect text.
+ * @param array Array name.
+ * @param codes Codes.
+ */
+template <std::size_t Capacity>
+void add_codes(Text<Capacity>& out, std::string_view array, const editor::FieldCodes& codes) noexcept {
+    for (std::size_t index = 0; index < codes.length; ++index) {
+        out.add("add_to_array = { ").add(array).add(" = ").add_number(codes.codes[index]).add(" } ");
+    }
+}
+
+/**
+ * @brief Starts a name-layer effect: `<TAG> = { clear_array ... clear_array ... `.
+ * @param plan Plan (delegate, tag and the first token are set).
+ * @param tag Validated tag.
+ */
+inline void start_layer_plan(Plan& plan, std::string_view tag) noexcept {
+    plan.delegate = Delegate::eval_effect;
+    plan.token_count = 1;
+    plan.needs_cosmetic = true;
+    plan.tag.add(tag);
+    plan.tokens[0].add(tag).add(layer_scope_open).add(layer_clear);
+}
+
+}  // namespace detail
+
 /**
  * @brief Plans `change_nation_name <TAG> <name> [<adjective>]`.
  * @param args Parsed arguments (after the command name).
- * @return Plan for `set_cosmetic_tag`, or a message.
+ * @return Plan for `eval_effect` (unfinished: the bridge calls `finish_layer_plan`), or a message.
  */
 inline Plan plan_change_nation_name(const line::Arguments& args) noexcept {
     Plan plan{};
@@ -283,22 +334,17 @@ inline Plan plan_change_nation_name(const line::Arguments& args) noexcept {
         detail::text_error(plan.message, "adjective", adjective);
         return plan;
     }
-    plan.delegate = Delegate::set_cosmetic_tag;
-    plan.tokens[0].add(args.at(0));
-    plan.tokens[1]
-        .add(country::protocol_prefix)
-        .add(args.at(1))
-        .add(std::string_view(&country::field_delimiter, 1))
-        .add(adjective_bytes)
-        .add(std::string_view(&country::field_delimiter, 1));
-    plan.token_count = 2;
+    detail::start_layer_plan(plan, args.at(0));
+    detail::add_codes(plan.tokens[0], "capie_cn_n", name.codes);
+    detail::add_codes(plan.tokens[0], "capie_cn_a", adjective.codes);
+    plan.tokens[0].add(layer_set_version);
     return plan;
 }
 
 /**
- * @brief Plans `reset_nation_name <TAG>`.
+ * @brief Plans `reset_nation_name <TAG>`: removes the name layer (and a legacy RN1 tag).
  * @param args Parsed arguments.
- * @return Plan for `drop_cosmetic_tag`, or a message.
+ * @return Plan for `eval_effect` (unfinished: the bridge calls `finish_layer_plan`), or a message.
  */
 inline Plan plan_reset_nation_name(const line::Arguments& args) noexcept {
     Plan plan{};
@@ -310,39 +356,27 @@ inline Plan plan_reset_nation_name(const line::Arguments& args) noexcept {
         plan.message.add("CAPIE: invalid tag (expected 3 characters A-Z or 0-9)");
         return plan;
     }
-    plan.delegate = Delegate::drop_cosmetic_tag;
-    plan.tokens[0].add(args.at(0));
-    plan.token_count = 1;
-    plan.requires_capie_tag = true;
+    detail::start_layer_plan(plan, args.at(0));
+    plan.tokens[0].add(layer_clear_version);
     return plan;
 }
 
 /**
- * @brief Message for `reset_nation_name` when the country has no CAPIE name.
- * @param tag Country tag (already validated).
- * @param cosmetic Current cosmetic tag (may be empty).
- * @return Console message; the tag is quoted with non-printable bytes replaced by `?`.
+ * @brief Completes a name-layer effect once the bridge has read the country's cosmetic tag.
+ * @param plan Plan from `plan_change_nation_name` or `plan_reset_nation_name`.
+ * @param legacy_rn1 The current cosmetic tag is a legacy `RN1|...` tag (`is_capie_cosmetic`).
+ * @note Drops only CAPIE's own legacy tag; a cosmetic tag of the game or a mod is never touched.
  */
-inline Message reset_refusal(std::string_view tag, std::string_view cosmetic) noexcept {
-    Message out{};
-    if (cosmetic.empty()) {
-        out.add("CAPIE: ").add(tag).add(" has no cosmetic tag; nothing to reset");
-        return out;
+inline void finish_layer_plan(Plan& plan, bool legacy_rn1) noexcept {
+    if (legacy_rn1) {
+        plan.tokens[0].add(legacy_drop);
     }
-    constexpr char first_printable = 0x20;
-    constexpr char last_printable = 0x7e;
-    std::array<char, max_quoted_tag_bytes> shown{};
-    const std::size_t count = cosmetic.size() < shown.size() ? cosmetic.size() : shown.size();
-    for (std::size_t index = 0; index < count; ++index) {
-        const char c = cosmetic[index];
-        shown[index] = (c >= first_printable && c <= last_printable) ? c : '?';
+    plan.tokens[0].add(layer_commit);
+    plan.needs_cosmetic = false;
+    if (plan.tokens[0].overflow) {
+        plan = Plan{};
+        plan.message.add("CAPIE: name too long for one command");
     }
-    out.add("CAPIE: ").add(tag).add(" uses cosmetic tag '").add(std::string_view(shown.data(), count));
-    if (cosmetic.size() > shown.size()) {
-        out.add("...");
-    }
-    out.add("' from the game or a mod; reset_nation_name only removes CAPIE names (nothing changed)");
-    return out;
 }
 
 /**

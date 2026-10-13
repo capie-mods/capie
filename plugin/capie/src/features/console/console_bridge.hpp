@@ -326,20 +326,20 @@ public:
             say(out, "CAPIE: could not read the command line");
             return out;
         }
-        const Plan plan = plan_command(command, tokens.views.data(), tokens.count);
+        Plan plan = plan_command(command, tokens.views.data(), tokens.count);
         if (plan.delegate == Delegate::none) {
             say(out, plan.message.view());
             return out;
         }
-        if (plan.requires_capie_tag) {
+        if (plan.needs_cosmetic) {
             CosmeticText cosmetic{};
-            if (!read_cosmetic(plan.tokens[0].view(), cosmetic)) {
+            if (!read_cosmetic(plan.tag.view(), cosmetic)) {
                 say(out, "Invalid tag for the command");  // the vanilla text for an unknown tag
                 return out;
             }
-            if (!is_capie_cosmetic(cosmetic.view())) {
-                const auto refusal = reset_refusal(plan.tokens[0].view(), cosmetic.view());
-                say(out, refusal.view());
+            finish_layer_plan(plan, is_capie_cosmetic(cosmetic.view()));
+            if (plan.delegate == Delegate::none) {
+                say(out, plan.message.view());
                 return out;
             }
         }

@@ -13,14 +13,14 @@ int main() {
     // Inactive (failed/unstarted init): nothing is overridden.
     CHECK(override_value("RN_PLUGIN_STATUS") == nullptr && override_value("RN_PLUGIN_STATUS_PL") == nullptr);
     active.store(true);
-    CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS"), "CAPIE 1.1 loaded") == 0);
-    CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS_EN"), "CAPIE 1.1 loaded") == 0);
+    CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS"), "CAPIE 1.2 loaded") == 0);
+    CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS_EN"), "CAPIE 1.2 loaded") == 0);
     // UTF-8 bytes of "załadowane": l-stroke = C5 82.
-    CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS_PL"), "CAPIE 1.1 za\xC5\x82" "adowane") == 0);
-    CHECK(std::strcmp(lookup_z("RN_PLUGIN_STATUS"), "CAPIE 1.1 loaded") == 0);
-    CHECK(std::strcmp(lookup_z("RN_PLUGIN_STATUS_EN"), "CAPIE 1.1 loaded") == 0);
-    CHECK(std::strcmp(lookup_z("RN_PLUGIN_STATUS_PL"), "CAPIE 1.1 za\xC5\x82" "adowane") == 0);
-    CHECK(std::strcmp(lookup_n("RN_PLUGIN_STATUS_PL", 19), "CAPIE 1.1 za\xC5\x82" "adowane") == 0);
+    CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS_PL"), "CAPIE 1.2 za\xC5\x82" "adowane") == 0);
+    CHECK(std::strcmp(lookup_z("RN_PLUGIN_STATUS"), "CAPIE 1.2 loaded") == 0);
+    CHECK(std::strcmp(lookup_z("RN_PLUGIN_STATUS_EN"), "CAPIE 1.2 loaded") == 0);
+    CHECK(std::strcmp(lookup_z("RN_PLUGIN_STATUS_PL"), "CAPIE 1.2 za\xC5\x82" "adowane") == 0);
+    CHECK(std::strcmp(lookup_n("RN_PLUGIN_STATUS_PL", 19), "CAPIE 1.2 za\xC5\x82" "adowane") == 0);
     // Old text is gone; lookalike keys are not claimed (they would fall through to the game).
     CHECK(override_value("RN_PLUGIN_STATUS_DE") == nullptr && override_value("RN_PLUGIN_STATUSX") == nullptr);
     // RN1 protocol unchanged.

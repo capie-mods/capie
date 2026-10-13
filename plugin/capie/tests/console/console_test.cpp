@@ -176,16 +176,66 @@ console::Plan plan_typed(console::CommandId id, std::string_view typed) {
     return console::plan_command(id, tokens.data(), tokens.size());
 }
 
+/**
+ * @brief Expected start of a name-layer effect for ASCII letters and spaces (before the commit).
+ * @param tag Tag.
+ * @param name Name.
+ * @param adjective Adjective.
+ * @return Effect text up to and including `set_variable = { capie_cn_ver = 1 } `.
+ */
+std::string layer_effect(const std::string& tag, const std::string& name, const std::string& adjective) {
+    const auto code = [](char c) {
+        if (c >= 'a' && c <= 'z') {
+            return 1 + (c - 'a');
+        }
+        if (c >= 'A' && c <= 'Z') {
+            return 27 + (c - 'A');
+        }
+        return c == ' ' ? 63 : 0;
+    };
+    std::string out = tag + " = { clear_array = capie_cn_n clear_array = capie_cn_a ";
+    for (const char c : name) {
+        out += "add_to_array = { capie_cn_n = " + std::to_string(code(c)) + " } ";
+    }
+    for (const char c : adjective) {
+        out += "add_to_array = { capie_cn_a = " + std::to_string(code(c)) + " } ";
+    }
+    return out + "set_variable = { capie_cn_ver = 1 } ";
+}
+
 void plan_tests() {
     using console::CommandId;
     using console::Delegate;
     auto plan = plan_typed(CommandId::change_nation_name, "GER \"Neues Reich\" neureichisch");
-    check(plan.delegate == Delegate::set_cosmetic_tag && plan.token_count == 2 && plan.tokens[0].view() == "GER" &&
-              plan.tokens[1].view() == "RN1|Neues Reich|neureichisch|",
-          "change_nation_name with adjective");
-    plan = plan_typed(CommandId::change_nation_name, "POL Rzeczpospolita");
-    check(plan.delegate == Delegate::set_cosmetic_tag && plan.tokens[1].view() == "RN1|Rzeczpospolita|Rzeczpospolita|",
-          "adjective defaults to the name");
+    check(plan.delegate == Delegate::eval_effect && plan.token_count == 1 && plan.needs_cosmetic &&
+              plan.tag.view() == "GER" && plan.tokens[0].view() == layer_effect("GER", "Neues Reich", "neureichisch"),
+          "change_nation_name with adjective: " + std::string(plan.tokens[0].view()));
+    console::finish_layer_plan(plan, false);
+    check(!plan.needs_cosmetic && plan.tokens[0].view() == layer_effect("GER", "Neues Reich", "neureichisch") +
+                                                               "set_variable = { capie_cn_rev = 1 } }",
+          "finished rename: commit last, no drop");
+    plan = plan_typed(CommandId::change_nation_name, "POL Polska");
+    console::finish_layer_plan(plan, true);
+    const std::string polska =
+        "POL = { clear_array = capie_cn_n clear_array = capie_cn_a "
+        "add_to_array = { capie_cn_n = 42 } add_to_array = { capie_cn_n = 15 } add_to_array = { capie_cn_n = 12 } "
+        "add_to_array = { capie_cn_n = 19 } add_to_array = { capie_cn_n = 11 } add_to_array = { capie_cn_n = 1 } "
+        "add_to_array = { capie_cn_a = 42 } add_to_array = { capie_cn_a = 15 } add_to_array = { capie_cn_a = 12 } "
+        "add_to_array = { capie_cn_a = 19 } add_to_array = { capie_cn_a = 11 } add_to_array = { capie_cn_a = 1 } "
+        "set_variable = { capie_cn_ver = 1 } drop_cosmetic_tag = yes set_variable = { capie_cn_rev = 1 } }";
+    check(plan.delegate == Delegate::eval_effect && plan.tokens[0].view() == polska,
+          "adjective defaults to the name; legacy RN1 tag dropped: " + std::string(plan.tokens[0].view()));
+    plan = plan_typed(CommandId::change_nation_name,
+                      "CZE \"\xC4\x8C"
+                      "esk\xC3\xA1\"");
+    check(plan.delegate == Delegate::eval_effect &&
+              plan.tokens[0].view().find("add_to_array = { capie_cn_n = 161 } ") != std::string_view::npos,
+          "extended alphabet code (\xC4\x8C = 161): " + std::string(plan.tokens[0].view()));
+    plan = plan_typed(CommandId::change_nation_name,
+                      "GER ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef");
+    console::finish_layer_plan(plan, true);
+    check(plan.delegate == Delegate::eval_effect && plan.tokens[0].view().ends_with("capie_cn_rev = 1 } }"),
+          "longest names fit one command");
     plan = plan_typed(CommandId::change_nation_name, "GER");
     check(plan.delegate == Delegate::none && plan.message.view() == console::spec(CommandId::change_nation_name).usage,
           "missing name prints usage");
@@ -203,8 +253,19 @@ void plan_tests() {
     check(plan.message.view() == "CAPIE: name: empty", "empty quoted name");
 
     plan = plan_typed(CommandId::reset_nation_name, "GER");
-    check(plan.delegate == Delegate::drop_cosmetic_tag && plan.token_count == 1 && plan.tokens[0].view() == "GER",
+    check(plan.delegate == Delegate::eval_effect && plan.token_count == 1 && plan.needs_cosmetic &&
+              plan.tag.view() == "GER",
           "reset_nation_name");
+    console::finish_layer_plan(plan, false);
+    check(plan.tokens[0].view() ==
+              "GER = { clear_array = capie_cn_n clear_array = capie_cn_a clear_variable = capie_cn_ver "
+              "set_variable = { capie_cn_rev = 1 } }",
+          "reset clears the layer only: " + std::string(plan.tokens[0].view()));
+    plan = plan_typed(CommandId::reset_nation_name, "GER");
+    console::finish_layer_plan(plan, true);
+    check(plan.tokens[0].view().ends_with("clear_variable = capie_cn_ver drop_cosmetic_tag = yes "
+                                          "set_variable = { capie_cn_rev = 1 } }"),
+          "reset of a legacy RN1 name also drops the tag");
     plan = plan_typed(CommandId::reset_nation_name, "");
     check(plan.delegate == Delegate::none && plan.message.view().starts_with("Usage: reset_nation_name"),
           "reset without tag");
@@ -213,7 +274,7 @@ void plan_tests() {
 
     plan = plan_typed(CommandId::mod_command, R"(demo echo "ab" "")");
     const std::string expected =
-        "FROM = { set_temp_variable = { capie_cap = 3 } set_temp_variable = { capie_ver = 10100 } "
+        "FROM = { set_temp_variable = { capie_cap = 4 } set_temp_variable = { capie_ver = 10200 } "
         "set_temp_variable = { capie_src = 2 } set_temp_variable = { capie_nf = 2 } "
         "set_temp_variable = { capie_f1_err = 0 } set_temp_variable = { capie_f1_at = 0 } "
         "set_temp_variable = { capie_f1_len = 2 } set_temp_variable = { capie_f1_0 = 1 } "
@@ -240,23 +301,11 @@ void plan_tests() {
     plan = plan_typed(CommandId::mod_command, R"(demo "echo")");
     check(plan.delegate == Delegate::none && plan.message.view().starts_with("CAPIE: invalid command id"),
           "quoted command id");
-    plan = plan_typed(CommandId::reset_nation_name, "GER");
-    check(plan.requires_capie_tag, "reset requires a CAPIE tag");
-    plan = plan_typed(CommandId::change_nation_name, "GER Reich");
-    check(!plan.requires_capie_tag, "rename has no precondition");
+    plan = plan_typed(CommandId::mod_command, "demo echo");
+    check(!plan.needs_cosmetic, "mod commands need no cosmetic tag");
     check(console::is_capie_cosmetic("RN1|a|b|") && !console::is_capie_cosmetic("RN1") &&
               !console::is_capie_cosmetic("GER_fascist") && !console::is_capie_cosmetic(""),
           "CAPIE cosmetic prefix");
-    check(console::reset_refusal("GER", "").view() == "CAPIE: GER has no cosmetic tag; nothing to reset",
-          "refusal without a tag");
-    check(console::reset_refusal("FRA", "FRA_alt").view() ==
-              "CAPIE: FRA uses cosmetic tag 'FRA_alt' from the game or a mod; reset_nation_name only removes CAPIE "
-              "names (nothing changed)",
-          "refusal names the tag");
-    const std::string odd_tag = std::string("a") + '\x01' + "b" + std::string(60, 'z');
-    const auto odd = console::reset_refusal("ITA", odd_tag);
-    check(odd.view().find("'a?b") != std::string_view::npos && odd.view().find("...'") != std::string_view::npos,
-          "refusal sanitises and shortens: " + std::string(odd.view()));
     plan = plan_typed(CommandId::mod_command, "demo echo a b c d e");
     check(plan.delegate == Delegate::none && plan.message.view() == "CAPIE: too many arguments at byte 19",
           "five arguments");
@@ -753,28 +802,37 @@ void bridge_tests() {
     check(lookup("set_cosmetic_tag") == 1 && lookup("test") == 0, "vanilla entries untouched");
 
     check(dispatch("change_nation_name GER \"Neues Reich\" neureichisch").empty() && state.calls.size() == 1 &&
-              state.calls[0].name == "set_cosmetic_tag" && state.calls[0].tokens.size() == 2 &&
-              state.calls[0].tokens[0] == "GER" && state.calls[0].tokens[1] == "RN1|Neues Reich|neureichisch|",
-          "rename goes through set_cosmetic_tag");
+              state.calls[0].name == "eval_effect" && state.calls[0].tokens.size() == 1 &&
+              state.calls[0].tokens[0] == layer_effect("GER", "Neues Reich", "neureichisch") +
+                                              "drop_cosmetic_tag = yes set_variable = { capie_cn_rev = 1 } }",
+          "rename writes the layer through eval_effect; GER's legacy RN1 tag is dropped");
     check(dispatch("CHANGE_NATION_NAME POL Polska").empty() && state.calls.size() == 2 &&
-              state.calls[1].tokens[1] == "RN1|Polska|Polska|",
-          "command name is case-insensitive");
-    check(dispatch("change_nation_name XXX Reich") == "Invalid tag for the command", "vanilla message passes through");
+              state.calls[1].tokens[0].starts_with("POL = { ") &&
+              state.calls[1].tokens[0].ends_with("capie_cn_ver = 1 } set_variable = { capie_cn_rev = 1 } }"),
+          "command name is case-insensitive; no cosmetic tag, nothing dropped");
+    check(dispatch("change_nation_name FRA Francja").empty() &&
+              state.calls.back().tokens[0].find("drop_cosmetic_tag") == std::string::npos,
+          "rename keeps a story cosmetic tag (flag and colour stay)");
+    check(dispatch("change_nation_name XXX Reich") == "Invalid tag for the command", "unknown tag refused");
+    auto calls_now = state.calls.size();
     check(dispatch("change_nation_name GER \"Neues  Reich\"") == "CAPIE: name: two spaces in a row at character 7" &&
-              state.calls.size() == 3,
+              state.calls.size() == calls_now,
           "CAPIE error message, no delegate call");
     check(dispatch("change_nation_name") == console::spec(console::CommandId::change_nation_name).usage,
           "usage without arguments");
-    check(dispatch("reset_nation_name GER").empty() && state.calls.back().name == "drop_cosmetic_tag" &&
-              state.calls.back().tokens == std::vector<std::string>{"GER"},
-          "reset of a CAPIE name goes through drop_cosmetic_tag");
-    auto calls_now = state.calls.size();
-    check(dispatch("reset_nation_name FRA").starts_with("CAPIE: FRA uses cosmetic tag 'FRA_alt'") &&
-              state.calls.size() == calls_now,
+    check(dispatch("reset_nation_name GER").empty() && state.calls.back().name == "eval_effect" &&
+              state.calls.back().tokens[0] ==
+                  "GER = { clear_array = capie_cn_n clear_array = capie_cn_a clear_variable = capie_cn_ver "
+                  "drop_cosmetic_tag = yes set_variable = { capie_cn_rev = 1 } }",
+          "reset of a legacy RN1 name clears the layer and drops the tag");
+    check(dispatch("reset_nation_name FRA").empty() &&
+              state.calls.back().tokens[0] ==
+                  "FRA = { clear_array = capie_cn_n clear_array = capie_cn_a clear_variable = capie_cn_ver "
+                  "set_variable = { capie_cn_rev = 1 } }",
           "reset keeps a story cosmetic tag");
-    check(dispatch("reset_nation_name POL") == "CAPIE: POL has no cosmetic tag; nothing to reset" &&
-              state.calls.size() == calls_now,
-          "reset without a cosmetic tag");
+    check(dispatch("reset_nation_name POL").empty() && state.calls.back().tokens[0].starts_with("POL = { "),
+          "reset without a cosmetic tag clears the layer");
+    calls_now = state.calls.size();
     check(dispatch("reset_nation_name SWE") == "Invalid tag for the command" && state.calls.size() == calls_now,
           "reset of an unknown tag");
     check(dispatch("capie_cmd demo echo hi").empty() && state.calls.back().name == "eval_effect" &&
@@ -800,11 +858,11 @@ void bridge_tests() {
     check(lookup("change_nation_name") >= 0 && lookup("capie_cmd") >= 0, "entries survive later vanilla additions");
 
     // A delegate that changed after registration is not called.
-    state.entries[1].action = reinterpret_cast<uptr>(&fake_other);
+    state.entries[static_cast<std::size_t>(lookup("eval_effect"))].action = reinterpret_cast<uptr>(&fake_other);
     check(dispatch("change_nation_name GER Reich") == "CAPIE: console delegate unavailable" &&
               state.calls.size() == before,
           "changed delegate is refused at run time");
-    state.entries[1].action = reinterpret_cast<uptr>(&fake_set_cosmetic);
+    state.entries[static_cast<std::size_t>(lookup("eval_effect"))].action = reinterpret_cast<uptr>(&fake_eval_effect);
 
     // Wrong context (not a CAPIE entry) is refused.
     layout::ActionResult result{};

@@ -451,8 +451,8 @@ void payload_tests() {
     click(faction, apply_of(faction));
     check(dispatch_originals == before + 1 && !captured.empty(), "Apply dispatched once");
     check(count_of("user_key") == 1 && value_of("user_key") == 7, "non-reserved original kept");
-    check(count_of("capie_cap") == 1 && value_of("capie_cap") == 2, "capie_cap = 2 (spoof removed)");
-    check(count_of("capie_ver") == 1 && value_of("capie_ver") == 10100, "capie_ver = 10100");
+    check(count_of("capie_cap") == 1 && value_of("capie_cap") == 4, "capie_cap = 4 (spoof removed)");
+    check(count_of("capie_ver") == 1 && value_of("capie_ver") == 10200, "capie_ver = 10200");
     check(count_of("capie_epoch") == 1 && value_of("capie_epoch") == 3, "capie_epoch from the carrier");
     check(count_of("capie_x") == 0, "every capie_ record from the source removed");
     check(value_of("capie_nf") == 1 && value_of("capie_f1_err") == 0 && value_of("capie_f1_at") == 0 &&
@@ -512,7 +512,7 @@ void second_mod_tests() {
     auto& hello = make_window("capie_v1_ed__capie__hello", 0, "1");
     tick_observed(hello.window.data(), 0);
     click(hello, apply_of(hello));
-    check(value_of("capie_nf") == 0 && capie_records() == 4 && value_of("capie_cap") == 2, "zero-field editor");
+    check(value_of("capie_nf") == 0 && capie_records() == 4 && value_of("capie_cap") == 4, "zero-field editor");
 
     // A legacy (Rename Anything) frame keeps capie_ records it did not reserve.
     std::array<Record, 2> legacy_source{source_record("capie_cap", 1), source_record("rn_native_ok", 1)};
@@ -534,7 +534,7 @@ void sentinel_tests() {
     // Apply before the first Tick of the window: registered at Dispatch, not ready -> -1.
     auto& late = make_window("capie_v1_ed__mymod__late", 0b1, "5");
     click(late, apply_of(late));
-    check(value_of("capie_epoch") == -1 && value_of("capie_cap") == 2 && value_of("capie_ver") == 10100 &&
+    check(value_of("capie_epoch") == -1 && value_of("capie_cap") == 4 && value_of("capie_ver") == 10200 &&
               count_of("capie_nf") == 0 && capie_records() == 3,
           "stale sentinel -1 with cap and ver only");
 

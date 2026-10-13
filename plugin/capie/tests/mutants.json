@@ -790,5 +790,125 @@
   "replace": "    if (text.size() >= max_field_length) {",
   "suite": "tests/public_names_test.cpp",
   "summary": "public names tests:"
+ },
+ {
+  "name": "name-layer-fnv-prime",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "fnv_prime = 0x01000193U;",
+  "replace": "fnv_prime = 0x01000197U;",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-probe-never-stops",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "if (entry.probe < distance) {",
+  "replace": "if (entry.probe < 1) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-mask-not-checked",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "((static_cast<std::int64_t>(mask) + 1) & mask) != 0",
+  "replace": "false",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-utf8-two-byte-lead",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "static_cast<char>(0xC0U | (point >> 6U));",
+  "replace": "static_cast<char>(0xE0U | (point >> 6U));",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-fraction-accepted",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "if (raw % fixed_point != 0) {",
+  "replace": "if (false) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-count-zero-accepted",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "!whole(raw, count) || count < 1 ||",
+  "replace": "!whole(raw, count) || count < 0 ||",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-code-265-accepted",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "code < 1 || code > max_code)",
+  "replace": "code < 1 || code > max_code + 1)",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-unreadable-as-absent",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "layer.status = version == Lookup::absent ? Status::absent : Status::unreadable;",
+  "replace": "layer.status = Status::absent;",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-any-version",
+  "file": "src/features/country/name_layer.hpp",
+  "find": "!whole(layer.version_raw, format) || format != format_version",
+  "replace": "!whole(layer.version_raw, format)",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-frame-not-restored",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "active_frame = previous;",
+  "replace": "static_cast<void>(previous);",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-tag-not-replaced",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "return originals_.build(out, &borrowed, a3, a4, a5, a6, a7, a8);",
+  "replace": "return originals_.build(out, tag, a3, a4, a5, a6, a7, a8);",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-commit-any-variable",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "if (!engine::string_equals(mem_, effect + core::off::set_variable_name, commit_variable)) {",
+  "replace": "if (false) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-country-bound",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "count > max_countries) {",
+  "replace": "false) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-refresh-all",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "if (!differs(country, layer)) {",
+  "replace": "if (false) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-layer-removed-layer-kept",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "shown_->erase(country);",
+  "replace": "static_cast<void>(0);",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
  }
 ]
