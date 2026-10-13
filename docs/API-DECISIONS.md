@@ -131,3 +131,10 @@ przechodzą; potem niezależne review i pełny test w grze.
 Użytkownik: `capie_cmd` (komendy modderów, API level 3) włączane razem z `change_nation_name`
 i `reset_nation_name` — po niezależnym review kandydata i teście w grze SP (zapis/load, odmowa
 w MP/ironman, polskie znaki, `help`). Kontrakt API level 3 do dopisania w `plugin/capie/CONTRACT.md`.
+
+## 2026-10-13 — podmioty i stary edytor na CAPIE
+
+- Rename Anything nie zależy od CAPIE Script SDK; reguły hosta z SDK na razie nie czyta.
+  Wróci przy teście MP (sprawdzenie nieznanej reguły gry może dawać błędy parsera bez SDK).
+- Podmiot: edytowana tylko nazwa partii rządzącej (decyzja użytkownika: „Wystarczy”).
+- Alfabet RA bez zmian (litery typu é odrzucane z komunikatem; decyzja użytkownika).
