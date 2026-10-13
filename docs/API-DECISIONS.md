@@ -125,3 +125,9 @@ przechodzą; potem niezależne review i pełny test w grze.
 4. Dokumentacja CAPIE otwarcie wymienia alternatywy (`hoi4_lua`, injector oparty na proxy DLL).
 5. Profiler scripted GUI (C11) publiczny, wyłącznie w wariancie debug (decyzja root: odpowiada
    na zgłaszane przez modderów problemy wydajności; brak wpływu na release).
+
+## Komendy konsoli CAPIE (2026-10-13)
+
+Użytkownik: `capie_cmd` (komendy modderów, API level 3) włączane razem z `change_nation_name`
+i `reset_nation_name` — po niezależnym review kandydata i teście w grze SP (zapis/load, odmowa
+w MP/ironman, polskie znaki, `help`). Kontrakt API level 3 do dopisania w `plugin/capie/CONTRACT.md`.
