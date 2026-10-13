@@ -33,6 +33,10 @@
 .PARAMETER WorkRoot
     Short working folder for the mutant copies (default %TEMP%\capie-mut).
 
+.PARAMETER MutantsFile
+    Mutant list relative to this folder (default tests\mutants.json). The console-command
+    candidate keeps its own list in tests\console\mutants_console.json.
+
 .OUTPUTS
     System.String. One line per mutant and flavor, and a summary line.
 
@@ -46,7 +50,8 @@ param(
     [string]$VisualStudioDir = '',
     [int]$TimeoutSeconds = 60,
     [string]$Only = '*',
-    [string]$WorkRoot = (Join-Path ([IO.Path]::GetTempPath()) 'capie-mut')
+    [string]$WorkRoot = (Join-Path ([IO.Path]::GetTempPath()) 'capie-mut'),
+    [ValidateNotNullOrEmpty()][string]$MutantsFile = 'tests\mutants.json'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -140,7 +145,7 @@ function Invoke-Suite {
     } finally { Pop-Location }
 }
 
-$mutants = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot 'tests\mutants.json') -Raw | ConvertFrom-Json)
+$mutants = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot $MutantsFile) -Raw | ConvertFrom-Json)
 
 # Baseline: every suite, unmutated, in the same short layout, in every flavor it runs in.
 $baselineDir = Join-Path $WorkRoot 'base'
