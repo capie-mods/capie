@@ -138,3 +138,16 @@ w MP/ironman, polskie znaki, `help`). Kontrakt API level 3 do dopisania w `plugi
   Wróci przy teście MP (sprawdzenie nieznanej reguły gry może dawać błędy parsera bez SDK).
 - Podmiot: edytowana tylko nazwa partii rządzącej (decyzja użytkownika: „Wystarczy”).
 - Alfabet RA bez zmian (litery typu é odrzucane z komunikatem; decyzja użytkownika).
+
+## 2026-10-13 — nazwa nadana przez gracza to osobny byt (decyzja użytkownika)
+
+- Zmiana nazwy kraju (własnego i podmiotu) NIE może zmieniać flagi ani koloru. Cosmetic tag
+  nie jest nośnikiem nazwy RA.
+- Kolejność wyświetlania: nazwa nadana przez gracza > aktualny cosmetic tag > nazwa bazowa.
+- Reset usuwa tylko nazwę nadaną przez gracza; kraj wraca do bieżącego cosmetic taga
+  (lub nazwy bazowej), a nie do nazwy bazowej z pominięciem cosmetic taga.
+- Późniejsza zmiana cosmetic taga przez grę/event nie kasuje nazwy nadanej przez gracza.
+- Cytat: „CUSTOMOWO NADANA NAZWA NIE POWINNA BYĆ TRAKTOWANA TAK SAMO JAK COSMETIC TAG,
+  POWINNA BYĆ OSOBNYM BYTEM!”
+- Wejście do zmiany nazwy podmiotu: przy przyciskach akcji dyplomatycznych (góra lub dół listy),
+  najlepiej z ikoną.
