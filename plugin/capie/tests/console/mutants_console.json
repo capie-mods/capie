@@ -1,0 +1,194 @@
+[
+ {
+  "name": "console-line-no-backslash-escape",
+  "file": "src/features/console/console_line.hpp",
+  "find": "(text[index + 1] == quote || text[index + 1] == escape)",
+  "replace": "(text[index + 1] == quote)",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-line-text-after-quote",
+  "file": "src/features/console/console_line.hpp",
+  "find": "if (index < text.size() && text[index] != space) {",
+  "replace": "if (false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-line-join-drops-space",
+  "file": "src/features/console/console_line.hpp",
+  "find": "out.bytes[used++] = space;",
+  "replace": "static_cast<void>(0);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-line-seven-arguments",
+  "file": "src/features/console/console_line.hpp",
+  "find": "inline constexpr std::size_t max_arguments = 6;",
+  "replace": "inline constexpr std::size_t max_arguments = 7;",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-text-trailing-space",
+  "file": "src/features/console/console_text.hpp",
+  "find": "if (view.back() == U' ') {",
+  "replace": "if (false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-text-double-space",
+  "file": "src/features/console/console_text.hpp",
+  "find": "view[index] == U' ' && view[index - 1] == U' '",
+  "replace": "false",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-text-short-tag",
+  "file": "src/features/console/console_text.hpp",
+  "find": "if (tag.size() != tag_length) {",
+  "replace": "if (tag.size() > tag_length) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-text-overlong-utf8",
+  "file": "src/features/console/console_text.hpp",
+  "find": "if (value < minimum || value > editor::max_scalar ||",
+  "replace": "if (value > editor::max_scalar ||",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-plan-adjective-default",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "args.count == 3 ? args.at(2) : args.at(1);",
+  "replace": "args.count == 3 ? args.at(2) : args.at(0);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-plan-no-rn1-prefix",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "        .add(country::protocol_prefix)\n",
+  "replace": "",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-plan-reserved-mod-id",
+  "file": "src/features/console/console_commands.hpp",
+  "find": " || args.at(0) == reserved_mod_id) {",
+  "replace": ") {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-plan-quoted-mod-id",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "if (args.items[0].quoted || ",
+  "replace": "if (",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-plan-length-record",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "\"len\", codes.length);",
+  "replace": "\"len\", 0);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-plan-no-source-record",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "    detail::record(effect, \"capie_src\", console_source);\n",
+  "replace": "",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-name-collision",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "collision = collision || detail::same_name(name.view(), command.name);",
+  "replace": "collision = collision || false;",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-alias-collision",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "collision = collision || detail::same_name(text.view(), command.name);",
+  "replace": "collision = collision || false;",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-case-sensitive",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "constexpr char case_bit = 0x20;",
+  "replace": "constexpr char case_bit = 0x00;",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-delegate-address",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "find_entry(console, delegate_name(delegate), found) && found.action == expected;",
+  "replace": "find_entry(console, delegate_name(delegate), found);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-readback-action",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "|| entry.action != action_ ||",
+  "replace": "||",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-readback-context",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "                entry.context != context_of(command.id)) {",
+  "replace": "                false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-not-one-shot",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "if (state_ != Registration::waiting) {",
+  "replace": "if (state_ == Registration::disabled) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-unverified-api",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "if (!api_.verified || ",
+  "replace": "if (",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-foreign-context",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "if ((context & ~context_id_mask) != context_magic || ",
+  "replace": "if (",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-developer-flag",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "entry.release_flag = 1;",
+  "replace": "entry.release_flag = 0;",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ }
+]
