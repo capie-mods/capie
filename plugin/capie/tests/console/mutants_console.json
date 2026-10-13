@@ -72,14 +72,6 @@
   "summary": "console tests (candidate=1):"
  },
  {
-  "name": "console-plan-no-rn1-prefix",
-  "file": "src/features/console/console_commands.hpp",
-  "find": "        .add(country::protocol_prefix)\n",
-  "replace": "",
-  "suite": "tests/console/console_test.cpp",
-  "summary": "console tests (candidate=1):"
- },
- {
   "name": "console-plan-reserved-mod-id",
   "file": "src/features/console/console_commands.hpp",
   "find": " || args.at(0) == reserved_mod_id) {",
@@ -192,14 +184,6 @@
   "summary": "console tests (candidate=1):"
  },
  {
-  "name": "console-reset-any-tag",
-  "file": "src/features/console/console_bridge.hpp",
-  "find": "if (!is_capie_cosmetic(cosmetic.view())) {",
-  "replace": "if (false) {",
-  "suite": "tests/console/console_test.cpp",
-  "summary": "console tests (candidate=1):"
- },
- {
   "name": "console-reset-unknown-tag",
   "file": "src/features/console/console_bridge.hpp",
   "find": " || index <= 0) {",
@@ -248,10 +232,74 @@
   "summary": "console tests (candidate=1):"
  },
  {
-  "name": "console-refusal-unsanitised",
+  "name": "console-layer-no-commit",
   "file": "src/features/console/console_commands.hpp",
-  "find": "? c : '?';",
-  "replace": "? c : c;",
+  "find": "    plan.tokens[0].add(layer_commit);",
+  "replace": "    static_cast<void>(0);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-legacy-drop-always",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "    if (legacy_rn1) {\n        plan.tokens[0].add(legacy_drop);\n    }",
+  "replace": "    plan.tokens[0].add(legacy_drop);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-legacy-drop-never",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "    if (legacy_rn1) {\n        plan.tokens[0].add(legacy_drop);\n    }",
+  "replace": "    static_cast<void>(legacy_rn1);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-reset-keeps-version",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "    plan.tokens[0].add(layer_clear_version);",
+  "replace": "    static_cast<void>(0);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-rename-no-version",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "    plan.tokens[0].add(layer_set_version);",
+  "replace": "    static_cast<void>(0);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-adjective-gets-name-codes",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "detail::add_codes(plan.tokens[0], \"capie_cn_a\", adjective.codes);",
+  "replace": "detail::add_codes(plan.tokens[0], \"capie_cn_a\", name.codes);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-layer-no-clear",
+  "file": "src/features/console/console_commands.hpp",
+  "find": ".add(layer_scope_open).add(layer_clear);",
+  "replace": ".add(layer_scope_open);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-ignores-cosmetic",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "finish_layer_plan(plan, is_capie_cosmetic(cosmetic.view()));",
+  "replace": "finish_layer_plan(plan, false);",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-unknown-tag-passes",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "            if (!read_cosmetic(plan.tag.view(), cosmetic)) {\n                say(out, \"Invalid tag for the command\");  // the vanilla text for an unknown tag\n                return out;\n            }",
+  "replace": "            static_cast<void>(read_cosmetic(plan.tag.view(), cosmetic));",
   "suite": "tests/console/console_test.cpp",
   "summary": "console tests (candidate=1):"
  }
