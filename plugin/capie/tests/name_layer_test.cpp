@@ -302,6 +302,32 @@ void lookup_tests() {
     check(layer::find_variable(mem, table, "", value) == layer::Lookup::absent, "empty name is absent");
     check(layer::find_variable(mem, table, std::string(33, 'v'), value) == layer::Lookup::absent,
           "name over the lookup bound is absent");
+    // A dense table: a missing name stops at the first entry whose probe distance is smaller
+    // than the step (BC4960); it never reports a wrong variable. Absent and unreadable both mean
+    // "no layer", so the exact stop point is not observable for display.
+    {
+        FakeMemory full;
+        std::vector<std::pair<std::string, std::int64_t>> dense;
+        dense.reserve(8);
+        for (int i = 0; i < 8; ++i) {
+            dense.emplace_back("k" + std::to_string(i), fp(i + 1));
+        }
+        check(build_table(full, 0x2000'0000, 0x3000'0000, 3, 4, dense), "full table builds (4 + 4 slots)");
+        layer::Table full_table{};
+        check(layer::read_table(full, 0x2000'0000, full_table) && full_table.slots == 8, "full table read");
+        bool never_found = true;
+        for (int i = 0; i < 40; ++i) {
+            never_found = never_found && layer::find_variable(full, full_table, "m" + std::to_string(i), value) !=
+                                             layer::Lookup::found;
+        }
+        check(never_found, "missing names in a full table are never found");
+        bool all_found = true;
+        for (const auto& [name, raw] : dense) {
+            all_found = all_found && layer::find_variable(full, full_table, name, value) == layer::Lookup::found &&
+                        value == raw;
+        }
+        check(all_found, "every name of a full table is found");
+    }
     // Empty container: entries == 0.
     FakeMemory empty;
     empty.map(0x2000'0000, 0x40);

@@ -12,6 +12,33 @@ The default development loading path is the opt-in `version.dll` proxy. Build wi
 remains available. The proxy uses `current/runtime/` and requires the exact `-capie`
 argument or the explicit bootstrap config marker; it creates no injection helper process.
 
+## Country name layer, API level 4 (CAPIE 1.2, developer build)
+
+`CONTRACT.md` section 14. A name a player gives a country lives in the country's own variables
+(`capie_cn_n`, `capie_cn_a`, `capie_cn_ver`, commit `capie_cn_rev`), not in a cosmetic tag, so
+flag and colour stay the game's. On screen: layer > current cosmetic tag > base name.
+
+- `capie_core.dll` adds 3 hooks: `CCountry_UpdateNames` (716580), `CCountry_BuildNameKey`
+  (6ECFF0), `CSetVariableEffect::Execute` (364C60). Logic in
+  `features/country/name_layer.hpp` (variable lookup and decoding, fail-closed),
+  `name_layer_hooks.hpp` (hook bodies, refresh after `capie_cn_rev`) and `name_layer_pins.hpp`
+  (5 signatures, 10 instruction pins, 5 RIP pins). A failed pin turns the layer off and keeps
+  the localisation hooks. CAPIE writes no game state. New log `capie_core.log` (counts only,
+  never a name).
+- `RNCountryCapabilities` returns v2 (`0x524E4302`) with the layer, v1 without; the editor
+  bridge requires v2 for a country Apply.
+- Console (`-Console` builds): `change_nation_name` / `reset_nation_name` write or clear the
+  layer through `eval_effect` and drop only a legacy `RN1|` cosmetic tag.
+- Version 1.2.0, API level 4, build number 10200 (`capie_cap = 4` in every command).
+- Tests: `name_layer_test.cpp` (both flavors), `name_layer_pins_exe_test.cpp` (pins vs the EXE
+  file, with corrupted copies); 13 more mutants in `tests/mutants.json`, 9 new console mutants.
+
+```powershell
+.\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook' -OutputDirectory 'plugin\build\capie-v12-dev' -Console
+```
+
+Evidence and design: `docs/evidence/session-20261013/custom-name-layer/`.
+
 ## Public contract, API level 2 (CAPIE 1.1)
 
 `CONTRACT.md` is the versioned contract for other mods; the script side is
@@ -115,7 +142,8 @@ is a process singleton; the accepted tests address it directly), virtual interfa
 
 ```powershell
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook'   # both flavors, all offline tests, benchmarks
-.\plugin\capie\mutation_check.ps1                           # 99 mutants (bridge and public-editor ones in debug and release)
+.\plugin\capie\mutation_check.ps1                           # 112 mutants (bridge and public-editor ones in debug and release)
+.\plugin\capie\mutation_check.ps1 -MutantsFile tests\console\mutants_console.json   # 38 console mutants
 uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tidy + clang-format (uv dev group)
 ```
 

@@ -1,13 +1,16 @@
-# CAPIE script contract, API level 2 (CAPIE 1.1)
+# CAPIE script contract, API level 4 (CAPIE 1.2)
 
 This is the versioned contract between CAPIE (the native DLLs in `plugin/capie/`) and HOI4
 mods. It covers the names a mod gives its editor GUI, the temporary records CAPIE adds to the
 player's Apply command, the localisation keys CAPIE answers, the alphabet, the error codes the
-script SDK reports, behaviour without CAPIE, permissions and the multiplayer handshake.
+script SDK reports, behaviour without CAPIE, permissions, the multiplayer handshake and the
+country name layer (section 14).
 
-Status, 2026-10-12: implemented in `capie_core.dll` / `capie_editor.dll` 1.1 and in
-`sdk/capie-script-sdk/`, covered by offline tests. Nothing in API level 2 has run in the game
-yet. Rows marked **in-game test** below are the open checks.
+Status, 2026-10-14: API level 2 is implemented in `capie_core.dll` / `capie_editor.dll` 1.1 and
+1.2 and in `sdk/capie-script-sdk/`; API level 3 (console) is in `CONTRACT-console.md`; API level
+4 (section 14, country name layer) is implemented in the 1.2 developer build
+(`plugin/build/capie-v12-dev`) and covered by offline tests. Nothing of level 4 has run in the
+game yet. Rows marked **in-game test** below are the open checks.
 
 The variant is B from `docs/API-DECISIONS.md`: plain HOI4 script, data passed through
 temporary variables of one command, no new script keywords. A mod written against this
@@ -15,11 +18,11 @@ contract parses and runs the same way with or without CAPIE; only the branch it 
 
 ## 1. Versions
 
-| Name | Value in 1.1 | Where a mod sees it | Meaning |
+| Name | Value in 1.2 (1.1) | Where a mod sees it | Meaning |
 |---|---|---|---|
-| API level | `2` | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names. |
-| Release | `1.1.0` | loc key `CAPIE_BUILD` | Version of the binaries. |
-| Build number | `10100` | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
+| API level | `4` (`2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 adds the country name layer (section 14). Compare with `>=`. |
+| Release | `1.2.0` (`1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
+| Build number | `10200` (`10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
 | SDK major | `v1` | every SDK path and name (`capie_sdk_v1_*`, `capie_v1_*`) | A breaking change goes into `v2` names; two majors can coexist. |
 
 Mods require a minimum API level (`capie_min_api`), never a release.
@@ -205,11 +208,11 @@ Rename Anything's legacy fields keep the 84-code table; its decoder knows no oth
 `capie_core.dll` answers these keys whenever the game draws them. The SDK localisation holds the
 fallback, which is what players see without CAPIE.
 
-| Key | With CAPIE 1.1 | SDK fallback |
+| Key | With CAPIE 1.2 (1.1) | SDK fallback |
 |---|---|---|
-| `CAPIE_STATUS` | `CAPIE 1.1` | `§OCAPIE missing§!` |
-| `CAPIE_API` | `2` | `0` |
-| `CAPIE_BUILD` | `1.1.0` | `-` |
+| `CAPIE_STATUS` | `CAPIE 1.2` (`CAPIE 1.1`) | `§OCAPIE missing§!` |
+| `CAPIE_API` | `4` (`2`) | `0` |
+| `CAPIE_BUILD` | `1.2.0` (`1.1.0`) | `-` |
 
 They are text only. A trigger cannot read them, so they decide what is shown, never what runs.
 Nest them in your own keys (`MYMOD_CAPIE_LINE: "$CAPIE_STATUS$"`). Whether the main menu draws
@@ -244,7 +247,9 @@ outputs are temporary variables. Trim, validation, storing and the setters do no
 | `capie_v1_text_validate` | `capie_min_len` (default 1), `capie_max_len` (default 32) | `capie_err` 31..34 |
 | `capie_v1_text_store` / `_load` / `_clear` | `capie_slot` (1..4) | array `capie_v1_txt<slot>` and `capie_v1_txt<slot>_len` on ROOT |
 | `capie_v1_text_equals_slot` | `capie_slot` | `capie_eq` (0 or 1) |
-| `capie_v1_set_country_name`, `_state_name`, `_character_name`, `_party_name_<group>` | slots 1 and 2 of ROOT; called in the scope to rename | the vanilla name |
+| `capie_v1_set_country_name` | slots 1 (name) and 2 (adjective) of ROOT; called in the scope of the country | the country name layer (section 14) |
+| `capie_v1_clear_country_name` | called in the scope of the country | the layer removed (section 14) |
+| `capie_v1_set_state_name`, `_character_name`, `_party_name_<group>` | slots 1 and 2 of ROOT; called in the scope to rename | the vanilla name |
 | `capie_v1_report` | `capie_err`, `capie_err_field`, `capie_err_at` | ROOT variables read by `[ROOT.CAPIE_V1_LAST_ERROR]` |
 
 The localisation key `CAPIE_V1_TXT<slot>` draws a slot of ROOT. The four slots are per country
@@ -277,15 +282,16 @@ Without CAPIE (not installed, unknown game build, failed initialization), the ed
 takes typing, because it is a native widget. Apply runs the mod's effect with no `capie_*`
 records; `capie_v1_begin` sets `capie_err = 10` and the SDK changes nothing. `CAPIE_STATUS`
 shows the fallback. Saved data (SDK text slots, names already set through vanilla setters)
-stays in the save. Country names set through the RN1 cosmetic tag need `capie_core.dll` to be
-drawn; without it the game shows the original name (not yet verified with a save loaded
-without the mod, `docs/API-DECISIONS.md` decision 3).
+stays in the save. A country name layer (section 14) stays in the save as variables; without
+`capie_core.dll` the game shows the country's cosmetic tag or base name, with the right flag.
 
-Country names. The SDK setter `capie_v1_set_country_name` stores `RN1|Name|Adjective|` as the
-country's cosmetic tag, the protocol Rename Anything introduced; `capie_core.dll` answers the
-three keys the game derives from it (the tag, `_DEF`, `_ADJ`). The `RN1|` format is frozen and
-part of API level 2, because saves contain it. A mod that sets its own cosmetic tags replaces
-it, and the other way round.
+Legacy country names (API level 2, CAPIE 1.0/1.1). The SDK setter of 1.1 stored
+`RN1|Name|Adjective|` as the country's cosmetic tag, the protocol Rename Anything introduced;
+`capie_core.dll` answers the three keys the game derives from it (the tag, `_DEF`, `_ADJ`). It
+also replaced the flag and colour with the cosmetic tag's, which is why level 4 moved the name
+into its own layer. The `RN1|` format stays frozen and readable, because saves contain it; since
+level 4 nothing writes it. Rename Anything and the console drop an `RN1|` cosmetic tag once, on
+the first Apply or reset of that country (section 14.5).
 
 Rename Anything keeps its private names in 1.1: models `rn_ip_leader_gui`,
 `rn_ip_party_neutrality_gui`, `rn_ip_country_gui`, records `rn_native(b)_*`, `rn_ip_cmd_epoch`,
@@ -329,3 +335,88 @@ serialisation is a hypothesis until the two-machine test (`docs/mp-test-plan.md`
 | The demo mod (`sdk/capie-script-sdk/examples/capie_demo`) end to end | first consumer of the SDK |
 | Game rule `capie_v1_edit_rights` in the lobby | new file |
 | Multiplayer handshake | needs two machines |
+| Name layer: own country, a subject (overlord), a country with a story cosmetic tag; flag and colour unchanged; reset back to the cosmetic tag; a later cosmetic tag change keeps the name; save, restart, load; load without CAPIE | Section 14; the variable read and the refresh trigger are pinned statically only |
+
+## 14. Country name layer (API level 4, CAPIE 1.2)
+
+### 14.1 What it is
+
+A name a player (or a mod) gives a country is its own layer, separate from the cosmetic tag
+(decision of 2026-10-13, `docs/API-DECISIONS.md`). On screen the order is:
+
+1. the name layer, when set and valid;
+2. otherwise the country's current cosmetic tag;
+3. otherwise the base name of the tag.
+
+The layer never changes the cosmetic tag, so flag and colour stay the game's. When the game or
+another mod changes the cosmetic tag later, the layer keeps showing; removing the layer shows the
+current cosmetic tag again, not the base name.
+
+### 14.2 Variables (on the country that has the name)
+
+| Variable | Value |
+|---|---|
+| `capie_cn_n` | array of the name's character codes, 1..32 elements, codes of section 7 (1..264) |
+| `capie_cn_a` | array of the adjective's character codes, 1..32 elements |
+| `capie_cn_ver` | `1` while the layer is set (format 1); absent = no layer |
+| `capie_cn_rev` | set by every change, as the **last** statement; the value is not used |
+
+They are ordinary country variables: written only by script effects, saved, and synchronised
+in multiplayer like any other variable. The definite form (`GetNameDef`) is the name.
+
+### 14.3 Writing and removing
+
+```text
+# Scope: the country. Set the layer (codes as in section 7):
+clear_array = capie_cn_n
+clear_array = capie_cn_a
+add_to_array = { capie_cn_n = 40 }   # ... one per character of the name
+add_to_array = { capie_cn_a = 14 }   # ... one per character of the adjective
+set_variable = { capie_cn_ver = 1 }
+set_variable = { capie_cn_rev = 1 }  # last: CAPIE refreshes the names now
+
+# Remove it:
+clear_array = capie_cn_n
+clear_array = capie_cn_a
+clear_variable = capie_cn_ver
+set_variable = { capie_cn_rev = 1 }
+```
+
+The SDK effects `capie_v1_set_country_name` (from text slots 1 and 2 of ROOT) and
+`capie_v1_clear_country_name` do exactly this. Use `set_variable` (not `add_to_variable`) for
+`capie_cn_rev`, without a scope prefix, in the scope of the country.
+
+### 14.4 What CAPIE does
+
+`capie_core.dll` hooks `CCountry_UpdateNames` and `CCountry_BuildNameKey`: while the game
+recomputes a country's cached name, adjective and definite name, a valid layer replaces the tag
+the game builds the localisation keys from (`RN1|<name>|<adjective>|`, answered by the
+localisation hooks). It hooks `CSetVariableEffect::Execute`: after a `set_variable` of
+`capie_cn_rev` it recomputes the names of every country whose layer differs from what it shows.
+The game also recomputes names on load and whenever the cosmetic tag, the ideology, the
+popularities or a subject relation change; the layer is applied there too.
+
+The layer is invalid, and treated as absent, when `capie_cn_ver` is not exactly 1, when a count
+is outside 1..32 or not whole, when an element is missing, not whole or outside 1..264, or when
+the text fails the RN1 guard. CAPIE writes no variable, no cosmetic tag and no country field;
+it only changes what the game's name caches hold. Its pins are checked separately from the
+localisation hooks: if they do not match, the layer is off (logged in `capie_core.log`) and
+`RNCountryCapabilities` reports v1 instead of v2, so Rename Anything refuses country renames.
+
+Not covered (they use the base tag, as without CAPIE): `GetNonIdeologyName*`, the
+`NONIDEOLOGY*` parameters of subject name formats, the tooltip of `set_cosmetic_tag`, and
+localisation that references a tag key such as `$CAN$` directly.
+
+### 14.5 Legacy RN1 names
+
+A country renamed by CAPIE 1.0/1.1 carries an `RN1|...` cosmetic tag. It keeps showing its name
+(section 11). Rename Anything marks such countries with the flag `rn_custom_name` and, on the
+first Apply or reset, drops that cosmetic tag once and sets `rn_cn_migrated`. The console
+commands drop it only when the current cosmetic tag starts with `RN1|`. The cosmetic tag that
+`RN1|` replaced was never stored, so it cannot be restored.
+
+### 14.6 Multiplayer and without CAPIE
+
+The layer is game state written by effects, so every client holds the same variables. A client
+without CAPIE shows the cosmetic tag or base name with the correct flag; nothing goes out of
+sync, because CAPIE only changes display caches. The handshake of section 12 is unchanged.
