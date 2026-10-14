@@ -64,7 +64,7 @@ function Read-RaAnswer {
     .DESCRIPTION
         Goes through the $script:RaReadHost adapter; $null becomes an empty string.
     .PARAMETER Prompt
-        Question text (\uXXXX escapes are decoded).
+        Question text.
     .OUTPUTS
         System.String
     .EXAMPLE
@@ -73,7 +73,7 @@ function Read-RaAnswer {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory, Position = 0)][AllowEmptyString()][string]$Prompt)
-    $answer = & $script:RaReadHost (ConvertFrom-RaEscapedText $Prompt)
+    $answer = & $script:RaReadHost $Prompt
     if ($null -eq $answer) { return '' }
     return ([string]$answer).Trim()
 }

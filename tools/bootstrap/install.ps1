@@ -16,9 +16,10 @@
         & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
         .\install.ps1 -Install -LoadMethod Launcher -Shortcut -ShortcutPath "$env:USERPROFILE\Desktop" -Yes
 
-    This file is intentionally pure ASCII (Polish text uses \uXXXX escapes decoded at
-    runtime), because Windows PowerShell 5.1 and `irm` may decode non-ASCII scripts
-    with a legacy code page.
+    This file is intentionally English-only and pure ASCII. ASCII bytes read the same in
+    UTF-8, with or without a BOM, and in every legacy code page that Windows PowerShell 5.1
+    or `irm` may use, and every message prints the same in any console encoding. The
+    script therefore never changes the console encoding of the caller's session.
 
     install.ps1 is GENERATED from tools/bootstrap/src by tools/bootstrap/build-install.ps1.
     Edit the fragments in src/ and rebuild; never edit install.ps1 by hand.
@@ -93,11 +94,9 @@
 .PARAMETER ManifestPath
     Signed release-manifest.json for an offline -Update or -CheckUpdate.
 
-.PARAMETER Language
-    Message language override: pl or en.
-
 .OUTPUTS
-    System.Int32. Exit code 0 on success, 1 on failure (also the process exit code with -File).
+    System.Int32. Exit code 0 on success, 1 on failure, 2 when no action was given and the
+    console cannot answer questions (also the process exit code with -File).
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -133,8 +132,7 @@ param(
     [switch]$CheckUpdate,
     [switch]$Update,
     [switch]$Rollback,
-    [string]$ManifestPath,
-    [ValidateSet('', 'pl', 'en')][string]$Language = ''
+    [string]$ManifestPath
 )
 
 # GENERATED FILE: edit tools/bootstrap/src/* and run tools/bootstrap/build-install.ps1.
@@ -248,7 +246,6 @@ $script:RaDigitsPattern = '^\d+$'
 $script:RaListSeparatorPattern = '[,; ]+'
 $script:RaVdfTokenPattern = '"(?:[^"\\]|\\.)*"|\{|\}|//[^\r\n]*|[^\s{}"]+'
 $script:RaVdfConditionalPattern = '^\[.*\]$'
-$script:RaUnicodeEscapePattern = '\\u([0-9A-Fa-f]{4})'
 # Our quoted (or unquoted) launcher path plus trailing blanks, anywhere in the options.
 $script:RaWrapperPattern = '(?:"[^"]*\\{0}"|(?<!\S)[^\s"]*\\{0})[ \t]*' -f [regex]::Escape($script:RaLauncherExeName)
 
@@ -269,8 +266,8 @@ $script:RaHttpAccept = 'application/vnd.github+json, application/octet-stream'
 $script:RaReleaseTagPrefix = 'v'
 
 # --- Interaction ----------------------------------------------------------
-$script:RaYesAnswers = @('y', 'yes', 't', 'tak')
-$script:RaNoAnswers = @('n', 'no', 'nie')
+$script:RaYesAnswers = @('y', 'yes')
+$script:RaNoAnswers = @('n', 'no')
 $script:RaQuitAnswer = 'q'
 $script:RaAllAnswer = 'a'
 $script:RaAllAccountsSelector = 'all'
@@ -284,11 +281,10 @@ $script:RaStartModes = @{
 $script:RaShortcutFolderDesktopChoice = '1'
 $script:RaShortcutFolderPickerChoice = '2'
 $script:RaFolderPickerTitle = 'Rename Anything: shortcut folder'
-$script:RaDefaultLanguage = 'en'
-$script:RaPolishLanguage = 'pl'
 $script:RaGameHashDisplayLength = 16
 $script:RaExitSuccess = 0
 $script:RaExitFailure = 1
+$script:RaExitUsage = 2                    # no action and no interactive console: usage shown
 # Switches that name an action; without any of them an interactive run opens the menu.
 $script:RaActionOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'RemoveSteamLaunchOption', 'Uninstall',
@@ -353,7 +349,6 @@ $script:RaTuiPencil = '<====]'
 
 # --- Runtime switches (set by Invoke-RaMain; tests set them directly) ------
 $script:RaRoot = $null          # %LOCALAPPDATA%\RenameAnything
-$script:RaLang = 'en'           # message language
 $script:RaDry = $false          # -DryRun: plan only, write nothing
 $script:RaAssumeYes = $false    # -Yes: never prompt
 $script:RaQuiet = $false        # tests: no console output
@@ -367,8 +362,6 @@ $script:RaMpWarningShown = $false # terminal interface already showed the multip
 $script:RaReadHost = { param([string]$Prompt) Read-Host -Prompt $Prompt }
 # WriteHost(Message, Color) -> nothing
 $script:RaWriteHost = { param([string]$Message, [string]$Color) Write-RaConsoleLine -Message $Message -Color $Color }
-# GetUiLanguage() -> two-letter ISO language name of the Windows UI
-$script:RaGetUiLanguage = { (Get-UICulture).TwoLetterISOLanguageName }
 
 # --- Terminal interface (raw console) --------------------------------------
 # GetTerminal() -> [pscustomobject]@{ Interactive; Vt; Width }. Interactive = neither input nor
@@ -569,272 +562,134 @@ function Get-RaHttpContent {
 
 #region Shared/Messages.ps1
 # ---------------------------------------------------------------------------
-# Messages (user-facing text). PL text is \u-escaped to keep this file ASCII and
-# is decoded at run time by ConvertFrom-RaEscapedText.
+# Messages (user-facing text). English only and pure ASCII, so the output looks the
+# same in every console code page and in redirected output.
 # ---------------------------------------------------------------------------
 $script:RaMessages = @{
-    en = @{
-        Title                      = 'Rename Anything for Hearts of Iron IV - bootstrap'
-        Intro                      = @(
-            'The CAPIE launcher (default) keeps the game folder unchanged and adds the "CAPIE" switch mod to your ',
-            'mod folder; the Proxy alternative adds one version.dll to the game folder. Saves are untouched. Log: {0}'
-        ) -join ''
-        AskLoadMethod              = @(
-            'Loading method: 1 = CAPIE launcher (recommended; switch CAPIE with the "CAPIE" mod in the playset, ',
-            'no game files added); 2 = proxy version.dll in the game folder (requires -capie). Choice [{0}]'
-        ) -join ''
-        AskModeProxy               = @(
-            'Proxy activation: 1 = add -capie to Steam launch options; 4 = install only (add -capie manually). ',
-            "Shortcuts require Launcher mode.`nChoice [1,4]"
-        ) -join ''
-        AskInstall                 = 'Install/update the Rename Anything launcher and native DLLs into {0}? [Y/n]'
-        AskMode                    = @(
-            "How should the game start WITH the extension?`n  1 = Steam launch option (normal 'Play' button in Steam)`n  2 ",
-            "= Shortcut in a folder you choose`n  3 = Both`n  4 = Neither (only install files)`nChoice [1-4]"
-        ) -join ''
-        AskShortcutFolder          = @(
-            "Where should the shortcut be created?`n  1 = Desktop ({0}) [default]`n  2 = Choose a folder in a window`n  or ",
-            "type a full folder path`nChoice"
-        ) -join ''
-        MpWarning                  = @(
-            'WARNING: while the extension is enabled, Hearts of Iron IV runs with CAPIE native DLLs. This setup is ',
-            'NOT declared multiplayer-compatible (multiplayer has not been verified; desyncs are possible). Play ',
-            "multiplayer only after undoing the change.`nHow to undo: run this script with -RemoveSteamLaunchOption (Steam ",
-            'entry only) or -Uninstall (everything), or in Steam: Library > Hearts of Iron IV > Properties > General > ',
-            'Launch Options and delete -capie (proxy mode) or the quoted ...\RenameAnythingLauncher.exe part. For Config ',
-            'activation remove %LOCALAPPDATA%\RenameAnything\proxy.enabled or run -ProxyActivation Flag -Install. Keep your own options.'
-        ) -join ''
-        AskConfirmSteam            = 'Enable the selected loading method in the HOI4 Steam launch options? [y/N]'
-        AskConfirmShortcut         = 'Create the shortcut? [y/N]'
-        SteamRunning               = @(
-            'Steam is running. Close Steam completely (Steam menu > Exit), then press Enter. Type Q to skip the Steam ',
-            'step. The script never closes Steam itself.'
-        ) -join ''
-        SteamRunningNonInteractive = 'Steam is running; close it and run again. Steam is never closed by this script.'
-        AskAccount                 = 'Several Steam accounts found. Type a number, several numbers separated by commas, or A for all:'
-        Done                       = 'Done.'
-        DryRunNote                 = 'DRY RUN: nothing will be written.'
-        ShortcutComment            = 'HOI4 with the Rename Anything native extension (DLL). Not declared multiplayer-compatible.'
-        NotInstalled               = 'The launcher is not installed yet. Run with -Install first.'
-        UninstallDone              = 'Uninstalled. Workshop mod and saves were not touched. The log file was kept: {0}'
-        Failed                     = 'FAILED: {0}'
-        UpdateStatus               = 'Installed version: {0}; latest release: {1}.'
-        UpdateAvailable            = 'A new version {0} is available. Run with -Update to install it (the previous version is kept for -Rollback).'
-        UpToDate                   = 'You have the latest version.'
-        GameSupportedInstalled     = 'Your hoi4.exe build is supported by the installed version.'
-        GameSupportedLatest        = 'Your hoi4.exe build is NOT supported by the installed version, but version {0} supports it: run with -Update.'
-        GameNotSupported           = @(
-            'Your hoi4.exe build ({0}...) is not supported yet. The launcher starts the game without the DLL; check again ',
-            'later (release notes / versions.json).'
-        ) -join ''
-        DisableDone                = 'Disabled: Steam starts the clean game. Files stay installed; run -SteamLaunchOption to enable again.'
-        PurgeDone                  = 'Uninstalled. Nothing of this setup is left; the Steam launch options are as before the installation.'
-        ReleaseVerified            = 'Release {0}: signed manifest verified.'
-        TuiTagline                 = "Built on CAPIE (Cyprian's API Extender)"
-        TuiMenuTitle               = 'What should this setup do?'
-        TuiInstall                 = 'Install'
-        TuiInstallHint             = 'CAPIE launcher in your user folder, started by Steam'
-        TuiUpdate                  = 'Update'
-        TuiUpdateHint              = 'newest signed release; the previous one stays for rollback'
-        TuiDisable                 = 'Disable'
-        TuiDisableHint             = 'Steam starts the clean game; files stay'
-        TuiUninstall               = 'Uninstall'
-        TuiUninstallHint           = 'restore the state before the installation'
-        TuiQuit                    = 'Quit'
-        TuiQuitHint                = 'change nothing'
-        TuiKeys                    = 'Up and Down or 1-5 to choose, Enter to confirm, Esc to quit.'
-        TuiStatusNone              = 'CAPIE is not installed.'
-        TuiStatusInstalled         = 'Installed: CAPIE {0}, {1}.'
-        TuiSteamOn                 = 'started by Steam'
-        TuiSteamOff                = 'not in the Steam launch options'
-        TuiMpNote                  = @(
-            'While CAPIE is loaded, the game is not declared multiplayer-compatible. Before multiplayer, ',
-            'disable the "CAPIE" mod in your playset or choose Disable here.'
-        ) -join ''
-        TuiAskSteam                = 'Add the CAPIE launcher to the HOI4 Steam launch options? [Y/n]'
-        TuiAskDisable              = 'Remove the CAPIE launcher from the Steam launch options? Files stay. [Y/n]'
-        TuiAskUninstall            = 'Remove CAPIE and restore the Steam launch options from before the installation? [y/N]'
-        TuiAskPurge                = 'Also delete the setup log and the Steam config backups this setup made? [y/N]'
-        TuiAskSteamClosed          = 'Steam is running. Close it completely (Steam > Exit), then press Enter. Q skips the Steam step.'
-        TuiWorking                 = 'Working'
-        TuiSummary                 = 'Summary'
-        TuiRowInstalled            = 'Installed'
-        TuiRowSteam                = 'Steam'
-        TuiRowGame                 = 'Game folder'
-        TuiRowSwitch               = 'Switch'
-        TuiRowUndo                 = 'Undo'
-        TuiRowLog                  = 'Log'
-        TuiRowMod                  = 'CAPIE mod'
-        TuiRowResult               = 'Result'
-        TuiGameUnchanged           = 'unchanged'
-        TuiNone                    = 'nothing'
-        TuiSwitchValue             = 'enable the "CAPIE" mod in your playset to load CAPIE; disable it for the clean game'
-        TuiUndoValue               = 'run this setup again and choose Disable or Uninstall'
-        TuiNothingChanged          = 'Nothing was changed.'
-        TuiFailed                  = 'The step failed. Details in the log: {0}'
-        TuiYes                     = 'yes'
-        TuiNo                      = 'no'
-        TuiDone                    = 'Done.'
-        TuiCancelled               = 'Cancelled. Nothing was changed.'
-        TuiRemovedAll              = 'removed; no files of this setup are left'
-        TuiRemovedKeptLog          = 'removed; the log was kept'
-    }
-    pl = @{
-        Title                      = 'Rename Anything dla Hearts of Iron IV \u2014 bootstrap'
-        Intro                      = @(
-            'Launcher CAPIE (domy\u015Blnie) nie zmienia folderu gry i dodaje mod-prze\u0142\u0105cznik \u201ECAPIE\u201D ',
-            'do folderu mod\u00F3w; alternatywa Proxy dodaje version.dll do folderu gry. Zapisy bez zmian. Log: {0}'
-        ) -join ''
-        AskLoadMethod              = @(
-            'Metoda: 1 = launcher CAPIE (zalecane; CAPIE w\u0142\u0105czasz modem \u201ECAPIE\u201D w zestawie, ',
-            'bez plik\u00F3w w folderze gry); 2 = proxy version.dll w folderze gry (wymaga -capie). Wyb\u00F3r [{0}]'
-        ) -join ''
-        AskModeProxy               = @(
-            'Aktywacja Proxy: 1 = dodaj -capie w opcjach Steam; 4 = sama instalacja (dodaj -capie r\u0119cznie). ',
-            "Skr\u00F3ty wymagaj\u0105 trybu Launcher.`nWyb\u00F3r [1,4]"
-        ) -join ''
-        AskInstall                 = 'Zainstalowa\u0107/zaktualizowa\u0107 launcher Rename Anything i natywne DLL w {0}? [T/n]'
-        AskMode                    = @(
-            "Jak uruchamia\u0107 gr\u0119 Z rozszerzeniem?`n  1 = opcja uruchamiania w Steam (zwyk\u0142y przycisk ",
-            "\u201EGraj\u201D)`n  2 = skr\u00F3t w wybranym folderze`n  3 = oba`n  4 = \u017Cadne (tylko instalacja ",
-            "plik\u00F3w)`nWyb\u00F3r [1-4]"
-        ) -join ''
-        AskShortcutFolder          = @(
-            "Gdzie utworzy\u0107 skr\u00F3t?`n  1 = Pulpit ({0}) [domy\u015Blnie]`n  2 = wybierz folder w oknie`n  albo ",
-            "wpisz pe\u0142n\u0105 \u015Bcie\u017Ck\u0119 folderu`nWyb\u00F3r"
-        ) -join ''
-        MpWarning                  = @(
-            'OSTRZE\u017BENIE: przy w\u0142\u0105czonym rozszerzeniu Hearts of Iron IV dzia\u0142a ze ',
-            'natywnymi bibliotekami DLL CAPIE. Taka konfiguracja NIE jest deklarowana jako zgodna z ',
-            'trybem wieloosobowym (MP nie by\u0142 weryfikowany; mo\u017Cliwe desynchronizacje). Gr\u0119 ',
-            "wieloosobow\u0105 uruchamiaj dopiero po cofni\u0119ciu zmiany.`nJak cofn\u0105\u0107: uruchom ten skrypt z ",
-            '-RemoveSteamLaunchOption (tylko wpis Steam) albo -Uninstall (wszystko), albo w Steam: Biblioteka > Hearts of ',
-            'Iron IV > W\u0142a\u015Bciwo\u015Bci > Og\u00F3lne > Opcje uruchamiania i usu\u0144 fragment w ',
-            '-capie (Proxy) albo w cudzys\u0142owie ...\RenameAnythingLauncher.exe. Przy aktywacji Config usu\u0144 ',
-            '%LOCALAPPDATA%\RenameAnything\proxy.enabled lub uruchom -ProxyActivation Flag -Install. W\u0142asne opcje zostaw.'
-        ) -join ''
-        AskConfirmSteam            = 'W\u0142\u0105czy\u0107 wybran\u0105 metod\u0119 w opcjach uruchamiania HOI4 w Steam? [t/N]'
-        AskConfirmShortcut         = 'Utworzy\u0107 skr\u00F3t? [t/N]'
-        SteamRunning               = @(
-            'Steam jest uruchomiony. Zamknij Steam ca\u0142kowicie (menu Steam > Zako\u0144cz), potem naci\u015Bnij Enter. ',
-            'Wpisz Q, aby pomin\u0105\u0107 krok Steam. Skrypt nigdy sam nie zamyka Steam.'
-        ) -join ''
-        SteamRunningNonInteractive = 'Steam jest uruchomiony; zamknij go i uruchom ponownie. Skrypt nigdy nie zamyka Steam.'
-        AskAccount                 = 'Znaleziono kilka kont Steam. Wpisz numer, kilka numer\u00F3w po przecinku albo A dla wszystkich:'
-        Done                       = 'Gotowe.'
-        DryRunNote                 = 'TRYB PR\u00D3BNY: nic nie zostanie zapisane.'
-        ShortcutComment            = 'HOI4 z natywnym rozszerzeniem Rename Anything (DLL). Niedeklarowane jako zgodne z trybem wieloosobowym.'
-        NotInstalled               = 'Launcher nie jest jeszcze zainstalowany. Najpierw uruchom z -Install.'
-        UninstallDone              = 'Odinstalowano. Mod z Workshop i zapisy nie zosta\u0142y ruszone. Plik logu zachowano: {0}'
-        Failed                     = 'B\u0141\u0104D: {0}'
-        UpdateStatus               = 'Zainstalowana wersja: {0}; najnowsze wydanie: {1}.'
-        UpdateAvailable            = @(
-            'Dost\u0119pna jest nowa wersja {0}. Uruchom z -Update, aby j\u0105 zainstalowa\u0107 (poprzednia zostaje do ',
-            '-Rollback).'
-        ) -join ''
-        UpToDate                   = 'Masz najnowsz\u0105 wersj\u0119.'
-        GameSupportedInstalled     = 'Twoja wersja hoi4.exe jest wspierana przez zainstalowan\u0105 wersj\u0119.'
-        GameSupportedLatest        = @(
-            'Twoja wersja hoi4.exe NIE jest wspierana przez zainstalowan\u0105 wersj\u0119, ale wspiera j\u0105 wersja ',
-            '{0}: uruchom z -Update.'
-        ) -join ''
-        GameNotSupported           = @(
-            'Twoja wersja hoi4.exe ({0}...) nie jest jeszcze wspierana. Launcher uruchomi gr\u0119 bez DLL; sprawd\u017A ',
-            'p\u00F3\u017Aniej (release notes / versions.json).'
-        ) -join ''
-        DisableDone                = @(
-            'Wy\u0142\u0105czono: Steam uruchamia czyst\u0105 gr\u0119. Pliki zostaj\u0105; aby w\u0142\u0105czy\u0107 ',
-            'ponownie, uruchom z -SteamLaunchOption.'
-        ) -join ''
-        PurgeDone                  = 'Odinstalowano. Nic z tej instalacji nie zosta\u0142o; opcje uruchamiania w Steam s\u0105 jak przed instalacj\u0105.'
-        ReleaseVerified            = 'Wydanie {0}: podpis manifestu sprawdzony.'
-        TuiTagline                 = "Zbudowane na CAPIE (Cyprian's API Extender)"
-        TuiMenuTitle               = 'Co ma zrobi\u0107 instalator?'
-        TuiInstall                 = 'Zainstaluj'
-        TuiInstallHint             = 'launcher CAPIE w folderze u\u017Cytkownika, start przez Steam'
-        TuiUpdate                  = 'Aktualizuj'
-        TuiUpdateHint              = 'najnowsze podpisane wydanie; poprzednie zostaje'
-        TuiDisable                 = 'Wy\u0142\u0105cz'
-        TuiDisableHint             = 'Steam uruchamia czyst\u0105 gr\u0119; pliki zostaj\u0105'
-        TuiUninstall               = 'Odinstaluj'
-        TuiUninstallHint           = 'przywr\u00F3\u0107 stan sprzed instalacji'
-        TuiQuit                    = 'Wyjd\u017A'
-        TuiQuitHint                = 'nic nie zmieniaj'
-        TuiKeys                    = 'Strza\u0142ki albo 1-5 wybieraj\u0105, Enter zatwierdza, Esc ko\u0144czy.'
-        TuiStatusNone              = 'CAPIE nie jest zainstalowane.'
-        TuiStatusInstalled         = 'Zainstalowano: CAPIE {0}, {1}.'
-        TuiSteamOn                 = 'uruchamiane przez Steam'
-        TuiSteamOff                = 'poza opcjami uruchamiania Steam'
-        TuiMpNote                  = @(
-            'Gdy CAPIE jest za\u0142adowane, gra nie jest deklarowana jako zgodna z trybem wieloosobowym. Przed gr\u0105 ',
-            'wieloosobow\u0105 wy\u0142\u0105cz mod \u201ECAPIE\u201D w zestawie mod\u00F3w albo wybierz tutaj \u201EWy\u0142\u0105cz\u201D.'
-        ) -join ''
-        TuiAskSteam                = 'Doda\u0107 launcher CAPIE do opcji uruchamiania HOI4 w Steam? [T/n]'
-        TuiAskDisable              = 'Usun\u0105\u0107 launcher CAPIE z opcji uruchamiania Steam? Pliki zostaj\u0105. [T/n]'
-        TuiAskUninstall            = 'Usun\u0105\u0107 CAPIE i przywr\u00F3ci\u0107 opcje uruchamiania Steam sprzed instalacji? [t/N]'
-        TuiAskPurge                = 'Usun\u0105\u0107 te\u017C log instalatora i kopie konfiguracji Steam zrobione przez instalator? [t/N]'
-        TuiAskSteamClosed          = @(
-            'Steam jest uruchomiony. Zamknij go ca\u0142kowicie (Steam > Zako\u0144cz), potem naci\u015Bnij Enter. ',
-            'Q pomija krok Steam.'
-        ) -join ''
-        TuiWorking                 = 'W toku'
-        TuiSummary                 = 'Podsumowanie'
-        TuiRowInstalled            = 'Zainstalowano'
-        TuiRowSteam                = 'Steam'
-        TuiRowGame                 = 'Folder gry'
-        TuiRowSwitch               = 'Prze\u0142\u0105cznik'
-        TuiRowUndo                 = 'Cofni\u0119cie'
-        TuiRowLog                  = 'Log'
-        TuiRowMod                  = 'Mod CAPIE'
-        TuiRowResult               = 'Wynik'
-        TuiGameUnchanged           = 'bez zmian'
-        TuiNone                    = 'nic'
-        TuiSwitchValue             = @(
-            'w\u0142\u0105cz mod \u201ECAPIE\u201D w zestawie mod\u00F3w, aby \u0142adowa\u0107 CAPIE; ',
-            'wy\u0142\u0105cz go dla czystej gry'
-        ) -join ''
-        TuiUndoValue               = 'uruchom instalator ponownie i wybierz \u201EWy\u0142\u0105cz\u201D albo \u201EOdinstaluj\u201D'
-        TuiNothingChanged          = 'Nic nie zmieniono.'
-        TuiFailed                  = 'Krok si\u0119 nie powi\u00F3d\u0142. Szczeg\u00F3\u0142y w logu: {0}'
-        TuiYes                     = 'tak'
-        TuiNo                      = 'nie'
-        TuiDone                    = 'Gotowe.'
-        TuiCancelled               = 'Anulowano. Nic nie zmieniono.'
-        TuiRemovedAll              = 'usuni\u0119to; nie zosta\u0142y \u017Cadne pliki tej instalacji'
-        TuiRemovedKeptLog          = 'usuni\u0119to; log zachowano'
-    }
-}
-
-function ConvertFrom-RaEscapedText {
-    <#
-    .SYNOPSIS
-        Decodes \uXXXX escapes into characters.
-    .DESCRIPTION
-        Lets the script stay pure ASCII while showing Polish text correctly on
-        Windows PowerShell 5.1 and under irm | iex.
-    .PARAMETER Text
-        Text with optional \uXXXX escapes; $null is returned unchanged.
-    .OUTPUTS
-        System.String
-    .EXAMPLE
-        ConvertFrom-RaEscapedText 'Gotowe \u2014 OK'
-    #>
-    [CmdletBinding()]
-    [OutputType([string])]
-    param([Parameter(Position = 0)][AllowNull()][AllowEmptyString()][string]$Text)
-    if ($null -eq $Text) { return $null }
-    return [regex]::Replace($Text, $script:RaUnicodeEscapePattern, {
-            param($m) [string][char][Convert]::ToInt32($m.Groups[1].Value, 16)
-        })
+    Title                      = 'CAPIE (Cyprian''s API Extender) setup for Hearts of Iron IV'
+    Intro                      = @(
+        'The default launcher method leaves the game folder unchanged and adds the "CAPIE" switch mod to your ',
+        'mod folder. The Proxy method adds one version.dll to the game folder. Saves are not touched. Log: {0}'
+    ) -join ''
+    Usage                      = @(
+        "No action was given and this console cannot answer questions, so nothing was changed.`n",
+        "Run it again with one action:`n",
+        "  -Install              install CAPIE (add -SteamLaunchOption to start it from Steam)`n",
+        "  -Install -Latest      install the newest signed release from GitHub Releases`n",
+        "  -Update               install a newer signed release; -Rollback returns to the previous one`n",
+        "  -Disable              remove the CAPIE launcher from the Steam launch options; files stay`n",
+        "  -Uninstall [-Purge]   remove CAPIE; -Purge also removes the log and Steam config backups`n",
+        "  -CheckUpdate          report the newest release (one request to GitHub)`n",
+        "Add -Yes to run without questions, -DryRun to see the plan first. Interactive console: run with no`n",
+        'switches for the menu, or with -Plain for plain questions.'
+    ) -join ''
+    AskLoadMethod              = @(
+        'Loading method: 1 = CAPIE launcher (recommended: no files in the game folder, switched on and off with the ',
+        '"CAPIE" mod in the playset); 2 = proxy version.dll in the game folder (needs -capie). Choice [{0}]'
+    ) -join ''
+    AskModeProxy               = @(
+        'Proxy start: 1 = add -capie to the Steam launch options; 4 = install only (add -capie yourself). ',
+        "Shortcuts need the launcher method.`nChoice [1,4]"
+    ) -join ''
+    AskInstall                 = 'Install or update CAPIE in {0}? [Y/n]'
+    AskMode                    = @(
+        "How should the game start with CAPIE?`n  1 = Steam launch option (the usual Play button)`n  2 ",
+        "= Shortcut in a folder you choose`n  3 = Both`n  4 = Neither (install files only)`nChoice [1-4]"
+    ) -join ''
+    AskShortcutFolder          = @(
+        "Where should the shortcut go?`n  1 = Desktop ({0}) [default]`n  2 = Choose a folder in a window`n  or ",
+        "type a full folder path`nChoice"
+    ) -join ''
+    MpWarning                  = @(
+        'WARNING: while CAPIE is enabled, Hearts of Iron IV runs with native DLLs. This setup is NOT declared ',
+        'multiplayer-compatible: multiplayer has not been tested and desyncs are possible. Undo the change before ',
+        "you play multiplayer.`nTo undo: run this script with -Disable (Steam entry only) or -Uninstall (everything), ",
+        'or in Steam open Library > Hearts of Iron IV > Properties > General > Launch Options and delete -capie ',
+        '(proxy method) or the quoted ...\RenameAnythingLauncher.exe part. With Config activation also delete ',
+        '%LOCALAPPDATA%\RenameAnything\proxy.enabled or run -Install -ProxyActivation Flag. Keep your own options.'
+    ) -join ''
+    AskConfirmSteam            = 'Add the selected loading method to the HOI4 Steam launch options? [y/N]'
+    AskConfirmShortcut         = 'Create the shortcut? [y/N]'
+    SteamRunning               = @(
+        'Steam is running. Close Steam completely (Steam menu > Exit), then press Enter. Type Q to skip the Steam ',
+        'step. This script never closes Steam.'
+    ) -join ''
+    SteamRunningNonInteractive = 'Steam is running. Close it and run the script again. This script never closes Steam.'
+    AskAccount                 = 'Several Steam accounts found. Type a number, several numbers separated by commas, or A for all:'
+    Done                       = 'Done.'
+    DryRunNote                 = 'DRY RUN: nothing will be written.'
+    ShortcutComment            = 'HOI4 with CAPIE, the native extension used by Rename Anything. Not declared multiplayer-compatible.'
+    NotInstalled               = 'The launcher is not installed yet. Run with -Install first.'
+    UninstallDone              = 'Uninstalled. Workshop mods and saves were not touched. The log was kept: {0}'
+    Failed                     = 'FAILED: {0}'
+    UpdateStatus               = 'Installed version: {0}. Latest release: {1}.'
+    UpdateAvailable            = 'Version {0} is available. Run with -Update to install it; the current version stays for -Rollback.'
+    UpToDate                   = 'You have the latest version.'
+    GameSupportedInstalled     = 'The installed version supports your hoi4.exe build.'
+    GameSupportedLatest        = 'The installed version does NOT support your hoi4.exe build. Version {0} does: run with -Update.'
+    GameNotSupported           = @(
+        'Your hoi4.exe build ({0}...) is not supported yet. The launcher starts the game without CAPIE. Check again ',
+        'later (release notes, versions.json).'
+    ) -join ''
+    DisableDone                = 'Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
+    PurgeDone                  = 'Uninstalled. No files of this setup are left, and the Steam launch options are as they were before.'
+    ReleaseVerified            = 'Release {0}: signed manifest verified.'
+    TuiTagline                 = "Built on CAPIE (Cyprian's API Extender)"
+    TuiMenuTitle               = 'What should this setup do?'
+    TuiInstall                 = 'Install'
+    TuiInstallHint             = 'CAPIE launcher in your user folder, started by Steam'
+    TuiUpdate                  = 'Update'
+    TuiUpdateHint              = 'newest signed release; the current one stays for rollback'
+    TuiDisable                 = 'Disable'
+    TuiDisableHint             = 'Steam starts the game without CAPIE; files stay'
+    TuiUninstall               = 'Uninstall'
+    TuiUninstallHint           = 'remove CAPIE and restore the earlier state'
+    TuiQuit                    = 'Quit'
+    TuiQuitHint                = 'change nothing'
+    TuiKeys                    = 'Up and Down or 1-5 to choose, Enter to confirm, Esc to quit.'
+    TuiStatusNone              = 'CAPIE is not installed.'
+    TuiStatusInstalled         = 'Installed: CAPIE {0}, {1}.'
+    TuiSteamOn                 = 'started by Steam'
+    TuiSteamOff                = 'not in the Steam launch options'
+    TuiMpNote                  = @(
+        'While CAPIE is loaded, the game is not declared multiplayer-compatible. Before you play multiplayer, ',
+        'disable the "CAPIE" mod in your playset or choose Disable here.'
+    ) -join ''
+    TuiAskSteam                = 'Add the CAPIE launcher to the HOI4 Steam launch options? [Y/n]'
+    TuiAskDisable              = 'Remove the CAPIE launcher from the Steam launch options? Files stay. [Y/n]'
+    TuiAskUninstall            = 'Remove CAPIE and restore the Steam launch options you had before? [y/N]'
+    TuiAskPurge                = 'Also delete the setup log and the Steam config backups made by this setup? [y/N]'
+    TuiAskSteamClosed          = 'Steam is running. Close it completely (Steam > Exit), then press Enter. Q skips the Steam step.'
+    TuiWorking                 = 'working'
+    TuiSummary                 = 'Summary'
+    TuiRowInstalled            = 'Installed'
+    TuiRowSteam                = 'Steam'
+    TuiRowGame                 = 'Game folder'
+    TuiRowSwitch               = 'Switch'
+    TuiRowUndo                 = 'Undo'
+    TuiRowLog                  = 'Log'
+    TuiRowMod                  = 'CAPIE mod'
+    TuiRowResult               = 'Result'
+    TuiGameUnchanged           = 'unchanged'
+    TuiNone                    = 'nothing'
+    TuiSwitchValue             = 'enable the "CAPIE" mod in your playset to load CAPIE; disable it to play without'
+    TuiUndoValue               = 'run this setup again and choose Disable or Uninstall'
+    TuiFailed                  = 'The step failed. Details are in the log: {0}'
+    TuiYes                     = 'yes'
+    TuiNo                      = 'no'
+    TuiDone                    = 'Done.'
+    TuiCancelled               = 'Cancelled. Nothing was changed.'
+    TuiRemovedAll              = 'removed; no files of this setup are left'
+    TuiRemovedKeptLog          = 'removed; the log was kept'
 }
 
 function Get-RaText {
     <#
     .SYNOPSIS
-        Returns a localized message, optionally formatted.
+        Returns a message, optionally formatted.
     .DESCRIPTION
-        Looks the key up in the current language ($script:RaLang) and falls back to
-        English for unknown languages or keys.
+        Looks the key up in $script:RaMessages (English, ASCII). An unknown key throws, so a
+        typo cannot reach the user as an empty line.
     .PARAMETER Key
         Message key in $script:RaMessages.
     .PARAMETER FormatArgs
@@ -850,31 +705,10 @@ function Get-RaText {
         [Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$Key,
         [Parameter(Position = 1)][object[]]$FormatArgs = @()
     )
-    $table = $script:RaMessages[$script:RaLang]
-    if (-not $table -or -not $table.ContainsKey($Key)) { $table = $script:RaMessages[$script:RaDefaultLanguage] }
-    $text = ConvertFrom-RaEscapedText $table[$Key]
+    if (-not $script:RaMessages.ContainsKey($Key)) { throw "Unknown message key: $Key" }
+    $text = [string]$script:RaMessages[$Key]
     if ($FormatArgs.Count -gt 0) { return ($text -f $FormatArgs) }
     return $text
-}
-
-function Get-RaDefaultLanguage {
-    <#
-    .SYNOPSIS
-        Picks the message language from the Windows UI language.
-    .DESCRIPTION
-        Polish UI -> 'pl', anything else (or an error) -> 'en'.
-    .OUTPUTS
-        System.String
-    .EXAMPLE
-        $script:RaLang = Get-RaDefaultLanguage
-    #>
-    [CmdletBinding()]
-    [OutputType([string])]
-    param()
-    try {
-        if ((& $script:RaGetUiLanguage) -eq $script:RaPolishLanguage) { return $script:RaPolishLanguage }
-    } catch { Write-Verbose "UI language unavailable: $($_.Exception.Message)" }
-    return $script:RaDefaultLanguage
 }
 #endregion Shared/Messages.ps1
 
@@ -945,7 +779,7 @@ function Read-RaAnswer {
     .DESCRIPTION
         Goes through the $script:RaReadHost adapter; $null becomes an empty string.
     .PARAMETER Prompt
-        Question text (\uXXXX escapes are decoded).
+        Question text.
     .OUTPUTS
         System.String
     .EXAMPLE
@@ -954,7 +788,7 @@ function Read-RaAnswer {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory, Position = 0)][AllowEmptyString()][string]$Prompt)
-    $answer = & $script:RaReadHost (ConvertFrom-RaEscapedText $Prompt)
+    $answer = & $script:RaReadHost $Prompt
     if ($null -eq $answer) { return '' }
     return ([string]$answer).Trim()
 }
@@ -2495,6 +2329,27 @@ function New-RaTuiSegment {
     return @{ S = $Style; T = $Text }
 }
 
+function Test-RaActionOption {
+    <#
+    .SYNOPSIS
+        Tests whether the options name an action (install, update, disable, uninstall...).
+    .DESCRIPTION
+        Without an action an interactive run opens the menu or the plain questions; a
+        non-interactive run prints the usage text and stops.
+    .PARAMETER Options
+        Option table (missing keys mean "not given").
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaActionOption @{ Install = $true }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    foreach ($name in $script:RaActionOptionNames) { if ($Options.ContainsKey($name) -and $Options[$name]) { return $true } }
+    return $false
+}
+
 function Get-RaTuiMode {
     <#
     .SYNOPSIS
@@ -2508,7 +2363,7 @@ function Get-RaTuiMode {
     .PARAMETER Options
         Normalized option table.
     .OUTPUTS
-        System.Management.Automation.PSCustomObject (Tui, Color, Vt, Animate, Width)
+        System.Management.Automation.PSCustomObject (Tui, Interactive, Color, Vt, Animate, Width)
     .EXAMPLE
         $mode = Get-RaTuiMode $options
     #>
@@ -2516,8 +2371,7 @@ function Get-RaTuiMode {
     [OutputType([psobject])]
     param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
     $terminal = & $script:RaGetTerminal
-    $action = $false
-    foreach ($name in $script:RaActionOptionNames) { if ($Options.ContainsKey($name) -and $Options[$name]) { $action = $true } }
+    $action = Test-RaActionOption $Options
     $noColor = [bool](& $script:RaGetEnv $script:RaTuiEnvNoColor) -or ((& $script:RaGetEnv $script:RaTuiEnvTerm) -eq $script:RaTuiDumbTerm)
     $noAnimationEnv = & $script:RaGetEnv $script:RaTuiEnvNoAnimation
     $noAnimation = ([bool]$noAnimationEnv -and $noAnimationEnv -ne '0') -or [bool](& $script:RaGetEnv $script:RaTuiEnvCi) -or [bool]$Options['NoAnimation']
@@ -2526,7 +2380,10 @@ function Get-RaTuiMode {
     $width = [int]$terminal.Width - 1
     if ($width -lt 1) { $width = $script:RaTuiFallbackWidth }
     $width = [Math]::Max($script:RaTuiMinWidth, [Math]::Min($script:RaTuiMaxWidth, $width))
-    return [pscustomobject]@{ Tui = $tui; Color = $color; Vt = ($tui -and [bool]$terminal.Vt); Animate = ($color -and -not $noAnimation); Width = $width }
+    return [pscustomobject]@{
+        Tui = $tui; Interactive = [bool]$terminal.Interactive; Color = $color; Vt = ($tui -and [bool]$terminal.Vt)
+        Animate = ($color -and -not $noAnimation); Width = $width
+    }
 }
 
 function ConvertTo-RaTuiSgr {
@@ -3012,7 +2869,7 @@ function Confirm-RaTui {
     .SYNOPSIS
         Asks a yes/no question as an ASK line and reads one key.
     .DESCRIPTION
-        Y/T answer yes, N answers no, Enter takes the default, Esc answers no. The answer is
+        Y answers yes, N answers no, Enter takes the default, Esc answers no. The answer is
         echoed after the question so the transcript stays readable.
     .PARAMETER Prompt
         Question (ends with the default in brackets).
@@ -3038,7 +2895,7 @@ function Confirm-RaTui {
         $answer = $null
         if ($key -eq 'Enter') { $answer = $Default }
         elseif ($key -eq 'Escape') { $answer = $false }
-        elseif ($key -in @('y', 't')) { $answer = $true }
+        elseif ($key -eq 'y') { $answer = $true }
         elseif ($key -eq 'n') { $answer = $false }
         if ($null -ne $answer) {
             $echo = if ($answer) { Get-RaText 'TuiYes' } else { Get-RaText 'TuiNo' }
@@ -5063,7 +4920,7 @@ function Get-RaTuiPlan {
     .PARAMETER Action
         Install, Update, Disable or Uninstall.
     .PARAMETER Options
-        Options of this run (DryRun, SteamRoot, Language, PackagePath, ManifestPath carry over).
+        Options of this run (DryRun, SteamRoot, PackagePath, ManifestPath carry over).
     .PARAMETER SteamRootPath
         Steam folder or empty.
     .OUTPUTS
@@ -5242,7 +5099,7 @@ function Invoke-RaTui {
 
 $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
-    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
+    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
     'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain'
 )
 
@@ -5268,7 +5125,7 @@ function Initialize-RaRun {
     .SYNOPSIS
         Applies the options to the runtime switches and prints the banner.
     .DESCRIPTION
-        Sets language, root folder (unless a test already set it), dry-run and -Yes,
+        Sets the root folder (unless a test already set it), dry-run and -Yes,
         prints title/intro (unless -NoBanner: the terminal interface draws its own) and logs
         the start line with the switches that were given.
     .PARAMETER Options
@@ -5283,7 +5140,6 @@ function Initialize-RaRun {
     [CmdletBinding()]
     [OutputType([void])]
     param([Parameter(Mandatory, Position = 0)][hashtable]$Options, [switch]$NoBanner)
-    $script:RaLang = if ($Options.Language) { $Options.Language } else { Get-RaDefaultLanguage }
     if (-not $script:RaRoot) { $script:RaRoot = Join-Path $env:LOCALAPPDATA $script:RaRootDirName }
     $script:RaDry = [bool]$Options.DryRun
     $script:RaAssumeYes = [bool]$Options.Yes
@@ -5526,7 +5382,9 @@ function Invoke-RaMain {
     .DESCRIPTION
         Enables strict mode and Stop error handling for this call only (never for the
         caller's session under irm | iex), then dispatches. Any error is logged as
-        FAILED and turned into exit code 1.
+        FAILED and turned into exit code 1. Without an action switch on a console that
+        cannot answer questions (redirected input or output), it prints the usage text and
+        returns exit code 2 without writing anything; -Plain forces the questions anyway.
     .PARAMETER P
         Option table; keys are the script's parameter names, missing keys mean "not given".
     .OUTPUTS
@@ -5544,6 +5402,12 @@ function Invoke-RaMain {
     if ($options.Purge -and -not $options.Uninstall) { $options.Purge = $null }
     if ($options.Latest -and -not ($options.Install -or $options.Update)) { $options.Install = $true }
     $mode = Get-RaTuiMode $options
+    if (-not $mode.Interactive -and -not (Test-RaActionOption $options) -and -not $options.Yes -and -not $options.Plain) {
+        # Redirected or missing console: a question would wait forever. Explain and stop, writing nothing.
+        Write-RaHost (Get-RaText 'Title')
+        Write-RaHost (Get-RaText 'Usage')
+        return $script:RaExitUsage
+    }
     if ($mode.Tui) {
         Initialize-RaRun $options -NoBanner
         try { return (Invoke-RaTui -Options $options -Mode $mode) } catch {
@@ -5564,7 +5428,7 @@ if ($MyInvocation.InvocationName -ne '.') {
     $raExit = Invoke-RaMain @{
         Install = $Install; Shortcut = $Shortcut; ShortcutPath = $ShortcutPath; SteamLaunchOption = $SteamLaunchOption
         SteamAccount = $SteamAccount; RemoveSteamLaunchOption = $RemoveSteamLaunchOption; Uninstall = $Uninstall
-        DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot; Language = $Language
+        DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
         LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation; Latest = $Latest; Purge = $Purge; Disable = $Disable
         NoAnimation = $NoAnimation; Plain = $Plain

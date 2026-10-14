@@ -28,7 +28,7 @@ $origPinned = $script:RaPinnedRelease
 $origAdapters = @{
     ReadAllBytes = $script:RaReadAllBytes; WriteAllBytes = $script:RaWriteAllBytes; CopyFile = $script:RaCopyFile
     ReadShortcut = $script:RaReadShortcut; WriteShortcut = $script:RaWriteShortcut; Now = $script:RaNow
-    GetRegistryValue = $script:RaGetRegistryValue; GetUiLanguage = $script:RaGetUiLanguage; WriteHost = $script:RaWriteHost
+    GetRegistryValue = $script:RaGetRegistryValue; WriteHost = $script:RaWriteHost
 }
 $signScript = Join-Path $here 'sign-release-manifest.ps1'
 $L = 'C:\Users\Test User\AppData\Local\RenameAnything\0.1.0\RenameAnythingLauncher.exe'
@@ -340,7 +340,6 @@ function Reset-Env {
     $script:RaDry = $false
     $script:RaAssumeYes = $true
     $script:RaQuiet = $true
-    $script:RaLang = 'en'
     $script:RaAfterWriteHook = $null
     $script:RaBeforeOwnedRemove = $null
     $script:RaGetSteamProcess = { @() }
@@ -362,7 +361,6 @@ function Reset-Env {
     $script:RaWriteShortcut = $origAdapters.WriteShortcut
     $script:RaNow = $origAdapters.Now
     $script:RaGetRegistryValue = { param($p, $n) throw "no registry in tests: $p\$n" }
-    $script:RaGetUiLanguage = $origAdapters.GetUiLanguage
     $script:RaWriteHost = $origAdapters.WriteHost
     # Terminal interface: a redirected console by default (plain prompts), output captured.
     $script:RaGetTerminal = { [pscustomobject]@{ Interactive = $false; Vt = $false; Width = 80 } }
@@ -417,12 +415,21 @@ Describe 'Script hygiene' {
         [void][System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$null, [ref]$errors)
         @($errors).Count | Should Be 0
     }
-    It 'decodes Polish messages' {
-        $script:RaLang = 'pl'
-        (Get-RaText 'MpWarning') | Should Match 'OSTRZE\u017bENIE'.Replace('\u017b', [string][char]0x17B)
-        (Get-RaText 'MpWarning') | Should Match 'wieloosobowym'
-        $script:RaLang = 'en'
+    It 'has English messages only, all ASCII, and every key used in the source exists' {
         (Get-RaText 'MpWarning') | Should Match 'NOT declared multiplayer-compatible'
+        foreach ($key in $script:RaMessages.Keys) {
+            @([Text.Encoding]::UTF8.GetBytes([string]$script:RaMessages[$key]) | Where-Object { $_ -gt 127 }).Count | Should Be 0
+        }
+        $source = [IO.File]::ReadAllText($scriptPath)
+        $used = @([regex]::Matches($source, "Get-RaText '([A-Za-z]+)'") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+        @($used | Where-Object { -not $script:RaMessages.ContainsKey($_) }) -join ',' | Should Be ''
+        $source.Contains('l_polish') -or $source.Contains('Get-UICulture') | Should Be $false
+        Assert-RaThrow { Get-RaText 'NoSuchKey' } 'Unknown message key'
+    }
+    It 'has no BOM, because a BOM in the downloaded text would break irm | iex' {
+        $bytes = [IO.File]::ReadAllBytes($scriptPath)
+        ($bytes[0] -eq 0xEF) | Should Be $false
+        Assert-RaThrow { & ([scriptblock]::Create([string][char]0xFEFF + 'Write-Output 1')) }
     }
     It 'Assert-RaThrow itself fails for a non-throwing block (negative control)' {
         $failed = $false
@@ -436,7 +443,7 @@ Describe 'Script hygiene' {
         $before = Get-TreeHash $dir
         $exe = (Get-Process -Id $PID).Path
         $prefix = "`$env:LOCALAPPDATA = '$dir\LocalAppData'; `$t = [IO.File]::ReadAllText('$scriptPath'); "
-        $cmd = $prefix + "& ([scriptblock]::Create(`$t)) -Uninstall -DryRun -Yes -SteamRoot '$steam' -Language en; 'CHILD-EXIT-OK'"
+        $cmd = $prefix + "& ([scriptblock]::Create(`$t)) -Uninstall -DryRun -Yes -SteamRoot '$steam'; 'CHILD-EXIT-OK'"
         $out = & $exe -NoProfile -NonInteractive -Command $cmd 2>&1 | Out-String
         $out | Should Match 'CHILD-EXIT-OK'
         $out | Should Match 'DRY RUN'
@@ -682,7 +689,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $gameBefore = Get-TreeHash (Join-Path $steam 'steamapps')
 
         $code = Invoke-RaMain @{ LoadMethod = 'Launcher'
-            Install = $true; SteamLaunchOption = $true; ShortcutPath = $custom; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en'
+            Install = $true; SteamLaunchOption = $true; ShortcutPath = $custom; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam
         }
         $code | Should Be 0
         $launcher = Join-Path $script:RaRoot 'current\RenameAnythingLauncher.exe'
@@ -708,11 +715,11 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $sh = New-Object -ComObject WScript.Shell; $s = $sh.CreateShortcut($foreign); $s.TargetPath = (Join-Path $env:WINDIR 'System32\notepad.exe'); $s.Save()
         # Uninstall with Steam running must not remove anything.
         $script:RaGetSteamProcess = { @('fake') }
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 1
         Test-Path $launcher | Should Be $true
         Test-Path $lnk | Should Be $true
         $script:RaGetSteamProcess = { @() }
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg)) $origCfg | Should Be $true
         Test-Path $lnk | Should Be $false
         Test-Path $foreign | Should Be $true
@@ -730,7 +737,7 @@ Describe 'Steam process, accounts and end-to-end flows' {
         }
         $cfg222 = Join-Path $steam 'userdata\222\config\localconfig.vdf'
         $orig222 = [IO.File]::ReadAllBytes($cfg222)
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; RemoveSteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; RemoveSteamLaunchOption = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam 'userdata\111\config\localconfig.vdf')).Text).Value | Should Be '-debug_mode -nomusic'
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg222)) $orig222 | Should Be $true
         @(Get-ChildItem (Split-Path $cfg222) -Filter '*.renameanything-*').Count | Should Be 0
@@ -743,14 +750,14 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $pkg = New-TestPackage $dir
         $script:RaPinnedRelease = $pkg.Manifest
         $options = @{ LoadMethod = 'Launcher'
-            Install = $true; SteamLaunchOption = $true; SteamAccount = 'all'; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en'
+            Install = $true; SteamLaunchOption = $true; SteamAccount = 'all'; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam
         }
         (Invoke-RaMain $options) | Should Be 0
         $launcher = Join-Path $script:RaRoot 'current\RenameAnythingLauncher.exe'
         foreach ($id in '111', '222') {
             (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam "userdata\$id\config\localconfig.vdf")).Text).Value | Should Be "`"$launcher`" %command%"
         }
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         foreach ($id in '111', '222') {
             (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam "userdata\$id\config\localconfig.vdf")).Text).Value | Should Be ''
         }
@@ -763,13 +770,13 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $pkg = New-TestPackage $dir
         $script:RaPinnedRelease = $pkg.Manifest
         # Install for real first so the Steam/shortcut steps have a launcher, then dry-run those.
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam }) | Should Be 0
         $before = Get-TreeHash $dir
         (Invoke-RaMain @{
             LoadMethod = 'Launcher'; SteamLaunchOption = $true; Shortcut = $true
-            DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en'
+            DryRun = $true; Yes = $true; SteamRoot = $steam
         }) | Should Be 0
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; DryRun = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         (Get-TreeHash $dir) -join '|' | Should Be ($before -join '|')
     }
 
@@ -781,8 +788,8 @@ Describe 'Steam process, accounts and end-to-end flows' {
         $script:RaPinnedRelease = $pkg.Manifest
         $desk = & $script:RaDesktopPath
         Write-Utf8 (Join-Path $desk $script:RaShortcutFileName) 'not a shortcut'
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
-        $lnkResult = Invoke-RaMain @{ LoadMethod = 'Launcher'; Shortcut = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam }) | Should Be 0
+        $lnkResult = Invoke-RaMain @{ LoadMethod = 'Launcher'; Shortcut = $true; Yes = $true; SteamRoot = $steam }
         $lnkResult | Should Be 1
         [IO.File]::ReadAllText((Join-Path $desk $script:RaShortcutFileName)) | Should Be 'not a shortcut'
     }
@@ -799,14 +806,14 @@ Describe 'Steam process, accounts and end-to-end flows' {
         New-Item -ItemType Directory -Path $picked | Out-Null
         $script:RaFolderPicker = [scriptblock]::Create("'$picked'")
         $script:answers = New-Object System.Collections.Queue
-        foreach ($a in 't', '3', 'n', '2', 't') { $script:answers.Enqueue($a) }  # install, both, decline Steam, picker, confirm shortcut
+        foreach ($a in 'y', '3', 'n', '2', 'y') { $script:answers.Enqueue($a) }  # install, both, decline Steam, picker, confirm shortcut
         $script:RaAssumeYes = $false
         $script:RaReadHost = { $script:answers.Dequeue() }
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'pl' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; PackagePath = $pkg.Zip; SteamRoot = $steam; Plain = $true }) | Should Be 0
         $script:answers.Count | Should Be 0
         Test-Path (Join-Path $picked $script:RaShortcutFileName) | Should Be $true
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg)) $origCfg | Should Be $true
-        (Get-RaShortcutInfo (Join-Path $picked $script:RaShortcutFileName)).Description | Should Match 'wieloosobowym'
+        (Get-RaShortcutInfo (Join-Path $picked $script:RaShortcutFileName)).Description | Should Match 'Not declared multiplayer-compatible'
         $script:RaFolderPicker = $null
     }
 }
@@ -895,7 +902,7 @@ function Initialize-UpdateEnv {
     $script:RaPinnedRelease = $p1.Manifest
     $options = @{
         LoadMethod = 'Launcher'; Install = $true; SteamLaunchOption = $true; Shortcut = $true
-        Yes = $true; PackagePath = $p1.Zip; SteamRoot = $steam; Language = 'en'
+        Yes = $true; PackagePath = $p1.Zip; SteamRoot = $steam
     }
     # Pester 3.4 'Should' can emit a value; keep the helper's output to the one hashtable.
     $null = (Invoke-RaMain $options) | Should Be 0
@@ -946,7 +953,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $script:requested.Count | Should Be 3
         $script:requested[0] | Should Be 'https://api.github.com/repos/test-owner/test-repo/releases/latest'
         @(Get-TreeHash $e.Dir | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' | Should Be ($before -join '|')
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; CheckUpdate = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; CheckUpdate = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
     }
     It '-Update switches current without touching Steam config/shortcut; -Rollback returns; third version prunes the oldest' {
         $e = Initialize-UpdateEnv 'upd-flow'
@@ -954,7 +961,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $lnk = Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName
         $lnkBefore = [IO.File]::ReadAllBytes($lnk)
         [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         $st = Read-RaState
         $st.InstalledVersion | Should Be '0.2.0'
@@ -963,24 +970,24 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($lnk)) $lnkBefore | Should Be $true
         @(Get-ChildItem (Split-Path $e.Cfg) -Filter '*.renameanything-backup-*').Count | Should Be 1
         # Up to date: second -Update does nothing.
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
         (Read-RaState).PreviousVersion | Should Be '0.1.0'
         # Rollback
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.1.0'
         (Read-RaState).PreviousVersion | Should Be '0.2.0'
         # Roll forward again via -Update (0.2.0 already present and verified)
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         # 0.3.0 -> keep 0.3.0 (current) and 0.2.0 (previous), prune 0.1.0
         [void](New-SignedRelease -Dir $e.Dir -Version '0.3.0' -KeyPath $e.Key)
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.3.0'
         Test-Path (Join-Path $script:RaRoot '0.1.0') | Should Be $false
         Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $true
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($e.Cfg)) $cfgBefore | Should Be $true
         # Uninstall removes the junction and all versions, keeps only the log; Steam option restored
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
         @(Get-ChildItem $script:RaRoot -Force | ForEach-Object Name) -join ',' | Should Be 'bootstrap.log'
         (Get-RaAppLaunchInfo (Read-RaTextFile $e.Cfg).Text).Value | Should Be '-debug_mode'
     }
@@ -988,7 +995,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $e = Initialize-UpdateEnv 'upd-badsig'
         $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
         $script:fakeWeb["$($r.Base)/release-manifest.json"] = $utf8.GetBytes(([IO.File]::ReadAllText($r.ManifestPath)).Replace('"0.2.0"', '"0.2.1"'))
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.1.0'
         Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
         Test-Path (Join-Path $script:RaRoot '0.2.1') | Should Be $false
@@ -998,7 +1005,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $other = Join-Path $e.Dir 'other.private.xml'
         [void](& $signScript -NewKey -PrivateKeyPath $other -KeySize 2048)
         [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $other)
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.1.0'
     }
     It 'valid signature but ZIP with a different hash is refused (fail-closed), current unchanged' {
@@ -1006,7 +1013,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
         $bad = New-TestPackage (Join-Path $e.Dir 'bad') -Tamper 'filehash' -Version '0.2.0'
         $script:fakeWeb["$($r.Base)/$($r.ZipName)"] = [IO.File]::ReadAllBytes($bad.Zip)
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.1.0'
         Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
         @(Get-ChildItem $script:RaRoot -Force -Filter 'download-*').Count | Should Be 0
@@ -1038,7 +1045,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         $script:requested.Clear()
         $options = @{
             LoadMethod = 'Launcher'; Update = $true; ManifestPath = $r.ManifestPath
-            PackagePath = $r.Zip; Yes = $true; SteamRoot = $e.Steam; Language = 'en'
+            PackagePath = $r.Zip; Yes = $true; SteamRoot = $e.Steam
         }
         (Invoke-RaMain $options) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
@@ -1046,11 +1053,11 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
     }
     It 'rollback refuses when the previous version is missing or modified' {
         $e = Initialize-UpdateEnv 'upd-rbfail'
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
         [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
         [IO.File]::WriteAllText((Join-Path $script:RaRoot '0.1.0\runtime\rename_anything_country.dll'), 'tampered')
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
         Get-CurrentTargetName | Should Be '0.2.0'
     }
 }
@@ -1144,14 +1151,42 @@ Describe 'Adapters (test seams for external dependencies)' {
         $script:RaGetRegistryValue = { Join-Path $dir 'NoSuchSteam' }
         Assert-RaThrow { Get-RaSteamRoot '' } 'does not exist'
     }
-    It 'UI language adapter: pl -> pl, other -> en, failure -> en' {
-        [void](Reset-Env 'adapter-lang')
-        $script:RaGetUiLanguage = { 'pl' }
-        Get-RaDefaultLanguage | Should Be 'pl'
-        $script:RaGetUiLanguage = { 'de' }
-        Get-RaDefaultLanguage | Should Be 'en'
-        $script:RaGetUiLanguage = { throw 'no culture' }
-        Get-RaDefaultLanguage | Should Be 'en'
+    It 'no action on a console that cannot answer: usage text, exit code 2, nothing written, no prompt' {
+        $dir = Reset-Env 'no-tty'
+        $script:lines = New-Object System.Collections.ArrayList
+        $script:RaWriteHost = { param($m, $c) [void]$c; [void]$script:lines.Add($m) }
+        $script:RaQuiet = $false
+        $before = Get-TreeHash $dir
+        (Invoke-RaMain @{ DryRun = $true }) | Should Be 2
+        (Invoke-RaMain @{ SteamRoot = 'C:\nowhere' }) | Should Be 2
+        $text = $script:lines -join "`n"
+        $text | Should Match 'nothing was changed'
+        $text | Should Match '-Install'
+        $text | Should Match '-Uninstall \[-Purge\]'
+        Test-Path $script:RaRoot | Should Be $false
+        (Get-TreeHash $dir) -join '|' | Should Be ($before -join '|')
+    }
+    It 'a real child process with redirected input and output exits with 2 instead of waiting' {
+        $dir = Reset-Env 'no-tty-child'
+        $start = New-Object System.Diagnostics.ProcessStartInfo
+        $start.FileName = (Get-Process -Id $PID).Path
+        $start.Arguments = "-NoProfile -NonInteractive -File `"$scriptPath`" -DryRun"
+        $start.UseShellExecute = $false
+        $start.RedirectStandardInput = $true
+        $start.RedirectStandardOutput = $true
+        $start.RedirectStandardError = $true
+        $start.EnvironmentVariables['LOCALAPPDATA'] = Join-Path $dir 'LocalAppData'
+        $child = [System.Diagnostics.Process]::Start($start)
+        try {
+            $stdout = $child.StandardOutput.ReadToEndAsync()
+            $finished = $child.WaitForExit(60000)
+            if (-not $finished) { $child.Kill() }
+            $finished | Should Be $true
+            $child.ExitCode | Should Be 2
+            $stdout.Result | Should Match 'Run it again with one action'
+            @($stdout.Result.ToCharArray() | Where-Object { [int]$_ -gt 127 }).Count | Should Be 0
+        } finally { $child.Dispose() }
+        Test-Path (Join-Path $dir 'LocalAppData\RenameAnything') | Should Be $false
     }
     It 'clock adapter: backup names are deterministic and never overwrite' {
         $dir = Reset-Env 'adapter-clock'
@@ -1265,7 +1300,7 @@ Describe 'Extracted functions' {
         [void](Reset-Env 'plan')
         $script:RaAssumeYes = $false
         $script:answers = New-Object System.Collections.Queue
-        foreach ($a in 'n', '9', '1', 't') { $script:answers.Enqueue($a) }
+        foreach ($a in 'n', '9', '1', 'y') { $script:answers.Enqueue($a) }
         $script:RaReadHost = { $script:answers.Dequeue() }
         $plan = Get-RaSetupPlan @{ LoadMethod = 'Launcher'; Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null }
         $plan.Install | Should Be $false
@@ -1595,7 +1630,7 @@ function New-InstallOption {
     param([Parameter(Mandatory, Position = 0)][hashtable]$Package, [Parameter(Mandatory, Position = 1)][string]$Steam)
     return @{
         LoadMethod = 'Launcher'; Install = $true; SteamLaunchOption = $true; Yes = $true
-        PackagePath = $Package.Zip; SteamRoot = $Steam; Language = 'en'
+        PackagePath = $Package.Zip; SteamRoot = $Steam
     }
 }
 function Set-TuiKeyQueue {
@@ -1680,7 +1715,7 @@ Describe 'Release installer (-Install -Latest) and the way back to the clean gam
         $script:RaGitHubRepo = 'test-owner/test-repo'
         [void](New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key)
         $gameBefore = Get-TreeHash (Join-Path $steam 'steamapps')
-        (Invoke-RaMain @{ Install = $true; Latest = $true; LoadMethod = 'Launcher'; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ Install = $true; Latest = $true; LoadMethod = 'Launcher'; Yes = $true; SteamRoot = $steam }) | Should Be 0
         Get-CurrentTargetName | Should Be '0.2.0'
         $script:requested.Count | Should Be 4
         (Get-TreeHash (Join-Path $steam 'steamapps')) -join '|' | Should Be ($gameBefore -join '|')
@@ -1699,7 +1734,7 @@ Describe 'Release installer (-Install -Latest) and the way back to the clean gam
         $r = New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key
         $bad = New-TestPackage (Join-Path $dir 'bad') -Tamper 'filehash' -Version '0.2.0'
         $script:fakeWeb["$($r.Base)/$($r.ZipName)"] = [IO.File]::ReadAllBytes($bad.Zip)
-        (Invoke-RaMain @{ Latest = $true; LoadMethod = 'Launcher'; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ Latest = $true; LoadMethod = 'Launcher'; Yes = $true; SteamRoot = $steam }) | Should Be 1
         Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
         Test-Path (Get-RaCurrentLink) | Should Be $false
     }
@@ -1712,7 +1747,7 @@ Describe 'Release installer (-Install -Latest) and the way back to the clean gam
         $before = @(Get-TreeHash $dir | Where-Object { $_ -notmatch '\\pkg\\' })
         (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
         @(Get-ChildItem (Join-Path $steam 'userdata\111\config') -Filter '*.renameanything-backup-*').Count | Should Be 1
-        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         Test-Path $script:RaRoot | Should Be $false
         @(Get-TreeHash $dir | Where-Object { $_ -notmatch '\\pkg\\' }) -join '|' | Should Be ($before -join '|')
     }
@@ -1726,7 +1761,7 @@ Describe 'Release installer (-Install -Latest) and the way back to the clean gam
         Write-Utf8 (Join-Path $cfgDir 'localconfig.vdf.my-own-backup') 'mine'
         Write-Utf8 (Join-Path $cfgDir 'localconfig.vdf.renameanything-backup-notadate') 'lookalike'
         (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
-        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         Test-Path (Join-Path $cfgDir 'localconfig.vdf.my-own-backup') | Should Be $true
         Test-Path (Join-Path $cfgDir 'localconfig.vdf.renameanything-backup-notadate') | Should Be $true
         @(Get-ChildItem $cfgDir -Force | Where-Object { $_.Name -match $script:RaBackupNamePattern }).Count | Should Be 0
@@ -1753,9 +1788,9 @@ Describe 'Release installer (-Install -Latest) and the way back to the clean gam
         $script:RaPinnedRelease = $pkg.Manifest
         (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
         $snapshot = Get-TreeHash $dir
-        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; DryRun = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         (Get-TreeHash $dir) -join '|' | Should Be ($snapshot -join '|')
-        $plainInstall = @{ Purge = $true; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }
+        $plainInstall = @{ Purge = $true; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam }
         (Invoke-RaMain $plainInstall) | Should Be 0
         Test-Path (Get-RaLauncherPath) | Should Be $true
     }
@@ -1769,13 +1804,13 @@ Describe 'Release installer (-Install -Latest) and the way back to the clean gam
         $script:RaPinnedRelease = $pkg.Manifest
         (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
         $script:RaGetSteamProcess = { @('fake') }
-        (Invoke-RaMain @{ Disable = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ Disable = $true; Yes = $true; SteamRoot = $steam }) | Should Be 1
         $script:RaGetSteamProcess = { @() }
-        (Invoke-RaMain @{ Disable = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ Disable = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg)) $orig | Should Be $true
         Test-Path (Get-RaLauncherPath) | Should Be $true
         @((Read-RaState).SteamEntries).Count | Should Be 0
-        (Invoke-RaMain @{ SteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ SteamLaunchOption = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value | Should Match 'RenameAnythingLauncher\.exe" %command% -debug_mode$'
     }
 }
@@ -1792,7 +1827,7 @@ Describe 'Terminal interface (irm | iex without switches)' {
         foreach ($o in @(@{ Install = $true }, @{ Uninstall = $true }, @{ Disable = $true }, @{ Yes = $true }, @{ Plain = $true }, @{ CheckUpdate = $true })) {
             (Get-RaTuiMode $o).Tui | Should Be $false
         }
-        (Get-RaTuiMode @{ DryRun = $true; Language = 'pl'; SteamRoot = 'x' }).Tui | Should Be $true
+        (Get-RaTuiMode @{ DryRun = $true; SteamRoot = 'x' }).Tui | Should Be $true
     }
     It 'NO_COLOR, TERM=dumb, no VT host turn colour off; RA_NO_ANIMATION, CI, -NoAnimation turn animation off' {
         [void](Reset-Env 'tui-env')
@@ -1860,8 +1895,8 @@ Describe 'Terminal interface (irm | iex without switches)' {
         [void](Reset-Env 'tui-width')
         foreach ($color in $true, $false) {
             $mode = [pscustomobject]@{ Tui = $true; Color = $color; Vt = $true; Animate = $false; Width = 44 }
-            foreach ($lang in 'en', 'pl') {
-                $script:RaLang = $lang
+            foreach ($pass in 1, 2) {
+                [void]$pass
                 $script:rawOut.Clear() | Out-Null
                 [void](Show-RaTuiSplash $mode)
                 Write-RaTuiModel (Get-RaTuiMenuModel 2 $mode) $mode
@@ -1873,7 +1908,6 @@ Describe 'Terminal interface (irm | iex without switches)' {
                 }
             }
         }
-        $script:RaLang = 'en'
     }
     It 'status lines follow the CLI pattern and read without colour' {
         $mode = [pscustomobject]@{ Tui = $true; Color = $false; Vt = $false; Animate = $false; Width = 60 }
@@ -1920,7 +1954,7 @@ Describe 'Terminal interface (irm | iex without switches)' {
         Set-TuiKeyQueue 'Enter', 'Enter'
         $hostBefore = $script:RaWriteHost
         $script:RaAssumeYes = $false
-        (Invoke-RaMain @{ PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ PackagePath = $pkg.Zip; SteamRoot = $steam }) | Should Be 0
         $script:keyQueue.Count | Should Be 0
         $out = Get-PlainOutput
         $out | Should Match 'NOTE  CAPIE is not installed\.'
@@ -1937,7 +1971,7 @@ Describe 'Terminal interface (irm | iex without switches)' {
         $script:RaLogSink | Should Be $null
         $script:RaAssumeYes | Should Be $false
     }
-    It 'Uninstall with purge through the interface (Polish) leaves nothing; Esc and Quit change nothing' {
+    It 'Uninstall with purge through the interface leaves nothing; Esc and Quit change nothing' {
         $dir = Reset-Env 'tui-uninstall'
         $steam = Join-Path $dir 'Steam'
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
@@ -1948,15 +1982,15 @@ Describe 'Terminal interface (irm | iex without switches)' {
         $installed = Get-TreeHash $dir
         Set-TuiTerminal -Vt -Env @{ NO_COLOR = '1' }
         Set-TuiKeyQueue 'Escape'
-        (Invoke-RaMain @{ SteamRoot = $steam; Language = 'pl' }) | Should Be 0
+        (Invoke-RaMain @{ SteamRoot = $steam }) | Should Be 0
         Set-TuiKeyQueue '4', 'Enter', 'n'
-        (Invoke-RaMain @{ SteamRoot = $steam; Language = 'pl' }) | Should Be 0
+        (Invoke-RaMain @{ SteamRoot = $steam }) | Should Be 0
         $noLog = { param($tree) @($tree | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' }
         (& $noLog (Get-TreeHash $dir)) | Should Be (& $noLog $installed)
-        (Get-PlainOutput) | Should Match 'Anulowano\. Nic nie zmieniono\.'
-        Set-TuiKeyQueue 'Down', 'Down', 'Down', 'Enter', 't', 't'
-        (Invoke-RaMain @{ SteamRoot = $steam; Language = 'pl' }) | Should Be 0
-        (Get-PlainOutput) | Should Match 'Zainstaluj'
+        (Get-PlainOutput) | Should Match 'Cancelled\. Nothing was changed\.'
+        Set-TuiKeyQueue 'Down', 'Down', 'Down', 'Enter', 'y', 'y'
+        (Invoke-RaMain @{ SteamRoot = $steam }) | Should Be 0
+        (Get-PlainOutput) | Should Match 'Uninstall  remove CAPIE'
         Test-Path $script:RaRoot | Should Be $false
         @(Get-TreeHash $dir | Where-Object { $_ -notmatch '\\pkg\\' }) -join '|' | Should Be ($before -join '|')
     }
@@ -1964,10 +1998,10 @@ Describe 'Terminal interface (irm | iex without switches)' {
         [void](Reset-Env 'tui-fail')
         Set-TuiTerminal -Vt
         Set-TuiKeyQueue 'Down', 'Enter'
-        (Invoke-RaMain @{ SteamRoot = ''; Language = 'en' }) | Should Be 1
+        (Invoke-RaMain @{ SteamRoot = '' }) | Should Be 1
         $out = Get-PlainOutput
         $out | Should Match 'FAIL  Update channel is not configured'
-        $out | Should Match 'Details in the log'
+        $out | Should Match 'Details are in the log'
         $flat = $out -replace '\s', ''
         $flat.Contains([string](Get-RaLogPath)) | Should Be $true
     }
@@ -2048,13 +2082,13 @@ Describe 'Default method and the "CAPIE" switch mod in the player''s mod folder'
         $script:RaGitHubRepo = 'test-owner/test-repo'
         $p1 = New-TestPackage (Join-Path $dir 'v1') -Version '0.1.0' -WithMod
         $script:RaPinnedRelease = $p1.Manifest
-        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
         $descriptor = Join-Path (Get-RaPlaysetModRoot) 'capie\descriptor.mod'
         [IO.File]::ReadAllText($descriptor) | Should Match '0\.1\.0'
         [void](New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key -WithMod)
-        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         [IO.File]::ReadAllText($descriptor) | Should Match '0\.2\.0'
-        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         [IO.File]::ReadAllText($descriptor) | Should Match '0\.1\.0'
     }
 }

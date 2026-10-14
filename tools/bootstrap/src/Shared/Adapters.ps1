@@ -12,7 +12,6 @@
 
 # --- Runtime switches (set by Invoke-RaMain; tests set them directly) ------
 $script:RaRoot = $null          # %LOCALAPPDATA%\RenameAnything
-$script:RaLang = 'en'           # message language
 $script:RaDry = $false          # -DryRun: plan only, write nothing
 $script:RaAssumeYes = $false    # -Yes: never prompt
 $script:RaQuiet = $false        # tests: no console output
@@ -26,8 +25,6 @@ $script:RaMpWarningShown = $false # terminal interface already showed the multip
 $script:RaReadHost = { param([string]$Prompt) Read-Host -Prompt $Prompt }
 # WriteHost(Message, Color) -> nothing
 $script:RaWriteHost = { param([string]$Message, [string]$Color) Write-RaConsoleLine -Message $Message -Color $Color }
-# GetUiLanguage() -> two-letter ISO language name of the Windows UI
-$script:RaGetUiLanguage = { (Get-UICulture).TwoLetterISOLanguageName }
 
 # --- Terminal interface (raw console) --------------------------------------
 # GetTerminal() -> [pscustomobject]@{ Interactive; Vt; Width }. Interactive = neither input nor

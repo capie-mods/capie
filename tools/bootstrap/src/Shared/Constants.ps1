@@ -72,7 +72,6 @@ $script:RaDigitsPattern = '^\d+$'
 $script:RaListSeparatorPattern = '[,; ]+'
 $script:RaVdfTokenPattern = '"(?:[^"\\]|\\.)*"|\{|\}|//[^\r\n]*|[^\s{}"]+'
 $script:RaVdfConditionalPattern = '^\[.*\]$'
-$script:RaUnicodeEscapePattern = '\\u([0-9A-Fa-f]{4})'
 # Our quoted (or unquoted) launcher path plus trailing blanks, anywhere in the options.
 $script:RaWrapperPattern = '(?:"[^"]*\\{0}"|(?<!\S)[^\s"]*\\{0})[ \t]*' -f [regex]::Escape($script:RaLauncherExeName)
 
@@ -93,8 +92,8 @@ $script:RaHttpAccept = 'application/vnd.github+json, application/octet-stream'
 $script:RaReleaseTagPrefix = 'v'
 
 # --- Interaction ----------------------------------------------------------
-$script:RaYesAnswers = @('y', 'yes', 't', 'tak')
-$script:RaNoAnswers = @('n', 'no', 'nie')
+$script:RaYesAnswers = @('y', 'yes')
+$script:RaNoAnswers = @('n', 'no')
 $script:RaQuitAnswer = 'q'
 $script:RaAllAnswer = 'a'
 $script:RaAllAccountsSelector = 'all'
@@ -108,11 +107,10 @@ $script:RaStartModes = @{
 $script:RaShortcutFolderDesktopChoice = '1'
 $script:RaShortcutFolderPickerChoice = '2'
 $script:RaFolderPickerTitle = 'Rename Anything: shortcut folder'
-$script:RaDefaultLanguage = 'en'
-$script:RaPolishLanguage = 'pl'
 $script:RaGameHashDisplayLength = 16
 $script:RaExitSuccess = 0
 $script:RaExitFailure = 1
+$script:RaExitUsage = 2                    # no action and no interactive console: usage shown
 # Switches that name an action; without any of them an interactive run opens the menu.
 $script:RaActionOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'RemoveSteamLaunchOption', 'Uninstall',
