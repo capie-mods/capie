@@ -94,14 +94,25 @@ disabled means the clean game, an unreadable file means the clean game and one n
 is never blocked. `-Disable` removes the launcher from Steam entirely; `-Uninstall -Purge`
 restores the state from before the installation.
 
+## Without an interactive console
+
+If no action switch is given and the console cannot answer questions (input or output
+redirected, for example a CI job or an editor panel), the script prints the list of actions
+and exits with code 2. It writes nothing and does not wait. Pass an action (`-Install`,
+`-Update`, `-Disable`, `-Uninstall`, ...) with `-Yes`, or `-Plain` to force the questions.
+
+All output is English and pure ASCII, so it reads the same in every console code page; the
+script does not change the console encoding of your session. `install.ps1` has no BOM on
+purpose: ASCII needs none, and a BOM at the start of the downloaded text would break
+`irm | iex` (a test covers this).
+
 ## Interactive questions
 
 1. Install or update the bundle into `%LOCALAPPDATA%\RenameAnything\<version>`?
 2. Loading method: `1` Launcher (default, no game-local DLL, switch mod in the playset), `2` Proxy.
 3. Proxy integration: `1` Steam launch option, `4` install only. Launcher integration
    additionally offers `2` shortcut and `3` both.
-4. For Steam and shortcuts, a multiplayer warning (PL/EN, based on the Windows UI
-   language) and a confirmation. **While the extension is enabled the game is not
+4. For Steam and shortcuts, a multiplayer warning and a confirmation. **While the extension is enabled the game is not
    declared multiplayer-compatible.** Undo the change before playing multiplayer.
 5. Shortcut folder: Desktop (default), a folder picked in an Explorer dialog, or a typed path.
 6. Several Steam accounts: choose one, several, or all.
@@ -127,7 +138,6 @@ restores the state from before the installation.
 | `-DryRun` (alias `-WhatIf`) | show what would happen, write nothing (not even the log) |
 | `-Yes` | no questions; actions must be given as switches |
 | `-SteamRoot <dir>` | Steam folder override (default: `HKCU\Software\Valve\Steam\SteamPath`) |
-| `-Language pl|en` | override the detected language |
 
 Omitted loading and activation options preserve an existing installation's choices;
 a fresh install defaults to Launcher (Proxy activation, if chosen, defaults to Flag). Use an explicit option to
@@ -256,7 +266,7 @@ source lives in vertical slices under `src/`:
 | `src/Shared/Configuration.ps1` | the only release values: GitHub repo, update public key, pinned manifest |
 | `src/Shared/Constants.ps1` | fixed names, formats, patterns and limits (no magic strings elsewhere) |
 | `src/Shared/Adapters.ps1` | every external dependency: console, prompts, Steam process, registry, clock, network, file bytes, `.lnk` COM, folder dialog |
-| `src/Shared/Messages.ps1` | EN/PL texts (`\uXXXX` escapes) |
+| `src/Shared/Messages.ps1` | user-facing texts (English only, pure ASCII) |
 | `src/Shared/Logging.ps1`, `Vdf.ps1`, `TextFile.ps1`, `State.ps1`, `Manifest.ps1`, `Steam.ps1`, `VersionStore.ps1` | shared building blocks |
 | `src/Shared/Tui.ps1` | terminal interface: capability detection, palette, map sheet, line models, menu and key reading |
 | `src/Features/Install.ps1`, `Proxy.ps1`, `SteamLaunchOption.ps1`, `Shortcut.ps1`, `Update.ps1`, `Uninstall.ps1`, `Tui.ps1` | one file per user-visible action (Uninstall also holds `-Disable` and `-Purge`) |
@@ -321,27 +331,3 @@ The launcher method uses the wrapper integration:
 and offline checks live in `plugin/capie/build_launcher.ps1`. A release must include
 the reviewed launcher and matching runtime bundle; the manifest pinned here remains
 an unpublished development placeholder.
-
----
-
-## Po polsku (skrót)
-
-Skrypt instaluje CAPIE do `%LOCALAPPDATA%\RenameAnything`. Domyślna metoda Launcher dodaje
-launcher do opcji uruchamiania Steam, nie zmienia folderu gry i kopiuje mod-przełącznik
-„CAPIE” do `Dokumenty\Paradox Interactive\Hearts of Iron IV\mod` (z kopią zapasową i
-sprawdzaniem SHA-256; `-Uninstall` go usuwa i przywraca wcześniejsze pliki). Alternatywa
-`-LoadMethod Proxy` (`-Method Proxy`) dodaje `version.dll` do folderu gry i aktywuje CAPIE
-argumentem `-capie`; nie czyta zestawu modów. Cudzych DLL nie nadpisuje. Nie wymaga
-administratora, nie zmienia Workshop ani zapisów. Podpis: bez płatnego certyfikatu; po
-upublicznieniu repozytorium wniosek do SignPath Foundation (ADR-0031).
-**Z włączonym rozszerzeniem gra nie jest deklarowana jako zgodna z trybem
-wieloosobowym.** Przed grą MP uruchom skrypt z `-RemoveSteamLaunchOption` albo
-`-Uninstall`, albo usuń wpis ręcznie we Właściwościach gry w Steam. Przy jawnej aktywacji
-`-ProxyActivation Config` trzeba też usunąć `%LOCALAPPDATA%\RenameAnything\proxy.enabled`.
-Bez przełączników, w interaktywnej konsoli, skrypt pokazuje menu (Zainstaluj, Aktualizuj, Wyłącz,
-Odinstaluj). Włączanie i wyłączanie CAPIE w trybie Launcher: mod „CAPIE” w zestawie modów.
-`-Disable` usuwa tylko wpis w Steam, `-Uninstall -Purge` przywraca stan sprzed instalacji
-(także bez logu i kopii `localconfig.vdf`). Instalator wydań: `-Install -Latest`.
-Aktualizacja:
-`-CheckUpdate` (tylko na żądanie) i `-Update`, cofnięcie: `-Rollback`. Bezpieczniej
-pobrać skrypt, przeczytać i dopiero uruchomić niż używać `irm | iex`.

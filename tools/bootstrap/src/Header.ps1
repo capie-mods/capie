@@ -16,9 +16,10 @@
         & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
         .\install.ps1 -Install -LoadMethod Launcher -Shortcut -ShortcutPath "$env:USERPROFILE\Desktop" -Yes
 
-    This file is intentionally pure ASCII (Polish text uses \uXXXX escapes decoded at
-    runtime), because Windows PowerShell 5.1 and `irm` may decode non-ASCII scripts
-    with a legacy code page.
+    This file is intentionally English-only and pure ASCII. ASCII bytes read the same in
+    UTF-8, with or without a BOM, and in every legacy code page that Windows PowerShell 5.1
+    or `irm` may use, and every message prints the same in any console encoding. The
+    script therefore never changes the console encoding of the caller's session.
 
     install.ps1 is GENERATED from tools/bootstrap/src by tools/bootstrap/build-install.ps1.
     Edit the fragments in src/ and rebuild; never edit install.ps1 by hand.
@@ -93,11 +94,9 @@
 .PARAMETER ManifestPath
     Signed release-manifest.json for an offline -Update or -CheckUpdate.
 
-.PARAMETER Language
-    Message language override: pl or en.
-
 .OUTPUTS
-    System.Int32. Exit code 0 on success, 1 on failure (also the process exit code with -File).
+    System.Int32. Exit code 0 on success, 1 on failure, 2 when no action was given and the
+    console cannot answer questions (also the process exit code with -File).
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -133,6 +132,5 @@ param(
     [switch]$CheckUpdate,
     [switch]$Update,
     [switch]$Rollback,
-    [string]$ManifestPath,
-    [ValidateSet('', 'pl', 'en')][string]$Language = ''
+    [string]$ManifestPath
 )

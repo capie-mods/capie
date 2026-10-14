@@ -4,7 +4,7 @@
 
 $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
-    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
+    'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
     'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain'
 )
 
@@ -30,7 +30,7 @@ function Initialize-RaRun {
     .SYNOPSIS
         Applies the options to the runtime switches and prints the banner.
     .DESCRIPTION
-        Sets language, root folder (unless a test already set it), dry-run and -Yes,
+        Sets the root folder (unless a test already set it), dry-run and -Yes,
         prints title/intro (unless -NoBanner: the terminal interface draws its own) and logs
         the start line with the switches that were given.
     .PARAMETER Options
@@ -45,7 +45,6 @@ function Initialize-RaRun {
     [CmdletBinding()]
     [OutputType([void])]
     param([Parameter(Mandatory, Position = 0)][hashtable]$Options, [switch]$NoBanner)
-    $script:RaLang = if ($Options.Language) { $Options.Language } else { Get-RaDefaultLanguage }
     if (-not $script:RaRoot) { $script:RaRoot = Join-Path $env:LOCALAPPDATA $script:RaRootDirName }
     $script:RaDry = [bool]$Options.DryRun
     $script:RaAssumeYes = [bool]$Options.Yes
@@ -288,7 +287,9 @@ function Invoke-RaMain {
     .DESCRIPTION
         Enables strict mode and Stop error handling for this call only (never for the
         caller's session under irm | iex), then dispatches. Any error is logged as
-        FAILED and turned into exit code 1.
+        FAILED and turned into exit code 1. Without an action switch on a console that
+        cannot answer questions (redirected input or output), it prints the usage text and
+        returns exit code 2 without writing anything; -Plain forces the questions anyway.
     .PARAMETER P
         Option table; keys are the script's parameter names, missing keys mean "not given".
     .OUTPUTS
@@ -306,6 +307,12 @@ function Invoke-RaMain {
     if ($options.Purge -and -not $options.Uninstall) { $options.Purge = $null }
     if ($options.Latest -and -not ($options.Install -or $options.Update)) { $options.Install = $true }
     $mode = Get-RaTuiMode $options
+    if (-not $mode.Interactive -and -not (Test-RaActionOption $options) -and -not $options.Yes -and -not $options.Plain) {
+        # Redirected or missing console: a question would wait forever. Explain and stop, writing nothing.
+        Write-RaHost (Get-RaText 'Title')
+        Write-RaHost (Get-RaText 'Usage')
+        return $script:RaExitUsage
+    }
     if ($mode.Tui) {
         Initialize-RaRun $options -NoBanner
         try { return (Invoke-RaTui -Options $options -Mode $mode) } catch {
@@ -326,7 +333,7 @@ if ($MyInvocation.InvocationName -ne '.') {
     $raExit = Invoke-RaMain @{
         Install = $Install; Shortcut = $Shortcut; ShortcutPath = $ShortcutPath; SteamLaunchOption = $SteamLaunchOption
         SteamAccount = $SteamAccount; RemoveSteamLaunchOption = $RemoveSteamLaunchOption; Uninstall = $Uninstall
-        DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot; Language = $Language
+        DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
         LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation; Latest = $Latest; Purge = $Purge; Disable = $Disable
         NoAnimation = $NoAnimation; Plain = $Plain

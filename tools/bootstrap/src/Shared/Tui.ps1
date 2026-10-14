@@ -52,6 +52,27 @@ function New-RaTuiSegment {
     return @{ S = $Style; T = $Text }
 }
 
+function Test-RaActionOption {
+    <#
+    .SYNOPSIS
+        Tests whether the options name an action (install, update, disable, uninstall...).
+    .DESCRIPTION
+        Without an action an interactive run opens the menu or the plain questions; a
+        non-interactive run prints the usage text and stops.
+    .PARAMETER Options
+        Option table (missing keys mean "not given").
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaActionOption @{ Install = $true }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    foreach ($name in $script:RaActionOptionNames) { if ($Options.ContainsKey($name) -and $Options[$name]) { return $true } }
+    return $false
+}
+
 function Get-RaTuiMode {
     <#
     .SYNOPSIS
@@ -65,7 +86,7 @@ function Get-RaTuiMode {
     .PARAMETER Options
         Normalized option table.
     .OUTPUTS
-        System.Management.Automation.PSCustomObject (Tui, Color, Vt, Animate, Width)
+        System.Management.Automation.PSCustomObject (Tui, Interactive, Color, Vt, Animate, Width)
     .EXAMPLE
         $mode = Get-RaTuiMode $options
     #>
@@ -73,8 +94,7 @@ function Get-RaTuiMode {
     [OutputType([psobject])]
     param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
     $terminal = & $script:RaGetTerminal
-    $action = $false
-    foreach ($name in $script:RaActionOptionNames) { if ($Options.ContainsKey($name) -and $Options[$name]) { $action = $true } }
+    $action = Test-RaActionOption $Options
     $noColor = [bool](& $script:RaGetEnv $script:RaTuiEnvNoColor) -or ((& $script:RaGetEnv $script:RaTuiEnvTerm) -eq $script:RaTuiDumbTerm)
     $noAnimationEnv = & $script:RaGetEnv $script:RaTuiEnvNoAnimation
     $noAnimation = ([bool]$noAnimationEnv -and $noAnimationEnv -ne '0') -or [bool](& $script:RaGetEnv $script:RaTuiEnvCi) -or [bool]$Options['NoAnimation']
@@ -83,7 +103,10 @@ function Get-RaTuiMode {
     $width = [int]$terminal.Width - 1
     if ($width -lt 1) { $width = $script:RaTuiFallbackWidth }
     $width = [Math]::Max($script:RaTuiMinWidth, [Math]::Min($script:RaTuiMaxWidth, $width))
-    return [pscustomobject]@{ Tui = $tui; Color = $color; Vt = ($tui -and [bool]$terminal.Vt); Animate = ($color -and -not $noAnimation); Width = $width }
+    return [pscustomobject]@{
+        Tui = $tui; Interactive = [bool]$terminal.Interactive; Color = $color; Vt = ($tui -and [bool]$terminal.Vt)
+        Animate = ($color -and -not $noAnimation); Width = $width
+    }
 }
 
 function ConvertTo-RaTuiSgr {
@@ -569,7 +592,7 @@ function Confirm-RaTui {
     .SYNOPSIS
         Asks a yes/no question as an ASK line and reads one key.
     .DESCRIPTION
-        Y/T answer yes, N answers no, Enter takes the default, Esc answers no. The answer is
+        Y answers yes, N answers no, Enter takes the default, Esc answers no. The answer is
         echoed after the question so the transcript stays readable.
     .PARAMETER Prompt
         Question (ends with the default in brackets).
@@ -595,7 +618,7 @@ function Confirm-RaTui {
         $answer = $null
         if ($key -eq 'Enter') { $answer = $Default }
         elseif ($key -eq 'Escape') { $answer = $false }
-        elseif ($key -in @('y', 't')) { $answer = $true }
+        elseif ($key -eq 'y') { $answer = $true }
         elseif ($key -eq 'n') { $answer = $false }
         if ($null -ne $answer) {
             $echo = if ($answer) { Get-RaText 'TuiYes' } else { Get-RaText 'TuiNo' }

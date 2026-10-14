@@ -105,7 +105,7 @@ function Get-RaTuiPlan {
     .PARAMETER Action
         Install, Update, Disable or Uninstall.
     .PARAMETER Options
-        Options of this run (DryRun, SteamRoot, Language, PackagePath, ManifestPath carry over).
+        Options of this run (DryRun, SteamRoot, PackagePath, ManifestPath carry over).
     .PARAMETER SteamRootPath
         Steam folder or empty.
     .OUTPUTS
