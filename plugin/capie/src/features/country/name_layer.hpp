@@ -59,6 +59,12 @@ inline constexpr std::string_view adjective_array = "capie_cn_a";
 inline constexpr std::string_view version_variable = "capie_cn_ver";
 /// @brief Commit variable; every change of the layer ends with `set_variable = { capie_cn_rev = 1 }`.
 inline constexpr char commit_variable[] = "capie_cn_rev";
+/// @brief Array of the faction name's character codes (on the faction leader).
+inline constexpr std::string_view faction_array = "capie_fn_n";
+/// @brief Format variable of the faction layer; `1` while it is set.
+inline constexpr std::string_view faction_version_variable = "capie_fn_ver";
+/// @brief Commit variable of the faction layer.
+inline constexpr char faction_commit_variable[] = "capie_fn_rev";
 /// @brief Suffix of an array's element count.
 inline constexpr std::string_view count_suffix = "^num";
 /// @brief Fixed-point scale of HOI4 variables.
@@ -381,30 +387,50 @@ Status append_array(const M& mem, const Table& table, std::string_view array, Ke
  * @param country Country object address.
  * @return The layer; `status != valid` means "no layer" for display.
  */
+/**
+ * @brief Opens the variable table of a country and reads one format variable.
+ * @param mem Memory policy.
+ * @param country Country object address.
+ * @param version Name of the format variable.
+ * @param table Receives the table.
+ * @param layer Receives `status` (and `version_raw`); `valid` means "read the arrays next".
+ */
 template <class M>
-Layer read_layer(const M& mem, uptr country) noexcept {
-    Layer layer{};
+void open_layer(const M& mem, uptr country, std::string_view version, Table& table, Layer& layer) noexcept {
     uptr container = 0;
     if (!core::rd(mem, country, core::off::country_variables, container)) {
         layer.status = Status::unreadable;
-        return layer;
+        return;
     }
     if (container == 0) {
-        return layer;  // no variables at all
+        layer.status = Status::absent;  // no variables at all
+        return;
     }
-    Table table{};
     if (!read_table(mem, container, table)) {
         layer.status = Status::unreadable;
-        return layer;
+        return;
     }
-    const auto version = find_variable(mem, table, version_variable, layer.version_raw);
-    if (version != Lookup::found) {
-        layer.status = version == Lookup::absent ? Status::absent : Status::unreadable;
-        return layer;
+    const auto found = find_variable(mem, table, version, layer.version_raw);
+    if (found != Lookup::found) {
+        layer.status = found == Lookup::absent ? Status::absent : Status::unreadable;
+        return;
     }
     std::int64_t format = 0;
-    if (!whole(layer.version_raw, format) || format != format_version) {
-        layer.status = Status::invalid;
+    layer.status = whole(layer.version_raw, format) && format == format_version ? Status::valid : Status::invalid;
+}
+
+/**
+ * @brief Reads the country name layer of a country.
+ * @param mem Memory policy.
+ * @param country Country object address.
+ * @return The layer (`key` = `RN1|<name>|<adjective>|`); `status != valid` means "no layer" for display.
+ */
+template <class M>
+Layer read_layer(const M& mem, uptr country) noexcept {
+    Layer layer{};
+    Table table{};
+    open_layer(mem, country, version_variable, table, layer);
+    if (layer.status != Status::valid) {
         return layer;
     }
     KeyWriter writer{layer};
@@ -420,6 +446,28 @@ Layer read_layer(const M& mem, uptr country) noexcept {
     }
     layer.status = status;
     if (status != Status::valid) {
+        layer.key_size = 0;
+    }
+    return layer;
+}
+
+/**
+ * @brief Reads the faction name layer stored on a country (the faction leader).
+ * @param mem Memory policy.
+ * @param country Country object address.
+ * @return The layer (`key` = the plain UTF-8 name, `name_points` its length); `status != valid` = no layer.
+ */
+template <class M>
+Layer read_faction_layer(const M& mem, uptr country) noexcept {
+    Layer layer{};
+    Table table{};
+    open_layer(mem, country, faction_version_variable, table, layer);
+    if (layer.status != Status::valid) {
+        return layer;
+    }
+    KeyWriter writer{layer};
+    layer.status = append_array(mem, table, faction_array, writer, layer.name_points);
+    if (layer.status != Status::valid) {
         layer.key_size = 0;
     }
     return layer;

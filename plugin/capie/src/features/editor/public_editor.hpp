@@ -85,6 +85,10 @@ inline Lifecycle public_lifecycle[max_public_editors]{};
 inline Layout public_layout[max_public_editors]{};
 /// @brief Field count of the current opening per slot (valid layouts); guarded by `state_lock`.
 inline std::size_t public_field_count[max_public_editors]{};
+/// @brief Text prefill carrier 1 showed when the current opening began; guarded by `state_lock`.
+inline InputSnapshot public_previous[max_public_editors]{};
+/// @brief `public_previous` holds this opening's carrier text; guarded by `state_lock`.
+inline bool public_previous_ok[max_public_editors]{};
 
 /// @brief Size of a public log line buffer.
 inline constexpr std::size_t public_line_capacity = 320;
@@ -364,6 +368,11 @@ inline void open_public(void* window, const View& view, std::uint64_t epoch, std
     const auto layout = discover_fields(view.root, editor, count);
     std::size_t written = 0;
     const char* outcome = "ready";
+    // The text prefill carrier 1 shows now is what the player saw before any change (`capie_pf1_*`).
+    Utf8Snapshot previous{};
+    const bool previous_ok = layout == Layout::valid && count >= public_previous_fields &&
+                             carrier(view.root, editor.prefills[0].c_str(), previous, false) &&
+                             engine::decode_utf8(previous);
     if (layout == Layout::valid) {
         for (std::size_t field = 0; field < count; ++field) {
             const auto step = prefill_public_field(window, view, epoch, generation, field);
@@ -383,6 +392,8 @@ inline void open_public(void* window, const View& view, std::uint64_t epoch, std
         state.prefilled = true;
         public_layout[view.model] = layout;
         public_field_count[view.model] = count;
+        public_previous_ok[view.model] = previous_ok;
+        public_previous[view.model] = previous_ok ? previous.decoded : InputSnapshot{};
     }
     ReleaseSRWLockExclusive(&state_lock);
     char detail[public_detail_capacity]{};
@@ -507,6 +518,8 @@ struct PublicSnapshot {
     std::size_t count{};                         ///< Field count.
     std::uint64_t epoch{};                       ///< Opening epoch.
     std::uint64_t generation{};                  ///< Opening generation.
+    InputSnapshot previous{};                    ///< Prefill carrier 1 text at the opening.
+    bool has_previous{};                         ///< `previous` is sent as `capie_pf1_*`.
 };
 
 /**
@@ -542,6 +555,8 @@ inline unsigned capture_public(const PublicCommit& commit, const View& view, Pub
     AcquireSRWLockShared(&state_lock);
     const auto layout = public_layout[commit.slot];
     const auto expected = public_field_count[commit.slot];
+    snapshot.has_previous = public_previous_ok[commit.slot];
+    snapshot.previous = public_previous[commit.slot];
     ReleaseSRWLockShared(&state_lock);
     if (layout == Layout::invalid) {
         return static_cast<unsigned>(PublicSentinel::layout_invalid);
@@ -582,15 +597,17 @@ inline bool append_public_identity(Origin& current, std::size_t& kept) noexcept 
 }
 
 /**
- * @brief Appends the 35 records of one field.
+ * @brief Appends the 35 records of one text (a field, or the opening text of a prefill carrier).
  * @param current Dispatch frame.
  * @param kept In/out record count.
  * @param number Field number 1..4.
- * @param text Field text.
+ * @param text Text.
+ * @param header_format `capie_f%zu_%s` or `capie_pf%zu_%s`.
+ * @param slot_format `capie_f%zu_%u` or `capie_pf%zu_%u`.
  * @return `false` on failure.
  */
-inline bool append_public_field(Origin& current, std::size_t& kept, std::size_t number,
-                                const InputSnapshot& text) noexcept {
+inline bool append_public_text(Origin& current, std::size_t& kept, std::size_t number, const InputSnapshot& text,
+                               const char* header_format, const char* slot_format) noexcept {
     char32_t input[max_codepoints]{};
     for (std::size_t i = 0; i < text.size; ++i) {
         input[i] = static_cast<char32_t>(text.points[i]);
@@ -602,25 +619,38 @@ inline bool append_public_field(Origin& current, std::size_t& kept, std::size_t 
     }
     const std::uint64_t at = encoded.value ? 0 : encoded.error_index + 1;
     char key[record_key_buffer]{};
-    static_cast<void>(std::snprintf(key, sizeof(key), public_field_header_format, number, public_suffix_err));
+    static_cast<void>(std::snprintf(key, sizeof(key), header_format, number, public_suffix_err));
     if (!append_record(current, kept, key, static_cast<std::uint64_t>(encoded.error))) {
         return false;
     }
-    static_cast<void>(std::snprintf(key, sizeof(key), public_field_header_format, number, public_suffix_at));
+    static_cast<void>(std::snprintf(key, sizeof(key), header_format, number, public_suffix_at));
     if (!append_record(current, kept, key, at)) {
         return false;
     }
-    static_cast<void>(std::snprintf(key, sizeof(key), public_field_header_format, number, public_suffix_len));
+    static_cast<void>(std::snprintf(key, sizeof(key), header_format, number, public_suffix_len));
     if (!append_record(current, kept, key, codes.length)) {
         return false;
     }
     for (unsigned slot = 0; slot < code_slots; ++slot) {
-        static_cast<void>(std::snprintf(key, sizeof(key), public_field_slot_format, number, slot));
+        static_cast<void>(std::snprintf(key, sizeof(key), slot_format, number, slot));
         if (!append_record(current, kept, key, codes.codes[slot])) {
             return false;
         }
     }
     return true;
+}
+
+/**
+ * @brief Appends the 35 records of one field.
+ * @param current Dispatch frame.
+ * @param kept In/out record count.
+ * @param number Field number 1..4.
+ * @param text Field text.
+ * @return `false` on failure.
+ */
+inline bool append_public_field(Origin& current, std::size_t& kept, std::size_t number,
+                                const InputSnapshot& text) noexcept {
+    return append_public_text(current, kept, number, text, public_field_header_format, public_field_slot_format);
 }
 
 /**
@@ -665,7 +695,12 @@ inline bool prepare_public(Origin& current, const PublicSnapshot& snapshot) noex
             return false;
         }
     }
-    if (kept - base != public_header_records + (snapshot.count * public_records_per_field)) {
+    if (snapshot.has_previous && !append_public_text(current, kept, 1, snapshot.previous, public_previous_header_format,
+                                                     public_previous_slot_format)) {
+        return false;
+    }
+    const std::size_t texts = snapshot.count + (snapshot.has_previous ? public_previous_fields : 0);
+    if (kept - base != public_header_records + (texts * public_records_per_field)) {
         return false;
     }
     current.view = {current.records, static_cast<std::int32_t>(kept), static_cast<std::int32_t>(kept),

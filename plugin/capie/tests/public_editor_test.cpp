@@ -451,8 +451,8 @@ void payload_tests() {
     click(faction, apply_of(faction));
     check(dispatch_originals == before + 1 && !captured.empty(), "Apply dispatched once");
     check(count_of("user_key") == 1 && value_of("user_key") == 7, "non-reserved original kept");
-    check(count_of("capie_cap") == 1 && value_of("capie_cap") == 4, "capie_cap = 4 (spoof removed)");
-    check(count_of("capie_ver") == 1 && value_of("capie_ver") == 10200, "capie_ver = 10200");
+    check(count_of("capie_cap") == 1 && value_of("capie_cap") == 5, "capie_cap = 5 (spoof removed)");
+    check(count_of("capie_ver") == 1 && value_of("capie_ver") == 10300, "capie_ver = 10300");
     check(count_of("capie_epoch") == 1 && value_of("capie_epoch") == 3, "capie_epoch from the carrier");
     check(count_of("capie_x") == 0, "every capie_ record from the source removed");
     check(value_of("capie_nf") == 1 && value_of("capie_f1_err") == 0 && value_of("capie_f1_at") == 0 &&
@@ -461,8 +461,13 @@ void payload_tests() {
     check(value_of("capie_f1_0") == 31 && value_of("capie_f1_7") == 63 && value_of("capie_f1_15") == 5 &&
               value_of("capie_f1_16") == 0 && value_of("capie_f1_31") == 0 && count_of("capie_f1_0") == 1,
           "field codes (E, space, e, padding)");
-    check(captured.size() == 1 + public_header_records + public_records_per_field && capie_records() == 39,
-          "1 original + 4 header + 35 field records");
+    check(captured.size() == 1 + public_header_records + (2 * public_records_per_field) && capie_records() == 74,
+          "1 original + 4 header + 35 field records + 35 opening-text records");
+    check(value_of("capie_pf1_err") == 0 && value_of("capie_pf1_at") == 0 && value_of("capie_pf1_len") == 6 &&
+              value_of("capie_pf1_0") == 27 && value_of("capie_pf1_5") == 19 && value_of("capie_pf1_6") == 0 &&
+              value_of("capie_pf1_31") == 0 && count_of("capie_pf1_0") == 1,
+          "capie_pf1_*: the carrier text at the opening (Allies), not the typed text");
+    check(count_of("capie_pf2_len") == 0, "only carrier 1 is sent");
 
     // Extended alphabet and a rejected field.
     type_text(faction.edits[0], U"Žižkov");
@@ -477,6 +482,9 @@ void payload_tests() {
     type_text(faction.edits[0], U"");
     click(faction, apply_of(faction));
     check(value_of("capie_f1_err") == 1 && value_of("capie_epoch") == 3, "empty field still carries the header");
+    set_carrier(faction.prefills[0], "Changed");
+    click(faction, apply_of(faction));
+    check(value_of("capie_pf1_len") == 6, "a carrier changed after the opening does not change capie_pf1_*");
     put(faction.context(), off::context_records, TempVector{});
 
     // Focused field: no prefill over a draft; the opening is still ready.
@@ -494,6 +502,7 @@ void payload_tests() {
     put(faction.edits[0].edit.data(), off::edit_flags, static_cast<unsigned char>(0));
     click(faction, apply_of(faction));
     check(value_of("capie_epoch") == 4 && value_of("capie_f1_len") == 5, "Apply of the new opening");
+    check(value_of("capie_pf1_len") == 7, "new opening: capie_pf1_* captured again (Changed), also without prefill");
 }
 
 /// @brief A second mod, zero-field editors and legacy frames.
@@ -506,13 +515,13 @@ void second_mod_tests() {
     type_text(motto.edits[1], U"Égalité, fraternité!");
     click(motto, apply_of(motto));
     check(value_of("capie_nf") == 2 && value_of("capie_f1_len") == 7 && value_of("capie_f2_len") == 20 &&
-              value_of("capie_f2_err") == 0 && capie_records() == 4 + (2 * 35),
-          "two fields, 74 records");
+              value_of("capie_f2_err") == 0 && capie_records() == 4 + (2 * 35) && count_of("capie_pf1_len") == 0,
+          "two fields, 74 records, no prefill carrier so no capie_pf1_*");
 
     auto& hello = make_window("capie_v1_ed__capie__hello", 0, "1");
     tick_observed(hello.window.data(), 0);
     click(hello, apply_of(hello));
-    check(value_of("capie_nf") == 0 && capie_records() == 4 && value_of("capie_cap") == 4, "zero-field editor");
+    check(value_of("capie_nf") == 0 && capie_records() == 4 && value_of("capie_cap") == 5, "zero-field editor");
 
     // A legacy (Rename Anything) frame keeps capie_ records it did not reserve.
     std::array<Record, 2> legacy_source{source_record("capie_cap", 1), source_record("rn_native_ok", 1)};
@@ -534,7 +543,7 @@ void sentinel_tests() {
     // Apply before the first Tick of the window: registered at Dispatch, not ready -> -1.
     auto& late = make_window("capie_v1_ed__mymod__late", 0b1, "5");
     click(late, apply_of(late));
-    check(value_of("capie_epoch") == -1 && value_of("capie_cap") == 4 && value_of("capie_ver") == 10200 &&
+    check(value_of("capie_epoch") == -1 && value_of("capie_cap") == 5 && value_of("capie_ver") == 10300 &&
               count_of("capie_nf") == 0 && capie_records() == 3,
           "stale sentinel -1 with cap and ver only");
 

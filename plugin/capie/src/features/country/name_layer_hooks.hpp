@@ -1,8 +1,9 @@
 /**
  * @file name_layer_hooks.hpp
- * @brief Hook bodies of the country name layer: priority layer > cosmetic tag > base name.
+ * @brief Hook bodies of the country and faction name layers (API levels 4 and 5).
  *
- * Three hooks, all on the game's logic path, none on the per-frame localisation path:
+ * Country names: priority layer > cosmetic tag > base name. Three hooks on the game's logic
+ * path, none on the per-frame localisation path:
  *
  * - `update_names(country)` (716580). Reads the country's layer (`name_layer.hpp`), remembers
  *   it for this thread and calls the original once. The original computes the three keys with
@@ -18,7 +19,18 @@
  * - `set_variable(effect, context)` (364C60). After the original, if the effect's variable is
  *   `capie_cn_rev`, every country whose layer differs from what it currently shows is refreshed
  *   through `update_names`. The effect runs at the same step of the same command on every
- *   multiplayer client; the refresh changes only the game's display caches.
+ *   multiplayer client; the refresh changes only the game's display caches. A variable named
+ *   `capie_fn_rev` refreshes the faction cache below instead.
+ *
+ * Faction names (API level 5): one more hook, `faction_name(faction, out)` = `CFaction::GetName`
+ * (D8BB80), the accessor 120 call sites use (it returns the stored name text, else the template
+ * name). When the faction leader (members[0], `faction+0x58`) has a valid faction layer
+ * (`capie_fn_*` on the leader), the hook copies that text into `out` with the game's own string
+ * copy (11E010) instead of calling the original; otherwise it calls the original. The stored
+ * name is never touched, so removing the layer shows it again. The hook may run on a UI thread,
+ * so it never reads variables: it reads a cache filled on the logic thread by `update_names`
+ * (every country, also after a load) and by a `capie_fn_rev` commit. With no faction layer in
+ * the cache the hook costs one atomic load.
  *
  * CAPIE writes no game state: no variable, no cosmetic tag, no `CCountry` field. Fail-closed:
  * an unreadable or invalid layer is "no layer" and the call passes through unchanged. Every
@@ -35,6 +47,7 @@
 #include "../../engine/msvc_string.hpp"
 #include "name_layer.hpp"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -42,6 +55,7 @@
 #include <cstdio>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -54,6 +68,10 @@ using UpdateNamesFn = std::uint64_t (*)(uptr);
 using BuildNameKeyFn = void* (*)(void*, const void*, void*, void*, void*, void*, void*, char);
 /// @brief `void Execute(effect*, context*)`.
 using SetVariableFn = void (*)(uptr, uptr);
+/// @brief `string* CFaction::GetName(faction*, string* out)`.
+using FactionNameFn = void* (*)(uptr, void*);
+/// @brief `string* copy(string* out, const string* source)` (game heap).
+using StringCopyFn = void* (*)(void*, const void*);
 /// @brief Log sink: one NUL-terminated line without line break.
 using LogFn = void (*)(core::logging::Channel, const char*);
 
@@ -92,6 +110,7 @@ public:
         UpdateNamesFn update{};        ///< UpdateNames.
         BuildNameKeyFn build{};        ///< BuildNameKey.
         SetVariableFn set_variable{};  ///< SetVariable::Execute.
+        FactionNameFn faction_name{};  ///< CFaction::GetName.
     };
     /**
      * @brief The trampolines; `HookSpec` points MinHook at these slots.
@@ -100,15 +119,17 @@ public:
     Originals& originals() noexcept { return originals_; }
 
     /**
-     * @brief Activates the layer (after every pin passed and the hooks were installed).
+     * @brief Activates the layers (after every pin passed and the hooks were installed).
      * @param image Image base (for the game-state global).
      * @param log Log sink (may be null).
+     * @param copy The game's string copy (pinned 11E010).
      */
-    void activate(uptr image, LogFn log) noexcept {
+    void activate(uptr image, LogFn log, StringCopyFn copy) noexcept {
         image_ = image;
         log_ = log;
+        copy_ = copy;
         enabled_.store(originals_.update != nullptr && originals_.build != nullptr &&
-                       originals_.set_variable != nullptr);
+                       originals_.set_variable != nullptr && originals_.faction_name != nullptr && copy != nullptr);
     }
 
     /// @brief Turns the layer off (hooks then pass everything through). Used by tests and on failure.
@@ -127,6 +148,7 @@ public:
         if (enabled_.load()) {
             frame.layer = read_layer(mem_, country);
             remember(country, frame.layer);
+            update_faction(country);
             if (!first_update_logged_.exchange(true)) {
                 note(core::logging::Channel::debug, "CAPIE_NAME first UpdateNames on thread %lu",
                      static_cast<unsigned long>(GetCurrentThreadId()));
@@ -176,6 +198,12 @@ public:
             note(core::logging::Channel::debug, "CAPIE_NAME first set_variable observed on thread %lu",
                  static_cast<unsigned long>(GetCurrentThreadId()));
         }
+        if (engine::string_equals(mem_, effect + core::off::set_variable_name, faction_commit_variable)) {
+            const auto factions = refresh_factions();
+            note(core::logging::Channel::lifecycle, "CAPIE_FACTION commit list_ok=%u countries=%d layers=%d",
+                 factions.list_ok ? 1U : 0U, factions.countries, factions.layers);
+            return;
+        }
         if (!engine::string_equals(mem_, effect + core::off::set_variable_name, commit_variable)) {
             return;
         }
@@ -194,13 +222,9 @@ public:
      */
     RefreshStats refresh_changed() noexcept {
         RefreshStats stats{};
-        uptr state = 0;
         uptr list = 0;
         std::int32_t count = 0;
-        if (!core::rd(mem_, image_, core::rva::gamestate_global, state) || state == 0 ||
-            !core::rd(mem_, state, core::off::gamestate_countries, list) ||
-            !core::rd(mem_, state, core::off::gamestate_country_count, count) || list == 0 || count < 0 ||
-            count > max_countries) {
+        if (!country_list(list, count)) {
             return stats;
         }
         stats.list_ok = true;
@@ -225,6 +249,61 @@ public:
             ++stats.refreshed;
         }
         return stats;
+    }
+
+    /**
+     * @brief Re-reads the faction layer of every country into the faction cache.
+     * @return Counters (`layers` = countries with a valid faction layer).
+     */
+    RefreshStats refresh_factions() noexcept {
+        RefreshStats stats{};
+        uptr list = 0;
+        std::int32_t count = 0;
+        if (!country_list(list, count)) {
+            return stats;
+        }
+        stats.list_ok = true;
+        for (std::int32_t index = 0; index < count; ++index) {
+            uptr country = 0;
+            if (!core::rd(mem_, list, static_cast<uptr>(index) * sizeof(uptr), country) || country == 0) {
+                continue;
+            }
+            ++stats.countries;
+            stats.layers += update_faction(country) ? 1 : 0;
+        }
+        return stats;
+    }
+
+    /**
+     * @brief Hook body of `CFaction::GetName`.
+     * @param faction Faction object.
+     * @param out Result string (constructed here or by the original).
+     * @return `out`.
+     */
+    void* faction_name(uptr faction, void* out) noexcept {
+        if (faction_layers_.load(std::memory_order_acquire) != 0 && enabled_.load()) {
+            std::array<char, max_field_bytes> text{};
+            std::size_t size = 0;
+            if (faction_text(faction, text, size)) {
+                const auto borrowed = engine::borrowed_string(text.data(), size);
+                return copy_(out, &borrowed);
+            }
+        }
+        return originals_.faction_name(faction, out);
+    }
+
+    /**
+     * @brief The faction name a leader's layer gives (tests and diagnostics).
+     * @param country Leader country.
+     * @return Text, empty when none is cached.
+     */
+    std::string faction_key(uptr country) const {
+        const std::shared_lock lock(factions_mutex_);
+        if (!factions_) {
+            return {};
+        }
+        const auto found = factions_->find(country);
+        return found == factions_->end() ? std::string{} : found->second;
     }
 
     /**
@@ -296,6 +375,79 @@ private:
     }
 
     /**
+     * @brief Reads the country list of the game state.
+     * @param list Receives the pointer array.
+     * @param count Receives the number of entries.
+     * @return `false` when unreadable or implausible.
+     */
+    bool country_list(uptr& list, std::int32_t& count) const noexcept {
+        uptr state = 0;
+        return core::rd(mem_, image_, core::rva::gamestate_global, state) && state != 0 &&
+               core::rd(mem_, state, core::off::gamestate_countries, list) &&
+               core::rd(mem_, state, core::off::gamestate_country_count, count) && list != 0 && count >= 0 &&
+               count <= max_countries;
+    }
+
+    /**
+     * @brief Re-reads one country's faction layer into the cache (logic thread).
+     * @param country Country object.
+     * @return `true` when the country has a valid faction layer.
+     */
+    bool update_faction(uptr country) noexcept {
+        const auto layer = read_faction_layer(mem_, country);
+        try {
+            const std::unique_lock lock(factions_mutex_);
+            if (layer.status == Status::valid) {
+                if (!factions_) {
+                    factions_ = std::make_unique<ShownMap>();
+                }
+                if (factions_->size() >= max_shown_entries) {
+                    factions_->clear();
+                }
+                (*factions_)[country].assign(layer.view());
+            } else if (factions_) {
+                factions_->erase(country);
+            }
+            faction_layers_.store(factions_ ? factions_->size() : 0, std::memory_order_release);
+        } catch (...) {  // NOLINT(bugprone-empty-catch): allocation failure leaves the game's faction name
+        }
+        return layer.status == Status::valid;
+    }
+
+    /**
+     * @brief Copies the cached layer text of a faction's leader.
+     * @param faction Faction object.
+     * @param text Receives the bytes.
+     * @param size Receives the length.
+     * @return `false` when the faction has no leader with a layer.
+     */
+    bool faction_text(uptr faction, std::array<char, max_field_bytes>& text, std::size_t& size) const noexcept {
+        std::int32_t members = 0;
+        uptr array = 0;
+        uptr leader = 0;
+        if (!core::rd(mem_, faction, core::off::faction_member_count, members) || members <= 0 ||
+            !core::rd(mem_, faction, core::off::faction_members, array) || array == 0 ||
+            !core::rd(mem_, array, 0, leader) || leader == 0) {
+            return false;
+        }
+        try {
+            const std::shared_lock lock(factions_mutex_);
+            if (!factions_) {
+                return false;
+            }
+            const auto found = factions_->find(leader);
+            if (found == factions_->end() || found->second.empty() || found->second.size() > text.size()) {
+                return false;
+            }
+            size = found->second.size();
+            std::copy(found->second.begin(), found->second.end(), text.begin());
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    /**
      * @brief Formats and writes one log line.
      * @param channel Channel.
      * @param format printf format.
@@ -317,12 +469,16 @@ private:
     Originals originals_{};                         ///< Trampolines.
     uptr image_{};                                  ///< Image base.
     LogFn log_{};                                   ///< Log sink.
+    StringCopyFn copy_{};                           ///< The game's string copy.
     std::atomic<bool> enabled_{false};              ///< Layer active.
     std::atomic<bool> first_update_logged_{false};  ///< Debug line written.
     std::atomic<bool> first_set_logged_{false};     ///< Debug line written.
     std::atomic<bool> first_commit_logged_{false};  ///< Debug line written.
     mutable std::mutex shown_mutex_;                ///< Guards `shown_`; never held across a game call.
     std::unique_ptr<ShownMap> shown_;               ///< Country -> key it shows; created on first use.
+    mutable std::shared_mutex factions_mutex_;      ///< Guards `factions_`; never held across a game call.
+    std::unique_ptr<ShownMap> factions_;            ///< Leader country -> faction layer text.
+    std::atomic<std::size_t> faction_layers_{0};    ///< Entries in `factions_` (fast path when 0).
     /// @brief Frame of the UpdateNames call running on this thread (one per thread, all instances).
     static inline thread_local Frame* active_frame = nullptr;
 };

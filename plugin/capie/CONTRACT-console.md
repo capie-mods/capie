@@ -1,4 +1,4 @@
-# CAPIE console contract, API level 3 and 4 (candidate)
+# CAPIE console contract, API level 3 to 5 (candidate)
 
 This is the console part of the CAPIE script contract. It lives in its own file while CAPIE 1.1
 (API level 2, `CONTRACT.md`) is being revised; the two will be merged later. Everything not
@@ -17,13 +17,14 @@ evidence is in `docs/evidence/session-20261011/claude-console/` (`re-evidence.md
 
 | Name | Value | Where a mod sees it |
 |---|---|---|
-| API level | `4` in CAPIE 1.2 (`3` in the 1.1 candidate) | `temp_var:capie_cap` of a console command |
+| API level | `5` in CAPIE 1.3 (`4` in 1.2, `3` in the 1.1 candidate) | `temp_var:capie_cap` of a console command |
 | Source | `2` | `temp_var:capie_src`: 2 = console command (editor Apply commands do not set it) |
 | Build number | as `CONTRACT.md` | `temp_var:capie_ver` |
 
 API level 3 added the console commands; API level 4 adds the country name layer
-(`CONTRACT.md` section 14). Since CAPIE 1.2 console and editor commands send the same level
-(`capie_cap = 4`). Compare with `>=`, never with `=`.
+(`CONTRACT.md` section 14); API level 5 the faction name layer (section 15), which has no console
+command yet. Since CAPIE 1.2 console and editor commands send the same level (`capie_cap = 5` in
+1.3). Compare with `>=`, never with `=`.
 
 ## 2. Commands CAPIE adds to the game console
 
@@ -64,7 +65,7 @@ CAPIE validates every argument and then runs this inline effect through the game
 
 ```text
 FROM = {
-    set_temp_variable = { capie_cap = 4 }      # 3 in the 1.1 candidate
+    set_temp_variable = { capie_cap = 5 }      # 4 in 1.2, 3 in the 1.1 candidate
     set_temp_variable = { capie_ver = <build> }
     set_temp_variable = { capie_src = 2 }
     set_temp_variable = { capie_nf = <n> }               # 0..4 arguments

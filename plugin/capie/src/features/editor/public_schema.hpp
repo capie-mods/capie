@@ -37,6 +37,12 @@ inline constexpr char public_key_fields[] = "capie_nf";
 inline constexpr char public_field_header_format[] = "capie_f%zu_%s";
 /// @brief Format of a field code record: field number, slot.
 inline constexpr char public_field_slot_format[] = "capie_f%zu_%u";
+/// @brief Header record name format of the opening text of prefill carrier n: `capie_pf<n>_<suffix>` (API 5).
+inline constexpr char public_previous_header_format[] = "capie_pf%zu_%s";
+/// @brief Code record name format of the opening text: `capie_pf<n>_<slot>`.
+inline constexpr char public_previous_slot_format[] = "capie_pf%zu_%u";
+/// @brief Prefill carriers whose opening text is sent (field 1 only in API level 5).
+inline constexpr std::size_t public_previous_fields = 1;
 /// @brief Field header suffix: InputError code.
 inline constexpr char public_suffix_err[] = "err";
 /// @brief Field header suffix: 1-based position of the first rejected character.
@@ -50,15 +56,15 @@ inline constexpr std::size_t public_header_records = 4;
 inline constexpr std::size_t public_sentinel_records = 3;
 /// @brief Records per field: err, at, len and 32 codes.
 inline constexpr std::size_t public_records_per_field = 3 + code_slots;
-/// @brief Most records one public Apply adds (144).
+/// @brief Most records one public Apply adds (179: 144 of API level 2 plus 35 `capie_pf1_*`).
 inline constexpr std::size_t max_public_records =
-    public_header_records + (grammar::max_fields * public_records_per_field);
+    public_header_records + ((grammar::max_fields + public_previous_fields) * public_records_per_field);
 /// @brief Most records any own or public Apply adds (sizes the dispatch frame).
 inline constexpr std::size_t max_frame_records =
     max_public_records > max_transport_records ? max_public_records : max_transport_records;
 
-/// @brief Longest record name the public transport builds (`capie_epoch`, `capie_f4_len`).
-inline constexpr std::size_t max_public_key = 12;
+/// @brief Longest record name the public transport builds (`capie_pf1_err`, `capie_pf1_len`).
+inline constexpr std::size_t max_public_key = 13;
 static_assert(sizeof(public_key_epoch) - 1 <= max_public_key && max_public_key <= max_record_key);
 
 /// @brief Most grammar editors registered in one game session.

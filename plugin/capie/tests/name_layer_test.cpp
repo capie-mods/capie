@@ -439,6 +439,8 @@ struct Game {
     std::vector<uptr> set_calls;            ///< Effects the original set_variable ran for.
     capie::engine::MsvcString cosmetic{};   ///< Tag the fake UpdateNames passes.
     std::vector<std::string> log;           ///< Log lines.
+    int faction_originals{};                ///< Calls of the original CFaction::GetName.
+    std::vector<std::string> copied;        ///< Texts the fake string copy received.
 };
 Game game;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake game state
 
@@ -488,6 +490,28 @@ void fake_set(uptr effect, uptr /*context*/) {
 }
 
 /**
+ * @brief Fake CFaction::GetName original.
+ * @param faction Faction (unused).
+ * @param out Returned unchanged.
+ * @return `out`.
+ */
+void* fake_faction_name(uptr /*faction*/, void* out) {
+    ++game.faction_originals;
+    return out;
+}
+
+/**
+ * @brief Fake game string copy: records the source text.
+ * @param out Returned unchanged.
+ * @param source Source string.
+ * @return `out`.
+ */
+void* fake_copy(void* out, const void* source) {
+    game.copied.push_back(text_of(*static_cast<const capie::engine::MsvcString*>(source)));
+    return out;
+}
+
+/**
  * @brief Log sink.
  * @param channel Channel (unused).
  * @param line Line.
@@ -522,7 +546,7 @@ void hook_tests() {
     game = Game{};
     game.layer = &name_layer;
     game.cosmetic = capie::engine::borrowed_string("CAN_dominion", 12);
-    name_layer.originals() = {&fake_update, &fake_build, &fake_set};
+    name_layer.originals() = {&fake_update, &fake_build, &fake_set, &fake_faction_name};
 
     // Three countries: A with a layer, B without, C with an invalid layer.
     constexpr uptr country_a = 0x1000'0000;
@@ -558,7 +582,9 @@ void hook_tests() {
     name_layer.set_variable(effect_commit, 0);
     check(game.set_calls.size() == 1 && game.updated.size() == 1, "inactive: commit refreshes nothing");
 
-    name_layer.activate(fake_image, &fake_log);
+    name_layer.activate(fake_image, &fake_log, nullptr);
+    check(!name_layer.enabled(), "no string copy: layers stay off");
+    name_layer.activate(fake_image, &fake_log, &fake_copy);
     check(name_layer.enabled(), "active after activate");
     game.tags.clear();
     game.updated.clear();
@@ -642,6 +668,125 @@ void hook_tests() {
     check(has_commit_line, "commit summary logged");
 }
 
+/**
+ * @brief Variables of a faction layer as a mod stores them on the leader.
+ * @param name Faction name.
+ * @param version Raw `capie_fn_ver`.
+ * @return Variables (with a country name layer next to it, which must not mix in).
+ */
+std::vector<std::pair<std::string, std::int64_t>> faction_variables(std::u32string_view name,
+                                                                    std::int64_t version = fp(1)) {
+    auto out = layer_variables(U"Kanadia", U"kanadyjski");
+    out.emplace_back("capie_fn_ver", version);
+    const auto codes = codes_of(name);
+    out.emplace_back("capie_fn_n^num", fp(static_cast<std::int64_t>(codes.size())));
+    for (std::size_t i = 0; i < codes.size(); ++i) {
+        out.emplace_back("capie_fn_n^" + std::to_string(i), fp(codes[i]));
+    }
+    return out;
+}
+
+void faction_tests() {
+    // Reader.
+    const auto read = [](const std::vector<std::pair<std::string, std::int64_t>>& vars) {
+        FakeMemory mem;
+        map_country(mem, 0x1000'0000, 0x2000'0000);
+        check(build_table(mem, 0x2000'0000, 0x3000'0000, 127, 16, vars), "faction table builds");
+        return layer::read_faction_layer(mem, 0x1000'0000);
+    };
+    const auto got = read(faction_variables(U"Sojusz P\u00F3\u0142nocny"));
+    check(got.status == layer::Status::valid && got.view() == "Sojusz P\xC3\xB3\xC5\x82nocny" && got.name_points == 15,
+          "faction layer: plain UTF-8 text");
+    check(read(layer_variables(U"Kanadia", U"k")).status == layer::Status::absent, "no capie_fn_ver: absent");
+    check(read(faction_variables(U"X", fp(2))).status == layer::Status::invalid, "faction version 2: invalid");
+    check(read(without(faction_variables(U"O\u015B"), "capie_fn_n^1")).status == layer::Status::invalid,
+          "faction element missing: invalid");
+
+    // Hook body.
+    FakeMemory mem;
+    layer::NameLayer<FakeMemory> name_layer{mem};
+    game = Game{};
+    game.layer = &name_layer;
+    game.cosmetic = capie::engine::borrowed_string("GER", 3);
+    name_layer.originals() = {&fake_update, &fake_build, &fake_set, &fake_faction_name};
+    constexpr uptr leader = 0x1000'0000;
+    constexpr uptr member = 0x1100'0000;
+    constexpr uptr faction = 0x7800'0000;
+    constexpr uptr members = 0x7900'0000;
+    constexpr uptr effect_faction = 0x6200'0000;
+    map_country(mem, leader, 0x2000'0000);
+    map_country(mem, member, 0x2100'0000);
+    check(build_table(mem, 0x2000'0000, 0x3000'0000, 127, 16, faction_variables(U"Sojusz P\u00F3\u0142nocny")) &&
+              build_table(mem, 0x2100'0000, 0x3100'0000, 127, 16, {{"other", fp(1)}}),
+          "faction country tables build");
+    mem.map(faction, 0x600);
+    mem.put(faction + 0x58, members);
+    mem.put(faction + 0x64, std::int32_t{2});
+    mem.map(members, 16);
+    mem.put(members, leader);
+    mem.put(members + 8, member);
+    mem.map(fake_image + 0x332F260, 8);
+    mem.put(fake_image + 0x332F260, fake_state);
+    mem.map(fake_state, 0x400);
+    mem.put(fake_state + 0x310, fake_list);
+    mem.put(fake_state + 0x31C, std::int32_t{2});
+    mem.map(fake_list, std::size_t{16});
+    mem.put(fake_list, leader);
+    mem.put(fake_list + 8, member);
+    mem.map(effect_faction, 0x100);
+    put_string(mem, effect_faction + 0xC8, "capie_fn_rev");
+    name_layer.activate(fake_image, &fake_log, &fake_copy);
+
+    capie::engine::MsvcString out{};
+    static_cast<void>(name_layer.faction_name(faction, &out));
+    check(game.faction_originals == 1 && game.copied.empty(), "empty cache: the original answers");
+    static_cast<void>(name_layer.update_names(leader));
+    static_cast<void>(name_layer.update_names(member));
+    check(name_layer.faction_key(leader) == "Sojusz P\xC3\xB3\xC5\x82nocny" && name_layer.faction_key(member).empty(),
+          "UpdateNames fills the faction cache (also after a load)");
+    check(name_layer.faction_name(faction, &out) == &out && game.faction_originals == 1 &&
+              game.copied == std::vector<std::string>{"Sojusz P\xC3\xB3\xC5\x82nocny"},
+          "leader layer: the text is copied, the original is not called");
+    // Another leader: the layer stays with the old leader, the faction shows the game's name.
+    mem.put(members, member);
+    mem.put(members + 8, leader);
+    static_cast<void>(name_layer.faction_name(faction, &out));
+    check(game.faction_originals == 2 && game.copied.size() == 1, "new leader without a layer: the original answers");
+    mem.put(members, leader);
+    mem.put(faction + 0x64, std::int32_t{0});
+    static_cast<void>(name_layer.faction_name(faction, &out));
+    check(game.faction_originals == 3, "no members: the original answers");
+    mem.put(faction + 0x64, std::int32_t{2});
+    static_cast<void>(name_layer.faction_name(0x7A00'0000, &out));
+    check(game.faction_originals == 4, "unreadable faction: the original answers");
+    // Reset committed through capie_fn_rev: cache cleared, country names untouched.
+    check(build_table(mem, 0x2000'0000, 0x3000'0000, 127, 16, layer_variables(U"Kanadia", U"kanadyjski")),
+          "leader loses the faction layer");
+    game.updated.clear();
+    name_layer.set_variable(effect_faction, 0);
+    check(name_layer.faction_key(leader).empty() && game.updated.empty(),
+          "faction commit refreshes the faction cache only");
+    static_cast<void>(name_layer.faction_name(faction, &out));
+    check(game.faction_originals == 5 && game.copied.size() == 1, "after the reset the game's name is back");
+    // A new name committed.
+    check(build_table(mem, 0x2000'0000, 0x3000'0000, 127, 16, faction_variables(U"O\u015B")), "leader gets a new name");
+    name_layer.set_variable(effect_faction, 0);
+    static_cast<void>(name_layer.faction_name(faction, &out));
+    check(game.copied.size() == 2 && game.copied.back() == "O\xC5\x9B", "faction commit shows the new name");
+    const auto stats = name_layer.refresh_factions();
+    check(stats.list_ok && stats.countries == 2 && stats.layers == 1, "faction refresh counters");
+    name_layer.deactivate();
+    static_cast<void>(name_layer.faction_name(faction, &out));
+    check(game.faction_originals == 6, "deactivated: the original answers");
+    bool no_text = true;
+    bool commit_line = false;
+    for (const auto& line : game.log) {
+        no_text = no_text && line.find("Sojusz") == std::string::npos && line.find("O\xC5\x9B") == std::string::npos;
+        commit_line = commit_line || line.starts_with("CAPIE_FACTION commit list_ok=1");
+    }
+    check(no_text && commit_line, "faction log lines: counts only");
+}
+
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 }  // namespace
@@ -652,6 +797,7 @@ int main() {
         lookup_tests();
         decode_tests();
         hook_tests();
+        faction_tests();
     } catch (...) {
         ++failures;
         static_cast<void>(std::printf("FAIL unexpected exception\n"));
