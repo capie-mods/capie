@@ -12,6 +12,20 @@ The default development loading path is the opt-in `version.dll` proxy. Build wi
 remains available. The proxy uses `current/runtime/` and requires the exact `-capie`
 argument or the explicit bootstrap config marker; it creates no injection helper process.
 
+## In the game
+
+What CAPIE adds, as Rename Anything uses it (CAPIE 1.4 developer build, HOI4 1.19.3.0, single
+player). The text field bridge: the game's own `editBoxType`, with the typed text passed to the
+mod's Apply command.
+
+<img src="../../docs/assets/promo/capie/readme/native-field.jpg" alt="Two Rename Anything editors built on CAPIE: a leader name in the Politics panel and a subject's name and adjective, each in the game's own text field with Apply and Cancel." width="880">
+
+The country and faction name layers (API levels 4 and 5) and the country flag layer (API level 6).
+
+<img src="../../docs/assets/promo/capie/readme/name-layers.jpg" alt="Left: a country labelled Skbidi Kingdom on the map. Right: a faction labelled The Rizzlers in the faction map mode." width="880">
+
+<img src="../../docs/assets/promo/capie/readme/flag-layer.jpg" alt="Left: a flag picker listing the game's flags by letter. Right: the Politics panel of the renamed country Skbidi Kingdom showing its new flag." width="880">
+
 ## Host probe, debug flavor only (log, no record)
 
 `features/host/host_probe.hpp` (read-only chain: application, session, backend, human list) and

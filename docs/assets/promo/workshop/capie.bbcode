@@ -1,0 +1,44 @@
+[h1]CAPIE[/h1]
+CAPIE (Cyprian's API Extender) is a small native library that gives Hearts of Iron IV mods a few abilities the script language does not have: reading what the player types into the game's own text field, and custom country, faction and flag layers stored in the save. Rename Anything is the first mod built on CAPIE.
+
+This item is the switch. It has no game content, only the switch and one status line in the bottom right corner of the main menu.
+[list]
+[*]Enabled in your playset: the CAPIE launcher loads CAPIE into the game.
+[*]Disabled, or not in the playset: the game starts without CAPIE.
+[/list]
+Load order does not matter.
+
+[b]Pre-release.[/b] Current version: CAPIE 1.4 (script API level 6), tested in single player on HOI4 1.19.3.0 with development builds.
+
+[h2]The status line in the main menu[/h2]
+[list]
+[*]"CAPIE 1.4": CAPIE is running.
+[*]"CAPIE missing" in orange: the switch is on but CAPIE is not loaded. The game was not started through the CAPIE launcher, your game version is not supported, or the menu has not finished loading. CAPIE loads about 20 seconds after the main menu appears.
+[/list]
+
+[h2]Requirements[/h2]
+[list]
+[*]Hearts of Iron IV 1.19.3.0 on Windows.
+[*]The CAPIE launcher, set up by the installer. Without it this item does nothing.
+[/list]
+
+[h2]Installing[/h2]
+The installer is in preparation. It will come as one PowerShell line ([i]irm ... | iex[/i]) and as an installer on GitHub Releases, published together with the first release. It installs the launcher and can switch CAPIE off or uninstall it later.
+
+[h2]How it works[/h2]
+When you press Play, the Paradox Launcher writes your playset to dlc_load.json in Documents\Paradox Interactive\Hearts of Iron IV. The CAPIE launcher reads that file after the game has started. If this item is listed, CAPIE is loaded once the game reaches the main menu. If the file cannot be read, the game runs without CAPIE and a short notice says so.
+
+[h2]Safety and limits[/h2]
+[list]
+[*]Game files stay unchanged. The launcher adds nothing to the game folder.
+[*]No network connections.
+[*]CAPIE checks the SHA-256 of hoi4.exe and every place it hooks. On any other game build it does not start, and the game runs without it.
+[*]Multiplayer has not been tested with two players. Disable this item before you play multiplayer.
+[*]Whether the game counts this item for the checksum or for achievements has not been checked.
+[*]Some antivirus programs may warn about CAPIE, because it loads itself into the game process. Every release will be scanned on VirusTotal and the results linked from the release notes.
+[/list]
+
+[h2]Back to the clean game[/h2]
+Disable this item in the playset: the next start is without CAPIE. To remove CAPIE completely, run the installer and choose Uninstall. Saves and other mods are not touched.
+
+Source code and documentation are on GitHub. Hearts of Iron IV is a trademark of Paradox Interactive. This project is not affiliated with or endorsed by Paradox Interactive.

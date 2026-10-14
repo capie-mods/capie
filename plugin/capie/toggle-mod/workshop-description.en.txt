@@ -9,7 +9,7 @@ This mod is the switch for CAPIE. It contains no game content: only the switch a
 
 [h2]The status line in the main menu[/h2]
 [list]
-[*]"CAPIE 1.3" (the loaded version): CAPIE is running.
+[*]"CAPIE 1.4" (the loaded version): CAPIE is running.
 [*]"CAPIE missing" in orange: the switch is on, but CAPIE is not loaded. Either the game was not started through the CAPIE launcher, your game version is not supported yet (the launcher then starts the game without CAPIE and tells you), or the main menu has not finished loading yet. CAPIE loads about 20 seconds after the main menu appears.
 [/list]
 

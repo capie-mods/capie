@@ -24,15 +24,31 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[2]
-TOKENS = REPO / "docs" / "design" / "tokens.json"
-OUTPUT = HERE / "capie" / "thumbnail.png"
-FONT_DIR = Path("C:/Windows/Fonts")
-FONT_BOLD = FONT_DIR / "segoeuib.ttf"
-FONT_REGULAR = FONT_DIR / "segoeui.ttf"
+"""Folder of this script (``plugin/capie/toggle-mod``)."""
 
-SIZE = 512  # final edge in pixels (Workshop and Paradox Launcher preview)
-SCALE = 4  # supersampling factor for smooth edges
+REPO = HERE.parents[2]
+"""Repository root."""
+
+TOKENS = REPO / "docs" / "design" / "tokens.json"
+"""Design tokens; every colour of the picture is read from this file."""
+
+OUTPUT = HERE / "capie" / "thumbnail.png"
+"""The switch mod's preview image (``picture`` in its descriptor.mod)."""
+
+FONT_DIR = Path("C:/Windows/Fonts")
+"""Windows font folder."""
+
+FONT_BOLD = FONT_DIR / "segoeuib.ttf"
+"""Bold face for the name (design system fallback stack)."""
+
+FONT_REGULAR = FONT_DIR / "segoeui.ttf"
+"""Regular face for the full name and the body lines."""
+
+SIZE = 512
+"""Final edge in pixels (Workshop and Paradox Launcher preview)."""
+
+SCALE = 4
+"""Supersampling factor for smooth edges."""
 
 
 def load_colors() -> dict[str, str]:
@@ -52,6 +68,9 @@ def load_colors() -> dict[str, str]:
 def px(value: float) -> int:
     """Converts a coordinate of the 512 px design grid to the supersampled canvas.
 
+    Args:
+        value: Coordinate on the design grid.
+
     Returns:
         The coordinate on the supersampled canvas.
     """
@@ -60,6 +79,12 @@ def px(value: float) -> int:
 
 def box(x0: float, y0: float, x1: float, y1: float) -> tuple[int, int, int, int]:
     """Maps a rectangle of the design grid to the supersampled canvas.
+
+    Args:
+        x0: Left edge on the design grid.
+        y0: Top edge on the design grid.
+        x1: Right edge on the design grid.
+        y1: Bottom edge on the design grid.
 
     Returns:
         The rectangle as (left, top, right, bottom) canvas pixels.
@@ -70,6 +95,10 @@ def box(x0: float, y0: float, x1: float, y1: float) -> tuple[int, int, int, int]
 def font(path: Path, size: float) -> ImageFont.FreeTypeFont:
     """Loads a font at a design-grid size.
 
+    Args:
+        path: Font file.
+        size: Size on the design grid.
+
     Returns:
         The font scaled for the supersampled canvas.
     """
@@ -78,6 +107,9 @@ def font(path: Path, size: float) -> ImageFont.FreeTypeFont:
 
 def draw(colors: dict[str, str]) -> Image.Image:
     """Draws the thumbnail.
+
+    Args:
+        colors: Colour tokens by name.
 
     Returns:
         The final 512 x 512 RGB image.
@@ -125,6 +157,9 @@ def draw(colors: dict[str, str]) -> Image.Image:
 
 def encode(image: Image.Image) -> bytes:
     """Encodes the image as PNG without timestamps or other variable chunks.
+
+    Args:
+        image: The final image.
 
     Returns:
         Reproducible PNG bytes.
