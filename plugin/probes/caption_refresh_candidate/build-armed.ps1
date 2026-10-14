@@ -1,13 +1,21 @@
 param(
     [Parameter(Mandatory = $true)][string]$MinHookDir,
     [string]$VisualStudioDir = '',
-    [string]$Python = 'C:\Users\user\miniconda3\python.exe'
+    [string]$Python = $env:CAPIE_PYTHON  # empty: python or py from PATH
 )
 # Builds the ARMED caption refresh bridge (generated copy of the accepted debug bridge with the
 # caption core on the same 7 hooks) into plugin/build/caption-refresh-bridge, plus its injector,
 # the inherited debug-bridge suite (re-targeted at the generated source) and the integration suite.
 # Never inspects, starts, injects into or reads memory of a game process.
 $ErrorActionPreference = 'Stop'
+if (-not $Python) {
+    # CAPIE_PYTHON unset: first python or py launcher on PATH.
+    $Python = foreach ($candidate in 'python', 'py') {
+        $command = Get-Command $candidate -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($command) { $command.Source; break }
+    }
+    if (-not $Python) { throw 'Python not found: pass -Python <python.exe>, set CAPIE_PYTHON or put python/py on PATH.' }
+}
 & $Python -I (Join-Path $PSScriptRoot 'make_armed_bridge.py') --check
 if ($LASTEXITCODE -ne 0) { throw 'Generated bridge is stale: run make_armed_bridge.py and review the diff' }
 $outputDirectory = Join-Path $PSScriptRoot '..\..\build\caption-refresh-bridge'

@@ -448,7 +448,13 @@ void payload_tests() {
                                 source_record("capie_x", 1)};
     put(faction.context(), off::context_records, TempVector{spoof.data(), 5, 5, nullptr});
     const auto before = dispatch_originals;
+#if CAPIE_DEBUG_DIAGNOSTICS
+    host_probe_ready.store(true);  // debug probe reads the fake image (unreadable chain): log only
+#endif
     click(faction, apply_of(faction));
+#if CAPIE_DEBUG_DIAGNOSTICS
+    host_probe_ready.store(false);
+#endif
     check(dispatch_originals == before + 1 && !captured.empty(), "Apply dispatched once");
     check(count_of("user_key") == 1 && value_of("user_key") == 7, "non-reserved original kept");
     check(count_of("capie_cap") == 1 && value_of("capie_cap") == 6, "capie_cap = 6 (spoof removed)");
@@ -456,6 +462,7 @@ void payload_tests() {
     check(count_of("capie_flag") == 1 && value_of("capie_flag") == 0,
           "capie_flag = 0 without an initialized capie_core.dll (API level 6)");
     check(count_of("capie_epoch") == 1 && value_of("capie_epoch") == 3, "capie_epoch from the carrier");
+    check(count_of("capie_host") == 0, "no capie_host record (the host probe only logs)");
     check(count_of("capie_x") == 0, "every capie_ record from the source removed");
     check(value_of("capie_nf") == 1 && value_of("capie_f1_err") == 0 && value_of("capie_f1_at") == 0 &&
               value_of("capie_f1_len") == 16,

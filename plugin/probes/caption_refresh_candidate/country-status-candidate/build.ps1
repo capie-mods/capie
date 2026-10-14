@@ -1,12 +1,20 @@
 param(
     [Parameter(Mandatory = $true)][string]$MinHookDir,
     [string]$VisualStudioDir = '',
-    [string]$Python = 'C:\Users\user\miniconda3\python.exe'
+    [string]$Python = $env:CAPIE_PYTHON  # empty: python or py from PATH
 )
 # SEPARATE candidate: country DLL with the CAPIE status text. Stages a copy of plugin/src, applies
 # country_status.patch (the accepted plugin/src/country.cpp is never edited), builds the DLL into
 # plugin/build/country-status-candidate and runs the offline tests. Never touches a game process.
 $ErrorActionPreference = 'Stop'
+if (-not $Python) {
+    # CAPIE_PYTHON unset: first python or py launcher on PATH.
+    $Python = foreach ($candidate in 'python', 'py') {
+        $command = Get-Command $candidate -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($command) { $command.Source; break }
+    }
+    if (-not $Python) { throw 'Python not found: pass -Python <python.exe>, set CAPIE_PYTHON or put python/py on PATH.' }
+}
 $pinnedSource = '689924a8faa5ec24e3f66c1bdf119e358f9eefa4da2ca815f5b7b3cb27e71ccf'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 $src = Join-Path $repo 'plugin\src'

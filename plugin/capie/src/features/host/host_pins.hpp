@@ -1,0 +1,141 @@
+/**
+ * @file host_pins.hpp
+ * @brief Pins of the host probe (`host_probe.hpp`), checked once at editor start in the debug flavor.
+ *
+ * Source: docs/evidence/session-20261014/host-detect/report.txt, section 3. One correction:
+ * `GetMachineId` (B54190, `8B81A4000000C3`) is not unique in `.text` (a second copy at E56DDE),
+ * so its signature starts one padding byte earlier (B5418F, `CC8B81A4000000C3`, unique).
+ * None of the pinned ranges overlaps a DIR64 relocation (checked on the 1.19.3.0 file).
+ *
+ * A failed pin turns the probe off (one log line naming the pin); the editor keeps working.
+ */
+#pragma once
+#include "../../core/memory.hpp"
+#include "../../core/pe_image.hpp"
+#include "../../core/signatures.hpp"
+#include "host_probe.hpp"
+
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <iterator>
+
+namespace capie::host::pins {
+
+/// @brief Exact instruction bytes at an RVA.
+struct InstructionPin {
+    const char* id;   ///< Identifier for the log.
+    uptr rva;         ///< Instruction RVA.
+    const char* hex;  ///< Exact bytes.
+};
+
+/// @brief A vtable slot that must point to a given function.
+struct NamedSlotPin {
+    const char* id;     ///< Identifier for the log.
+    core::SlotPin pin;  ///< Vtable, slot and target RVAs.
+};
+
+/// @brief Functions whose bytes establish the chain (report 3, "Sygnatury").
+inline constexpr core::Signature signatures[] = {
+    {"host.get_local_human", core::SignatureGroup::editor_callee, 0x1DB8E0,
+     "40534883EC20488BD9488B0D????????488B01FF9088000000488BC8E8????????48638B04010000",
+     "CGameState::GetLocalHuman: session vslot 0x88, humans +0x104 (report 1.4)"},
+    {"host.get_session", core::SignatureGroup::editor_callee, 0x1776E0, "488B8180030000C3",
+     "CGameApplication::GetSession: mov rax,[rcx+380h] (report 1.1)"},
+    {"host.get_machine_id", core::SignatureGroup::editor_callee, 0xB5418F, "CC8B81A4000000C3",
+     "CSession::GetMachineId: mov eax,[rcx+0A4h] (report 1.2; padding byte for uniqueness)"},
+    {"host.session_init", core::SignatureGroup::editor_callee, 0x2250890, "40534883EC204889742438418D40FF33F6",
+     "CSession::Init prologue: is_server = (mode-1) <= 1 (report 1.2)"},
+    {"host.is_from_host", core::SignatureGroup::editor_callee, 0x2269C50, "83790C010F94C0C3",
+     "host-only command check: machine id 1 is the host (report 1.4)"},
+};
+
+/// @brief Offsets read by the probe, pinned in the game's own instructions.
+inline constexpr InstructionPin instruction_pins[] = {
+    {"session.is_server", 0x22508D5, "884154"},                      // mov [rcx+54],al
+    {"session.mode", 0x22508E2, "4489414C"},                         // mov [rcx+4C],r8d
+    {"session.machine_id_1", 0x22508EA, "C781A400000001000000"},     // mov dword [rcx+A4],1
+    {"session.backend", 0x22508FE, "48895158"},                      // mov [rcx+58],rdx
+    {"lobby.session_is_server", 0x1CD5694, "FF908800000080785400"},  // call [rax+88]; cmp byte [rax+54],0
+    {"gamestate.human_count", 0x1DB901, "48638B04010000"},           // movsxd rcx,[rbx+104]
+    {"gamestate.humans", 0x1DB90F, "4C8B93F8000000"},                // mov r10,[rbx+F8]
+    {"human.machine_id", 0x1DB91C, "498D8A98000000"},                // lea rcx,[r10+98]
+    {"human.stride", 0x1DB92D, "4881C1A0000000"},                    // add rcx,0A0
+    {"human.name", 0x19A94BB, "488D5320"},                           // lea rdx,[rbx+20] (USER_NAME)
+    {"human.ctor_machine_id", 0xBBC6E3, "41898698000000"},           // mov [r14+98],eax
+};
+
+/// @brief RIP targets: the application global read by GetApplication.
+inline constexpr core::RipPin target_pins[] = {
+    {"app.global", 0x222BDB3, 0x222BDB7, layout::app_global},
+};
+
+/// @brief Vtable slots: GetSession of the application, idler slot 0x88 (report 1.1).
+inline constexpr NamedSlotPin slot_pins[] = {
+    {"app.get_session_slot", {layout::vt_game_application, 0x88, 0x1776E0}},
+    {"ingame_idler.session_slot", {0x2968FF0, 0x88, 0xB3C4A0}},
+};
+
+/// @brief Expected signatures.
+inline constexpr std::size_t expected_signatures = 5;
+/// @brief Expected instruction pins.
+inline constexpr std::size_t expected_instruction_pins = 11;
+/// @brief Expected target pins.
+inline constexpr std::size_t expected_target_pins = 1;
+/// @brief Expected slot pins.
+inline constexpr std::size_t expected_slot_pins = 2;
+static_assert(std::size(signatures) == expected_signatures &&
+              std::size(instruction_pins) == expected_instruction_pins &&
+              std::size(target_pins) == expected_target_pins && std::size(slot_pins) == expected_slot_pins);
+
+/**
+ * @brief Compares exact bytes at `image + pin.rva`.
+ * @tparam M Memory policy.
+ * @param mem Memory policy.
+ * @param image Image base.
+ * @param pin Pin.
+ * @return `true` when the bytes match.
+ */
+template <class M>
+bool verify_instruction(const M& mem, uptr image, const InstructionPin& pin) noexcept {
+    std::array<unsigned char, core::max_pattern_bytes> expected{};
+    const auto size = core::decode_hex(pin.hex, expected.data(), expected.size());
+    std::array<unsigned char, core::max_pattern_bytes> actual{};
+    return size != 0 && mem.read(image + pin.rva, actual.data(), size) &&
+           std::equal(expected.begin(), expected.begin() + static_cast<std::ptrdiff_t>(size), actual.begin());
+}
+
+/**
+ * @brief Checks every signature and pin of the probe.
+ * @tparam M Memory policy (data reads: instruction bytes, RIP displacements, vtable slots).
+ * @param text `.text` of the game image (signatures).
+ * @param mem Memory policy.
+ * @param image Image base the vtable slots are relocated to.
+ * @return Null when all pass, else the id of the first failed check.
+ */
+template <class M>
+const char* first_failed_pin(const core::TextSection& text, const M& mem, uptr image) noexcept {
+    for (const auto& signature : signatures) {
+        if (!core::verify_signature(text, signature)) {
+            return signature.id;
+        }
+    }
+    for (const auto& pin : instruction_pins) {
+        if (!verify_instruction(mem, image, pin)) {
+            return pin.id;
+        }
+    }
+    for (const auto& pin : target_pins) {
+        if (!core::verify_rip_pin(mem, image, pin)) {
+            return pin.id;
+        }
+    }
+    for (const auto& pin : slot_pins) {
+        if (!core::verify_slot_pin(mem, image, pin.pin)) {
+            return pin.id;
+        }
+    }
+    return nullptr;
+}
+
+}  // namespace capie::host::pins

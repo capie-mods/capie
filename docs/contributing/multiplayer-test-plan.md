@@ -59,7 +59,7 @@ Lock excerpt, with imports resolved from the PE table:
 
 The recipe below is **a candidate for a single-process isolation test only**. It has not been run and does not get around the lock described above. Close the running game first, with the agreement of whoever is running QA.
 
-1. Create two new, empty test directories, for example `C:/Users/user/Documents/hoi4_rn_mp_a` and `C:/Users/user/Documents/hoi4_rn_mp_b`. Use names without spaces or hyphens, because the recovered parser splits its input on `-`. Do not point either of them at the normal user data directory.
+1. Create two new, empty test directories, for example `C:/Users/you/Documents/hoi4_rn_mp_a` and `C:/Users/you/Documents/hoi4_rn_mp_b`. Use names without spaces or hyphens, because the recovered parser splits its input on `-`. Do not point either of them at the normal user data directory.
 2. In each directory, prepare only the settings needed to start, a separate `dlc_load.json` with just the test mod, and `mod/rename_anything_dev.mod` pointing with an absolute path to `repo/mod`. Do not copy the whole user profile or its saves. Verify that the DLC and mod files are identical, and for the mixed-language test set EN and PL separately.
 3. First start one process without changing `launcher-settings.json` or `userdir.txt`:
 
@@ -68,7 +68,7 @@ The recipe below is **a candidate for a single-process isolation test only**. It
    $rnExe = Join-Path $rnGameDir 'hoi4.exe'
    Start-Process -FilePath $rnExe -WorkingDirectory $rnGameDir -ArgumentList @(
        '-debug_mode',
-       '-userdir=C:/Users/user/Documents/hoi4_rn_mp_a'
+       '-userdir=C:/Users/you/Documents/hoi4_rn_mp_a'
    ) -WindowStyle Hidden -PassThru
    ```
 

@@ -1,13 +1,16 @@
 param(
     [string]$VisualStudioDir = '',
     [int]$TimeoutSeconds = 60,
-    [string]$MinHookDir = 'C:\Users\user\AppData\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\Tools\minhook'
+    [string]$MinHookDir = $env:CAPIE_MINHOOK_DIR  # folder with include\MinHook.h and src\
 )
 # Reproducible mutation check for caption_refresh_core.hpp. Each mutant is one exact,
 # unique textual replacement (applied to a copy under plugin/build/caption-refresh-candidate/
 # mutants). The fake-memory suite is run WITHOUT the EXE argument (no file/process access).
 # A mutant is "killed" when the suite reports failures, crashes, or exceeds the timeout.
 $ErrorActionPreference = 'Stop'
+if (-not $MinHookDir -or -not (Test-Path -LiteralPath (Join-Path $MinHookDir 'include\MinHook.h'))) {
+    throw 'MinHook source not found: pass -MinHookDir <folder with include\MinHook.h and src\> or set CAPIE_MINHOOK_DIR.'
+}
 $mutants = [ordered]@{
     'launcher-baselines'      = @('if (!s.seeded) { ++counters_.observations_ignored_unseeded; return Observe::ignored_unseeded; }',
                                   'if (!s.seeded) { s.seeded = true; s.acked = rev; s.observed = rev; return Observe::ignored_unseeded; }')

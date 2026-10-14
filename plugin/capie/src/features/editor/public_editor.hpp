@@ -37,6 +37,7 @@
  * never reaches the log.
  */
 #pragma once
+#include "../host/host_probe.hpp"
 #include "lifecycle.hpp"
 #include "prefill.hpp"
 #include "public_names.hpp"
@@ -44,6 +45,7 @@
 #include "transport.hpp"
 #include "window_view.hpp"
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
@@ -96,6 +98,25 @@ inline constexpr std::size_t public_line_capacity = 320;
 inline constexpr std::size_t public_detail_capacity = 64;
 /// @brief Name buffer for a model name read from the game (longest grammar name + slack).
 inline constexpr std::size_t public_name_buffer = grammar::name_capacity;
+
+#if CAPIE_DEBUG_DIAGNOSTICS
+/// @brief Debug flavor: the host probe pins matched at start (log-only probe, never a record).
+inline std::atomic<bool> host_probe_ready{false};
+
+/**
+ * @brief Debug flavor: logs one `CAPIE_HOST` line for an Apply (no names, no record).
+ */
+inline void log_host_probe() noexcept {
+    if (!host_probe_ready.load(std::memory_order_acquire)) {
+        return;
+    }
+    std::array<char, host::line_capacity> line{};
+    const auto size = host::probe_line(core::ProcessMemory{}, image_base, line);
+    if (size != 0) {
+        write_log(line.data(), size);
+    }
+}
+#endif
 
 /// @brief Outcome of `register_public`.
 enum class Registration {
@@ -804,6 +825,9 @@ inline bool public_dispatch(void* context, void* opaque_selector) noexcept {
         bridge_rejected(current.id, "public-editor-not-live-dropped");
         return true;
     }
+#if CAPIE_DEBUG_DIAGNOSTICS
+    log_host_probe();  // log only; the command carries no capie_host record
+#endif
     PublicSnapshot snapshot{};
     auto code = static_cast<unsigned>(PublicSentinel::registry_full);
     if (registered) {
