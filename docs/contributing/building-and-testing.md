@@ -119,6 +119,7 @@ See [tools/bootstrap/README.md](../../tools/bootstrap/README.md).
 ```powershell
 uv run python sites/shared/sync_shared.py              # copy the shared theme into both sites
 uv run python sites/shared/sync_shared.py --check      # exit 1 when a copy is stale
+uv run python sites/shared/zensical_overrides.py       # Zensical assets without layout transitions
 uv run zensical build -f sites/capie/zensical.toml --clean --strict
 uv run zensical build -f sites/rename-anything/zensical.toml --clean --strict
 ```

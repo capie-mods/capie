@@ -738,4 +738,8 @@ html {
   .md-typeset table:not([class]) th {
     overflow-wrap: anywhere;
   }
+
+  .md-typeset table:not([class]) .st {
+    white-space: normal;
+  }
 }
