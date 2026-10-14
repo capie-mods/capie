@@ -1,6 +1,6 @@
 # Typed state variables and the Cities lookup
 
-Date: 2026-10-11. Read-only static investigation, stopped at the user's request to save progress. No game/UI action, injection, Frida attachment, rebuild, or game-file change was performed. Proposed script changes have not been verified at runtime by this investigation.
+Date: 2026-10-11. Read-only static investigation; the investigation ended at this point and the remaining checks are listed under next validation. No game/UI action, injection, Frida attachment, rebuild, or game-file change was performed. Proposed script changes have not been verified at runtime by this investigation.
 
 Target: Windows x64 HOI4 1.19.3.0, EXE SHA256 `7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5`, base `0x140000000`. All addresses below are RVAs. Ghidra used the existing exact-hash project with `-noanalysis -readOnly`; function aliases in the output are analyst labels.
 
@@ -38,7 +38,7 @@ The proposed assignment `ROOT.rn_sel_state_id = THIS.id` is **not confirmed to p
 
 The local vanilla example `common/scripted_effects/SOV_scripted_effects.txt:8302` assigns `ROOT.temp_target_state = THIS.id` and then passes it to `build_railway.target_state`. That consumer accepts a state reference, so the example does not establish suitability for mathematical ID comparison.
 
-A concrete fallback for the next session is to generate an ID lookup while inside `var:rn_sel_state`, assigning a numeric literal for the matching state:
+A concrete fallback is to generate an ID lookup while inside `var:rn_sel_state`, assigning a numeric literal for the matching state:
 
 ```text
 if = {
@@ -51,23 +51,23 @@ Generate this from the existing state-ID inventory, clear/reset the numeric ID b
 
 ## Evidence and next validation
 
-- [Targeted decompilation](evidence/session-20261011/typed-state-variable-decompile.txt): state resolver, literal encoding, variable evaluation, comparison, existence, assignment, and expression parser.
-- [Raw Capstone](evidence/session-20261011/typed-state-variable-capstone.txt): tagged state encoding, signed comparisons, special-name handling, and aligned parser excerpts.
-- [Function list](evidence/session-20261011/typed-state-variable-functions.txt) and [read-only Ghidra logs](evidence/session-20261011/typed-state-variable-ghidra.log).
+- [Targeted decompilation](../evidence/session-20261011/typed-state-variable-decompile.txt): state resolver, literal encoding, variable evaluation, comparison, existence, assignment, and expression parser.
+- [Raw Capstone](../evidence/session-20261011/typed-state-variable-capstone.txt): tagged state encoding, signed comparisons, special-name handling, and aligned parser excerpts.
+- [Function list](../evidence/session-20261011/typed-state-variable-functions.txt) and [read-only Ghidra logs](../evidence/session-20261011/typed-state-variable-ghidra.log).
 
-Next session: select Danzig through the States list and the state-panel shortcut, verify the selected state's name and VP list, select a state from another numeric bucket, then a state without VPs. Confirm deselection clears both reference and numeric lookup state. Do not claim the candidate Cities fix passed until these paths are observed in the game.
+Next validation: select Danzig through the States list and the state-panel shortcut, verify the selected state's name and VP list, select a state from another numeric bucket, then a state without VPs. Confirm deselection clears both reference and numeric lookup state. Do not claim the candidate Cities fix passed until these paths are observed in the game.
 
-## Follow-up, 2026-10-11 resumed session
+## Follow-up, 2026-10-11
 
 Commit `cc9791d` implemented the literal dispatch above for all 1081 vanilla states,
 including 126 without VPs, while retaining the typed state for ownership and scope
-access. [Static mappings and negative fixtures](evidence/session-20261011/city-state-literal-mapping-checks.json)
+access. [Static mappings and negative fixtures](../evidence/session-20261011/city-state-literal-mapping-checks.json)
 passed; the old `THIS.id` converter was removed.
 
-Independent fresh POL1936/PL QA then selected Gdańsk85, renamed VP362 to
-“Nowy Gdańsk”, and observed the actual map label and native province panel. The
-map helper also selected Gdynia807 and showed its three VPs, exercising another
-numeric bucket. [City evidence](evidence/qa-20261011-day2/05-city-apply-map-nowy-gdansk.jpg),
-[helper list](evidence/qa-20261011-day2/07-map-helper-cities-gdynia.jpg).
+Independent fresh POL 1936/PL QA then selected Gdańsk (85), renamed VP 362 to
+"Nowy Gdańsk", and observed the actual map label and native province panel. The
+map helper also selected Gdynia (807) and showed its three VPs, exercising another
+numeric bucket. [City evidence](../evidence/qa-20261011-day2/05-city-apply-map-nowy-gdansk.jpg),
+[helper list](../evidence/qa-20261011-day2/07-map-helper-cities-gdynia.jpg).
 Evidence commit: `4f4c5ad`. This verifies the repaired selection and Apply paths;
 zero-VP UI, complete guard coverage and final save/load remain separate checks.

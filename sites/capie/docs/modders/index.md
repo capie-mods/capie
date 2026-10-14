@@ -1,15 +1,15 @@
 ---
-description: How HOI4 mods use CAPIE. Overview of the script contract (API level 2), the SDK, the reserved capie_ prefix and what still needs a test in the game.
+description: How HOI4 mods use CAPIE. Overview of the script contract (API level 4), the SDK, the name layers, the reserved capie_ prefix and what still needs a test in the game.
 ---
 
 # For modders
 
-!!! proposed "Built, not yet tested in the game"
+!!! proposed "Built, not released"
 
-    CAPIE 1.1 implements the public contract (API level 2) and the script SDK exists, with
-    offline tests. The mechanism underneath runs Rename Anything in single player today, under
-    its private names. The public names have not run in the game yet, so do not publish a mod
-    that depends on them before the in-game test.
+    CAPIE 1.1 implements the public editor contract (API level 2) and CAPIE 1.2 adds the
+    country name layer (API level 4). The SDK's demo mod ran in the game on CAPIE 1.1, and the
+    country name layer passed its first in-game checks on a CAPIE 1.2 developer build.
+    Nothing is released, so do not publish a mod that depends on CAPIE yet.
 
 CAPIE is a library any HOI4 mod can build on, so that modders get these abilities without
 shipping native code: text the player types into a real text field of your own window, names
@@ -18,8 +18,8 @@ whether CAPIE is loaded and which version it is.
 
 ## The decided shape
 
-- The contract is variant B: plain HOI4 script, talking to CAPIE through variables, scripted
-  effects and the cosmetic tag. A mod that uses it parses and runs the same way with or without
+- The contract is variant B: plain HOI4 script, talking to CAPIE through variables and
+  scripted effects. A mod that uses it parses and runs the same way with or without
   CAPIE. Only the branch it takes differs. See [Script contract](contract.md).
 - Native script keywords (variant A, for example a `capie_set_country_name` effect the game's
   parser would understand) may come later as an extra layer over variant B. They need more
@@ -73,6 +73,7 @@ from parts while the game runs.
 | [Script contract](contract.md) | Editor names, the records CAPIE adds, sentinels, alphabet, the hard rule about where CAPIE data exists |
 | [Building an editor](editors.md) | A complete one-field editor from the SDK's demo mod |
 | [Text tools](text-tools.md) | Work buffer, trim, validation, text slots, setters, error codes |
+| [Name layers](name-layers.md) | Custom country names (API level 4) and faction names (API level 5) without touching flags |
 | [Detecting CAPIE](detection.md) | The three detection signals and which one to use for what |
 | [Indicators](indicators.md) | The "mod requires CAPIE but it is missing" snippet and the main-menu line |
 | [Versions and fallback](versioning.md) | API levels, release versions, deprecation, graceful degradation |

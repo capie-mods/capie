@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 486" width="880" height="486" role="img" aria-labelledby="t d">
   <title id="t">Rename Anything is built on CAPIE</title>
-  <desc id="d">Three layers. Top: mod scripts from the Steam Workshop: Rename Anything, which works today, and your own mod calling CAPIE effects, which is planned. Middle: CAPIE, Cyprian's API Extender, one native DLL started by the CAPIE launcher. It already provides country name and adjective support and the bridge from native text fields to game commands; a public API for other mods and a multiplayer check that keeps CAPIE features off until every player confirms CAPIE are planned. Bottom: the unmodified Hearts of Iron IV 1.19.3.0 engine with game commands, localisation lookups and the save file. Solid outlines mark what works today, dashed outlines what is planned.</desc>
+  <desc id="d">Three layers. Top: mod scripts from the Steam Workshop: Rename Anything, which works today, and your own mod calling CAPIE effects, which is planned. Middle: CAPIE, Cyprian's API Extender, two native DLLs started by the CAPIE launcher. It already provides country name and adjective support and the bridge from native text fields to game commands; a public API for other mods and a multiplayer check that keeps CAPIE features off until every player confirms CAPIE are planned. Bottom: the unmodified Hearts of Iron IV 1.19.3.0 engine with game commands, localisation lookups and the save file. Solid outlines mark what works today, dashed outlines what is planned.</desc>
   <!-- Tokens: docs/design/tokens.json v1.2.0. Static on purpose: the layers are a structure, not a sequence. Site copy of docs/assets/readme/architecture.svg: multiplayer chip follows the L0 decision, SDK names proposed. -->
   <style>
     .canvas{fill:#272421}
@@ -54,7 +54,7 @@
   <!-- Layer 2: CAPIE. Its parts are columns of one box, not boxes in a box. -->
   <rect class="native" x="32" y="186" width="816" height="150" rx="2"/>
   <text class="title" x="48" y="215">CAPIE</text>
-  <text class="body" x="100" y="215">Cyprian's API Extender: one native DLL, started by the CAPIE launcher</text>
+  <text class="body" x="100" y="215">Cyprian's API Extender: two native DLLs, started by the CAPIE launcher</text>
   <line class="div" x1="48" y1="232.5" x2="832" y2="232.5"/>
 
   <text class="item" x="48" y="258">Country name and</text>

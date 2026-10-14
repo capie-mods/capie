@@ -17,13 +17,13 @@ countries and reading what the player typed into a text field.</p>
 
 ## What CAPIE is
 
-CAPIE is one Windows DLL that runs inside the game process while you play. It does not change
+CAPIE is two Windows DLLs that run inside the game process while you play. It does not change
 any file of the game. It hooks a few places in the running `hoi4.exe`, supplies text when the
 game looks it up, and adds data to game commands that the player issues. Mods talk to it through
 ordinary HOI4 script.
 
 Rename Anything is the first mod built on CAPIE. It lets you rename your country, its leader and
-its parties in the panel where the name is shown. Your country's name and adjective need CAPIE,
+its parties in the panel where the name is shown, and your subjects through diplomacy. Your country's name and adjective need CAPIE,
 because the game has no script effect that takes free text for a country. The in-panel text
 fields need it too: a script cannot read what the player typed, so CAPIE passes the text to the
 mod inside a game command.
@@ -41,6 +41,8 @@ mod inside a game command.
   only the operations CAPIE defines, and CAPIE checks every input.
 - It is not anti-cheat and not a multiplayer server. In multiplayer it can only refuse to switch
   its own features on (see [Multiplayer](multiplayer.md)).
+- It does not touch flags. A custom country name is its own layer, separate from cosmetic tags
+  (see [Name layers](modders/name-layers.md)).
 - It is not needed for names a mod knows in advance. Vanilla `set_cosmetic_tag`,
   `set_party_name` and `set_character_name` already handle those.
 
@@ -55,6 +57,6 @@ mod inside a game command.
 
 !!! note "File names"
 
-    Current development builds still use legacy file names from before the naming decision:
-    `rename_anything_country.dll`, `rename_anything_injector.exe` and `RenameAnythingLauncher.exe`.
-    Renaming them to `capie_*` is a planned, separate step with new hashes and reviews.
+    The DLLs and the injector are called `capie_core.dll`, `capie_editor.dll` and
+    `capie_injector.exe`. The launcher (`RenameAnythingLauncher.exe`) and the install folder
+    (`%LOCALAPPDATA%\RenameAnything`) still carry the name from before the naming decision.

@@ -47,12 +47,12 @@ The system forwards remain available regardless of activation or validation outc
 
 ## Test evidence
 
-[Prior analysis and REA coverage](evidence/proxy-loader-20261012/prior-analysis.md) records the
+[Prior analysis and REA coverage](../evidence/proxy-loader-20261012/prior-analysis.md) records the
 exact game hash, three imported version functions, 17 system exports and historical task
 transcript findings. REA validates artifact identity; its Windows PTY runtime adapter is
 unavailable. Native runtime observations must be reported separately.
 
-[Windows startup acceptance](evidence/proxy-loader-20261012/runtime-report.md) passed all
+[Windows startup acceptance](../evidence/proxy-loader-20261012/runtime-report.md) passed all
 four real-game cases with the reviewed release DLLs. Both enabled paths returned initializer
 code 0; the modified bundle mapped no CAPIE DLLs. Cleanup restored all 35 top-level game
 files byte-for-byte and removed the test proxy.

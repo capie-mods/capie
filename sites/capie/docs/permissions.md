@@ -27,7 +27,7 @@ Rename Anything does this today. The CAPIE SDK provides two scripted triggers fo
 In multiplayer the acting country inside the effect is expected to be the country of the player
 who issued the command. That is a design assumption until the two-machine test.
 
-## The host <span class="st st-progress">In the SDK</span>
+## The host <span class="st st-progress">In the SDK</span> { #the-host }
 
 HOI4 has no script trigger that says "this is the host", and reading the game's code found no
 such flag either: a command carries the country it acts for, not a verified player or machine.
@@ -86,5 +86,7 @@ if = {
 }
 ```
 
-In Rename Anything the slot for renaming a subject's names exists but is hidden while it is in
-progress.
+Rename Anything has its own lobby rule, `rn_edit_rights`, with three options: own country and
+subjects (default), the host renames every country, or own country only. It does not read the
+SDK's rule. Its overlord renaming of subjects works in single player. Until CAPIE can tell who
+the host is, the host option works in single player only.

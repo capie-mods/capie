@@ -45,5 +45,7 @@ is archived unchanged (in Polish) in
 | 2026-10-14, rename rights rule, factions, restore cooldown, news event | [ADR-0029](adr/0029-game-rules-event-and-restore.md) |
 | 2026-10-14, player-chosen flag | [ADR-0032](adr/0032-custom-flag-layer.md) |
 | 2026-10-14, flags: pool rule, cooldown, reset on cosmetic tag change | [ADR-0032](adr/0032-custom-flag-layer.md); open question in [ADR-0028](adr/0028-custom-name-layer.md) |
+| 2026-10-14, host recognition: `get_my_username`, `get_host_username`, `capie_host` record | [ADR-0033](adr/0033-host-recognition.md) |
+| 2026-10-14, host recognition section, second bullet: build flags per the design and review K1 to K9 | [ADR-0032](adr/0032-custom-flag-layer.md) |
 
 New decisions go into [`adr/`](adr/README.md), not into this file.

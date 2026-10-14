@@ -6,7 +6,7 @@ Target: Windows x64 HOI4 1.19.3.0, `hoi4.exe` SHA256 `7DC947BE34970DA1E1C787BCDD
 
 ## Result relevant to the reported bug
 
-`selected_state_context` supplies a **state** as the current scope. `ROOT` is the player country. The local vanilla documentation's sentence that this context supplies a “target country” is inconsistent with the native state-scope setter and appears to be a documentation typo.
+`selected_state_context` supplies a **state** as the current scope. `ROOT` is the player country. The local vanilla documentation's sentence that this context supplies a "target country" is inconsistent with the native state-scope setter and appears to be a documentation typo.
 
 Selecting this context does **not** automatically attach the scripted window to the state panel. A missing `parent_window_token` leaves the window attached to the main GUI. Explicitly using `parent_window_token = selected_state_view` both attaches it to the state panel and enables the native path that takes the selected state directly from that panel.
 
@@ -49,7 +49,7 @@ finish:
     set ROOT to player country scope
 ```
 
-Consequently, adding the parent token changes how the state is obtained, as well as where the window is drawn. Static analysis alone cannot establish which condition was failing in the user's current game.
+Consequently, adding the parent token changes how the state is obtained, as well as where the window is drawn. Static analysis alone cannot establish which condition was failing in the reported game session.
 
 ## What `selected_state_view` parents to
 
@@ -71,9 +71,9 @@ With the explicit state-view parent, `orientation = upper_left` and local positi
 
 ## Reproduction and raw evidence
 
-- [Targeted decompilation](evidence/session-20261011/state-view-targeted-decompile.txt), including original Ghidra warnings and analyst aliases.
-- [Raw Capstone](evidence/session-20261011/state-view-capstone.txt), including constructor, scope setters/accessors, state-context rebuild, root-window creation, and string xrefs.
-- [Function request list](evidence/session-20261011/state-view-functions.txt).
-- [Read-only Ghidra logs](evidence/session-20261011/state-view-ghidra.log), recording the existing project and discarded changes.
+- [Targeted decompilation](../evidence/session-20261011/state-view-targeted-decompile.txt), including original Ghidra warnings and analyst aliases.
+- [Raw Capstone](../evidence/session-20261011/state-view-capstone.txt), including constructor, scope setters/accessors, state-context rebuild, root-window creation, and string xrefs.
+- [Function request list](../evidence/session-20261011/state-view-functions.txt).
+- [Read-only Ghidra logs](../evidence/session-20261011/state-view-ghidra.log), recording the existing project and discarded changes.
 
 Use `probes/ghidra/Decomp.java` with the saved function list against the same exact-hash project, `-process hoi4.exe -noanalysis -readOnly`. No binary patch or live-game observation was used for these findings.

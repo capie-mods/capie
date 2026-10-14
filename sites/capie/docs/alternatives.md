@@ -45,7 +45,7 @@ players who run several native mods.
 
 CAPIE also loads through a proxy DLL, its own `version.dll`, but with a different contract: it
 loads only CAPIE's two DLLs, whose hashes are compiled into the proxy, only for the pinned game
-build and only when the player switched CAPIE on (see the repository's `docs/proxy-loader.md`).
+build and only when the player switched CAPIE on (see the repository's `docs/contributing/proxy-loader.md`).
 A loader that loads every DLL in a folder is more open by design, which suits players who run
 several native mods.
 

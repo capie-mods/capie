@@ -1,146 +1,115 @@
-# Native country names (Windows x64, HOI4 1.19.3.0)
+# plugin/: native code
 
-This component adds runtime country name/adjective support to the scripted mod.
-It reads the name and adjective encoded by the in-game Apply button in a vanilla
-`cosmetic_tag` string: `RN1|Name|Adjective|`. It supplies those texts to the game's
-localization lookups. The game updates its own country-name caches and map labels;
-the component does not directly overwrite `CCountry` fields or generate localization files.
+| Folder | What it is |
+|---|---|
+| [`capie/`](capie/README.md) | CAPIE, the native library, its launcher and proxy loader. This is the current code. |
+| `src/`, `build.ps1`, `tests/` | The pre-CAPIE country name DLL (`rename_anything_country.dll`) and its injector, described below. Kept as the reference that CAPIE was checked against. |
+| [`launcher/`](launcher/README.md) | The first launcher candidate, kept as a reference. The current launcher is in `capie/src/launcher/`. |
+| [`probes/`](probes/README.md) | Research probes: bridges, loggers and observers used to find and test the hooks. Not shipped. |
+| `tools/` | Frida observation scripts for research (`observe.py`, `verify.js`). |
+| `NativeBuild.psm1` | Build steps shared by the build scripts: game DLL guard, Visual Studio environment, MinHook, compiler flags. Tests: `tests/NativeBuild.Tests.ps1`. |
+| `LICENSE.MinHook.txt` | The MinHook license, including the bundled HDE notices. Ship it with every binary that contains MinHook. |
 
-Only this executable is accepted:
+Builds go to `plugin/build/`, which Git ignores.
 
-`hoi4.exe` SHA-256 `7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5`.
+## The pre-CAPIE country name DLL
 
-Initialization also requires exactly one match for each of three signatures at its
-expected RVA, within the loaded `.text` section. Any mismatch refuses initialization.
-The injector and DLL both check the executable's hash. All patches are in process
-memory through MinHook. No files in the game directory are modified, including
-`steam_api64.dll`.
+This was the first native component: runtime country names for the scripted mod, before CAPIE
+existed. CAPIE 1.0 (`capie_core.dll`) took over its behaviour unchanged in stage 2, and CAPIE 1.2
+replaced its storage with the country name layer.
 
-## Build
+It reads a name and adjective that the mod stores in a vanilla cosmetic tag, `RN1|Name|Adjective|`,
+and supplies them to the game's localisation lookups. The game then updates its own name caches
+and map labels; the DLL writes no `CCountry` field and no localisation file. Only the exact base
+key, `_DEF` and `_ADJ` are answered; ideology-specific lookups fall back to these through the
+game's own resolver, and every other suffix (decision titles and descriptions among them) goes to
+the original localisation. The parser accepts up to 32 Unicode code points per field, validates
+UTF-8 and rejects delimiters, control characters and script markup.
 
-Prerequisites: Visual Studio 2022 with the C++ x64 tools and Windows SDK, and a local
-MinHook source checkout. Run from PowerShell:
+Only `hoi4.exe` 1.19.3.0 with SHA-256
+`7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5` is accepted. Initialization
+also requires exactly one match of each of three signatures at its expected RVA inside the loaded
+`.text` section; any mismatch refuses initialization. Both the injector and the DLL check the
+executable's hash. All patches are made in process memory through MinHook; no file in the game
+folder changes, `steam_api64.dll` included.
+
+### Build
+
+Visual Studio 2022 with the C++ x64 tools and a Windows SDK, and a local MinHook checkout:
 
 ```powershell
 .\plugin\build.ps1 -MinHookDir 'C:\path\to\minhook'
 ```
 
-Optional `-VisualStudioDir` selects another VS 2022 installation. Use an explicit
-`-OutputDirectory` for a candidate build that must preserve earlier binaries;
-the default remains `plugin/build`. Building over a DLL currently loaded by HOI4
-is refused. Project C++ compiles with `/W4 /WX`.
-The shared steps of `build.ps1`, `launcher/build.ps1` and `probes/build-*.ps1` (game DLL
-guard, Visual Studio environment, MinHook, flag sets, exit-code checks) live in
-`plugin/NativeBuild.psm1`; its offline unit tests are `plugin/tests/NativeBuild.Tests.ps1`.
-The script builds
-MinHook from source into the DLL, links the MSVC runtime statically, and runs the
-18 field checks and 13 localization-boundary checks. Outputs are ignored by Git under `plugin/build/`:
+`-VisualStudioDir` selects another Visual Studio 2022 installation. `-OutputDirectory` builds a
+candidate without overwriting earlier binaries (default `plugin/build`). Building over a DLL that
+HOI4 has loaded is refused. Project C++ compiles with `/W4 /WX`; warnings from MinHook's upstream C
+code are not warnings in the project's sources. MinHook is built from source into the DLL and the
+MSVC runtime is linked statically. The build runs 18 field checks and 13 localisation boundary
+checks and writes `rename_anything_country.dll`, `rename_anything_injector.exe`,
+`protocol_test.exe` and a copy of the MinHook license.
 
-- `rename_anything_country.dll`
-- `rename_anything_injector.exe`
-- `protocol_test.exe`
-- `LICENSE.MinHook.txt` copied from the MinHook checkout used for this build
-
-The MinHook license, including the bundled HDE notices, is preserved in
-[LICENSE.MinHook.txt](LICENSE.MinHook.txt). Include this complete file with any
-redistributed binary containing MinHook. Build warnings from MinHook's upstream
-C code do not indicate warnings in the project's C++ sources.
-
-## Run
+### Run (development only)
 
 1. Enable the scripted mod and start the supported game normally.
-2. While at the main menu, find the process ID with `Get-Process hoi4`.
-3. Load the DLL from this repository; do not copy it into the game installation:
+2. At the main menu, find the process ID with `Get-Process hoi4`.
+3. Load the DLL from the repository; never copy it into the game folder:
 
-```powershell
-.\plugin\build\rename_anything_injector.exe 12345 "$PWD\plugin\build\rename_anything_country.dll"
-```
+   ```powershell
+   .\plugin\build\rename_anything_injector.exe 12345 "$PWD\plugin\build\rename_anything_country.dll"
+   ```
 
-4. A successful run prints `Country hooks initialized`. Then start or load the game.
-5. In the mod's Country tab, check `DLL: ACTIVE (RN1)`, enter both fields, and Apply.
+4. A successful run prints `Country hooks initialized`. Then start or load a campaign.
 
-Run the injector once per process. Restart the game before updating or rebuilding
-an already loaded DLL. A timed-out remote call reports uncertain state, leaves any
-still-needed argument allocation until process exit, and requires a game restart
-before retry. It never waits indefinitely or unloads a partially initialized DLL.
+Run the injector once per game process, and restart the game before loading a rebuilt DLL. A
+timed-out remote call reports an uncertain state, keeps any argument allocation still in use until
+the process exits, and needs a game restart before a retry. The injector never waits forever and
+never unloads a partly initialized DLL.
 
-New source also exports the read-only `RNCountryCapabilities()` query. It returns
-`0x524E4301` only after successful initialization, and zero before initialization
-or after a rejected initialization. Module presence or a saved country flag is
-insufficient. The isolated `plugin/build/country-capability` candidate passed
-31 protocol checks and the wrong-host negative test. In PID42200 the isolated
-five-field inline caller passed its live country transport: both names, all64
-character slots, matching command/opening epoch and cap1 reached one native
-constructor with independent storage. That caller checks the versioned export
-twice before dispatch; the game log observes its marker, not a separate export
-trace. This is log-only acceptance, without a real inline rename or game save.
-The separate render candidate B20FBE88 subsequently passed first-open rendering
-of all five fields in PID42556, with unchanged35/69/70-record transport and160
-compared character slots. Cancel restored current names and the error log stayed
-593→593. Autofocus/select-all and real inline Apply remain separate pending tests.
-See [the audit](../docs/evidence/session-20261011/day2-unified-country-transport-audit.json).
-Earlier accepted binaries do not include this export. The query does not write
-to saves or establish multiplayer compatibility.
+`RNCountryCapabilities()` is a read-only export that returns `0x524E4301` only after a successful
+initialization and zero otherwise. A loaded module or a flag in the save is not proof that the
+DLL is active; the editors check this export before a country Apply.
 
-Initialization error codes: 10 unsupported executable hash, 11 wrong PE machine/header,
-12 missing `.text`, 20 wrong/ambiguous signature, 30 MinHook initialization failure,
-31 hook construction failure, 32 hook activation failure. The injector also reports
-process access, DLL loading/export, and remote-thread failures.
+Initialization error codes: 10 unsupported executable hash, 11 wrong PE machine or header, 12
+missing `.text`, 20 wrong or ambiguous signature, 30 MinHook initialization failure, 31 hook
+construction failure, 32 hook activation failure. The injector also reports process access, DLL
+loading and export, and remote thread failures. If activation fails after only some hooks were
+enabled, the DLL disables them as far as it can and keeps their trampolines until the process
+exits, so a callback already running stays valid; a remaining hook forwards to vanilla while
+initialization is inactive. Restart the game after any failure.
 
-If activation fails after enabling only some hooks, the DLL disables them best-effort
-and retains their trampolines until process exit so an in-flight callback remains valid.
-Any residual hook forwards to vanilla while initialization is inactive. Restart after
-any failure. Thread notifications remain enabled for the statically linked MSVC runtime.
+### Limits
 
-## Persistence, multiplayer and limits
+- The name lives in the game's own cosmetic tag. Apply replaces the current cosmetic tag, which
+  also replaces the flag and colour, and reset drops the tag without restoring an earlier one.
+  Other mods that use cosmetic tags can conflict. This is why CAPIE 1.2 moved the name into its
+  own layer ([ADR-0028](../docs/adr/0028-custom-name-layer.md)).
+- With the DLL loaded before a save is loaded, a custom name survived a full restart on the map,
+  in diplomacy and in tooltips, and showed in the vanilla event `news.350`. Without the DLL the
+  save keeps the `RN1` tag and the game shows the original name.
+- Every client would need the same mod and the same native component to show the same text.
+  Multiplayer was never tested. Ironman and achievements are not supported.
+- Steam Workshop can carry DLL files in general, but subscribing does not load this DLL, and
+  whether HOI4's uploader accepts it was not tested
+  ([Workshop and native code](../docs/research/workshop-native-code.md)).
 
-The payload is held in the game's own cosmetic tag, with no external text sidecar.
-Only the exact base key, `_DEF` and `_ADJ` are intercepted; `_ADJ` supplies the adjective.
-Ideology-specific country lookups fall back to these base forms through the vanilla
-country-name resolver. All other suffixes fall through to vanilla, including decision
-titles/descriptions that also probe country cosmetic-tag prefixes. The supported UI
-permits 32 Unicode codepoints in each field, using
-the alphabet documented by the scripted mod. The native parser validates UTF-8 and
-rejects delimiters, control characters and script markup. It accepts the Polish letters.
+Results and gaps: [in-game test record](../docs/contributing/in-game-test-record.md) and
+[country name research](../docs/research/country-re-findings.md).
 
-The scripted GUI transports the payload through the game's normal commands and
-save mechanism. Actual multiplayer synchronization must be established by a two-client
-test; the architecture alone is not evidence that multiplayer works. See
-`../docs/country-re-findings.md` and `../docs/test-report.md` for observed results and gaps.
-Every client needs the identical mod and native component for consistent country text.
-Do not advertise ironman/achievement compatibility; it has not been established.
-Workshop can distribute the scripted mod; this native component requires explicit
-injection on each Windows client. Steam Workshop generally supports DLL content,
-but acceptance by HOI4's uploader has not been tested. Subscription alone does not
-load this DLL. See the [Workshop research](../docs/workshop-native-research.md) for
-policy sources, EU4/CK2 precedents, and reported compatibility/antivirus problems.
-Other executable builds are refused.
+### Uninstall
 
-Country Apply replaces the current cosmetic tag. Reset drops the tag rather than
-recovering an earlier cosmetic tag; other mods that use cosmetic tags may conflict.
-With the DLL loaded before loading the save, a full game restart preserved the
-custom country name on the map, in diplomacy and in its tooltip without another
-Apply (PID 42732, Polish UI). A later independent own Apply test also showed
-Polska QA, adjective próbny and leader Jan Żółć in the original news.350 event
-(PID 22876, Polish UI); see the [evidence](../docs/evidence/qa-20261011-day2/47-vanilla-news350-country-adjective-leader.jpg)
-and [report](../docs/test-report.md).
-Without the native component, retaining the RN1 tag and falling back to original
-localization remains the expected behavior pending the uninstall/load check.
+Reset the country in the game and save if the name should go. Close the game; the DLL is released
+when the process ends and cannot be unloaded while it runs. Delete `plugin/build/` if you no
+longer need it. Nothing in the game installation needs repairing.
 
-## Uninstall and observation
+### Observation probe
 
-Reset the country in game and save if the payload should be removed. Close the game,
-stop using the injector, and disable/delete the scripted mod according to its README.
-The DLL is released at process exit; there is no hot-unload operation. Delete the
-local `plugin/build/` outputs if no longer needed. No game-installation repair is required.
-
-For a guarded observational probe, use Python with Frida installed:
+For a guarded observation run, with Python and Frida installed:
 
 ```powershell
 python plugin/tools/observe.py --pid 12345 --seconds 120 --out docs/evidence/observe.log
 ```
 
-The host verifies the exact image hash before attaching. `verify.js` requires that
-host guard and refuses moved/ambiguous signatures. Frida instrumentation changes
-instructions temporarily; this probe performs no gameplay-state or on-disk writes.
-The first attach attempt in this session did not complete; see the finding ledger.
+The host verifies the exact image hash before it attaches, and `verify.js` refuses moved or
+ambiguous signatures. Frida changes instructions temporarily; the probe writes no game state and
+nothing to disk except its log.

@@ -10,11 +10,14 @@ development builds or describes the plan.
 
 ## Original game files stay unchanged
 
-The default proxy installation adds one `version.dll` to the game folder. It does not modify
-`hoi4.exe` or `steam_api64.dll`. The installer refuses an existing foreign proxy, and uninstall
-removes only a file whose recorded path and verified release hash still match.
+CAPIE never modifies `hoi4.exe`, `steam_api64.dll` or any other game file. The CAPIE launcher,
+the loading method chosen for release, adds no file to the game folder at all.
 
-The launcher alternative adds no file to the game folder. Both loading methods open
+The proxy alternative adds one `version.dll` to the game folder. The installer refuses an
+existing foreign `version.dll`, and uninstall removes only a file whose recorded path and
+verified release hash still match.
+
+Both loading methods open
 `hoi4.exe` read-only to check its hash. Runtime files and diagnostics live under
 `%LOCALAPPDATA%\RenameAnything`; Steam options and shortcuts are changed only when requested.
 Config activation remains enabled until its marker is removed; removing `-capie` alone only
@@ -40,8 +43,8 @@ CAPIE starts only on a game build it knows:
    stops it with error code 20, before any hook is switched on.
 3. Only then does it hook. Each hook forwards to the game's original code exactly once.
 
-The planned launcher adds its own pin: it checks the game's hash and the SHA-256 of every file
-in its bundle, and keeps those files open read-only while it uses them.
+The launcher adds its own pin: it checks the game's hash and the SHA-256 of every file in its
+bundle, and keeps those files open read-only while it uses them.
 
 <figure class="diagram" markdown="span">
   ![Start-up checks. Today: known build, every pattern matches, CAPIE active; any mismatch means the game runs without CAPIE. Planned and opt-in: on an unknown build, a full verification that must pass completely.](assets/shared/diagrams/startup-checks.svg)

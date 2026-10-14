@@ -6,19 +6,21 @@ description: CAPIE API levels, release versions, build indices, deprecation, and
 
 !!! proposed "Built, not yet released"
 
-    CAPIE 1.1 (API level 2) carries these numbers in its binaries and in the script SDK. It has
-    not been released or tested in the game yet.
+    CAPIE 1.1 (API level 2) and the CAPIE 1.2 developer build (API level 4) carry these numbers
+    in their binaries and in the script SDK. Neither has been released.
 
 ## Three numbers
 
 | Number | Example | What it identifies | Who compares it |
 |---|---|---|---|
-| API level | `2` (`CAPIE_API`) | What the script contract offers | Your mod, through `capie_min_api` |
-| Release version | `1.1.0` (SemVer, `CAPIE_BUILD`) | One set of binaries | Players, the installer, release notes |
-| Build number (`capie_ver`) | `10100` (major × 10000 + minor × 100 + patch) | One release, as an integer that fits a script variable | The multiplayer check |
+| API level | `4` (`CAPIE_API`) | What the script contract offers | Your mod, through `capie_min_api` |
+| Release version | `1.2.0` (SemVer, `CAPIE_BUILD`) | One set of binaries | Players, the installer, release notes |
+| Build number (`capie_ver`) | `10200` (major × 10000 + minor × 100 + patch) | One release, as an integer that fits a script variable | The multiplayer check |
 
 API level 1 was CAPIE 1.0, which served only Rename Anything's private names. Level 2 adds the
-editor grammar, the `capie_*` records, the wider alphabet and the `CAPIE_*` keys.
+editor grammar, the `capie_*` records, the wider alphabet and the `CAPIE_*` keys. Level 3
+adds the console commands, level 4 the country [name layer](name-layers.md), and level 5
+(CAPIE 1.3, developer build) the faction name layer.
 
 The API level only goes up, and only when the script contract gains something. A release that
 adds support for a new game build without changing the contract keeps the same API level, so mods
@@ -59,8 +61,8 @@ CAPIE writes use of deprecated names to its log. It does not show them to player
 
 Rename Anything's private protocol stays frozen in 1.1: `rn_native_cap`, `RN_PLUGIN_STATUS`, its
 editor names and the 84-code alphabet. CAPIE recognises it exactly as before. The `RN1|` cosmetic
-tag prefix is also the public country-name protocol of the SDK and stays because existing saves
-contain it.
+tag prefix was the country-name protocol up to API level 2. Since level 4 nothing writes it, but
+CAPIE still reads it, because existing saves contain it.
 
 ## Graceful degradation
 
@@ -78,7 +80,8 @@ What stays in the save without CAPIE:
 |---|---|---|
 | State, city | Vanilla `set_state_name` / `set_province_name` text | Unchanged; never needed CAPIE |
 | Leader, party, character | Vanilla setter text | Unchanged; CAPIE was needed only to type it |
-| Country name and adjective | `cosmetic_tag = "RN1\|...\|"` | Expected to show the original name. Seen with the mod enabled and CAPIE not loaded; not yet tested with the mod disabled |
+| Country name and adjective | Country variables `capie_cn_*` ([name layer](name-layers.md)); saves from CAPIE 1.0 and 1.1: `cosmetic_tag = "RN1\|...\|"` | The game shows the cosmetic tag or base name, with the right flag. For the layer this is the design; it has not been checked in the game without CAPIE |
 
-A mod that uses cosmetic tags itself would overwrite a custom country name, and the other way
-round. A trigger that lets focus trees check for a custom name first is not part of API level 2.
+Since API level 4 a custom country name is its own layer. A mod that sets a cosmetic tag changes
+the flag and colour, and the custom name keeps showing until it is removed. A trigger that lets
+focus trees check for a custom name first is not part of the contract yet.
