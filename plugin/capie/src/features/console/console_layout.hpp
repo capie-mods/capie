@@ -135,11 +135,17 @@ using AssignFn = MsvcString* (*)(MsvcString* self, const char* bytes, std::size_
 using TagParseFn = void* (*)(void* out_tag, const MsvcString* name);
 /// @brief `BB4390(tag)`: country object of a tag (array lookup in the game state; read only).
 using CountryOfFn = void* (*)(const void* tag);
+/// @brief `2238DF0(database, name)`: sprite of a name, null when it does not exist (read only).
+using SpriteFindFn = void* (*)(void* database, const MsvcString* name);
 /// @brief Id of the calling thread.
 using ThreadIdFn = std::uint32_t (*)();
 /// @brief Writes one NUL-terminated log line.
 using LogFn = void (*)(const char* line);
 
+/// @brief RVA of the sprite lookup (called by the portrait validity check at 139D218).
+inline constexpr uptr sprite_find_rva = 0x2238DF0;
+/// @brief RVA of the global sprite database pointer (read at 139D211).
+inline constexpr uptr sprite_database_rva = 0x3453090;
 /// @brief RVA of the tag parser called by `set_cosmetic_tag` at 28258E.
 inline constexpr uptr tag_parse_rva = 0x10E10C0;
 /// @brief RVA of the country lookup called by `set_cosmetic_tag` at 2825A2.

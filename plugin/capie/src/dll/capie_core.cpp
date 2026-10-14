@@ -3,9 +3,9 @@
  * @brief Composition root of `capie_core.dll`: country names, the name layer, status text and the capability export.
  *
  * This DLL hooks the three localisation lookups of the pinned `hoi4.exe` so that RN1 keys
- * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.4
- * loaded" / "CAPIE 1.4 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
- * `CAPIE_BUILD` answer "CAPIE 1.4", "6" and "1.4.0" (`features/country/country_names.hpp`).
+ * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.5
+ * loaded" / "CAPIE 1.5 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
+ * `CAPIE_BUILD` answer "CAPIE 1.5", "7" and "1.5.0" (`features/country/country_names.hpp`).
  *
  * Name layers (API levels 4 and 5, `features/country/name_layer*.hpp`): four more hooks
  * (`UpdateNames`, `BuildNameKey`, `SetVariable::Execute`, `CFaction::GetName`) show a country
@@ -14,6 +14,11 @@
  * cosmetic tag, flag or colour; the faction name goes in front of the stored faction name,
  * which stays as it is. Their pins are checked separately; a failed pin leaves both layers off
  * (logged) and the localisation hooks on.
+ *
+ * Leader portrait layer (API level 7, `features/country/portrait_layer*.hpp`): one more hook
+ * (`ResolvePortrait`, 139DF20) shows the civilian portrait chosen for a ruling country leader;
+ * its cache is filled from the UpdateNames and set_variable hooks. Own pins; it needs the name
+ * layer's pins as well.
  *
  * It does not write game files, saves, variables, cosmetic tags or `CCountry` fields. The game
  * updates its own name caches and map labels from the localisation answers.
@@ -26,7 +31,8 @@
  * because a callback may be in flight; residual hooks forward to the game while `active` is
  * false.
  *
- * `RNCountryCapabilities` returns `country_capabilities_v3` with the name and flag layers,
+ * `RNCountryCapabilities` returns a v4 value with the portrait layer (flag bit when the flag
+ * layer is on too), `country_capabilities_v3` with the name and flag layers,
  * `country_capabilities_v2` with the name layers only,
  * `country_capabilities_v1` while active without it. The editor bridge queries it before
  * every country Apply and requires v2.
@@ -46,6 +52,8 @@
 #include "../features/country/flag_layer_pins.hpp"
 #include "../features/country/name_layer_hooks.hpp"
 #include "../features/country/name_layer_pins.hpp"
+#include "../features/country/portrait_layer_hooks.hpp"
+#include "../features/country/portrait_layer_pins.hpp"
 
 #include <MinHook.h>
 
@@ -61,13 +69,17 @@ using core::InitCode;
 /// @brief Longest path buffer for the executable path.
 constexpr DWORD max_path_chars = 32768;
 /// @brief Debugger message after a successful initialization.
-constexpr char initialized_message[] = "CAPIE 1.4: country hooks initialized (capie_core, pinned 1.19.3.0)\n";
+constexpr char initialized_message[] = "CAPIE 1.5: country hooks initialized (capie_core, pinned 1.19.3.0)\n";
 /// @brief Size of a lifecycle line buffer.
 constexpr std::size_t line_bytes = 200;
 /// @brief Number of localisation hooks (always installed).
 constexpr std::size_t localisation_hooks = 3;
 /// @brief Number of name-layer hooks (country and faction names).
 constexpr std::size_t name_layer_hooks = 4;
+/// @brief Number of flag-layer hooks.
+constexpr std::size_t flag_layer_hooks = 3;
+/// @brief Most hooks installed (localisation, name, flag and portrait layers).
+constexpr std::size_t max_hooks = localisation_hooks + name_layer_hooks + flag_layer_hooks + 1;
 
 /// @brief Memory policy of the name layer.
 const core::ProcessMemory layer_memory{};
@@ -79,6 +91,9 @@ const flag::FlagMemory flag_memory{};
 /// @brief The flag layer of this process.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): hook state is a process singleton
 flag::FlagLayer<flag::FlagMemory> flag_layer{flag_memory};
+/// @brief The leader portrait layer of this process.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): hook state is a process singleton
+portrait::PortraitLayer<core::ProcessMemory> portrait_layer{layer_memory};
 
 /**
  * @brief Writes one log line (appends CRLF) if its channel is enabled.
@@ -104,6 +119,7 @@ void write_line(core::logging::Channel channel, const char* line) noexcept {
 std::uint64_t update_names_hook(core::uptr country) noexcept {
     const auto result = name_layer.update_names(country);
     static_cast<void>(flag_layer.update(country));  // after the original: the cosmetic tag is current
+    static_cast<void>(portrait_layer.update(country));
     return result;
 }
 
@@ -135,6 +151,10 @@ void set_variable_hook(core::uptr effect, core::uptr context) noexcept {
         engine::string_equals(layer_memory, effect + core::off::set_variable_name, flag::commit_variable)) {
         static_cast<void>(flag_layer.refresh_all());
     }
+    if (portrait_layer.enabled() &&
+        engine::string_equals(layer_memory, effect + core::off::set_variable_name, portrait::commit_variable)) {
+        static_cast<void>(portrait_layer.refresh_all());
+    }
 }
 
 /**
@@ -165,6 +185,21 @@ int load_flag_hook(core::uptr atlas, core::uptr country, void* dst, int a4, int 
  */
 void* flag_candidates_hook(void* out, const void* tag, const void* cosmetic, void* group) noexcept {
     return flag_layer.candidates(out, tag, cosmetic, group);
+}
+
+/**
+ * @brief Hook body of `ResolvePortrait`.
+ * @param map Portrait map.
+ * @param out Caller's entry buffer.
+ * @param type Portrait type.
+ * @param size Portrait size.
+ * @param character Character.
+ * @param fallback Caller's fallback name.
+ * @return `out`.
+ */
+void* portrait_resolve_hook(void* map, void* out, std::int32_t type, std::int32_t size, core::uptr character,
+                            const void* fallback) noexcept {
+    return portrait_layer.resolve(map, out, type, size, character, fallback);
 }
 
 /**
@@ -227,7 +262,9 @@ InitCode initialize() {
     const bool layer_ok = failed_pin == nullptr;
     const char* const failed_flag_pin = flag::pins::first_failed_pin(text);
     const bool flag_ok = layer_ok && failed_flag_pin == nullptr;
-    const core::HookSpec hooks[] = {
+    const char* const failed_portrait_pin = portrait::pins::first_failed_pin(text);
+    const bool portrait_ok = layer_ok && failed_portrait_pin == nullptr;
+    const core::HookSpec all_hooks[] = {
         {"country.lookup_n", core::rva::loc_lookup_n, reinterpret_cast<void*>(&lookup_n),
          reinterpret_cast<void**>(&original_n)},
         {"country.lookup_z", core::rva::loc_lookup_z, reinterpret_cast<void*>(&lookup_z),
@@ -248,10 +285,23 @@ InitCode initialize() {
          reinterpret_cast<void**>(&flag_layer.originals().load_flag)},
         {"flag.build_candidates", core::rva::build_flag_candidates, reinterpret_cast<void*>(&flag_candidates_hook),
          reinterpret_cast<void**>(&flag_layer.originals().candidates)},
+        {"portrait.resolve", core::rva::portrait_resolve, reinterpret_cast<void*>(&portrait_resolve_hook),
+         reinterpret_cast<void**>(&portrait_layer.originals().resolve)},
     };
-    std::size_t hook_count = localisation_hooks;
-    if (layer_ok) {
-        hook_count = flag_ok ? std::size(hooks) : localisation_hooks + name_layer_hooks;
+    static_assert(std::size(all_hooks) == max_hooks);
+    // Localisation hooks always; the name layers when their pins match; the flag and portrait
+    // layers only on top of the name layers, each with its own pins.
+    core::HookSpec hooks[max_hooks]{};
+    std::size_t hook_count = 0;
+    for (std::size_t index = 0; index < max_hooks; ++index) {
+        const bool name_hook = index >= localisation_hooks && index < localisation_hooks + name_layer_hooks;
+        const bool flag_hook = index >= localisation_hooks + name_layer_hooks &&
+                               index < localisation_hooks + name_layer_hooks + flag_layer_hooks;
+        const bool portrait_hook = index == max_hooks - 1;
+        if ((name_hook && !layer_ok) || (flag_hook && !flag_ok) || (portrait_hook && !portrait_ok)) {
+            continue;
+        }
+        hooks[hook_count++] = all_hooks[index];
     }
     char line[line_bytes]{};
     if (const auto installed = core::install_all_at_once(base, hooks, hook_count); installed != InitCode::ok) {
@@ -268,11 +318,18 @@ InitCode initialize() {
     if (flag_ok) {
         flag_layer.activate(reinterpret_cast<core::uptr>(base), &write_line);
     }
+    if (portrait_ok) {
+        portrait_layer.originals().valid = reinterpret_cast<portrait::ValidFn>(base + core::rva::portrait_valid);
+        portrait_layer.originals().copy = reinterpret_cast<portrait::CopyFn>(base + core::rva::string_copy);
+        portrait_layer.activate(reinterpret_cast<core::uptr>(base), &write_line);
+    }
     active.store(true);
     static_cast<void>(std::snprintf(
-        line, sizeof(line), "CAPIE_CORE %s initialized: %zu hooks, name layer %s %s, flag layer %s %s, flavor=%s",
+        line, sizeof(line),
+        "CAPIE_CORE %s initialized: %zu hooks, name layer %s %s, flag layer %s %s, portrait layer %s %s, flavor=%s",
         core::capie_version, hook_count, name_layer.enabled() ? "on" : "off", layer_ok ? "" : failed_pin,
         flag_layer.enabled() ? "on" : "off", failed_flag_pin != nullptr ? failed_flag_pin : "",
+        portrait_layer.enabled() ? "on" : "off", failed_portrait_pin != nullptr ? failed_portrait_pin : "",
         core::logging::debug_diagnostics ? "debug" : "release"));
     write_line(core::logging::Channel::lifecycle, line);
     OutputDebugStringA(initialized_message);
@@ -284,19 +341,16 @@ InitCode initialize() {
 
 /**
  * @brief Read-only capability query for the editor bridge.
- * @return `country_capabilities_v2` while initialized with the name layer, `country_capabilities_v1`
- *         without it, otherwise 0. Loading the DLL alone is not enough.
+ * @return `capabilities_of` the active layers while initialized (v1 without the name layers, v2,
+ *         v3 or a v4 value), otherwise 0. Loading the DLL alone is not enough.
  */
 // NOLINTNEXTLINE(readability-identifier-naming): exported ABI name
 extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
     if (!capie::country::active.load(std::memory_order_acquire)) {
         return 0;
     }
-    if (!capie::country::name_layer.enabled()) {
-        return capie::country::country_capabilities_v1;
-    }
-    return capie::country::flag_layer.enabled() ? capie::country::country_capabilities_v3
-                                                : capie::country::country_capabilities_v2;
+    return capie::country::capabilities_of(capie::country::name_layer.enabled(), capie::country::flag_layer.enabled(),
+                                           capie::country::portrait_layer.enabled());
 }
 
 /**

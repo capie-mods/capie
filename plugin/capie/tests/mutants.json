@@ -1142,5 +1142,101 @@
   "replace": "names = \"equal\";",
   "suite": "tests/host_probe_test.cpp",
   "summary": "host probe tests:"
+ },
+ {
+  "name": "portrait-any-type",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "type == type_civilian &&",
+  "replace": "true &&",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-no-valid-check",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "if (originals_.valid(&candidate)) {",
+  "replace": "if (true) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-no-id-check",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "core::rd(mem_, character, core::off::character_id, current) && current == id;",
+  "replace": "true;",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-no-vtable-check",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "name.size != 0 && is_character(mem_, image_, character) &&",
+  "replace": "name.size != 0 &&",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-small-uses-large",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "name = size == size_large ? found->second.large : found->second.small;",
+  "replace": "name = found->second.large;",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-refresh-merges",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "by_character_.swap(fresh);",
+  "replace": "if (!by_character_) { by_character_ = std::make_unique<Map>(); } for (auto& item : *fresh) { (*by_character_)[item.first] = item.second; }",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-update-keeps-old",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "std::erase_if(*by_character_, [country](const auto& item) { return item.second.country == country; });",
+  "replace": "static_cast<void>(country);",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-version-unchecked",
+  "file": "src/features/country/portrait_layer.hpp",
+  "find": "format != layer::format_version",
+  "replace": "false",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-invalid-small-ignored",
+  "file": "src/features/country/portrait_layer.hpp",
+  "find": "if (small == Status::absent) {",
+  "replace": "if (true) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-leader-count-ignored",
+  "file": "src/features/country/portrait_layer.hpp",
+  "find": "if (count == 0) {",
+  "replace": "if (false) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-any-object-leader",
+  "file": "src/features/country/portrait_layer.hpp",
+  "find": "!core::rd(mem, role, core::off::leader_role_character, found) || !is_character(mem, image, found)",
+  "replace": "!core::rd(mem, role, core::off::leader_role_character, found)",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-capability-without-bit",
+  "file": "src/features/country/capability.hpp",
+  "find": "(value & ~capability_bits) == country_capabilities_v4 && (value & capability_portrait_bit) != 0",
+  "replace": "(value & ~capability_bits) == country_capabilities_v4",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
  }
 ]

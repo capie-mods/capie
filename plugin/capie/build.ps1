@@ -258,7 +258,7 @@ $tidyFiles = @('dll\capie_core.cpp', 'dll\capie_editor.cpp', 'tools\capie_inject
         ForEach-Object { Join-Path $script:TestDir $_ })
 $tidyFiles += @('public_names_test.cpp', 'public_keys_test.cpp', 'public_editor_test.cpp') | ForEach-Object { Join-Path $script:TestDir $_ }
 $tidyFiles += @('name_layer_test.cpp', 'name_layer_pins_exe_test.cpp', 'flag_layer_test.cpp', 'flag_layer_pins_exe_test.cpp',
-    'host_probe_test.cpp', 'host_pins_exe_test.cpp') |
+    'host_probe_test.cpp', 'host_pins_exe_test.cpp', 'portrait_layer_test.cpp', 'portrait_layer_pins_exe_test.cpp') |
     ForEach-Object { Join-Path $script:TestDir $_ }
 $database = foreach ($file in $tidyFiles) {
     [ordered]@{
@@ -290,6 +290,9 @@ Invoke-Test -Source 'name_layer_pins_exe_test.cpp' -Output 'name_layer_pins_exe_
 Invoke-Test -Source 'flag_layer_test.cpp' -Output 'flag_layer_test_debug.exe' -Flags @('/DCAPIE_DEBUG_DIAGNOSTICS=1') | Out-Null
 Invoke-Test -Source 'flag_layer_test.cpp' -Output 'flag_layer_test_release.exe' -Flags @('/DCAPIE_DEBUG_DIAGNOSTICS=0') | Out-Null
 Invoke-Test -Source 'flag_layer_pins_exe_test.cpp' -Output 'flag_layer_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
+Invoke-Test -Source 'portrait_layer_test.cpp' -Output 'portrait_layer_test_debug.exe' -Flags @('/DCAPIE_DEBUG_DIAGNOSTICS=1') | Out-Null
+Invoke-Test -Source 'portrait_layer_test.cpp' -Output 'portrait_layer_test_release.exe' -Flags @('/DCAPIE_DEBUG_DIAGNOSTICS=0') | Out-Null
+Invoke-Test -Source 'portrait_layer_pins_exe_test.cpp' -Output 'portrait_layer_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 Invoke-Test -Source 'host_probe_test.cpp' -Output 'host_probe_test.exe' | Out-Null
 Invoke-Test -Source 'host_pins_exe_test.cpp' -Output 'host_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 # The inherited suite loads capie_editor.dll into its own (non-game) process for the wrong-host check.

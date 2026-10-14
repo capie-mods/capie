@@ -326,5 +326,37 @@
   "replace": "effect.add(flag_commit);",
   "suite": "tests/console/console_test.cpp",
   "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-portrait-small-unchecked",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "small_exists && small_name.size != 0 ? small_name.view()",
+  "replace": "small_name.size != 0 ? small_name.view()",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-portrait-missing-allowed",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "if (!large_exists) {",
+  "replace": "if (false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-portrait-no-commit",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "inline constexpr std::string_view portrait_commit = \"} set_variable = { capie_pt_rev = 1 } }\";",
+  "replace": "inline constexpr std::string_view portrait_commit = \"} }\";",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-bridge-sprite-always-exists",
+  "file": "src/features/console/console_bridge.hpp",
+  "find": "return api_.sprite_find(reinterpret_cast<void*>(database), &text) != nullptr;",
+  "replace": "return true;",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
  }
 ]

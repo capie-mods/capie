@@ -213,19 +213,26 @@ inline DWORD country_capabilities() noexcept {
 
 /**
  * @brief Whether a country Apply may run: `capie_core.dll` is initialized with the name layers.
- * @return `true` for `country_capabilities_v2` (name layers) or `_v3` (name and flag layers).
+ * @return `true` while the name layers are active (v2, v3 or a v4 value).
  */
 inline bool country_ready() noexcept {
-    const auto value = country_capabilities();
-    return value == country::country_capabilities_v2 || value == country::country_capabilities_v3;
+    return country::names_active(country_capabilities());
 }
 
 /**
  * @brief Whether the flag layer is active (API level 6, record `capie_flag`).
- * @return `true` only for `country_capabilities_v3`.
+ * @return `true` for `country_capabilities_v3` or a v4 value with the flag bit.
  */
 inline bool flag_ready() noexcept {
-    return country_capabilities() == country::country_capabilities_v3;
+    return country::flag_active(country_capabilities());
+}
+
+/**
+ * @brief Whether the leader portrait layer is active (API level 7, record `capie_portrait`).
+ * @return `true` for a v4 value.
+ */
+inline bool portrait_ready() noexcept {
+    return country::portrait_active(country_capabilities());
 }
 
 /**

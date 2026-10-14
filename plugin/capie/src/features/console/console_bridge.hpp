@@ -65,6 +65,8 @@ struct NativeApi {
     uptr eval_effect{};                       ///< Expected action of `eval_effect`.
     layout::TagParseFn tag_parse{};           ///< `10E10C0`: country tag from a name (read only).
     layout::CountryOfFn country_of{};         ///< `BB4390`: country object of a tag (read only).
+    layout::SpriteFindFn sprite_find{};       ///< `2238DF0`: sprite of a name (read only; may be null).
+    uptr sprite_database_slot{};              ///< Address of the sprite database pointer (`3453090`).
     layout::ThreadIdFn current_thread{};      ///< `GetCurrentThreadId` in the game; a fake in tests.
     layout::LogFn log{};                      ///< One log line (may be null).
     bool verified{};                          ///< Signature, hash and layout checks passed.
@@ -337,7 +339,13 @@ public:
                 say(out, "Invalid tag for the command");  // the vanilla text for an unknown tag
                 return out;
             }
-            finish_plan(plan, cosmetic.view());
+            if (plan.portrait_plan) {
+                const auto small = small_candidate(plan);
+                finish_portrait_plan(plan, sprite_exists(plan.sprite.view()),
+                                     small.size != 0 && sprite_exists(small.view()));
+            } else {
+                finish_plan(plan, cosmetic.view());
+            }
             if (plan.delegate == Delegate::none) {
                 say(out, plan.message.view());
                 return out;
@@ -406,6 +414,21 @@ private:
         }
         const auto country = reinterpret_cast<uptr>(api_.country_of(tag_object.data()));
         return country != 0 && detail::read_string(mem_, country + layout::country_cosmetic_tag, out);
+    }
+
+    /**
+     * @brief Whether a sprite exists in the game's sprite database (read only).
+     * @param name Sprite name.
+     * @return `false` when the lookup is unavailable or finds nothing.
+     */
+    [[nodiscard]] bool sprite_exists(std::string_view name) const noexcept {
+        uptr database = 0;
+        if (api_.sprite_find == nullptr || api_.sprite_database_slot == 0 ||
+            !mem_.read(api_.sprite_database_slot, &database, sizeof(database)) || database == 0) {
+            return false;
+        }
+        const auto text = engine::borrowed_string(name.data(), name.size());
+        return api_.sprite_find(reinterpret_cast<void*>(database), &text) != nullptr;
     }
 
     /// @brief Tokens of one line, copied out of game memory.

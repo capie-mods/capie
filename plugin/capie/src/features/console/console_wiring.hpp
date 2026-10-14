@@ -9,11 +9,12 @@
  * Two entry points:
  *
  * - `prepare(text, image)` runs inside `RNInitialize` (injector thread) after the editor's
- *   own checks. It reads only the game's code bytes: 12 unique signatures, 25 instruction
+ *   own checks. It reads only the game's code bytes: 13 unique signatures, 25 instruction
  *   pins (the 22 entry/argv/result offsets, the cosmetic-tag offset and the gate order) and
- *   9 RIP/rel32 target pins (the console singleton slot `35E1A80`, the calls from the
+ *   11 RIP/rel32 target pins (the console singleton slot `35E1A80`, the calls from the
  *   verified `set_cosmetic_tag` body to `129CA0`, `10E10C0`, `BB4390`, `711260`, the
- *   dispatcher's gate message and lookup call, and the game's own call of `24B4920`). Only
+ *   dispatcher's gate message and lookup call, the game's own call of `24B4920`, and the
+ *   sprite database global and sprite lookup used by the portrait validity check). Only
  *   when every check passes does it fill a `NativeApi` with `verified = true`. A failure
  *   leaves the console feature off and the editor running, with one log line.
  * - `on_tick()` runs from the Tick hook after the original Tick (game thread). It registers
@@ -69,6 +70,8 @@ inline constexpr core::Signature console_signatures[] = {
      "48895C241048896C24184889742420574883EC3048837A180F", "CCountry set cosmetic tag; +1488 (5)"},
     {"console.restore_device_objects", core::SignatureGroup::editor_callee, 0x2A2570,
      "48895C2408488974241048897C241855488D6C24A94881EC00010000", "CGameIdler::RestoreDeviceObjects (2)"},
+    {"console.sprite_find", core::SignatureGroup::editor_callee, 0x2238DF0,
+     "4881C100010000E9????????CCCCCCCC48895C2418", "sprite of a name in the sprite database (portrait review 1.4)"},
 };
 
 /// @brief Exact instruction bytes at an RVA (inside a function verified above).
@@ -118,6 +121,8 @@ inline constexpr core::RipPin target_pins[] = {
     {"dispatch.gate_message", 0x24B4E0F, 0x24B4E13, 0x2B91060},
     {"dispatch.lookup_after_gate", 0x24B4E51, 0x24B4E55, 0x24B54C0},
     {"restore_device_objects.add", 0x2A274F, 0x2A2753, layout::add_or_replace_rva},
+    {"portrait_valid.sprite_database", 0x139D214, 0x139D218, layout::sprite_database_rva},
+    {"portrait_valid.sprite_find", 0x139D219, 0x139D21D, layout::sprite_find_rva},
 };
 
 /// @brief Exit-free log line writer for the bridge (appends CRLF).
@@ -220,6 +225,8 @@ inline bool prepare(const core::TextSection& text) noexcept {
     api.eval_effect = image + layout::eval_effect_rva;
     api.tag_parse = reinterpret_cast<layout::TagParseFn>(image + layout::tag_parse_rva);
     api.country_of = reinterpret_cast<layout::CountryOfFn>(image + layout::country_of_rva);
+    api.sprite_find = reinterpret_cast<layout::SpriteFindFn>(image + layout::sprite_find_rva);
+    api.sprite_database_slot = image + layout::sprite_database_rva;
     api.current_thread = &thread_id;
     api.log = &log_line;
     api.verified = true;
