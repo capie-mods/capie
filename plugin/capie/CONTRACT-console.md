@@ -1,12 +1,14 @@
-# CAPIE console contract, API level 3 (candidate)
+# CAPIE console contract, API level 3 and 4 (candidate)
 
 This is the console part of the CAPIE script contract. It lives in its own file while CAPIE 1.1
 (API level 2, `CONTRACT.md`) is being revised; the two will be merged later. Everything not
 mentioned here (reserved names, the alphabet, field errors, the SDK effects) is as in
 `CONTRACT.md`.
 
-Status, 2026-10-13: implemented in `src/features/console/` and compiled only into the developer
-build (`build.ps1 -Console`, output `plugin/build/capie-console-dev`). Release builds do not
+Status, 2026-10-14: implemented in `src/features/console/` and compiled only into the developer
+build (`build.ps1 -Console`, output `plugin/build/capie-console-dev`, for CAPIE 1.2
+`plugin/build/capie-v12-dev`). Since CAPIE 1.2 (API level 4) the two name commands write the
+country name layer of `CONTRACT.md` section 14 instead of an RN1 cosmetic tag. Release builds do not
 contain it. Nothing here has run in the game yet; section 8 lists the open checks. The
 evidence is in `docs/evidence/session-20261011/claude-console/` (`re-evidence.md`,
 `design.md`).
@@ -15,19 +17,25 @@ evidence is in `docs/evidence/session-20261011/claude-console/` (`re-evidence.md
 
 | Name | Value | Where a mod sees it |
 |---|---|---|
-| API level | `3` | `temp_var:capie_cap` of a console command |
+| API level | `4` in CAPIE 1.2 (`3` in the 1.1 candidate) | `temp_var:capie_cap` of a console command |
 | Source | `2` | `temp_var:capie_src`: 2 = console command (editor Apply commands do not set it) |
 | Build number | as `CONTRACT.md` | `temp_var:capie_ver` |
 
-API level 3 adds only the console commands. Editor Apply commands keep `capie_cap = 2` until
-the merge.
+API level 3 added the console commands; API level 4 adds the country name layer
+(`CONTRACT.md` section 14). Since CAPIE 1.2 console and editor commands send the same level
+(`capie_cap = 4`). Compare with `>=`, never with `=`.
 
 ## 2. Commands CAPIE adds to the game console
 
 | Command | Arguments | What runs |
 |---|---|---|
-| `change_nation_name` | `<TAG> "<name>" ["<adjective>"]` | The game's `set_cosmetic_tag <TAG> RN1\|name\|adjective\|`; the adjective defaults to the name |
-| `reset_nation_name` | `<TAG>` | The game's `drop_cosmetic_tag <TAG>`, but only when the current cosmetic tag starts with `RN1\|`. For any other tag CAPIE changes nothing and prints the tag's name |
+| `change_nation_name` | `<TAG> "<name>" ["<adjective>"]` | The game's `eval_effect "<TAG> = { ... }"` that writes the name layer (codes into `capie_cn_n` / `capie_cn_a`, `capie_cn_ver = 1`, then `capie_cn_rev = 1`); the adjective defaults to the name. Flag and colour stay |
+| `reset_nation_name` | `<TAG>` | The game's `eval_effect "<TAG> = { ... }"` that clears the layer (`clear_array` both, `clear_variable = capie_cn_ver`, then `capie_cn_rev = 1`). The country shows its cosmetic tag or base name again |
+
+Both name commands first read the country's current cosmetic tag (read only). When it is a
+legacy `RN1|...` tag of CAPIE 1.0/1.1, the effect also contains `drop_cosmetic_tag = yes`, which
+migrates the country; a cosmetic tag of the game or another mod is never dropped. An unknown tag
+prints the game's "Invalid tag for the command".
 | `capie_cmd` | `<mod> <command> ["<arg>" ...]` | The game's `eval_effect` with the inline effect of section 4, which calls the mod's `capie_v1_cmd__<mod>__<command>` |
 
 `help` lists the three commands with their arguments (in-game check pending).
@@ -56,7 +64,7 @@ CAPIE validates every argument and then runs this inline effect through the game
 
 ```text
 FROM = {
-    set_temp_variable = { capie_cap = 3 }
+    set_temp_variable = { capie_cap = 4 }      # 3 in the 1.1 candidate
     set_temp_variable = { capie_ver = <build> }
     set_temp_variable = { capie_src = 2 }
     set_temp_variable = { capie_nf = <n> }               # 0..4 arguments
@@ -115,8 +123,8 @@ in single player.
 ## 7. Safety rules CAPIE follows
 
 - CAPIE writes no game state itself. `change_nation_name` and `reset_nation_name` hand the work
-  to the game's own commands. `reset_nation_name` reads the current cosmetic tag first, with
-  the game's tag and country lookups (read only).
+  to the game's own `eval_effect`, so the change is an ordinary script effect. Both read the
+  current cosmetic tag first, with the game's tag and country lookups (read only).
 - CAPIE adds its commands once, from the game thread that runs the scripted-window Tick. It
   never replaces an existing command: if any name or alias already exists, it registers
   nothing.
@@ -129,8 +137,8 @@ in single player.
 
 | Item | Why |
 |---|---|
-| `change_nation_name` with Polish and Latin Extended letters, double spaces; save and reload; map and diplomacy names refresh | Encoding of console text, the tokenizer's handling of empty tokens, refresh after the console setter |
-| `reset_nation_name` on a CAPIE name, on a story cosmetic tag, on a country without one | Section 2 rule |
+| `change_nation_name` with Polish and Latin Extended letters, double spaces; save and reload; map and diplomacy names refresh; flag unchanged | Encoding of console text, the tokenizer's handling of empty tokens, refresh through `capie_cn_rev` |
+| `reset_nation_name` on a layer name, on a legacy RN1 tag, on a country with a story cosmetic tag | Section 2 rule (the story tag and its flag stay) |
 | The refusal in multiplayer and in ironman | Section 6 |
 | `capie_cmd condemo echo` with nothing selected, with another country selected, with a state selected | ROOT, THIS and FROM as in section 4 (open item O5) |
 | The `help` listing | Section 2 |

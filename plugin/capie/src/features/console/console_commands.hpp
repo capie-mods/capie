@@ -21,7 +21,7 @@
  *            (records as in CONTRACT-console.md; FROM of eval_effect is the player's
  *            country, ROOT is whatever object is selected, re-evidence.md section 10)
  *
- * Both name commands write the country name layer of API level 4 (CONTRACT.md section 13):
+ * Both name commands write the country name layer of API level 4 (CONTRACT.md section 14):
  * the same variables an editor rename writes, so a console rename is stored, saved and shown
  * exactly like an editor rename, and the cosmetic tag (flag, colour) is left alone. The one
  * exception is a legacy name: when the country's current cosmetic tag is an `RN1|...` tag set
