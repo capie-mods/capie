@@ -7,6 +7,13 @@ it. It follows the distribution decisions: [ADR-0002](../adr/0002-distribution-m
 and [ADR-0031](../adr/0031-trust-without-paid-code-signing.md). Nothing is published, uploaded or
 pushed without the maintainer's explicit go-ahead.
 
+Steps 1, 3 (installer pins), 4, 5 (VirusTotal), 6 and 7 are automated on the maintainer's
+machine by [`tools/release/release.py`](release-script.md). It creates a draft pre-release and
+Hidden Workshop items unless told otherwise. Open decision: step 2 and
+[ADR-0031](../adr/0031-trust-without-paid-code-signing.md) say release binaries come from CI
+(GitHub Actions), but the script packages a local build. Either amend ADR-0031 (local builds
+by the maintainer, ADR-0018), or build in CI and use the script only for the remaining steps.
+
 ## What a release contains
 
 | Part | Where it goes |

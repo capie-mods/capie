@@ -8,6 +8,7 @@ desktop.ini
 # Local launcher descriptor (points the game at this checkout; path is machine-specific)
 *.mod
 !descriptor.mod
+!plugin/capie/toggle-mod/capie.mod
 
 # Build / packaging output
 dist/

@@ -1,0 +1,174 @@
+# Release script
+
+`tools/release/release.py` makes a release on the maintainer's machine, without GitHub Actions:
+it checks the commit, packages the reviewed CAPIE binaries into the installer's ZIP format,
+signs the manifest, creates a GitHub release, optionally scans the files on VirusTotal, and
+uploads the mods to the Steam Workshop. It follows the [release checklist](releasing.md).
+
+By default nothing goes public. The GitHub release is a **draft pre-release**, a new Workshop
+item is **Hidden**, and a VirusTotal upload, a published or stable release and any Workshop
+visibility other than Hidden each ask you to type a confirmation word. `--dry-run` shows every
+command and file and sends nothing.
+
+## Requirements
+
+- `uv sync` (Python 3.13, ruff, ty, pytest). The tool uses only the standard library.
+- PowerShell 7 (`pwsh`) for the build scripts and `sign-release-manifest.ps1`.
+- Visual Studio C++ tools and a MinHook checkout for the native builds
+  ([building and testing](building-and-testing.md)).
+- [GitHub CLI](https://cli.github.com/), logged in with `gh auth login`.
+- [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) for the Workshop step.
+- The release signing key, created once with
+  `tools/bootstrap/sign-release-manifest.ps1 -NewKey -PrivateKeyPath <path outside the repo>`.
+  Its public part goes into `tools/bootstrap/src/Shared/Configuration.ps1`.
+- Optional: a VirusTotal API key in the environment variable `VT_API_KEY`.
+
+## Commands
+
+```powershell
+uv run tools/release/release.py all --dry-run --virustotal --steam-user <account>   # the whole plan
+uv run tools/release/release.py preflight --minhook-dir C:\src\minhook
+uv run tools/release/release.py build --signing-key D:\keys\capie-release.private.xml
+uv run tools/release/release.py release
+uv run tools/release/release.py virustotal --update-notes
+uv run tools/release/release.py workshop --steam-user <account>
+```
+
+`all` runs preflight, build, VirusTotal (only with `--virustotal`), release and workshop (unless
+`--skip-workshop`) and stops at the first failed step. A dry run never stops early. Each run
+ends with a summary of every warning and failure, and writes a log to
+`dist/release/logs/` (git-ignored). Output folder of a version: `dist/release/<version>/`.
+
+Common options: `--dry-run`, `--yes` (skips only the plain "upload?" question, never a typed
+confirmation), `--verbose` (tool output on the console; it is always in the log),
+`--no-color` (also `NO_COLOR=1`), `--config <file>`.
+
+## What each step does
+
+**preflight**: a clean working tree on `main`; the version sources agree; the changelogs have
+a section for the versions being released; installer placeholders; the switch mod's Workshop ID
+compiled into the launcher; the installed `hoi4.exe` is the supported build. Then the commands
+in `[[preflight.commands]]`: ruff, ty, the docstring check, pytest, `gen.py` (its output must
+leave `mod/` unchanged), `check.py`, the in-place editor checks, the SDK and site theme checks,
+the switch mod check, `build-install.ps1 -Check`, the installer's Pester suite,
+PSScriptAnalyzer (with `--psscriptanalyzer-dir`) and the CAPIE native build with all offline
+tests (with `--minhook-dir`; `--skip-slow` leaves it out). A command that needs the game,
+MinHook or PSScriptAnalyzer is skipped and reported when that is missing.
+
+**build**: checks that `plugin/build/capie/` holds the binaries whose hashes are in
+`plugin/capie/deploy/DEPLOYMENT.md`, runs `build_launcher.ps1` and `build_proxy.ps1` (they pin
+those hashes and run their own tests), and writes:
+
+| File | Content |
+| --- | --- |
+| `CAPIE-<version>-win64.zip` | `RenameAnythingLauncher.exe`, `LICENSE.MinHook.txt`, `runtime/` (core, editor, injector), `proxy/version.dll`, `mod/capie.mod` and `mod/capie/` |
+| `release-manifest.json`, `.sig` | from `sign-release-manifest.ps1 -MakeManifest` and `-Sign`, then checked again: every file hash, the ZIP hash, the supported game hash, the signature |
+| `SHA256SUMS.txt` | checksums of the ZIP, manifest and signature |
+| `build-info.json` | version, commit, file hashes (not uploaded) |
+| `installer-pins.ps1.txt` | the `$script:RaPinnedRelease` block for the installer (not uploaded) |
+
+The ZIP is reproducible: the same inputs give the same bytes. `--write-pins` writes the pin
+block into `Configuration.ps1` and rebuilds `install.ps1`; commit both before `release`.
+
+MSVC builds are not bit-reproducible, and the launcher and proxy compile in the reviewed DLL
+hashes, so `build` never recompiles the CAPIE DLLs silently. `--rebuild-capie --minhook-dir ...`
+runs `build.ps1` over `plugin/build/capie/` and stops with the new hashes. Have them reviewed,
+re-pin them in `DEPLOYMENT.md`, `build_launcher.ps1` and `build_proxy.ps1`, commit, then run
+`build` again.
+
+The signing key path is a command-line option only. The script refuses a key inside the
+repository and reads nothing from the key file except the public modulus and exponent (for the
+signature check).
+
+**release**: `gh release create v<version>` in `capie-mods/capie` (or `--repo`), at the exact
+local commit (`--target <sha>`), with `--draft --prerelease`, the assets (ZIP, manifest,
+signature, checksums, `install.ps1`) and notes made from `plugin/capie/CHANGELOG.md` plus the
+supported game build, the multiplayer statement, SmartScreen guidance, the VirusTotal links and
+the checksums. Before that it checks that the tree is clean, the installer pins name this ZIP,
+the release does not exist yet and the commit is on GitHub. `--publish` and `--stable` each ask
+for a typed word. Note: `install.ps1 -Update` reads `releases/latest`, which ignores drafts and
+pre-releases, so players only get a release that is published and stable.
+
+**virustotal** (ADR-0007): looks up the ZIP and every `.exe`/`.dll` in it by SHA-256. Files
+VirusTotal already knows are not uploaded. For the others it asks you to type `upload`, because
+an upload makes the file public. Results go to `virustotal.json` and `virustotal.md`, and from
+there into the release notes. `--update-notes` refreshes the notes of an existing draft. The
+key is read from `VT_API_KEY` (or `--api-key-env NAME`), sent only as the `x-apikey` header and
+redacted from the output and the log.
+
+**workshop**: for each item in `[[workshop.items]]` (or `--item <key>`), the step stages a fresh
+copy under `dist/release/<version>/workshop/<item>-<version>/content`. The copy holds only
+files tracked by git, without developer files (`exclude`). Its `descriptor.mod` has no `path`
+or `archive` line, and has `remote_file_id` once the item has an ID. The step writes
+`item.vdf` and runs:
+
+```text
+steamcmd +login <account> +workshop_build_item <item.vdf> +quit
+```
+
+| VDF key | Value |
+| --- | --- |
+| `appid` | 394360 |
+| `publishedfileid` | from `release.toml`; 0 creates a new item |
+| `contentfolder`, `previewfile` | the staged copy, the configured preview image (under 1 MB) |
+| `visibility` | new item: 2 (Hidden); existing item: not sent (unchanged), unless `--visibility hidden\|unlisted\|friends\|public` |
+| `title`, `description` | new item, or with `--update-description` |
+| `changenote` | the item's changelog section for its `descriptor.mod` version, as BBCode |
+
+Visibility values are Steam's `ERemoteStoragePublishedFileVisibility`: 0 public, 1 friends only,
+2 private (shown as Hidden), 3 unlisted. Anything but Hidden asks you to type its name.
+
+**Steam login.** Only the account name reaches SteamCMD (`--steam-user`, letters, digits and
+`_` only). SteamCMD asks for the password and the Steam Guard code in your console itself. The
+script does not accept, store or log them, and it does not capture SteamCMD's output at all.
+Run the workshop step yourself, never from automation (ADR-0018).
+
+After a new item is created, SteamCMD writes its ID into `item.vdf` (if it cannot be read, the
+script asks you to type it). The script stores it as `published_file_id` in
+`tools/release/release.toml`; commit that. Upload once more so the published `descriptor.mod`
+carries `remote_file_id`. For the "CAPIE" switch mod, also set `capie_mod_workshop_id` in
+`plugin/capie/src/launcher/config.hpp` and release a rebuilt launcher, so the launcher
+recognises the Workshop copy (`mod/ugc_<id>.mod`) in the playset.
+
+Compared with uploading through the Paradox Launcher: the launcher uploads the mod folder, which
+must contain `descriptor.mod` and `thumbnail.png` (PNG, square, under 1 MB); the local `*.mod`
+file is not uploaded. Copies that players subscribe to carry the item ID as `remote_file_id` in
+their descriptor, and the launcher registers them as `mod/ugc_<id>.mod`. The staged copy follows
+that layout. SteamCMD does not set Workshop tags (the launcher takes them from `tags` in the
+descriptor), so set them on the item page once. Valve documents SteamCMD Workshop uploads as a
+testing tool for developers, and this path has not been tried with HOI4 yet. Make the first
+upload Hidden, subscribe to it and check it in the game before you make it visible.
+
+## Version sources
+
+| Version | Source of truth | Used for |
+| --- | --- | --- |
+| CAPIE release | `capie_release` in `plugin/capie/src/core/game_build.hpp` | tag `v<version>`, ZIP name, manifest, notes |
+| CAPIE short version, build number | `capie_version`, `capie_build_number` (same file) | checked against `capie_release` (player status text, multiplayer handshake) |
+| Supported game build | `game_exe_sha256`, `game_version` (same file) | manifest `supportedGameSha256`, notes |
+| Rename Anything | `version` in `mod/descriptor.mod` | Workshop change note (`CHANGELOG.md`) |
+| "CAPIE" switch mod | `version` in `plugin/capie/toggle-mod/capie/descriptor.mod` | Workshop change note (`plugin/capie/toggle-mod/CHANGELOG.md`) |
+
+Preflight also warns about the launcher's `-dev` version and about a player-facing description
+that names an older CAPIE version.
+
+## Configuration
+
+`tools/release/release.toml` holds every path, the GitHub repository, the bundle layout, the
+commands and the Workshop items with their IDs. Paths are relative to `root`, which is relative
+to the file. After the repository split ([ADR-0034](../adr/0034-repository-split-evidence-and-plan.md)),
+each repository keeps the tool and trims the file: `capie` keeps build, bundle, signing, GitHub,
+VirusTotal and the switch-mod item; `rename-anything` keeps the Rename Anything item and its
+preflight commands. Never put a password, token, API key or key path in the file.
+
+## Tests
+
+```powershell
+uv run pytest tools/release/tests
+```
+
+The tests run against a synthetic repository in a temporary folder. Fakes stand in for git,
+gh, `pwsh`, SteamCMD and the VirusTotal API, so nothing real is started or sent. They cover the
+draft and pre-release defaults, the typed confirmations, Hidden for new items, the
+account-name-only login, key placement, reviewed hashes, the manifest and its signature,
+redaction of the API key and a dry run that sends nothing.
