@@ -18,6 +18,8 @@ $script:RaAssumeYes = $false    # -Yes: never prompt
 $script:RaQuiet = $false        # tests: no console output
 $script:RaAfterWriteHook = $null # tests: simulate a bad write before verification
 $script:RaBeforeOwnedRemove = $null # tests: simulate a replacement after ownership verification
+$script:RaLogSink = $null       # terminal interface: receives (Level, Message) of console log lines
+$script:RaMpWarningShown = $false # terminal interface already showed the multiplayer note
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -26,6 +28,29 @@ $script:RaReadHost = { param([string]$Prompt) Read-Host -Prompt $Prompt }
 $script:RaWriteHost = { param([string]$Message, [string]$Color) Write-RaConsoleLine -Message $Message -Color $Color }
 # GetUiLanguage() -> two-letter ISO language name of the Windows UI
 $script:RaGetUiLanguage = { (Get-UICulture).TwoLetterISOLanguageName }
+
+# --- Terminal interface (raw console) --------------------------------------
+# GetTerminal() -> [pscustomobject]@{ Interactive; Vt; Width }. Interactive = neither input nor
+# output is redirected and the session is user-interactive; Vt = the host renders ANSI sequences.
+$script:RaGetTerminal = {
+    $interactive = $false
+    $width = 0
+    try {
+        $interactive = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
+        $width = [Console]::WindowWidth
+    } catch { $interactive = $false }
+    $vt = $false
+    try { $vt = [bool]$Host.UI.SupportsVirtualTerminal } catch { $vt = $false }
+    [pscustomobject]@{ Interactive = $interactive; Vt = $vt; Width = $width }
+}
+# GetEnv(Name) -> value or $null
+$script:RaGetEnv = { param([string]$Name) [Environment]::GetEnvironmentVariable($Name) }
+# WriteRaw(Text) -> nothing; text may contain ANSI sequences and no implicit newline
+$script:RaWriteRaw = { param([string]$Text) $Host.UI.Write($Text) }
+# ReadKey() -> System.ConsoleKeyInfo (no echo)
+$script:RaReadKey = { [Console]::ReadKey($true) }
+# Sleep(Milliseconds) -> nothing (animation frames only)
+$script:RaSleep = { param([int]$Milliseconds) Start-Sleep -Milliseconds $Milliseconds }
 
 # --- Processes, registry, clock, desktop ----------------------------------
 # GetSteamProcess() -> array; empty when Steam is not running
@@ -40,6 +65,8 @@ $script:RaGetRegistryValue = {
 $script:RaNow = { Get-Date }
 # DesktopPath() -> folder
 $script:RaDesktopPath = { [Environment]::GetFolderPath('Desktop') }
+# DocumentsPath() -> folder (the game's user folder lives under it)
+$script:RaDocumentsPath = { [Environment]::GetFolderPath('MyDocuments') }
 # FolderPicker(DefaultFolder) -> folder or $null. $null adapter = real FolderBrowserDialog.
 $script:RaFolderPicker = $null
 

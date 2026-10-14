@@ -201,6 +201,9 @@ Fixture make_fixture(const std::wstring& base, const std::wstring& name, const s
         cl::BundleEntry{.name = L"capie_editor.dll", .sha256 = sha(runtime + L"\\capie_editor.dll"), .dll = true},
         cl::BundleEntry{.name = L"capie_injector.exe", .sha256 = sha(runtime + L"\\capie_injector.exe"), .dll = false}};
     policy.game_log = fixture.root + L"\\logs\\game.log";
+    policy.dlc_load = fixture.root + L"\\dlc_load.json";
+    policy.capie_mod = {.workshop_id = {}, .descriptors = {"mod/capie.mod"}};
+    write_file(policy.dlc_load, R"({"enabled_mods":["mod/ugc_820260968.mod","mod/capie.mod"],"disabled_dlcs":[]})");
     policy.timeouts = {.poll_ms = 50,
                        .discovery_ms = 15000,
                        .readiness_ms = 20000,
@@ -361,6 +364,39 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
             check(idle.report.games.empty() && of_role(idle.lines, L"injector").empty(),
                   "player closes the Paradox Launcher: nothing bound although another game runs");
             WaitForSingleObject(outside_process.get(), INFINITE);
+        }
+        {  // Switch mod off in the playset: the game runs vanilla, nothing is injected, no notice.
+            auto fixture = make_fixture(base, L"playset-off", fake);
+            write_file(fixture.policy.dlc_load, R"({"enabled_mods":["mod/ugc_820260968.mod"],"disabled_dlcs":[]})");
+            const auto result = run(fixture, L"dowser.exe", L"");
+            check(result.report.games.size() == 1 && result.report.games[0].outcome == cl::GameOutcome::playset_off &&
+                      of_role(result.lines, L"injector").empty() && of_role(result.lines, L"hoi4").size() == 1 &&
+                      result.notices == 0,
+                  "CAPIE mod disabled: vanilla game, no injection, no notice");
+            check(result.elapsed_ms >= 3500, "CAPIE mod disabled: launcher still lives until the game ends");
+        }
+        {  // Playset unreadable: fail-open to vanilla with one non-blocking notice.
+            auto fixture = make_fixture(base, L"playset-missing", fake);
+            DeleteFileW(fixture.policy.dlc_load.c_str());
+            const auto result = run(fixture, L"dowser.exe", L"");
+            check(result.report.games.size() == 1 && result.report.games[0].outcome == cl::GameOutcome::playset_off &&
+                      of_role(result.lines, L"injector").empty() && of_role(result.lines, L"hoi4").size() == 1 &&
+                      result.notices == 1,
+                  "dlc_load.json missing: vanilla game, one notice");
+        }
+        {
+            auto fixture = make_fixture(base, L"playset-corrupt", fake);
+            write_file(fixture.policy.dlc_load, R"({"enabled_mods":["mod/capie.mod")");
+            const auto result = run(fixture, L"dowser.exe", L"");
+            check(result.report.games.size() == 1 && result.report.games[0].outcome == cl::GameOutcome::playset_off &&
+                      of_role(result.lines, L"injector").empty() && result.notices == 1,
+                  "corrupted dlc_load.json: vanilla game, one notice");
+        }
+        {  // The Workshop identity is enough on its own.
+            auto fixture = make_fixture(base, L"playset-workshop", fake);
+            fixture.policy.capie_mod = {.workshop_id = "3500000001", .descriptors = {}};
+            write_file(fixture.policy.dlc_load, R"({"enabled_mods":["mod/ugc_3500000001.mod"],"disabled_dlcs":[]})");
+            expect_loaded_once(run(fixture, L"dowser.exe", L""), true, "Workshop CAPIE mod enabled: loaded");
         }
         {
             auto fixture = make_fixture(base, L"unknown", fake);

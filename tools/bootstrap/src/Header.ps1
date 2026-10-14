@@ -5,10 +5,12 @@
 
 .DESCRIPTION
     Runs on Windows PowerShell 5.1 and PowerShell 7, without administrator rights
-    and without external modules. Proxy mode adds one version.dll to the HOI4
-    installation. Workshop content and saves are untouched. See tools/bootstrap/README.md.
+    and without external modules. The default Launcher method writes nothing into the HOI4
+    installation; the explicit Proxy alternative adds one version.dll there. Saves are
+    untouched. See tools/bootstrap/README.md.
 
-    Interactive (no action switches):
+    Interactive (no action switches): a terminal interface (menu: install, update, disable,
+    uninstall) when the console is interactive, plain prompts otherwise or with -Plain.
         irm <release-url>/install.ps1 | iex
     Noninteractive:
         & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
@@ -22,10 +24,16 @@
     Edit the fragments in src/ and rebuild; never edit install.ps1 by hand.
 
 .PARAMETER Install
-    Install or verify the release pinned in this script.
+    Install or verify the release pinned in this script (with -Latest: the newest signed release).
+
+.PARAMETER Latest
+    With -Install: download the newest release from GitHub Releases, verify its signed manifest
+    and every SHA-256, and install it into %LOCALAPPDATA%\RenameAnything (never the game folder).
 
 .PARAMETER LoadMethod
-    Proxy (default): game-local version.dll activated by -capie. Launcher: external launcher.
+    Launcher (default): the CAPIE launcher in the Steam launch options; nothing in the game folder;
+    CAPIE loads only when the "CAPIE" mod is enabled in the playset. Proxy (explicit alternative,
+    alias -Method): game-local version.dll activated by -capie; it does not read the playset.
 
 .PARAMETER ProxyActivation
     Flag (default): requires -capie. Config: explicit persistent activation fallback.
@@ -47,6 +55,19 @@
 
 .PARAMETER Uninstall
     Remove the launch option part, our shortcuts and the installed files (the log is kept).
+
+.PARAMETER Purge
+    With -Uninstall: also delete the log and the localconfig.vdf backups this script made, so
+    nothing of the installation is left.
+
+.PARAMETER Disable
+    Remove only our part of the Steam launch options and the proxy activation marker; files stay.
+
+.PARAMETER NoAnimation
+    Terminal interface without the splash animation (also: RA_NO_ANIMATION=1, NO_COLOR, CI).
+
+.PARAMETER Plain
+    Plain question-and-answer prompts instead of the terminal interface.
 
 .PARAMETER DryRun
     Show what would happen and write nothing (alias -WhatIf).
@@ -92,7 +113,8 @@
 [OutputType([int])]
 param(
     [switch]$Install,
-    [ValidateSet('Proxy', 'Launcher')][string]$LoadMethod,
+    [switch]$Latest,
+    [Alias('Method')][ValidateSet('Proxy', 'Launcher')][string]$LoadMethod,
     [ValidateSet('Flag', 'Config')][string]$ProxyActivation,
     [switch]$Shortcut,
     [string]$ShortcutPath,
@@ -100,6 +122,10 @@ param(
     [string]$SteamAccount,
     [switch]$RemoveSteamLaunchOption,
     [switch]$Uninstall,
+    [switch]$Purge,
+    [switch]$Disable,
+    [switch]$NoAnimation,
+    [switch]$Plain,
     [Alias('WhatIf')][switch]$DryRun,
     [switch]$Yes,
     [string]$PackagePath,

@@ -1,20 +1,28 @@
-# Rename Anything — bootstrap (PowerShell)
+# CAPIE installer (PowerShell bootstrap)
 
-`install.ps1` installs CAPIE for Hearts of Iron IV. The default **Proxy** method places
-one `version.dll` beside `hoi4.exe`. The game loads it during startup; it forwards the
-Windows version API and loads CAPIE only when the game's command line contains the
-complete `-capie` argument. The **Launcher** alternative keeps the game directory
-unchanged. The script also updates, rolls back and uninstalls.
+`install.ps1` installs CAPIE for Hearts of Iron IV ([ADR-0030](../../docs/adr/0030-installation-paths-and-playset-switch.md)).
+The default **Launcher** method puts the CAPIE launcher into the Steam launch options and
+keeps the game directory unchanged; CAPIE loads only when the "CAPIE" switch mod is enabled
+in the playset, and `-Install` places that mod in your mod folder. The **Proxy** method is
+an explicit alternative (`-LoadMethod Proxy`, alias `-Method Proxy`): one `version.dll`
+beside `hoi4.exe`, loading CAPIE when the game's command line contains `-capie`; it does not
+read the playset. The script also updates, rolls back, disables and uninstalls.
 
 Status: **development**. The release URL, the pinned release ZIP hash and the update
 signing key are placeholders, so the script refuses to install until a real release
 exists. Proxy mode also requires `proxy/version.dll` in the verified release manifest;
-an older launcher-only package must be installed explicitly with `-LoadMethod Launcher`.
+a launcher-only package refuses `-LoadMethod Proxy`.
 
 * Windows PowerShell 5.1 (built into Windows) or PowerShell 7, without extra modules.
   Proxy mode needs write access to the game folder; the script does not elevate itself.
 * Proxy mode adds only `version.dll` to the game directory. It never overwrites another
   tool's DLL. Workshop content and saves are untouched.
+* The "CAPIE" switch mod goes to `Documents\Paradox Interactive\Hearts of Iron IV\mod`
+  (`capie.mod` and `capie\`), copied from the verified bundle (`mod/` in the release ZIP).
+  Every file is recorded with its SHA-256 in `state.json`. A file that was there before is
+  backed up first (byte-verified copy `<file>.renameanything-backup-<time>`) and put back
+  by `-Uninstall`; a file you changed after installation is left in place. `-Update` and
+  `-Rollback` bring the mod to the active version.
 * The DLL never talks to the network. The launcher does nothing in the background.
   The only network access is this script, and only when you run `-Install` (download)
   or ask for `-CheckUpdate` / `-Update`. It sends no identifiers and no telemetry.
@@ -54,10 +62,42 @@ Passing switches with the one-liner:
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/OWNER/hoi4-rename-anything/TAG/tools/bootstrap/install.ps1))) -Install -LoadMethod Launcher -Shortcut -Yes
 ```
 
+## Terminal interface
+
+Run without action switches on an interactive console (the usual `irm | iex`), the script
+opens a small terminal interface instead of the plain questions below:
+
+* a splash in the design system's colours: a staff map sheet with a flag in square C3 and the
+  pencil writing "Rename Anything" into the margin (one character per frame, under a second;
+  the still frame is complete),
+* the current state (installed version, Steam launch option),
+* a menu: Install, Update, Disable, Uninstall, Quit (arrows or 1-5, Enter, Esc),
+* the questions the action needs (multiplayer note; add the launcher to Steam [Y/n];
+  uninstall [y/N] and purge [y/N]; close Steam first),
+* progress as status lines in the CLI pattern (`OK`, `ASK`, `SKIP`, `NOTE`, `FAIL`),
+* a summary: what is installed, what Steam does, that the game folder is unchanged, how to
+  switch CAPIE on and off with the "CAPIE" mod, how to undo, where the log is.
+
+Install from the interface uses the launcher method (user folder only, no file in the game
+folder) and, once the release channel is configured, the newest signed release; an existing
+installation keeps its method. Colour needs a virtual-terminal host and is off with `NO_COLOR`
+or `TERM=dumb`; the animation is off with `-NoAnimation`, `RA_NO_ANIMATION=1` or `CI`. A
+redirected console, `-Plain`, `-Yes` or any action switch uses the plain prompts. Tests drive
+the interface through the key, terminal, environment and raw-output adapters.
+
+## Turning CAPIE on and off: the "CAPIE" mod
+
+With the launcher method, CAPIE loads only when the small "CAPIE" mod
+(`plugin/capie/toggle-mod/`) is enabled in the playset the game starts with. The launcher reads
+`Documents\Paradox Interactive\Hearts of Iron IV\dlc_load.json` after the game process exists;
+disabled means the clean game, an unreadable file means the clean game and one notice. The game
+is never blocked. `-Disable` removes the launcher from Steam entirely; `-Uninstall -Purge`
+restores the state from before the installation.
+
 ## Interactive questions
 
 1. Install or update the bundle into `%LOCALAPPDATA%\RenameAnything\<version>`?
-2. Loading method: `1` Proxy (default), `2` Launcher (no game-local DLL).
+2. Loading method: `1` Launcher (default, no game-local DLL, switch mod in the playset), `2` Proxy.
 3. Proxy integration: `1` Steam launch option, `4` install only. Launcher integration
    additionally offers `2` shortcut and `3` both.
 4. For Steam and shortcuts, a multiplayer warning (PL/EN, based on the Windows UI
@@ -71,7 +111,11 @@ Passing switches with the one-liner:
 | Switch | Meaning |
 | --- | --- |
 | `-Install` | install/verify the pinned release (`-PackagePath zip` for an already downloaded ZIP) |
-| `-LoadMethod Proxy\|Launcher` | Proxy is the default for setup; Launcher removes only our owned proxy and uses the external launcher |
+| `-Install -Latest` | release installer: newest signed release from GitHub Releases into `%LOCALAPPDATA%\RenameAnything` (`-Latest` alone implies `-Install`; offline with `-ManifestPath` + `-PackagePath`) |
+| `-Disable` | turn CAPIE off: remove only our part of the Steam launch options and our proxy activation marker; files stay |
+| `-Uninstall -Purge` | uninstall, then also delete our `localconfig.vdf` backups and the log: nothing of the installation is left |
+| `-NoAnimation` / `-Plain` | terminal interface without the splash animation / plain prompts instead of the interface |
+| `-LoadMethod Launcher\|Proxy` (alias `-Method`) | Launcher is the default; Proxy is the explicit alternative (game-local DLL, no playset switch); switching to Launcher removes only our owned proxy |
 | `-ProxyActivation Flag\|Config` | Flag is the default; Config creates the explicit persistent fallback marker described below |
 | `-SteamLaunchOption` | append `-capie` (Proxy), or add the launcher wrapper (Launcher); `-SteamAccount <id>[,<id>]` or `all` |
 | `-Shortcut` / `-ShortcutPath <folder>` | create the launcher shortcut; requires `-LoadMethod Launcher` (Desktop by default) |
@@ -86,7 +130,7 @@ Passing switches with the one-liner:
 | `-Language pl|en` | override the detected language |
 
 Omitted loading and activation options preserve an existing installation's choices;
-a fresh install defaults to Proxy with Flag activation. Use an explicit option to
+a fresh install defaults to Launcher (Proxy activation, if chosen, defaults to Flag). Use an explicit option to
 change a saved preference.
 
 ## What exactly is changed
@@ -179,6 +223,27 @@ edits `localconfig.vdf` again.
   Keep the private key outside the repository. Paste the public key into
   `src/Shared/Configuration.ps1` and rebuild `install.ps1`.
 
+## Release installer and signing
+
+The release path is `-Install -Latest`: one GitHub API request for the latest release, then
+`release-manifest.json` and `.sig` (RSA signature against the key pinned in this script; tag
+equals manifest version; asset URLs inside this repository), then the ZIP: SHA-256 before
+extraction, every file's SHA-256 after extraction, full re-verification of the staging folder,
+then an atomic move into `%LOCALAPPDATA%\RenameAnything\<version>` and the `current` junction.
+Nothing is written to the game folder in launcher mode.
+
+What a public release still needs: the repository name and the public update key in
+`src/Shared/Configuration.ps1`, a signed manifest per release (`sign-release-manifest.ps1`),
+and the release assets (`install.ps1`, ZIP, manifest, `.sig`). Authenticode for the EXE/DLL
+files and for `install.ps1` is decided in [ADR-0031](../../docs/adr/0031-trust-without-paid-code-signing.md):
+no paid certificate. Trust comes from open code, CI builds, the signed manifest, VirusTotal
+and clear notes on the SmartScreen warning. Once the repository is public, the project applies
+to the SignPath Foundation (free for open source). When that is granted, every binary is signed
+(`/fd SHA256` with an RFC 3161 timestamp) before the ZIP and manifest are built, so the
+manifest hashes cover the signed files. Until then SmartScreen and some antivirus engines see
+the launcher as an unknown publisher; the signed manifest still proves the files came from
+the maintainer's key.
+
 ## Source layout and the single-file build
 
 `install.ps1` is what users download, so it stays **one pure-ASCII file without BOM**
@@ -193,7 +258,8 @@ source lives in vertical slices under `src/`:
 | `src/Shared/Adapters.ps1` | every external dependency: console, prompts, Steam process, registry, clock, network, file bytes, `.lnk` COM, folder dialog |
 | `src/Shared/Messages.ps1` | EN/PL texts (`\uXXXX` escapes) |
 | `src/Shared/Logging.ps1`, `Vdf.ps1`, `TextFile.ps1`, `State.ps1`, `Manifest.ps1`, `Steam.ps1`, `VersionStore.ps1` | shared building blocks |
-| `src/Features/Install.ps1`, `Proxy.ps1`, `SteamLaunchOption.ps1`, `Shortcut.ps1`, `Update.ps1`, `Uninstall.ps1` | one file per user-visible action |
+| `src/Shared/Tui.ps1` | terminal interface: capability detection, palette, map sheet, line models, menu and key reading |
+| `src/Features/Install.ps1`, `Proxy.ps1`, `SteamLaunchOption.ps1`, `Shortcut.ps1`, `Update.ps1`, `Uninstall.ps1`, `Tui.ps1` | one file per user-visible action (Uninstall also holds `-Disable` and `-Purge`) |
 | `src/Main.ps1` | option handling, dispatch, entry point (always last) |
 
 The fragments are plain `.ps1` files with functions, not `.psm1` modules: all slices
@@ -247,9 +313,9 @@ Save-Module PSScriptAnalyzer -Path $env:TEMP\psmodules
 .\tools\lint-powershell.ps1 -ModulePath $env:TEMP\psmodules      # exit 0 = no findings
 ```
 
-## Launcher alternative
+## Launcher integration (default)
 
-`-LoadMethod Launcher` preserves the wrapper integration:
+The launcher method uses the wrapper integration:
 `"…\RenameAnythingLauncher.exe" %command%` in Steam, or
 `"…\RenameAnythingLauncher.exe" "<game>\dowser.exe"` in the shortcut. The wrapper source
 and offline checks live in `plugin/capie/build_launcher.ps1`. A release must include
@@ -260,14 +326,22 @@ an unpublished development placeholder.
 
 ## Po polsku (skrót)
 
-Skrypt instaluje CAPIE do `%LOCALAPPDATA%\RenameAnything`. Domyślny tryb Proxy dodaje
-`version.dll` do folderu gry i aktywuje CAPIE argumentem `-capie`. Cudzych DLL nie
-nadpisuje. Tryb `-LoadMethod Launcher` zachowuje launcher i skróty bez plików w folderze
-gry. Nie wymaga administratora, nie zmienia Workshop ani zapisów.
+Skrypt instaluje CAPIE do `%LOCALAPPDATA%\RenameAnything`. Domyślna metoda Launcher dodaje
+launcher do opcji uruchamiania Steam, nie zmienia folderu gry i kopiuje mod-przełącznik
+„CAPIE” do `Dokumenty\Paradox Interactive\Hearts of Iron IV\mod` (z kopią zapasową i
+sprawdzaniem SHA-256; `-Uninstall` go usuwa i przywraca wcześniejsze pliki). Alternatywa
+`-LoadMethod Proxy` (`-Method Proxy`) dodaje `version.dll` do folderu gry i aktywuje CAPIE
+argumentem `-capie`; nie czyta zestawu modów. Cudzych DLL nie nadpisuje. Nie wymaga
+administratora, nie zmienia Workshop ani zapisów. Podpis: bez płatnego certyfikatu; po
+upublicznieniu repozytorium wniosek do SignPath Foundation (ADR-0031).
 **Z włączonym rozszerzeniem gra nie jest deklarowana jako zgodna z trybem
 wieloosobowym.** Przed grą MP uruchom skrypt z `-RemoveSteamLaunchOption` albo
 `-Uninstall`, albo usuń wpis ręcznie we Właściwościach gry w Steam. Przy jawnej aktywacji
 `-ProxyActivation Config` trzeba też usunąć `%LOCALAPPDATA%\RenameAnything\proxy.enabled`.
+Bez przełączników, w interaktywnej konsoli, skrypt pokazuje menu (Zainstaluj, Aktualizuj, Wyłącz,
+Odinstaluj). Włączanie i wyłączanie CAPIE w trybie Launcher: mod „CAPIE” w zestawie modów.
+`-Disable` usuwa tylko wpis w Steam, `-Uninstall -Purge` przywraca stan sprzed instalacji
+(także bez logu i kopii `localconfig.vdf`). Instalator wydań: `-Install -Latest`.
 Aktualizacja:
 `-CheckUpdate` (tylko na żądanie) i `-Update`, cofnięcie: `-Rollback`. Bezpieczniej
 pobrać skrypt, przeczytać i dopiero uruchomić niż używać `irm | iex`.

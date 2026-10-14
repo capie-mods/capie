@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace capie::launcher {
 
@@ -64,11 +65,30 @@ inline constexpr wchar_t rotated_log_suffix[] = L".1";
 inline constexpr wchar_t remembered_game_file[] = L"hoi4.path";
 /// @brief Game log, relative to the user's Documents folder (`gameDataPath` in launcher-settings.json).
 inline constexpr wchar_t game_log_relative[] = L"Paradox Interactive\\Hearts of Iron IV\\logs\\game.log";
+/// @brief Playset file the Paradox Launcher writes before the game starts, relative to Documents.
+inline constexpr wchar_t dlc_load_relative[] = L"Paradox Interactive\\Hearts of Iron IV\\dlc_load.json";
+
+/**
+ * @brief Descriptor path of the local "CAPIE" switch mod as it appears in dlc_load.json.
+ *
+ * The switch mod ships in `plugin/capie/toggle-mod/`. A local install registers it as
+ * `mod/capie.mod`; this is the identity used until the mod is published on the Workshop.
+ */
+inline constexpr char capie_mod_descriptor[] = "mod/capie.mod";
+/**
+ * @brief Steam Workshop ID of the "CAPIE" switch mod (decimal), empty until it is published.
+ *
+ * Fill this in after the first Workshop upload: `mod/ugc_<ID>.mod` then matches as well. No
+ * other file has to change (see `ModIdentity` and playset_gate.hpp).
+ */
+inline constexpr char capie_mod_workshop_id[] = "";
 
 /// @brief Log size that triggers rotation at launcher start.
 inline constexpr std::size_t log_rotate_bytes = std::size_t{1} << 20U;
 /// @brief Largest part of the game log read when looking for the readiness marker.
 inline constexpr std::size_t game_log_read_limit = std::size_t{4} << 20U;
+/// @brief Largest dlc_load.json accepted (a playset of thousands of mods is far below this).
+inline constexpr std::size_t dlc_load_read_limit = std::size_t{1} << 20U;
 /// @brief Maximum stored helper diagnostic output.
 inline constexpr std::size_t helper_output_limit = 16384;
 /// @brief Windows command line limit, in characters, including the terminator.
@@ -143,6 +163,20 @@ inline constexpr std::size_t bundle_size = 3;
 /// @brief Bundle description, in the order of the indexes above.
 using BundleManifest = std::array<BundleEntry, bundle_size>;
 
+/// @brief How the CAPIE switch mod is recognised in `enabled_mods` of dlc_load.json.
+struct ModIdentity {
+    std::string workshop_id;               ///< decimal Workshop ID; empty until the mod is published
+    std::vector<std::string> descriptors;  ///< accepted descriptor paths, e.g. "mod/capie.mod"
+};
+
+/**
+ * @brief The production identity of the CAPIE switch mod.
+ * @return Workshop ID (when set) and the local descriptor path.
+ */
+inline ModIdentity capie_mod_identity() {
+    return {.workshop_id = capie_mod_workshop_id, .descriptors = {capie_mod_descriptor}};
+}
+
 /// @brief Everything a launcher run depends on that tests replace.
 struct Policy {
     /// @brief Pinned game hash (lower-case hex).
@@ -153,6 +187,10 @@ struct Policy {
     BundleManifest bundle;
     /// @brief Absolute path of game.log.
     std::wstring game_log;
+    /// @brief Absolute path of dlc_load.json (the playset the game was started with).
+    std::wstring dlc_load;
+    /// @brief How the CAPIE switch mod is recognised in that playset.
+    ModIdentity capie_mod;
     /// @brief Unknown build handling (see UnknownBuildPolicy).
     UnknownBuildPolicy unknown_build = UnknownBuildPolicy::run_without_capie;
     /// @brief Timeouts.

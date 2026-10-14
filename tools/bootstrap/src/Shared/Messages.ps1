@@ -6,12 +6,12 @@ $script:RaMessages = @{
     en = @{
         Title                      = 'Rename Anything for Hearts of Iron IV - bootstrap'
         Intro                      = @(
-            'Proxy mode adds one version.dll to the game directory; Launcher mode keeps the game directory unchanged. ',
-            'Workshop and saves are untouched. Log: {0}'
+            'The CAPIE launcher (default) keeps the game folder unchanged and adds the "CAPIE" switch mod to your ',
+            'mod folder; the Proxy alternative adds one version.dll to the game folder. Saves are untouched. Log: {0}'
         ) -join ''
         AskLoadMethod              = @(
-            'Loading method: 1 = proxy version.dll (recommended, requires -capie); ',
-            '2 = external launcher (no game files added). Choice [{0}]'
+            'Loading method: 1 = CAPIE launcher (recommended; switch CAPIE with the "CAPIE" mod in the playset, ',
+            'no game files added); 2 = proxy version.dll in the game folder (requires -capie). Choice [{0}]'
         ) -join ''
         AskModeProxy               = @(
             'Proxy activation: 1 = add -capie to Steam launch options; 4 = install only (add -capie manually). ',
@@ -57,16 +57,67 @@ $script:RaMessages = @{
             'Your hoi4.exe build ({0}...) is not supported yet. The launcher starts the game without the DLL; check again ',
             'later (release notes / versions.json).'
         ) -join ''
+        DisableDone                = 'Disabled: Steam starts the clean game. Files stay installed; run -SteamLaunchOption to enable again.'
+        PurgeDone                  = 'Uninstalled. Nothing of this setup is left; the Steam launch options are as before the installation.'
+        ReleaseVerified            = 'Release {0}: signed manifest verified.'
+        TuiTagline                 = "Built on CAPIE (Cyprian's API Extender)"
+        TuiMenuTitle               = 'What should this setup do?'
+        TuiInstall                 = 'Install'
+        TuiInstallHint             = 'CAPIE launcher in your user folder, started by Steam'
+        TuiUpdate                  = 'Update'
+        TuiUpdateHint              = 'newest signed release; the previous one stays for rollback'
+        TuiDisable                 = 'Disable'
+        TuiDisableHint             = 'Steam starts the clean game; files stay'
+        TuiUninstall               = 'Uninstall'
+        TuiUninstallHint           = 'restore the state before the installation'
+        TuiQuit                    = 'Quit'
+        TuiQuitHint                = 'change nothing'
+        TuiKeys                    = 'Up and Down or 1-5 to choose, Enter to confirm, Esc to quit.'
+        TuiStatusNone              = 'CAPIE is not installed.'
+        TuiStatusInstalled         = 'Installed: CAPIE {0}, {1}.'
+        TuiSteamOn                 = 'started by Steam'
+        TuiSteamOff                = 'not in the Steam launch options'
+        TuiMpNote                  = @(
+            'While CAPIE is loaded, the game is not declared multiplayer-compatible. Before multiplayer, ',
+            'disable the "CAPIE" mod in your playset or choose Disable here.'
+        ) -join ''
+        TuiAskSteam                = 'Add the CAPIE launcher to the HOI4 Steam launch options? [Y/n]'
+        TuiAskDisable              = 'Remove the CAPIE launcher from the Steam launch options? Files stay. [Y/n]'
+        TuiAskUninstall            = 'Remove CAPIE and restore the Steam launch options from before the installation? [y/N]'
+        TuiAskPurge                = 'Also delete the setup log and the Steam config backups this setup made? [y/N]'
+        TuiAskSteamClosed          = 'Steam is running. Close it completely (Steam > Exit), then press Enter. Q skips the Steam step.'
+        TuiWorking                 = 'Working'
+        TuiSummary                 = 'Summary'
+        TuiRowInstalled            = 'Installed'
+        TuiRowSteam                = 'Steam'
+        TuiRowGame                 = 'Game folder'
+        TuiRowSwitch               = 'Switch'
+        TuiRowUndo                 = 'Undo'
+        TuiRowLog                  = 'Log'
+        TuiRowMod                  = 'CAPIE mod'
+        TuiRowResult               = 'Result'
+        TuiGameUnchanged           = 'unchanged'
+        TuiNone                    = 'nothing'
+        TuiSwitchValue             = 'enable the "CAPIE" mod in your playset to load CAPIE; disable it for the clean game'
+        TuiUndoValue               = 'run this setup again and choose Disable or Uninstall'
+        TuiNothingChanged          = 'Nothing was changed.'
+        TuiFailed                  = 'The step failed. Details in the log: {0}'
+        TuiYes                     = 'yes'
+        TuiNo                      = 'no'
+        TuiDone                    = 'Done.'
+        TuiCancelled               = 'Cancelled. Nothing was changed.'
+        TuiRemovedAll              = 'removed; no files of this setup are left'
+        TuiRemovedKeptLog          = 'removed; the log was kept'
     }
     pl = @{
         Title                      = 'Rename Anything dla Hearts of Iron IV \u2014 bootstrap'
         Intro                      = @(
-            'Tryb Proxy dodaje version.dll do folderu gry; tryb Launcher nie zmienia tego folderu. ',
-            'Workshop i zapisy pozostaj\u0105 bez zmian. Log: {0}'
+            'Launcher CAPIE (domy\u015Blnie) nie zmienia folderu gry i dodaje mod-prze\u0142\u0105cznik \u201ECAPIE\u201D ',
+            'do folderu mod\u00F3w; alternatywa Proxy dodaje version.dll do folderu gry. Zapisy bez zmian. Log: {0}'
         ) -join ''
         AskLoadMethod              = @(
-            'Metoda: 1 = proxy version.dll (zalecane, wymaga -capie); ',
-            '2 = zewn\u0119trzny launcher (bez plik\u00F3w w folderze gry). Wyb\u00F3r [{0}]'
+            'Metoda: 1 = launcher CAPIE (zalecane; CAPIE w\u0142\u0105czasz modem \u201ECAPIE\u201D w zestawie, ',
+            'bez plik\u00F3w w folderze gry); 2 = proxy version.dll w folderze gry (wymaga -capie). Wyb\u00F3r [{0}]'
         ) -join ''
         AskModeProxy               = @(
             'Aktywacja Proxy: 1 = dodaj -capie w opcjach Steam; 4 = sama instalacja (dodaj -capie r\u0119cznie). ',
@@ -121,6 +172,66 @@ $script:RaMessages = @{
             'Twoja wersja hoi4.exe ({0}...) nie jest jeszcze wspierana. Launcher uruchomi gr\u0119 bez DLL; sprawd\u017A ',
             'p\u00F3\u017Aniej (release notes / versions.json).'
         ) -join ''
+        DisableDone                = @(
+            'Wy\u0142\u0105czono: Steam uruchamia czyst\u0105 gr\u0119. Pliki zostaj\u0105; aby w\u0142\u0105czy\u0107 ',
+            'ponownie, uruchom z -SteamLaunchOption.'
+        ) -join ''
+        PurgeDone                  = 'Odinstalowano. Nic z tej instalacji nie zosta\u0142o; opcje uruchamiania w Steam s\u0105 jak przed instalacj\u0105.'
+        ReleaseVerified            = 'Wydanie {0}: podpis manifestu sprawdzony.'
+        TuiTagline                 = "Zbudowane na CAPIE (Cyprian's API Extender)"
+        TuiMenuTitle               = 'Co ma zrobi\u0107 instalator?'
+        TuiInstall                 = 'Zainstaluj'
+        TuiInstallHint             = 'launcher CAPIE w folderze u\u017Cytkownika, start przez Steam'
+        TuiUpdate                  = 'Aktualizuj'
+        TuiUpdateHint              = 'najnowsze podpisane wydanie; poprzednie zostaje'
+        TuiDisable                 = 'Wy\u0142\u0105cz'
+        TuiDisableHint             = 'Steam uruchamia czyst\u0105 gr\u0119; pliki zostaj\u0105'
+        TuiUninstall               = 'Odinstaluj'
+        TuiUninstallHint           = 'przywr\u00F3\u0107 stan sprzed instalacji'
+        TuiQuit                    = 'Wyjd\u017A'
+        TuiQuitHint                = 'nic nie zmieniaj'
+        TuiKeys                    = 'Strza\u0142ki albo 1-5 wybieraj\u0105, Enter zatwierdza, Esc ko\u0144czy.'
+        TuiStatusNone              = 'CAPIE nie jest zainstalowane.'
+        TuiStatusInstalled         = 'Zainstalowano: CAPIE {0}, {1}.'
+        TuiSteamOn                 = 'uruchamiane przez Steam'
+        TuiSteamOff                = 'poza opcjami uruchamiania Steam'
+        TuiMpNote                  = @(
+            'Gdy CAPIE jest za\u0142adowane, gra nie jest deklarowana jako zgodna z trybem wieloosobowym. Przed gr\u0105 ',
+            'wieloosobow\u0105 wy\u0142\u0105cz mod \u201ECAPIE\u201D w zestawie mod\u00F3w albo wybierz tutaj \u201EWy\u0142\u0105cz\u201D.'
+        ) -join ''
+        TuiAskSteam                = 'Doda\u0107 launcher CAPIE do opcji uruchamiania HOI4 w Steam? [T/n]'
+        TuiAskDisable              = 'Usun\u0105\u0107 launcher CAPIE z opcji uruchamiania Steam? Pliki zostaj\u0105. [T/n]'
+        TuiAskUninstall            = 'Usun\u0105\u0107 CAPIE i przywr\u00F3ci\u0107 opcje uruchamiania Steam sprzed instalacji? [t/N]'
+        TuiAskPurge                = 'Usun\u0105\u0107 te\u017C log instalatora i kopie konfiguracji Steam zrobione przez instalator? [t/N]'
+        TuiAskSteamClosed          = @(
+            'Steam jest uruchomiony. Zamknij go ca\u0142kowicie (Steam > Zako\u0144cz), potem naci\u015Bnij Enter. ',
+            'Q pomija krok Steam.'
+        ) -join ''
+        TuiWorking                 = 'W toku'
+        TuiSummary                 = 'Podsumowanie'
+        TuiRowInstalled            = 'Zainstalowano'
+        TuiRowSteam                = 'Steam'
+        TuiRowGame                 = 'Folder gry'
+        TuiRowSwitch               = 'Prze\u0142\u0105cznik'
+        TuiRowUndo                 = 'Cofni\u0119cie'
+        TuiRowLog                  = 'Log'
+        TuiRowMod                  = 'Mod CAPIE'
+        TuiRowResult               = 'Wynik'
+        TuiGameUnchanged           = 'bez zmian'
+        TuiNone                    = 'nic'
+        TuiSwitchValue             = @(
+            'w\u0142\u0105cz mod \u201ECAPIE\u201D w zestawie mod\u00F3w, aby \u0142adowa\u0107 CAPIE; ',
+            'wy\u0142\u0105cz go dla czystej gry'
+        ) -join ''
+        TuiUndoValue               = 'uruchom instalator ponownie i wybierz \u201EWy\u0142\u0105cz\u201D albo \u201EOdinstaluj\u201D'
+        TuiNothingChanged          = 'Nic nie zmieniono.'
+        TuiFailed                  = 'Krok si\u0119 nie powi\u00F3d\u0142. Szczeg\u00F3\u0142y w logu: {0}'
+        TuiYes                     = 'tak'
+        TuiNo                      = 'nie'
+        TuiDone                    = 'Gotowe.'
+        TuiCancelled               = 'Anulowano. Nic nie zmieniono.'
+        TuiRemovedAll              = 'usuni\u0119to; nie zosta\u0142y \u017Cadne pliki tej instalacji'
+        TuiRemovedKeptLog          = 'usuni\u0119to; log zachowano'
     }
 }
 

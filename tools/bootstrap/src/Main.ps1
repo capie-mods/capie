@@ -5,7 +5,7 @@
 $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
     'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
-    'LoadMethod', 'ProxyActivation'
+    'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain'
 )
 
 function Write-RaDone {
@@ -31,9 +31,12 @@ function Initialize-RaRun {
         Applies the options to the runtime switches and prints the banner.
     .DESCRIPTION
         Sets language, root folder (unless a test already set it), dry-run and -Yes,
-        prints title/intro and logs the start line with the switches that were given.
+        prints title/intro (unless -NoBanner: the terminal interface draws its own) and logs
+        the start line with the switches that were given.
     .PARAMETER Options
         Normalized option table (every known key present).
+    .PARAMETER NoBanner
+        Do not print the title and intro lines.
     .OUTPUTS
         None.
     .EXAMPLE
@@ -41,14 +44,17 @@ function Initialize-RaRun {
     #>
     [CmdletBinding()]
     [OutputType([void])]
-    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options, [switch]$NoBanner)
     $script:RaLang = if ($Options.Language) { $Options.Language } else { Get-RaDefaultLanguage }
     if (-not $script:RaRoot) { $script:RaRoot = Join-Path $env:LOCALAPPDATA $script:RaRootDirName }
     $script:RaDry = [bool]$Options.DryRun
     $script:RaAssumeYes = [bool]$Options.Yes
-    Write-RaHost (Get-RaText 'Title') -Color White
-    Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
-    if ($script:RaDry) { Write-RaHost (Get-RaText 'DryRunNote') -Color Cyan }
+    $script:RaMpWarningShown = $false
+    if (-not $NoBanner) {
+        Write-RaHost (Get-RaText 'Title') -Color White
+        Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
+        if ($script:RaDry) { Write-RaHost (Get-RaText 'DryRunNote') -Color Cyan }
+    }
     $given = ($Options.GetEnumerator() | Where-Object { $_.Value } | ForEach-Object { "-$($_.Key)" }) -join ' '
     Write-RaLog ('Start: PS {0}, args: {1}' -f $PSVersionTable.PSVersion, $given) -NoConsole
 }
@@ -81,19 +87,19 @@ function Get-RaSetupPlan {
         Steam          = [bool]$Options.SteamLaunchOption
         Shortcut       = [bool]$Options.Shortcut -or [bool]$Options.ShortcutPath
         ShortcutFolder = $null
-        LoadMethod     = if ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) { $Options.LoadMethod } else { 'Proxy' }
+        LoadMethod     = if ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) { $Options.LoadMethod } else { 'Launcher' }
         ProxyActivation = if ($Options.ContainsKey('ProxyActivation') -and $Options.ProxyActivation) { $Options.ProxyActivation } else { 'Flag' }
     }
     if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) -and $State -and $State.InstalledVersion) {
         $plan.LoadMethod = $State.LoadMethod
     }
     if (-not ($plan.Install -or $plan.Steam -or $plan.Shortcut)) {
-        if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Uninstall.' }
+        if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Disable, -Uninstall.' }
         $plan.Install = Confirm-Ra (Get-RaText 'AskInstall' @($script:RaRoot)) $true
         if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod)) {
-            $defaultLoader = if ($plan.LoadMethod -eq 'Launcher') { '2' } else { '1' }
+            $defaultLoader = if ($plan.LoadMethod -eq 'Proxy') { '2' } else { '1' }
             do { $loader = Read-RaAnswer (Get-RaText 'AskLoadMethod' @($defaultLoader)) } until ($loader -in @('', '1', '2'))
-            if ($loader) { $plan.LoadMethod = if ($loader -eq '2') { 'Launcher' } else { 'Proxy' } }
+            if ($loader) { $plan.LoadMethod = if ($loader -eq '2') { 'Proxy' } else { 'Launcher' } }
         }
         $modeText = if ($plan.LoadMethod -eq 'Proxy') { 'AskModeProxy' } else { 'AskMode' }
         do { $mode = Read-RaAnswer (Get-RaText $modeText) } until (
@@ -105,7 +111,7 @@ function Get-RaSetupPlan {
     if ($plan.Shortcut -and $plan.LoadMethod -eq 'Proxy') {
         throw 'Shortcuts use the launcher alternative. Choose -LoadMethod Launcher -Shortcut, or use proxy mode through Steam with -capie.'
     }
-    if ($plan.Steam -or $plan.Shortcut) {
+    if (($plan.Steam -or $plan.Shortcut) -and -not $script:RaMpWarningShown) {
         Write-RaHost ''
         Write-RaHost (Get-RaText 'MpWarning') -Color Yellow
         Write-RaHost ''
@@ -161,7 +167,10 @@ function Invoke-RaSetupAction {
         Save-RaState $State
     }
     if ($plan.Install) {
-        Install-RaPackage $State $Options.PackagePath
+        if ($Options.Latest) { [void](Install-RaLatest -State $State -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath) }
+        else { Install-RaPackage $State $Options.PackagePath }
+        Save-RaState $State
+        Install-RaPlaysetMod $State
         Save-RaState $State
     }
     if ($plan.LoadMethod -eq 'Proxy') {
@@ -204,8 +213,8 @@ function Invoke-RaAction {
     .SYNOPSIS
         Dispatches to the requested action and returns its exit code.
     .DESCRIPTION
-        Priority: -Uninstall, -RemoveSteamLaunchOption, -CheckUpdate, -Rollback, -Update,
-        then the install/integration flow. Exceptions propagate to Invoke-RaMain.
+        Priority: -Uninstall, -RemoveSteamLaunchOption, -Disable, -CheckUpdate, -Rollback,
+        -Update, then the install/integration flow. Exceptions propagate to Invoke-RaMain.
     .PARAMETER Options
         Normalized option table.
     .OUTPUTS
@@ -227,7 +236,17 @@ function Invoke-RaAction {
     if ($Options.Uninstall) {
         Invoke-RaUninstall $state $steamRootPath
         if (-not $script:RaDry -and (Test-Path -LiteralPath (Get-RaStatePath))) { Remove-Item -LiteralPath (Get-RaStatePath) -Force }
+        if ($Options.Purge -and (Invoke-RaPurge $steamRootPath)) {
+            Write-RaHost (Get-RaText 'PurgeDone') -Color Green
+            return $script:RaExitSuccess
+        }
         Write-RaHost (Get-RaText 'UninstallDone' @((Get-RaLogPath))) -Color Green
+        return $script:RaExitSuccess
+    }
+    if ($Options.Disable) {
+        Invoke-RaDisable $state $steamRootPath
+        Save-RaState $state
+        Write-RaHost (Get-RaText 'DisableDone') -Color Green
         return $script:RaExitSuccess
     }
     if ($Options.RemoveSteamLaunchOption) {
@@ -244,11 +263,15 @@ function Invoke-RaAction {
     if ($Options.Rollback) {
         Invoke-RaRollback $state
         Save-RaState $state
+        Install-RaPlaysetMod $state
+        Save-RaState $state
         Write-RaDone
         return $script:RaExitSuccess
     }
     if ($Options.Update) {
         if ((Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath)) {
+            Save-RaState $state
+            Install-RaPlaysetMod $state
             Save-RaState $state
             Remove-RaUnusedVersion $state
         }
@@ -280,6 +303,16 @@ function Invoke-RaMain {
     $ErrorActionPreference = 'Stop'
     $options = $P.Clone()
     foreach ($k in $script:RaOptionNames) { if (-not $options.ContainsKey($k)) { $options[$k] = $null } }
+    if ($options.Purge -and -not $options.Uninstall) { $options.Purge = $null }
+    if ($options.Latest -and -not ($options.Install -or $options.Update)) { $options.Install = $true }
+    $mode = Get-RaTuiMode $options
+    if ($mode.Tui) {
+        Initialize-RaRun $options -NoBanner
+        try { return (Invoke-RaTui -Options $options -Mode $mode) } catch {
+            Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
+            return $script:RaExitFailure
+        }
+    }
     Initialize-RaRun $options
     try {
         return (Invoke-RaAction $options)
@@ -295,7 +328,8 @@ if ($MyInvocation.InvocationName -ne '.') {
         SteamAccount = $SteamAccount; RemoveSteamLaunchOption = $RemoveSteamLaunchOption; Uninstall = $Uninstall
         DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot; Language = $Language
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
-        LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation
+        LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation; Latest = $Latest; Purge = $Purge; Disable = $Disable
+        NoAnimation = $NoAnimation; Plain = $Plain
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

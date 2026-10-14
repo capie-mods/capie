@@ -15,7 +15,9 @@
  *     because the launcher is still running.
  *  4. Otherwise look for hoi4.exe in the started tree, for at most 30 minutes (the player
  *     may take a while to pick a playset). Each game found is handled once: its image
- *     must be the pinned hoi4.exe, it must reach the main menu, then the injector runs for
+ *     must be the pinned hoi4.exe, the playset it was started with (dlc_load.json) must
+ *     enable the "CAPIE" switch mod (playset_gate.hpp; disabled or unreadable = vanilla, the
+ *     game is never touched), it must reach the main menu, then the injector runs for
  *     `capie_core.dll` and `capie_editor.dll`. The launcher then waits for that game to
  *     end. If the Paradox Launcher starts another game afterwards, the search starts over.
  *  5. The run ends when nothing started in step 2 is running any more.
@@ -28,6 +30,7 @@
 #include "file_pin.hpp"
 #include "injection.hpp"
 #include "launcher_log.hpp"
+#include "playset_gate.hpp"
 #include "process_tree.hpp"
 #include "readiness.hpp"
 #include "win_handle.hpp"
@@ -48,6 +51,7 @@ enum class GameOutcome : std::uint8_t {
     exited_early,   ///< the game ended before the main menu
     not_ready,      ///< no main menu within the deadline
     failed,         ///< an injector step failed (guardian ran)
+    playset_off,    ///< the "CAPIE" mod is not enabled in the playset, or the playset is unreadable
 };
 
 /// @brief One handled game.
@@ -79,6 +83,8 @@ constexpr const wchar_t* outcome_name(GameOutcome outcome) noexcept {
             return L"exited-early";
         case GameOutcome::not_ready:
             return L"not-ready";
+        case GameOutcome::playset_off:
+            return L"playset-off";
         case GameOutcome::failed:
             break;
     }
@@ -153,6 +159,16 @@ inline GameOutcome handle_game(const BoundGame& game, const Prerequisites& prere
         notifier.notify(Notice::foreign_game, game.image);
         WaitForSingleObject(game.process.get(), INFINITE);
         return GameOutcome::foreign_image;
+    }
+    const PlaysetVerdict playset = read_playset(policy.dlc_load, policy.capie_mod);
+    log.write(playset.state == PlaysetState::enabled ? Level::info : Level::warning,
+              std::wstring(L"playset ") + playset_state_name(playset.state) + L": " + playset.reason);
+    if (playset.state != PlaysetState::enabled) {
+        if (playset.state == PlaysetState::unknown) {
+            notifier.notify(Notice::playset_unknown, playset.reason);  // fail-open: vanilla, never blocked
+        }
+        WaitForSingleObject(game.process.get(), INFINITE);
+        return GameOutcome::playset_off;
     }
     const Readiness readiness = wait_until_ready(game, policy, log);
     if (readiness != Readiness::ready) {

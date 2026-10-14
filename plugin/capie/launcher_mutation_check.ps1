@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Mutation check of the CAPIE launcher (tests/launcher/mutants.json, 29 mutants).
+    Mutation check of the CAPIE launcher (tests/launcher/mutants.json, 37 mutants).
 
 .DESCRIPTION
     Each mutant is one exact, unique textual replacement in one launcher source plus the
@@ -48,6 +48,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'NativeBuild.psm1') 
 $script:Flags = @('/nologo', '/O2', '/MT', '/W4', '/WX', '/utf-8', '/DWIN32_LEAN_AND_MEAN', '/DNOMINMAX', '/DUNICODE', '/D_UNICODE',
     '/std:c++20', '/EHsc', '/permissive-')
 $script:Libraries = @('bcrypt.lib', 'user32.lib', 'shell32.lib', 'ole32.lib', 'comdlg32.lib', 'advapi32.lib')
+$script:TimeoutMilliseconds = $TimeoutSeconds * 1000
 
 [void](Import-NbVisualStudioEnvironment -VisualStudioDir $VisualStudioDir)
 if (Test-Path -LiteralPath $WorkRoot) { Remove-Item -LiteralPath $WorkRoot -Recurse -Force }
@@ -65,6 +66,8 @@ function New-Tree {
     <#
     .SYNOPSIS
         Copies src/ and tests/launcher/ (C++ only) to a fresh working folder.
+    .DESCRIPTION
+        The folder is deleted first; JSON files (the mutant list) are not copied.
     .PARAMETER Directory
         Target folder.
     .OUTPUTS
@@ -86,6 +89,8 @@ function Invoke-Suite {
     <#
     .SYNOPSIS
         Compiles and runs one suite in a working folder; returns a status object.
+    .DESCRIPTION
+        Same compiler flags as build_launcher.ps1; the run is bounded by -TimeoutSeconds.
     .PARAMETER Directory
         Working folder (with src/ and tests/launcher/).
     .PARAMETER Suite
@@ -95,7 +100,7 @@ function Invoke-Suite {
     .OUTPUTS
         System.Management.Automation.PSCustomObject. Kind (compile, path, timeout, crash, failed, passed) and Text.
     .EXAMPLE
-        Invoke-Suite $dir 'tests/launcher/launcher_unit_test.cpp' 'launcher unit tests:'
+        Invoke-Suite -Directory $dir -Suite 'tests/launcher/launcher_unit_test.cpp' -Summary 'launcher unit tests:'
     #>
     [CmdletBinding()]
     [OutputType([pscustomobject])]
@@ -112,9 +117,10 @@ function Invoke-Suite {
         }
         $scratch = Join-Path $Directory 'scratch'
         $process = Start-Process -FilePath $exe -ArgumentList @("`"$scratch`"", "`"$fake`"") -NoNewWindow -PassThru `
-            -WorkingDirectory $Directory -RedirectStandardOutput (Join-Path $Directory 'run.log') -RedirectStandardError (Join-Path $Directory 'run.err')
-        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-            $process.Kill($true); return [pscustomobject]@{ Kind = 'timeout'; Text = "TIMEOUT ${TimeoutSeconds}s" }
+            -WorkingDirectory $Directory -RedirectStandardOutput (Join-Path $Directory 'run.log') `
+            -RedirectStandardError (Join-Path $Directory 'run.err')
+        if (-not $process.WaitForExit($script:TimeoutMilliseconds)) {
+            $process.Kill($true); return [pscustomobject]@{ Kind = 'timeout'; Text = "TIMEOUT $($script:TimeoutMilliseconds) ms" }
         }
         $found = Get-Content (Join-Path $Directory 'run.log') | Select-String ([regex]::Escape($Summary)) | Select-Object -Last 1
         if ($found -and $found.Line -match '(\d+) checks, (\d+) failures') {
@@ -129,7 +135,7 @@ $mutants = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot 'tests\launcher\m
 $baselineDir = Join-Path $WorkRoot 'base'
 New-Tree $baselineDir
 foreach ($suite in ($mutants | Select-Object suite, summary -Unique)) {
-    $result = Invoke-Suite $baselineDir $suite.suite $suite.summary
+    $result = Invoke-Suite -Directory $baselineDir -Suite $suite.suite -Summary $suite.summary
     if ($result.Kind -ne 'passed') { throw "baseline $($suite.suite) is not clean: $($result.Text)" }
     'baseline {0}: {1}' -f $suite.suite, $result.Text
 }
@@ -147,7 +153,7 @@ foreach ($mutant in $mutants) {
     if ($count -ne 1) { throw "mutant $($mutant.name): find text matched $count times (must be exactly 1)" }
     [IO.File]::WriteAllText($target, $original.Replace($mutant.find, $mutant.replace))
     $counts[$mutant.suite] = 1 + [int]($counts[$mutant.suite])
-    $result = Invoke-Suite $dir $mutant.suite $mutant.summary
+    $result = Invoke-Suite -Directory $dir -Suite $mutant.suite -Summary $mutant.summary
     if ($result.Kind -eq 'path') { throw "mutant $($mutant.name): $($result.Text)" }
     if ($result.Kind -eq 'passed') {
         $survivors.Add($mutant.name)
@@ -158,5 +164,6 @@ foreach ($mutant in $mutants) {
     Remove-Item -LiteralPath $dir -Recurse -Force
 }
 $total = ($counts.Values | Measure-Object -Sum).Sum
-"mutants: $total ($(($counts.GetEnumerator() | Sort-Object Key | ForEach-Object { "$($_.Value) via $([IO.Path]::GetFileName($_.Key))" }) -join ', ')); survivors: $($survivors.Count) $($survivors -join ',')"
+$bySuite = ($counts.GetEnumerator() | Sort-Object Key | ForEach-Object { "$($_.Value) via $([IO.Path]::GetFileName($_.Key))" }) -join ', '
+"mutants: $total ($bySuite); survivors: $($survivors.Count) $($survivors -join ',')"
 if ($survivors.Count) { exit 1 }

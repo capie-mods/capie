@@ -30,7 +30,8 @@ function New-RaState {
         Creates an empty state object.
     .DESCRIPTION
         Shape: InstalledVersion, PreviousVersion, Shortcuts (paths), SteamEntries
-        (AccountId, ConfigPath, OriginalValue, WrittenValue, LauncherPath).
+        (AccountId, ConfigPath, OriginalValue, WrittenValue, LauncherPath), ModFiles (Path, Sha256,
+        Backup) of the "CAPIE" switch mod in the player's mod folder.
     .OUTPUTS
         System.Management.Automation.PSCustomObject
     .EXAMPLE
@@ -41,7 +42,7 @@ function New-RaState {
     param()
     return [pscustomobject]@{
         InstalledVersion = $null; PreviousVersion = $null; Shortcuts = @(); SteamEntries = @()
-        LoadMethod = 'Launcher'; Proxy = $null; ProxyActivation = 'Flag'; ProxyConfigSha256 = $null
+        LoadMethod = 'Launcher'; Proxy = $null; ProxyActivation = 'Flag'; ProxyConfigSha256 = $null; ModFiles = @()
     }
 }
 
@@ -72,6 +73,7 @@ function Read-RaState {
             if ($j.PSObject.Properties['Proxy']) { $state.Proxy = $j.Proxy }
             if ($j.PSObject.Properties['ProxyActivation'] -and $j.ProxyActivation -in @('Flag', 'Config')) { $state.ProxyActivation = $j.ProxyActivation }
             if ($j.PSObject.Properties['ProxyConfigSha256']) { $state.ProxyConfigSha256 = $j.ProxyConfigSha256 }
+            if ($j.PSObject.Properties['ModFiles']) { $state.ModFiles = @($j.ModFiles | Where-Object { $_ }) }
         } catch { Write-RaLog "state.json unreadable, ignoring: $($_.Exception.Message)" -Level WARN }
     }
     return $state
@@ -104,6 +106,7 @@ function Save-RaState {
         Proxy            = $State.Proxy
         ProxyActivation  = $State.ProxyActivation
         ProxyConfigSha256 = $State.ProxyConfigSha256
+        ModFiles         = @($State.ModFiles)
     } | ConvertTo-Json -Depth $script:RaJsonDepth
     [IO.File]::WriteAllText((Get-RaStatePath), $json, (New-Object System.Text.UTF8Encoding($false)))
 }

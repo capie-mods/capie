@@ -1,0 +1,4 @@
+﻿l_english:
+ # Fallback shown while CAPIE is not loaded. Same key and text as the CAPIE script SDK,
+ # so the two never disagree; CAPIE replaces it with its version while it runs.
+ CAPIE_STATUS:0 "§OCAPIE missing§!"

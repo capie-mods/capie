@@ -235,17 +235,34 @@ inline std::wstring app_data_folder(bool create) {
 }
 
 /**
+ * @brief A path under the user's Documents folder.
+ * @param relative Path relative to Documents.
+ * @return Absolute path, or empty when Documents cannot be resolved (the file may not exist).
+ */
+inline std::wstring documents_path(std::wstring_view relative) {
+    PWSTR documents = nullptr;
+    std::wstring answer;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &documents))) {
+        answer = std::wstring(documents) + L"\\" + std::wstring(relative);
+    }
+    CoTaskMemFree(documents);
+    return answer;
+}
+
+/**
  * @brief Path of game.log in the user's Documents folder.
  * @return Absolute path (the file may not exist).
  */
 inline std::wstring default_game_log() {
-    PWSTR documents = nullptr;
-    std::wstring answer;
-    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &documents))) {
-        answer = std::wstring(documents) + L"\\" + game_log_relative;
-    }
-    CoTaskMemFree(documents);
-    return answer;
+    return documents_path(game_log_relative);
+}
+
+/**
+ * @brief Path of dlc_load.json (the active playset) in the user's Documents folder.
+ * @return Absolute path, or empty; an empty path makes the playset check answer "unknown".
+ */
+inline std::wstring default_dlc_load() {
+    return documents_path(dlc_load_relative);
 }
 
 /**
