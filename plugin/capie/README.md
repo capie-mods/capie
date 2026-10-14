@@ -12,6 +12,23 @@ The default development loading path is the opt-in `version.dll` proxy. Build wi
 remains available. The proxy uses `current/runtime/` and requires the exact `-capie`
 argument or the explicit bootstrap config marker; it creates no injection helper process.
 
+## Faction name layer and opening text, API level 5 (CAPIE 1.3, developer build)
+
+`CONTRACT.md` sections 5.1, 15 and 16. Built into `plugin/build/capie-v13-dev`.
+
+- `capie_core.dll` adds a 7th hook, `CFaction::GetName` (D8BB80): the faction leader's
+  `capie_fn_n` / `capie_fn_ver` (commit `capie_fn_rev`) replace the faction name on screen; the
+  stored name stays. The text is cached on the logic thread (UpdateNames, `capie_fn_rev`
+  commit); the hook reads only the cache (one atomic load when no faction layer exists). Pins:
+  +2 signatures (GetName, the game's string copy 11E010), +2 instruction pins (members, count),
+  +1 rel32 pin.
+- `capie_editor.dll`: grammar Apply carries `capie_pf1_*` (35 records), the text of prefill
+  carrier 1 at the opening; the largest Apply is 179 records.
+- No `capie_host` record: the host flag is not established statically (`CONTRACT.md` 16).
+- Version 1.3.0, API level 5, build 10300.
+- Tests: `name_layer_test.cpp` (faction reader and hook), `name_layer_pins_exe_test.cpp`
+  (+5 corrupted-byte cases), `public_editor_test.cpp` (`capie_pf1_*`); 8 more mutants.
+
 ## Country name layer, API level 4 (CAPIE 1.2, developer build)
 
 `CONTRACT.md` section 14. A name a player gives a country lives in the country's own variables
@@ -142,7 +159,7 @@ is a process singleton; the accepted tests address it directly), virtual interfa
 
 ```powershell
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook'   # both flavors, all offline tests, benchmarks
-.\plugin\capie\mutation_check.ps1                           # 112 mutants (bridge and public-editor ones in debug and release)
+.\plugin\capie\mutation_check.ps1                           # 120 mutants (bridge and public-editor ones in debug and release)
 .\plugin\capie\mutation_check.ps1 -MutantsFile tests\console\mutants_console.json   # 38 console mutants
 uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tidy + clang-format (uv dev group)
 ```

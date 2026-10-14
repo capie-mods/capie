@@ -1,57 +1,23 @@
-# Decyzje dystrybucji — 2026-10-11
+# Distribution decisions: where they live now
 
-Źródło: odpowiedzi użytkownika na pytania z
-[distribution-options.txt](evidence/session-20261011/claude-distribution/distribution-options.txt).
+The distribution decisions are recorded as [architecture decision records](adr/README.md). The
+original log is archived unchanged (in Polish) in
+[evidence/decision-log/DISTRIBUTION-DECISIONS.md](evidence/decision-log/DISTRIBUTION-DECISIONS.md).
 
-1. **Model:** pliki moda przez Steam Workshop + natywny launcher z GitHub Releases.
-2. **Sposób włączania DLL:** preferowany wpis launchera w opcjach uruchamiania Steam
-   (`"…\RenameAnythingLauncher.exe" %command%`). Świadome włączenie rozszerzenia;
-   usunięcie wpisu = zwykły HOI4 bez DLL. Drugi równorzędny tryb: skrót (np. na pulpicie) do launchera z tymi samymi
-   parametrami; launcher może oferować przycisk „Utwórz skrót”. Oba tryby
-   uruchamiają ten sam łańcuch Paradox Launcher → hoi4.exe.
-   Wymaga testu runtime: `%command%` wskazuje Paradox Launcher (`dowser.exe`), więc
-   launcher musi rozpoznać `hoi4.exe` utworzony przez ten Paradox Launcher (tylko
-   potomek procesu uruchomionego przez launcher, nie dowolny istniejący proces).
-3. **Kod publiczny, licencja MIT (wstępnie).** Umożliwia Certum Open Source / SignPath.
-4. **Nieznana wersja gry:** launcher uruchamia grę bez DLL i pokazuje jasny komunikat.
-5. **Tryb bez DLL:** decyzja root — skrypt wykrywa obecność natywnych capability;
-   bez nich pola in-place są ukryte, a stany/miasta/postacie działają przez
-   dotychczasowy edytor; nazwa kraju i pole tekstowe niedostępne z komunikatem.
+| Original number | Record |
+|---|---|
+| 1: Workshop for the mod, GitHub Releases for the launcher | [ADR-0002](adr/0002-distribution-model.md) |
+| 2: launcher in Steam launch options or a shortcut | [ADR-0004](adr/0004-launcher-through-paradox-launcher.md) |
+| 3: public code, MIT (preliminary) | [ADR-0003](adr/0003-open-source-mit.md) |
+| 4: unknown game build starts without the DLL | [ADR-0005](adr/0005-unknown-game-build.md) |
+| 5: mode without the DLL | [ADR-0006](adr/0006-script-only-fallback.md) |
+| Note after 5: multiplayer not verified, test after single player | [ADR-0012](adr/0012-multiplayer-level-l0.md) |
+| 6: antivirus scan before release | [ADR-0007](adr/0007-antivirus-scan-before-release.md) |
+| 7: consent to upload release files to VirusTotal | [ADR-0007](adr/0007-antivirus-scan-before-release.md) |
+| 8: PowerShell bootstrap | [ADR-0008](adr/0008-powershell-bootstrap.md) |
+| 9: always through the Paradox Launcher, inject only into own child | [ADR-0004](adr/0004-launcher-through-paradox-launcher.md) |
+| 10 and its update: proxy DLL loader | [ADR-0024](adr/0024-proxy-dll-loader.md) |
+| 2026-10-14: installation paths and the CAPIE playset switch | [ADR-0030](adr/0030-installation-paths-and-playset-switch.md) |
+| 2026-10-14: file signing | [ADR-0031](adr/0031-trust-without-paid-code-signing.md) |
 
-MP: nadal niezweryfikowane; test z drugim graczem po zakończeniu SP.
-6. **Skan antywirusowy przed wydaniem (obowiązkowy):** wszystkie publikowane binaria
-   (launcher, DLL, injectory) przechodzą VirusTotal, a linki do wyników trafiają do
-   release notes. Upload do VirusTotal upublicznia plik — wykonywany wyłącznie dla
-   finalnych artefaktów wydania i za każdym razem po zgodzie użytkownika.
-   Lokalnie, bez publikacji: Windows Defender `MpCmdRun -Scan -ScanType 3`.
-   2026-10-11: country-capability, inline-editor-debug-bridge, inline-editor-render-bridge,
-   launcher-candidate, caption-refresh-candidate — „found no threats” (Defender,
-   skan custom; nie jest to wynik wielu silników ani heurystyk chmurowych VT).
-7. **Zgoda użytkownika (2026-10-11):** upload finalnych artefaktów wydania do VirusTotal
-   „jak przyjdzie na to pora”. Dotyczy wyłącznie plików wydania; każdy upload odnotować
-   w release notes.
-8. **Bootstrap CLI w PowerShell** (jedna linijka w terminalu), interaktywnie: (a) czy
-   zainstalować launcher/DLL, (b) czy dodać launcher do opcji uruchamiania Steam —
-   z jasną informacją, że gra z DLL nie jest deklarowana jako zgodna z MP, dopóki
-   wpis nie zostanie cofnięty; plus tryb odinstalowania/cofnięcia.
-9. **Launcher → Paradox Launcher → gra (wymóg):** każdy tryb (Steam, skrót, dwuklik)
-   przechodzi przez Paradox Launcher, żeby gracz mógł wybrać playset i grać z innymi
-   modami. Launcher wstrzykuje DLL tylko do `hoi4.exe` będącego potomkiem procesu,
-   który sam uruchomił. Zgodność z innymi modami nadpisującymi okno polityki
-   (`countrypoliticsview.gui`) lub te same scripted GUI wymaga osobnej oceny.
-10. **Główna metoda ładowania CAPIE: proxy DLL w folderze gry (2026-10-12, zgoda użytkownika).**
-    Mały loader pod nazwą biblioteki systemowej ładowanej przez `hoi4.exe` z folderu gry
-    (kandydat `version.dll`; wybór nazwy po analizie importów i konfliktów) przekazuje wszystkie
-    eksporty do oryginału z System32 i aktywuje CAPIE wyłącznie świadomie (flaga `-capie` w
-    opcjach uruchamiania Steam lub — jeśli Paradox Launcher jej nie przekazuje — plik
-    konfiguracyjny ustawiany przez bootstrap), po weryfikacji hashy gry i paczki CAPIE z
-    `%LOCALAPPDATA%\RenameAnything\current\`. Nieznana wersja gry → nic nie ładuje. Odinstalowanie:
-    usunięcie pliku (bootstrap). Launcher z trybem wrappera pozostaje alternatywą dla graczy bez
-    plików w folderze gry. Użytkownik zgodził się na umieszczenie pliku testowego w folderze gry
-    na czas testu (z usunięciem i weryfikacją po teście). Cel: najmniej pracy dla gracza.
-    **Aktualizacja (2026-10-12, ponowne zlecenie użytkownika):** implementacja proxy została
-    wznowiona w osobnym worktree. Wybrano `version.dll` (3 importowane funkcje, 17 eksportów
-    przekazywanych do System32). Kod, instalacja, aktywacja i granice testów są opisane w
-    [proxy-loader.md](proxy-loader.md). Opóźniony wątek nie gwarantuje hooków przed pierwszym
-    wywołaniem gry. Przekazywanie `-capie` przez Steam/Paradox wymaga osobnego potwierdzenia;
-    bootstrap ma jawny wariant konfiguracyjny. Żaden wynik nie deklaruje zgodności z MP.
+New decisions go into [`adr/`](adr/README.md), not into this file.

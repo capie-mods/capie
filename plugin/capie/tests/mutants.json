@@ -826,7 +826,7 @@
  {
   "name": "name-layer-unreadable-as-absent",
   "file": "src/features/country/name_layer.hpp",
-  "find": "layer.status = version == Lookup::absent ? Status::absent : Status::unreadable;",
+  "find": "layer.status = found == Lookup::absent ? Status::absent : Status::unreadable;",
   "replace": "layer.status = Status::absent;",
   "suite": "tests/name_layer_test.cpp",
   "summary": "name layer tests:"
@@ -834,8 +834,8 @@
  {
   "name": "name-layer-any-version",
   "file": "src/features/country/name_layer.hpp",
-  "find": "!whole(layer.version_raw, format) || format != format_version",
-  "replace": "!whole(layer.version_raw, format)",
+  "find": "whole(layer.version_raw, format) && format == format_version ? Status::valid",
+  "replace": "whole(layer.version_raw, format) ? Status::valid",
   "suite": "tests/name_layer_test.cpp",
   "summary": "name layer tests:"
  },
@@ -866,8 +866,8 @@
  {
   "name": "name-layer-country-bound",
   "file": "src/features/country/name_layer_hooks.hpp",
-  "find": "count > max_countries) {",
-  "replace": "false) {",
+  "find": "count <= max_countries;",
+  "replace": "true;",
   "suite": "tests/name_layer_test.cpp",
   "summary": "name layer tests:"
  },
@@ -894,5 +894,69 @@
   "replace": "if (true) {",
   "suite": "tests/name_layer_test.cpp",
   "summary": "name layer tests:"
+ },
+ {
+  "name": "faction-layer-cache-ignored",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "if (faction_text(faction, text, size)) {",
+  "replace": "if (false) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "faction-layer-leader-second-member",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "!core::rd(mem_, array, 0, leader)",
+  "replace": "!core::rd(mem_, array, 8, leader)",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "faction-layer-commit-ignored",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "if (engine::string_equals(mem_, effect + core::off::set_variable_name, faction_commit_variable)) {",
+  "replace": "if (false) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "faction-layer-not-read-on-update",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "            update_faction(country);",
+  "replace": "            static_cast<void>(0);",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "faction-layer-zero-members",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "members) || members <= 0 ||",
+  "replace": "members) || members < 0 ||",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "public-previous-not-sent",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "if (snapshot.has_previous && ",
+  "replace": "if (false && ",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-previous-not-stored",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "public_previous_ok[view.model] = previous_ok;",
+  "replace": "public_previous_ok[view.model] = false;",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "public-previous-field-prefix",
+  "file": "src/features/editor/public_schema.hpp",
+  "find": "public_previous_header_format[] = \"capie_pf%zu_%s\";",
+  "replace": "public_previous_header_format[] = \"capie_f%zu_%s\";",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
  }
 ]

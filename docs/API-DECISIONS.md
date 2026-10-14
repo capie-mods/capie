@@ -1,165 +1,49 @@
-# Decyzje: rozszerzone API dla moderów — 2026-10-11
+# API decisions: where they live now
 
-Odpowiedzi użytkownika na punkty badania architektury
-(`docs/evidence/session-20261011/claude-api/`).
+The API and architecture decisions are recorded as [architecture decision records](adr/README.md).
+This page stays because code comments cite decisions by their number in the original log, which
+is archived unchanged (in Polish) in
+[evidence/decision-log/API-DECISIONS.md](evidence/decision-log/API-DECISIONS.md).
 
-1. **Nowe słowa kluczowe vs protokół przez zmienne:** najlepiej oba warianty, z naciskiem
-   na najstabilniejszą integrację z grą i bezbolesną aktualizację DLL po patchach gry.
-   Każdy mod korzystający z API ma dołączać snippet, który pokazuje wyraźny wskaźnik
-   (m.in. w menu głównym), gdy mod jest załadowany, a biblioteki DLL brak.
-2. Tekst w API — pytanie badawcze, nie decyzja użytkownika.
-3. Save po odinstalowaniu DLL: akceptowalne ryzyko, ale stan „brak DLL” musi być
-   widoczny w grze (wskaźnik).
-4. **MP:** DLL weryfikuje pozostałych graczy i odrzuca tych, którzy jej nie mają
-   (lub mają niezgodną wersję).
-5. Wersjonowanie API i bezpieczna degradacja dla modów innych autorów — zaakceptowane.
-6. **Uprawnienia:** gracz zmienia nazwy wyłącznie swojego państwa. Wyjątki: host gry
-   oraz overlord, gdy jego subjectem jest inny gracz.
-7. Wskaźnik w menu głównym, możliwie nieinwazyjny — zaakceptowany.
-8. Minimalna inwazyjność, walidacja danych z modów obcych autorów — zaakceptowane.
+| Original section and number | Record |
+|---|---|
+| First list (2026-10-11), 1: keywords or variables, indicator snippet | [ADR-0009](adr/0009-script-contract-variant-b.md), [ADR-0010](adr/0010-in-game-capie-indicators.md) |
+| First list, 2: text in the API | Research question, not a decision; context of [ADR-0009](adr/0009-script-contract-variant-b.md) |
+| First list, 3: saves after uninstalling CAPIE, visible state | [ADR-0006](adr/0006-script-only-fallback.md), [ADR-0010](adr/0010-in-game-capie-indicators.md) |
+| First list, 4: reject players without CAPIE | Superseded by [ADR-0012](adr/0012-multiplayer-level-l0.md) |
+| First list, 5: versioning and safe degradation | [ADR-0011](adr/0011-versioning-and-graceful-degradation.md) |
+| First list, 6: permissions, host and overlord exceptions | [ADR-0013](adr/0013-rename-permissions.md), then [ADR-0029](adr/0029-game-rules-event-and-restore.md) |
+| First list, 7: main-menu indicator | [ADR-0010](adr/0010-in-game-capie-indicators.md) |
+| First list, 8: minimal invasiveness, validating other mods' data | [ADR-0011](adr/0011-versioning-and-graceful-degradation.md) |
+| Naming (2026-10-11) | [ADR-0001](adr/0001-product-names.md) |
+| Order of work to the first release (2026-10-11) | [ADR-0019](adr/0019-release-roadmap-and-repository-split.md) |
+| CAPIE architecture, 1: variant B | [ADR-0009](adr/0009-script-contract-variant-b.md) |
+| CAPIE architecture, 2: multiplayer L0 | [ADR-0012](adr/0012-multiplayer-level-l0.md) |
+| CAPIE architecture, 3: SDK as its own Workshop item and repository | [ADR-0014](adr/0014-script-sdk-separate-item.md) |
+| CAPIE architecture, 4: "CAPIE loaded / missing" line | [ADR-0010](adr/0010-in-game-capie-indicators.md) |
+| CAPIE architecture, 5: wider character set | [ADR-0015](adr/0015-character-set.md) |
+| CAPIE architecture, 6: overlord over a player subject, no veto | [ADR-0013](adr/0013-rename-permissions.md) |
+| CAPIE architecture, 7: host rights through a lobby game rule | [ADR-0013](adr/0013-rename-permissions.md) |
+| CAPIE architecture, 8: corpus of game builds, Steam tools run by the maintainer | [ADR-0018](adr/0018-build-corpus-and-self-hosted-ci.md) |
+| CAPIE architecture, 9: self-hosted CI | [ADR-0018](adr/0018-build-corpus-and-self-hosted-ci.md) |
+| CAPIE architecture, 10 (option a): signature scan after a patch | [ADR-0016](adr/0016-game-updates-signature-scan.md) |
+| CAPIE architecture, 11: `versions.json` | [ADR-0017](adr/0017-versions-json.md) |
+| Corrections after reverse engineering (2026-10-11), on decision 4 | [ADR-0012](adr/0012-multiplayer-level-l0.md) |
+| Corrections, on decision 6: no host trigger, rule only | [ADR-0013](adr/0013-rename-permissions.md) |
+| Corrections: permissions checked in the effect | [ADR-0013](adr/0013-rename-permissions.md) |
+| Repositories (2026-10-11) | [ADR-0019](adr/0019-release-roadmap-and-repository-split.md) |
+| Stage 2, C++ code quality | [ADR-0020](adr/0020-native-code-quality-bar.md) |
+| CAPIE backlog: character portraits | [ADR-0026](adr/0026-character-portraits-backlog.md) |
+| Stage 2 decisions (2026-10-12), 1 to 3 | [ADR-0021](adr/0021-two-dlls-and-release-variant.md) |
+| Roadmap decisions (2026-10-12), 1, 4 and 5 | [ADR-0022](adr/0022-capie-feature-roadmap.md) |
+| Roadmap decisions, 2: display-only exception | [ADR-0023](adr/0023-display-only-features-switch-off-alone.md) |
+| Roadmap decisions, 3: extended Latin in 1.1, Cyrillic later | [ADR-0015](adr/0015-character-set.md) |
+| CAPIE console commands (2026-10-13) | [ADR-0025](adr/0025-console-commands.md) |
+| 2026-10-13, subjects and the old editor: no SDK dependency, ruling party only | [ADR-0027](adr/0027-subjects-without-sdk-dependency.md) |
+| 2026-10-13, subjects and the old editor: alphabet unchanged | [ADR-0015](adr/0015-character-set.md) |
+| 2026-10-13, the player-given name is its own layer | [ADR-0028](adr/0028-custom-name-layer.md) |
+| 2026-10-14, rename rights rule, factions, restore cooldown, news event | [ADR-0029](adr/0029-game-rules-event-and-restore.md) |
+| 2026-10-14, player-chosen flag | [ADR-0032](adr/0032-custom-flag-layer.md) |
+| 2026-10-14, flags: pool rule, cooldown, reset on cosmetic tag change | [ADR-0032](adr/0032-custom-flag-layer.md); open question in [ADR-0028](adr/0028-custom-name-layer.md) |
 
-## Nazewnictwo (2026-10-11)
-
-- **Rename Anything** — mod do zmiany nazw (Workshop, skrypty/GUI).
-- **CAPIE — Cyprian's API Extender** — natywna biblioteka DLL rozszerzająca API
-  modowania HOI4; Rename Anything jest jej pierwszym konsumentem.
-- Obecne nazwy plików binarnych (`rename_anything_*.dll`, injectory, kontroler) są
-  przypięte w manifestach, testach i review; zmiana nazw plików wymaga przebudowy,
-  nowych hashy, manifestów i review — planowana jako osobny etap, nie ad hoc.
-
-## Kolejność prac do pierwszego wydania (zaakceptowana 2026-10-11)
-
-1. Integracja edytorów i liczników do `mod/` + test w grze (uzbrojona CAPIE/caption bridge,
-   country DLL), w obecnym monorepo.
-2. Zmiana nazw binariów na `capie_*.dll` jako osobny etap (rebuild, hashe, manifesty, review).
-3. Wersjonowany kontrakt CAPIE ↔ mody (modele, pola, selektory, capability);
-   Rename Anything przypina wersję CAPIE.
-4. Podział na dwa repo z zachowaniem historii (`git filter-repo`): CAPIE (`plugin/`,
-   launcher, bootstrap) i Rename Anything (`mod/`, `tools/`, `probes/`); dowody wg komponentu.
-   Wspólny design system jako samodzielny katalog/repo współdzielone.
-5. Przeniesienie do nowej organizacji GitHub (zakłada ją użytkownik; transfer po
-   potwierdzeniu użytkownika).
-
-## Decyzje do architektury CAPIE (2026-10-11, odpowiedzi na pytania z modding-api-architecture.md)
-
-1. Kontrakt API = wariant B (protokół przez zmienne/scripted effects/cosmetic tag); wariant A
-   (natywne słowa kluczowe) ewentualnie później jako dodatek.
-2. MP na start = L0: blokada funkcji + widoczny baner do potwierdzenia CAPIE przez każdego
-   gracza; odrzucanie graczy pozostaje tematem badawczym.
-3. Skryptowe SDK CAPIE jako osobny przedmiot Workshop + osobne repo w organizacji GitHub.
-4. Wskaźnik w menu głównym: „CAPIE załadowane / brak” wystarcza.
-5. Rozszerzyć dozwolone znaki (cyrylica, akcenty, umlauty) — o ile HOI4 (fonty, parser,
-   transport) je obsługuje; do zbadania.
-6. Overlord → podmiot-gracz: najprostszy wariant (bez weta i bez dodatkowego UI).
-7. Uprawnienia hosta przez regułę gry ustawianą w lobby — zaakceptowane.
-8. Korpus starszych buildów: zaakceptowane podejście; domyślnie archiwizacja każdego nowego
-   `hoi4.exe` od teraz (prywatnie, bez redystrybucji). Narzędzia wymagające danych logowania
-   Steam użytkownik uruchamia wyłącznie sam.
-9. CI na komputerze użytkownika (self-hosted, z zainstalowaną grą).
-10. Po patchu gry mają działać wszystkie funkcje, a nie podzbiór; preferencja, by nie
-    wydawać nowej wersji, gdy patch nie łamie używanych miejsc. **Decyzja: wariant (a)** —
-    przy nieznanym SHA gry CAPIE uruchamia w runtime skaner sygnatur; wszystkie funkcje
-    włącza tylko, gdy KAŻDY wzorzec (funkcje i offsety struktur w kodzie) jest jednoznaczny,
-    a hookowany kod bajtowo identyczny z przetestowanym; inaczej CAPIE się nie włącza
-    (wszystko albo nic) i gra działa bez niej z komunikatem. Na niezweryfikowanej wersji gry
-    widoczny dyskretny znacznik. Domyślnie opcja wyłączona, włączana przez gracza
-    (rekomendacja root; do zmiany na prośbę użytkownika). Zmienia decyzję dystrybucji nr 4
-    tylko w trybie włączonym.
-11. `versions.json`: w repo (podpisany) i dołączany do wydania.
-
-## Korekty po analizie RE (2026-10-11, hoi4-re-findings.md)
-
-- Decyzja 4 (odrzucanie graczy bez CAPIE) zastąpiona: skryptowy handshake wersji
-  (`capie_ver` w każdej komendzie CAPIE, zmienna kraju) + blokada funkcji i widoczny
-  baner/ostrzeżenie dla wszystkich. Bez natywnego wyrzucania graczy — zaakceptowane.
-- Decyzja 6 (wyjątek dla hosta): brak triggera hosta w grze; wyjątek realizowany wyłącznie
-  regułą gry ustawianą w lobby (decyzja 7) — zaakceptowane.
-- Uprawnienia sprawdzane w samym efekcie skryptu (Execute nie weryfikuje nadawcy ani
-  triggerów visible/enabled).
-
-## Repozytoria (utworzone 2026-10-11, puste, PRIVATE, konto SirCypkowskyy)
-
-- `capie` — DLL, launcher, bootstrap, dokumentacja CAPIE (`sites/capie`).
-- `capie-script-sdk` — skryptowe SDK CAPIE (osobny przedmiot Workshop).
-- `capie-design` — wspólny design system (`docs/design/`).
-- `hoi4-rename-anything` — mod (bez zmian).
-Podział kodu z historią (`git filter-repo`) na etapie 4 roadmapy; przeniesienie do
-organizacji po zakończeniu, po potwierdzeniu użytkownika.
-
-## Etap 2 — wymagania jakości kodu C++ (2026-10-11)
-
-Zmiana nazw na `capie_*.dll` łączona z uporządkowaniem kodu natywnego: DRY, clean
-architecture (rdzeń / funkcje / adaptery silnika), nazwane stałe zamiast magic numbers i
-stringów, dokumentacja każdej funkcji/klasy/stałej (odpowiednik docstringów: komentarze
-Doxygen z parametrami i wartościami zwracanymi), obszerny angielski opis na początku każdego
-modułu (przepuszczony przez skill humanizer), clang-format + clang-tidy. Zachowanie musi
-pozostać równoważne: wszystkie dotychczasowe testy offline, fingerprinty i mutation checki
-przechodzą; potem niezależne review i pełny test w grze.
-
-## Backlog funkcji CAPIE
-
-- **Portret postaci w liście Postacie** (życzenie użytkownika 2026-10-11): skrypt HOI4 nie ma
-  gettera portretu (`loc_objects_documentation.md`), więc wymaga natywnej funkcji lokalizacji
-  CAPIE na postaci (np. `GetPortraitSmall` → nazwa sprite'a małego portretu, fallback
-  `GFX_portrait_unknown`); mod pokaże portret 32–40 px przed ikoną roli (tooltip roli już jest),
-  ukryty bez CAPIE. Po etapie 2, z osobnym RE, review i testem w grze.
-
-## Decyzje etapu 2 (2026-10-12)
-
-1. Dwie DLL: `capie_core.dll` (nazwy krajów, status, capability) i `capie_editor.dll`
-   (edytory) — zaakceptowane.
-2. Wariant release bez hooków diagnostycznych (4 hooki: Tick, Bind, Dispatch, ctor efektu);
-   pełna diagnostyka tylko w wariancie debug — zaakceptowane, do potwierdzenia w grze.
-3. clang-tidy/clang-format: użytkownik zgodził się, by root sam zainstalował komponent VS
-   „C++ Clang tools for Windows” (zaplanowane na kolejną sesję).
-
-## Decyzje roadmapy funkcji CAPIE (2026-10-12, po api-gap-analysis.md)
-
-1. Kolejność (decyzja root): najpierw C1 publiczne pola tekstowe dla innych modów (+C8 prefill/fokus,
-   C4 klucze statusu, C5 narzędzia tekstowe SDK, C3 alfabet łaciński) w v1.1 — najwyższa potrzeba
-   i brak nowego RE; C6 portrety w v1.2 po osobnej sesji RE (RQ1–RQ3).
-2. Funkcje wyłącznie wyświetlające (C2 odświeżanie widoków, C6 portrety, C7 nazwa gracza) mogą
-   wyłączać się osobno, gdy ich piny przestaną pasować po patchu — wyjątek od zasady
-   „wszystko albo nic”, która nadal obowiązuje dla funkcji zmieniających stan i transportu.
-3. Rozszerzony alfabet łaciński w v1.1; cyrylica później (fonty, język gry).
-4. Dokumentacja CAPIE otwarcie wymienia alternatywy (`hoi4_lua`, injector oparty na proxy DLL).
-5. Profiler scripted GUI (C11) publiczny, wyłącznie w wariancie debug (decyzja root: odpowiada
-   na zgłaszane przez modderów problemy wydajności; brak wpływu na release).
-
-## Komendy konsoli CAPIE (2026-10-13)
-
-Użytkownik: `capie_cmd` (komendy modderów, API level 3) włączane razem z `change_nation_name`
-i `reset_nation_name` — po niezależnym review kandydata i teście w grze SP (zapis/load, odmowa
-w MP/ironman, polskie znaki, `help`). Kontrakt API level 3 do dopisania w `plugin/capie/CONTRACT.md`.
-
-## 2026-10-13 — podmioty i stary edytor na CAPIE
-
-- Rename Anything nie zależy od CAPIE Script SDK; reguły hosta z SDK na razie nie czyta.
-  Wróci przy teście MP (sprawdzenie nieznanej reguły gry może dawać błędy parsera bez SDK).
-- Podmiot: edytowana tylko nazwa partii rządzącej (decyzja użytkownika: „Wystarczy”).
-- Alfabet RA bez zmian (litery typu é odrzucane z komunikatem; decyzja użytkownika).
-
-## 2026-10-13 — nazwa nadana przez gracza to osobny byt (decyzja użytkownika)
-
-- Zmiana nazwy kraju (własnego i podmiotu) NIE może zmieniać flagi ani koloru. Cosmetic tag
-  nie jest nośnikiem nazwy RA.
-- Kolejność wyświetlania: nazwa nadana przez gracza > aktualny cosmetic tag > nazwa bazowa.
-- Reset usuwa tylko nazwę nadaną przez gracza; kraj wraca do bieżącego cosmetic taga
-  (lub nazwy bazowej), a nie do nazwy bazowej z pominięciem cosmetic taga.
-- Późniejsza zmiana cosmetic taga przez grę/event nie kasuje nazwy nadanej przez gracza.
-- Cytat: „CUSTOMOWO NADANA NAZWA NIE POWINNA BYĆ TRAKTOWANA TAK SAMO JAK COSMETIC TAG,
-  POWINNA BYĆ OSOBNYM BYTEM!”
-- Wejście do zmiany nazwy podmiotu: przy przyciskach akcji dyplomatycznych (góra lub dół listy),
-  najlepiej z ikoną.
-
-## 2026-10-14 — uprawnienia, frakcje, eventy, flagi (decyzje użytkownika)
-
-- Reguła gry „kto może zmieniać nazwy”: (1, domyślna) własny kraj i własne podmioty; (2) host – wszystkie
-  kraje; (3) każdy gracz tylko własny kraj. Te same opcje dla nazw frakcji.
-- „Przywróć nazwę” podlega temu samemu cooldownowi co zmiana nazwy (zmiana decyzji z 2026-10-14 rano).
-- Reguła gry „event o zmianie nazwy”: domyślnie wyłączona; po włączeniu generyczny event „X zmieniło
-  nazwę na Y” (X = ostatnia faktyczna nazwa: nazwa gracza > cosmetic > bazowa), z opisem używającym
-  m.in. przymiotnika; dla własnego kraju i podmiotów.
-- Własny wybór flagi państwa jako osobny atrybut (jak warstwa nazwy, niezależny od cosmetic taga):
-  pula wszystkich flag, jakie dane państwo może mieć, albo flaga overlorda; ładne UI. Najpierw projekt,
-  potem niezależna weryfikacja, czy to najlepszy sposób.
+New decisions go into [`adr/`](adr/README.md), not into this file.

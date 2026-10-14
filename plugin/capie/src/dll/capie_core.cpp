@@ -3,14 +3,16 @@
  * @brief Composition root of `capie_core.dll`: country names, the name layer, status text and the capability export.
  *
  * This DLL hooks the three localisation lookups of the pinned `hoi4.exe` so that RN1 keys
- * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.2
- * loaded" / "CAPIE 1.2 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
- * `CAPIE_BUILD` answer "CAPIE 1.2", "4" and "1.2.0" (`features/country/country_names.hpp`).
+ * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.3
+ * loaded" / "CAPIE 1.3 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
+ * `CAPIE_BUILD` answer "CAPIE 1.3", "5" and "1.3.0" (`features/country/country_names.hpp`).
  *
- * Name layer (API level 4, `features/country/name_layer*.hpp`): three more hooks
- * (`UpdateNames`, `BuildNameKey`, `SetVariable::Execute`) show a name stored in the country's
- * own variables, in front of the cosmetic tag and the base name, without touching the cosmetic
- * tag, flag or colour. Its pins are checked separately; a failed pin leaves the layer off
+ * Name layers (API levels 4 and 5, `features/country/name_layer*.hpp`): four more hooks
+ * (`UpdateNames`, `BuildNameKey`, `SetVariable::Execute`, `CFaction::GetName`) show a country
+ * name and a faction name stored in the country's (the faction leader's) own variables. The
+ * country name goes in front of the cosmetic tag and the base name, without touching the
+ * cosmetic tag, flag or colour; the faction name goes in front of the stored faction name,
+ * which stays as it is. Their pins are checked separately; a failed pin leaves both layers off
  * (logged) and the localisation hooks on.
  *
  * It does not write game files, saves, variables, cosmetic tags or `CCountry` fields. The game
@@ -56,7 +58,7 @@ using core::InitCode;
 /// @brief Longest path buffer for the executable path.
 constexpr DWORD max_path_chars = 32768;
 /// @brief Debugger message after a successful initialization.
-constexpr char initialized_message[] = "CAPIE 1.2: country hooks initialized (capie_core, pinned 1.19.3.0)\n";
+constexpr char initialized_message[] = "CAPIE 1.3: country hooks initialized (capie_core, pinned 1.19.3.0)\n";
 /// @brief Size of a lifecycle line buffer.
 constexpr std::size_t line_bytes = 200;
 /// @brief Number of localisation hooks (always installed).
@@ -120,6 +122,16 @@ void set_variable_hook(core::uptr effect, core::uptr context) noexcept {
 }
 
 /**
+ * @brief Hook body of `CFaction::GetName`.
+ * @param faction Faction object.
+ * @param out Result string.
+ * @return `out`.
+ */
+void* faction_name_hook(core::uptr faction, void* out) noexcept {
+    return name_layer.faction_name(faction, out);
+}
+
+/**
  * @brief Opens `capie_core.log` next to this DLL (best effort; CAPIE runs without it).
  */
 void open_log() noexcept {
@@ -180,6 +192,8 @@ InitCode initialize() {
          reinterpret_cast<void**>(&name_layer.originals().build)},
         {"name.set_variable_execute", core::rva::set_variable_execute, reinterpret_cast<void*>(&set_variable_hook),
          reinterpret_cast<void**>(&name_layer.originals().set_variable)},
+        {"faction.get_name", core::rva::faction_get_name, reinterpret_cast<void*>(&faction_name_hook),
+         reinterpret_cast<void**>(&name_layer.originals().faction_name)},
     };
     const std::size_t hook_count = layer_ok ? std::size(hooks) : localisation_hooks;
     char line[line_bytes]{};
@@ -191,7 +205,8 @@ InitCode initialize() {
         return installed;
     }
     if (layer_ok) {
-        name_layer.activate(reinterpret_cast<core::uptr>(base), &write_line);
+        name_layer.activate(reinterpret_cast<core::uptr>(base), &write_line,
+                            reinterpret_cast<layer::StringCopyFn>(base + core::rva::string_copy));
     }
     active.store(true);
     static_cast<void>(

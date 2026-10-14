@@ -44,6 +44,10 @@ inline constexpr std::uintptr_t variable_get = 0xBC7E80;
 inline constexpr std::uintptr_t country_of = 0xBB4390;
 /// @brief Global pointer to the game state (read, never written).
 inline constexpr std::uintptr_t gamestate_global = 0x332F260;
+/// @brief `string* CFaction::GetName(faction*, string* out)`: +0x18 text, else template name; hooked.
+inline constexpr std::uintptr_t faction_get_name = 0xD8BB80;
+/// @brief `string* string_copy(string* out, const string* source)` (MSVC copy-construct on the game heap); called.
+inline constexpr std::uintptr_t string_copy = 0x11E010;
 
 // ---- Scripted window manager and widgets (hooked or called by capie_editor.dll) ---------
 /// @brief `void Tick(window*, char force)`; per-frame scripted window update, hooked.
@@ -149,6 +153,8 @@ inline constexpr std::uintptr_t set_variable_name =
     0xC8;  ///< Effect +0x58 scoped variable, +0x70 name (364C75, 54502F).
 inline constexpr std::uintptr_t gamestate_countries = 0x310;      ///< Country pointer array (1A645B, BB44A7).
 inline constexpr std::uintptr_t gamestate_country_count = 0x31C;  ///< int32 number of countries (1A6462).
+inline constexpr std::uintptr_t faction_members = 0x58;       ///< Member country pointer array; [0] = leader (4ABB81).
+inline constexpr std::uintptr_t faction_member_count = 0x64;  ///< int32 member count (C5E2EF).
 // ---- Scripted window ----------------------------------------------------------------------
 inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (B88BEE).
 inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model pointer (runtime-proven).

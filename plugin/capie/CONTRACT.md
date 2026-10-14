@@ -1,16 +1,19 @@
-# CAPIE script contract, API level 4 (CAPIE 1.2)
+# CAPIE script contract, API level 5 (CAPIE 1.3)
 
 This is the versioned contract between CAPIE (the native DLLs in `plugin/capie/`) and HOI4
 mods. It covers the names a mod gives its editor GUI, the temporary records CAPIE adds to the
 player's Apply command, the localisation keys CAPIE answers, the alphabet, the error codes the
-script SDK reports, behaviour without CAPIE, permissions, the multiplayer handshake and the
-country name layer (section 14).
+script SDK reports, behaviour without CAPIE, permissions, the multiplayer handshake, the
+country name layer (section 14) and the faction name layer (section 15).
 
 Status, 2026-10-14: API level 2 is implemented in `capie_core.dll` / `capie_editor.dll` 1.1 and
 1.2 and in `sdk/capie-script-sdk/`; API level 3 (console) is in `CONTRACT-console.md`; API level
 4 (section 14, country name layer) is implemented in the 1.2 developer build
-(`plugin/build/capie-v12-dev`) and covered by offline tests. Nothing of level 4 has run in the
-game yet. Rows marked **in-game test** below are the open checks.
+(`plugin/build/capie-v12-dev`), covered by offline tests and accepted in the game on 2026-10-14
+(commit cb44cc0: no flag change, console reset, save, restart and load). API level 5 (section 15
+faction name layer, `capie_pf1_*` records of section 5.1) is implemented in the 1.3 developer
+build (`plugin/build/capie-v13-dev`) and covered by offline tests; it has not run in the game
+yet. Rows marked **in-game test** below are the open checks.
 
 The variant is B from `docs/API-DECISIONS.md`: plain HOI4 script, data passed through
 temporary variables of one command, no new script keywords. A mod written against this
@@ -18,11 +21,11 @@ contract parses and runs the same way with or without CAPIE; only the branch it 
 
 ## 1. Versions
 
-| Name | Value in 1.2 (1.1) | Where a mod sees it | Meaning |
+| Name | Value in 1.3 (1.2, 1.1) | Where a mod sees it | Meaning |
 |---|---|---|---|
-| API level | `4` (`2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 adds the country name layer (section 14). Compare with `>=`. |
-| Release | `1.2.0` (`1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
-| Build number | `10200` (`10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
+| API level | `5` (`4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1). Compare with `>=`. |
+| Release | `1.3.0` (`1.2.0`, `1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
+| Build number | `10300` (`10200`, `10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
 | SDK major | `v1` | every SDK path and name (`capie_sdk_v1_*`, `capie_v1_*`) | A breaking change goes into `v2` names; two majors can coexist. |
 
 Mods require a minimum API level (`capie_min_api`), never a release.
@@ -105,18 +108,27 @@ a presence signal, not a permission (section 9).
 
 | Record | Value |
 |---|---|
-| `capie_cap` | API level, `2` |
-| `capie_ver` | build number, `10100` |
+| `capie_cap` | API level (`5` in CAPIE 1.3) |
+| `capie_ver` | build number (`10300` in CAPIE 1.3) |
 | `capie_epoch` | opening epoch read from the carrier, `>= 1` |
 | `capie_nf` | number of fields that follow, `0..4` |
 | `capie_f<n>_err` | `0` valid, otherwise the field error (5.3) |
 | `capie_f<n>_at` | 1-based position of the first rejected character, `0` when none |
 | `capie_f<n>_len` | number of characters, `0..32` (`0` when the field is invalid) |
 | `capie_f<n>_0` .. `capie_f<n>_31` | character codes (section 7); `0` past the length and for an invalid field |
+| `capie_pf1_err`, `capie_pf1_at`, `capie_pf1_len`, `capie_pf1_0` .. `capie_pf1_31` | API level 5: the text prefill carrier 1 (`capie_v1_pf__<mod>__<editor>__1`) showed when this opening began, encoded like a field (same error codes; a character outside the alphabet gives `err = 6`). Sent only when the editor has that carrier, field 1 exists and the carrier text was readable at the opening; absent otherwise |
 
-`n` runs from 1 to `capie_nf`. One field is 35 records; the largest Apply adds 4 + 4 × 35 =
-144 records. Every name fits the game's 15-byte short-string layout, which CAPIE builds
-directly.
+`n` runs from 1 to `capie_nf`. One field is 35 records; the opening text adds 35 more, so the
+largest Apply adds 4 + 4 × 35 + 35 = 179 records (144 before API level 5). Every name fits the
+game's 15-byte short-string layout, which CAPIE builds directly (the longest, `capie_pf1_err`,
+has 13 bytes).
+
+`capie_pf1_*` is what the player saw before the change: with `[ROOT.GetName]` (or
+`[This.GetFactionName]`) in the carrier it is the name on screen at the opening (player-given
+name > cosmetic tag > base name), which a mod can use for a "X changes its name to Y" event.
+It is captured once per opening, before prefill, and does not follow later changes of the
+carrier. Like every record it travels inside the command, so every multiplayer client gets the
+clicking player's value.
 
 An invalid field does not stop the command: the other fields still carry their codes, and the
 script decides. A multi-field editor that changes nothing unless every field is valid is the SDK
@@ -208,11 +220,11 @@ Rename Anything's legacy fields keep the 84-code table; its decoder knows no oth
 `capie_core.dll` answers these keys whenever the game draws them. The SDK localisation holds the
 fallback, which is what players see without CAPIE.
 
-| Key | With CAPIE 1.2 (1.1) | SDK fallback |
+| Key | With CAPIE 1.3 (1.2, 1.1) | SDK fallback |
 |---|---|---|
-| `CAPIE_STATUS` | `CAPIE 1.2` (`CAPIE 1.1`) | `§OCAPIE missing§!` |
-| `CAPIE_API` | `4` (`2`) | `0` |
-| `CAPIE_BUILD` | `1.2.0` (`1.1.0`) | `-` |
+| `CAPIE_STATUS` | `CAPIE 1.3` (`CAPIE 1.2`, `CAPIE 1.1`) | `§OCAPIE missing§!` |
+| `CAPIE_API` | `5` (`4`, `2`) | `0` |
+| `CAPIE_BUILD` | `1.3.0` (`1.2.0`, `1.1.0`) | `-` |
 
 They are text only. A trigger cannot read them, so they decide what is shown, never what runs.
 Nest them in your own keys (`MYMOD_CAPIE_LINE: "$CAPIE_STATUS$"`). Whether the main menu draws
@@ -335,7 +347,9 @@ serialisation is a hypothesis until the two-machine test (`docs/mp-test-plan.md`
 | The demo mod (`sdk/capie-script-sdk/examples/capie_demo`) end to end | first consumer of the SDK |
 | Game rule `capie_v1_edit_rights` in the lobby | new file |
 | Multiplayer handshake | needs two machines |
-| Name layer: own country, a subject (overlord), a country with a story cosmetic tag; flag and colour unchanged; reset back to the cosmetic tag; a later cosmetic tag change keeps the name; save, restart, load; load without CAPIE | Section 14; the variable read and the refresh trigger are pinned statically only |
+| Name layer: own country, a subject (overlord), a country with a story cosmetic tag; flag and colour unchanged; reset back to the cosmetic tag; a later cosmetic tag change keeps the name; save, restart, load; load without CAPIE | Section 14; accepted in the game 2026-10-14 (cb44cc0) |
+| Faction name layer: faction window, diplomacy, `[X.GetFactionName]`, tooltips; reset; leader change; save, restart, load; load without CAPIE | Section 15; `CFaction::GetName` is pinned statically only, the refresh of open windows is unverified |
+| `capie_pf1_*` in an Apply (179 records with 4 fields) | Section 5.1; larger command than before, multiplayer serialisation unverified |
 
 ## 14. Country name layer (API level 4, CAPIE 1.2)
 
@@ -420,3 +434,53 @@ commands drop it only when the current cosmetic tag starts with `RN1|`. The cosm
 The layer is game state written by effects, so every client holds the same variables. A client
 without CAPIE shows the cosmetic tag or base name with the correct flag; nothing goes out of
 sync, because CAPIE only changes display caches. The handshake of section 12 is unchanged.
+
+## 15. Faction name layer (API level 5, CAPIE 1.3)
+
+### 15.1 What it is
+
+A faction name a player gives is its own layer on the faction **leader**, separate from the name
+the game stores in the faction (`create_faction` / `set_faction_name` store localised text,
+not a key, so the game has no cosmetic layer for factions). On screen: the leader's faction
+layer, when set and valid; otherwise the stored faction name; otherwise the faction template's
+name. The stored name is never changed, so removing the layer shows it again. When the faction
+gets another leader, the layer stays with the old leader and the faction shows the game's name.
+
+### 15.2 Variables (on the faction leader)
+
+| Variable | Value |
+|---|---|
+| `capie_fn_n` | array of the name's character codes, 1..32 elements (section 7) |
+| `capie_fn_ver` | `1` while the layer is set; absent = no layer |
+| `capie_fn_rev` | set by every change, as the **last** statement; the value is not used |
+
+Write and remove them exactly like the country layer (14.3), with `capie_fn_*` names and only
+one array. Use `set_variable = { capie_fn_rev = 1 }` in the scope of the leader.
+
+### 15.3 What CAPIE does
+
+`capie_core.dll` hooks `CFaction::GetName` (D8BB80), the accessor the faction views,
+diplomacy and the `GetFactionName` localisation use. When members[0] of the faction (the
+leader, `faction+0x58`) has a valid faction layer, CAPIE returns that text through the game's own
+string copy; otherwise the game answers. The layer text is cached on the logic thread: when the
+game recomputes a country's names (on load, cosmetic tag and ideology changes) and after every
+`set_variable` of `capie_fn_rev`, so the accessor never reads variables. An open faction window
+may show the new name only when it is redrawn (in-game check). The same validity rules as 14.4
+apply; the pins of this layer are part of the name-layer pins (a failed pin turns both layers
+off).
+
+### 15.4 Without CAPIE, multiplayer
+
+The variables stay in the save; without CAPIE the faction shows the game's name. The layer is
+game state written by effects, so every client holds the same variables; CAPIE only changes
+what the accessor returns.
+
+## 16. Host record (not provided)
+
+A `capie_host = 1` record ("the sender is the host of the session") was requested for API level
+5. CAPIE 1.3 does not send it. A static candidate exists (a flag reached through the global at
+332F698, virtual slot 0x88, byte +0x54, checked by the lobby before "only the server can change
+the scenario" and at about 35 other places), but its meaning in a running game, and in single
+player, is not established without a runtime test. Following the fail-closed rule, no record is
+sent rather than a possibly wrong one. A script must keep treating "host" as unknown in
+multiplayer. See `docs/evidence/session-20261014/capie-v13/report.txt`.
