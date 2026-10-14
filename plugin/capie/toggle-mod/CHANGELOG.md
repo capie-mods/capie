@@ -9,4 +9,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.0.0] - unreleased
 
 - First Workshop release: the switch that turns CAPIE on and off through the playset, and the
-  CAPIE status line in the main menu.
+  CAPIE status line in the main menu (in preparation).

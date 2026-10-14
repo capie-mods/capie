@@ -205,4 +205,4 @@ content_dir = "plugin/capie/toggle-mod/capie"
 preview_file = "plugin/capie/toggle-mod/capie/thumbnail.png"
 description_file = "docs/assets/promo/workshop/capie.bbcode"
 changelog = "plugin/capie/toggle-mod/CHANGELOG.md"
-published_file_id = 0
+published_file_id = 3819929471

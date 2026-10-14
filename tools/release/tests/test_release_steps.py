@@ -9,14 +9,18 @@ from __future__ import annotations
 import hashlib
 import json
 import zipfile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
-from fakes import BINARIES, COMMIT, GAME_SHA, FakeRunner, Harness, KeyPair, make_repo
+from fakes import BINARIES, COMMIT, GAME_SHA, FakePrompter, FakeRunner, Harness, KeyPair, make_repo
+from releasekit import workshop
 from releasekit.package import BundleEntry, entry_problems, switch_mod_descriptor, write_zip
-from releasekit.workshop import is_excluded, render_vdf, vdf_published_id, workshop_descriptor
+from releasekit.vdf import parse_vdf, render_vdf, vdf_published_id
+from releasekit.workshop import is_excluded, workshop_descriptor
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import pytest
 
 EXPECTED_ENTRIES = [
     "RenameAnythingLauncher.exe",
@@ -90,10 +94,10 @@ def test_descriptor_rewrites() -> None:
 
 
 def test_vdf_and_exclusions() -> None:
-    """VDF strings are escaped; developer files are excluded by name or folder."""
+    """VDF values carry no quote or backslash; developer files are excluded by name or folder."""
     text = render_vdf([("contentfolder", "C:\\a\\b"), ("changenote", 'say "hi"')])
-    assert '"contentfolder"\t"C:\\\\a\\\\b"' in text
-    assert '"changenote"\t"say \\"hi\\""' in text
+    assert '"contentfolder"\t"C:/a/b"' in text
+    assert '"changenote"\t"say \'hi\'"' in text
     assert vdf_published_id(text) == 0
     assert vdf_published_id('"publishedfileid"\t"123"') == 123  # noqa: PLR2004
     assert is_excluded("NOTES.md", ("*.md",))
@@ -504,3 +508,146 @@ def test_dry_run_continues_after_a_failed_step(harness: Harness) -> None:
     assert harness.run("all", "--steam-user", "maintainer") == 1
     assert "== Build" not in harness.output
     assert "stopped after the preflight step" in harness.output
+
+
+# --- Workshop: SteamCMD parser, one login, questions first, DRAFT -------------------
+
+
+def test_one_steamcmd_run_logs_in_once_for_all_items(harness: Harness) -> None:
+    """Two items: one SteamCMD call, one +login, two +workshop_build_item, in config order.
+
+    Args:
+        harness: Test harness.
+    """
+    assert harness.run("workshop", "--steam-user", "maintainer", "--yes") == 0, harness.output
+    (call,) = harness.runner.interactive
+    assert call.count("+login") == 1
+    builds = [call[i + 1] for i, arg in enumerate(call) if arg == "+workshop_build_item"]
+    assert [b.replace("\\", "/").split("/")[-2] for b in builds] == [
+        "rename-anything-0.1.0",
+        "capie-switch-1.0.0",
+    ]
+    assert call[-1] == "+quit"
+
+
+def test_nothing_starts_before_every_answer(harness: Harness) -> None:
+    """Visibility and upload questions come before SteamCMD; a declined one starts nothing.
+
+    Args:
+        harness: Test harness.
+    """
+    runner = harness.runner
+    seen_interactive: list[int] = []
+
+    class Recorder(FakePrompter):
+        """Notes how many SteamCMD runs had happened at each question."""
+
+        @override
+        def confirm(self, question: str, word: str) -> bool:
+            """Record, then answer from the table.
+
+            Args:
+                question: Question.
+                word: Expected word.
+
+            Returns:
+                The scripted answer.
+            """
+            seen_interactive.append(len(runner.interactive))
+            return super().confirm(question, word)
+
+    harness.prompter = Recorder(words={"public": True, "upload": False})
+    args = ("workshop", "--steam-user", "maintainer", "--visibility", "public")
+    assert harness.run(*args) == 0
+    assert seen_interactive == [0, 0, 0]
+    assert runner.interactive == []
+    assert not (harness.out / "workshop").exists()
+
+
+def test_running_steamcmd_blocks_the_upload(harness: Harness) -> None:
+    """A SteamCMD left over from an interrupted run stops the step before any question.
+
+    Args:
+        harness: Test harness.
+    """
+    harness.runner.steamcmd_running = True
+    assert harness.run("workshop", "--steam-user", "maintainer") == 1
+    assert "steamcmd.exe is still running" in harness.output
+    assert harness.prompter.asked == []
+    assert harness.runner.interactive == []
+
+
+def test_draft_notes_are_never_sent(harness: Harness) -> None:
+    """A change note or release section marked DRAFT fails preflight, workshop and release.
+
+    Args:
+        harness: Test harness.
+    """
+    notes = harness.root / "CHANGELOG.md"
+    notes.write_text("## [0.1.0]\n\nDRAFT: not reviewed.\n\n- Renaming.\n", encoding="utf-8")
+    assert harness.run("workshop", "--item", "rename-anything", "--steam-user", "m", "--yes") == 1
+    assert "is still marked DRAFT" in harness.output
+    assert harness.runner.interactive == []
+    assert harness.run("preflight") == 1
+    assert "CHANGELOG.md is still marked DRAFT" in harness.output
+    capie = harness.root / "plugin/capie/CHANGELOG.md"
+    capie.write_text("## [1.4.0]\n\nDRAFT\n\n- Flags.\n", encoding="utf-8")
+    assert _build(harness) == 0
+    assert harness.run("release") == 1
+    assert harness.runner.mutating() == []
+
+
+def test_update_description_of_an_existing_item(harness: Harness) -> None:
+    """--update-description sends title and description but leaves visibility alone.
+
+    Args:
+        harness: Test harness.
+    """
+    args = ("workshop", "--item", "capie-switch", "--steam-user", "maintainer", "--yes")
+    assert harness.run(*args, "--update-description") == 0, harness.output
+    vdf = (harness.out / "workshop/capie-switch-1.0.0/item.vdf").read_text(encoding="utf-8")
+    values = parse_vdf(vdf)
+    assert values["description"] == "[h1]CAPIE[/h1] shows 'CAPIE 1.4'."
+    assert values["title"] == "CAPIE"
+    assert "visibility" not in values
+
+
+def test_failed_steamcmd_still_keeps_created_ids(harness: Harness) -> None:
+    """Exit code 9 fails the step, but an ID SteamCMD wrote is still stored.
+
+    Args:
+        harness: Test harness.
+    """
+    harness.runner.steamcmd_exit = 9
+    assert harness.run("workshop", "--steam-user", "maintainer", "--yes") == 1
+    assert "steamcmd exited with 9" in harness.output
+    assert f"published_file_id = {NEW_STEAM_ID}" in harness.config.read_text(encoding="utf-8")
+
+
+def test_a_vdf_steamcmd_would_misread_is_never_sent(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the old escaping renderer the parse check stops the step before SteamCMD.
+
+    Args:
+        harness: Test harness.
+        monkeypatch: pytest monkeypatch fixture.
+    """
+
+    def escaped(fields: list[tuple[str, str]]) -> str:
+        """The renderer of the first real upload (backslash escapes).
+
+        Args:
+            fields: Keys and values.
+
+        Returns:
+            VDF text.
+        """
+        body = "".join(f'\t"{k}"\t"{v.replace(chr(34), chr(92) + chr(34))}"\n' for k, v in fields)
+        return '"workshopitem"\n{\n' + body + "}\n"
+
+    monkeypatch.setattr(workshop, "render_vdf", escaped)
+    args = ("workshop", "--item", "capie-switch", "--steam-user", "maintainer", "--yes")
+    assert harness.run(*args, "--update-description") == 1
+    assert "item.vdf unexpected key" in harness.output
+    assert harness.runner.interactive == []

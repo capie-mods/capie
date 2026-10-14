@@ -113,9 +113,14 @@ def check_versions(ctx: Context) -> None:
         )
     notes = config.resolve(config.github.changelog)
     text = notes.read_text(encoding="utf-8") if notes.is_file() else ""
-    if changelog.section(text, ctx.version) is None:
+    body = changelog.section(text, ctx.version)
+    if body is None:
         reporter.record(
             STEP, Status.FAIL, f"{config.github.changelog} has no section [{ctx.version}]"
+        )
+    elif changelog.is_draft(body):
+        reporter.record(
+            STEP, Status.FAIL, f"{config.github.changelog} [{ctx.version}] is still marked DRAFT"
         )
     else:
         reporter.record(
@@ -142,12 +147,17 @@ def check_item_version(ctx: Context, key: str) -> None:
         return
     notes = ctx.config.resolve(item.changelog)
     text = notes.read_text(encoding="utf-8") if notes.is_file() else ""
-    if changelog.section(text, version) is None:
+    body = changelog.section(text, version)
+    if body is None:
         reporter.record(
             STEP,
             Status.WARN,
             f"{key} {version}: {item.changelog} has no section [{version}] "
             "(needed for the Workshop change note)",
+        )
+    elif changelog.is_draft(body):
+        reporter.record(
+            STEP, Status.FAIL, f"{key} {version}: {item.changelog} is still marked DRAFT"
         )
     else:
         reporter.record(STEP, Status.OK, f"{key} {version}: change note in {item.changelog}")

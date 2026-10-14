@@ -99,12 +99,23 @@ redacted from the output and the log.
 **workshop**: for each item in `[[workshop.items]]` (or `--item <key>`), the step stages a fresh
 copy under `dist/release/<version>/workshop/<item>-<version>/content`. The copy holds only
 files tracked by git, without developer files (`exclude`). Its `descriptor.mod` has no `path`
-or `archive` line, and has `remote_file_id` once the item has an ID. The step writes
-`item.vdf` and runs:
+or `archive` line, and has `remote_file_id` once the item has an ID. A change note or
+description that still contains the word `DRAFT` is refused (preflight and the GitHub step
+refuse it too). The step writes one `item.vdf` per item, asks every question (a visibility
+other than Hidden, then `upload`), and only then runs SteamCMD once for all items, so you log
+in once:
 
 ```text
-steamcmd +login <account> +workshop_build_item <item.vdf> +quit
+steamcmd +login <account> +workshop_build_item <item 1.vdf> +workshop_build_item <item 2.vdf> +quit
 ```
+
+SteamCMD reads the VDF without escape sequences: a `"` always ends a string and a backslash is
+an ordinary character. The script therefore never escapes. It writes every `"` in a value as
+`'` (straight quotes, as the design system asks for English text) and every backslash as `/`
+(paths included). Before SteamCMD starts, it parses each VDF back with the same rules and stops
+if any value would be read differently. It also stops while a `steamcmd.exe` from an
+interrupted run is still running, because that process would print into the prompts. Ctrl+C
+during an upload stops SteamCMD too.
 
 | VDF key | Value |
 | --- | --- |

@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from releasekit.cli import main
 from releasekit.runner import CommandResult
 from releasekit.signing import pkcs1_sha256_block
+from releasekit.vdf import parse_vdf
 from releasekit.virustotal import HttpResponse
 
 if TYPE_CHECKING:
@@ -414,6 +415,8 @@ class FakeRunner:
     commit_on_remote: bool = True
     steam_id: int = 3000000099
     failing: tuple[str, ...] = ()
+    steamcmd_running: bool = False
+    steamcmd_exit: int = 0
     calls: list[tuple[str, ...]] = field(default_factory=list)
     interactive: list[tuple[str, ...]] = field(default_factory=list)
     on_run: Callable[[tuple[str, ...]], None] | None = None
@@ -460,6 +463,11 @@ class FakeRunner:
         joined = " ".join(call)
         if any(name in joined for name in self.failing):
             return 1, "simulated failure"
+        if call[0] == "tasklist":
+            listed = (
+                '"steamcmd.exe","4242","Console","1","9,000 K"' if self.steamcmd_running else ""
+            )
+            return 0, listed or "INFO: No tasks are running which match the specified criteria."
         if call[:2] == ("git", "status"):
             return 0, self.status
         if call[:3] == ("git", "rev-parse", "--abbrev-ref"):
@@ -519,13 +527,18 @@ class FakeRunner:
         del cwd
         call = tuple(argv)
         self.interactive.append(call)
-        vdf = Path(call[call.index("+workshop_build_item") + 1])
-        text = vdf.read_text(encoding="utf-8")
-        vdf.write_text(
-            text.replace('"publishedfileid"\t"0"', f'"publishedfileid"\t"{self.steam_id}"'),
-            encoding="utf-8",
-        )
-        return 0
+        new_id = self.steam_id
+        for index, arg in enumerate(call):
+            if arg != "+workshop_build_item":
+                continue
+            vdf = Path(call[index + 1])
+            text = vdf.read_text(encoding="utf-8")
+            parse_vdf(text)
+            if '"publishedfileid"\t"0"' in text:
+                text = text.replace('"publishedfileid"\t"0"', f'"publishedfileid"\t"{new_id}"')
+                new_id += 1
+            vdf.write_text(text, encoding="utf-8")
+        return self.steamcmd_exit
 
     def which(self, program: str) -> str | None:
         """Every program is "installed".

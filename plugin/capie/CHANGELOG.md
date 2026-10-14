@@ -9,9 +9,7 @@ release notes, so write it for players and mod authors. Format:
 
 ## [Unreleased]
 
-## [1.4.0] - unreleased
-
-DRAFT: written from the commit history before the first release; review it before releasing.
+## [1.5.0] - unreleased
 
 First public release of CAPIE (Cyprian's API Extender), a native library that extends what
 Hearts of Iron IV mods can do. Rename Anything is the first mod built on it.
@@ -22,6 +20,8 @@ Hearts of Iron IV mods can do. Rename Anything is the first mod built on it.
 - Faction names through the faction name layer (API level 5).
 - Country flags: a native flag layer that shows any flag from the game's catalogue for a
   country, with a reset (API level 6).
+- Leader portraits: a native portrait layer that shows a chosen portrait for a country's
+  ruling leader, separate from the game's own data and with a reset (API level 7).
 - Text fields with a native editor for script GUIs (the CAPIE grammar editors), with an
   on-screen keyboard fallback when CAPIE is not loaded.
 - `CAPIE_*` status keys so mods can show whether CAPIE is loaded and which version.

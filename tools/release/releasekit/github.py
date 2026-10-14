@@ -74,7 +74,7 @@ def build_notes(ctx: Context, commit: str) -> str | None:
     body = changelog.section(
         path.read_text(encoding="utf-8") if path.is_file() else "", ctx.version
     )
-    if body is None:
+    if body is None or changelog.is_draft(body):
         return None
     capie = ctx.capie
     zip_name = ctx.config.bundle.zip_name.format(version=ctx.version)
@@ -288,7 +288,9 @@ def update_notes(ctx: Context) -> bool:
     commit = gitinfo.head_commit(ctx.runner, ctx.config.root)
     notes = build_notes(ctx, commit)
     if notes is None:
-        ctx.reporter.record(STEP, Status.FAIL, f"no changelog section [{ctx.version}]")
+        ctx.reporter.record(
+            STEP, Status.FAIL, f"no reviewed changelog section [{ctx.version}] (missing or DRAFT)"
+        )
         return False
     path = ctx.out_dir / NOTES_NAME
     argv = _gh(ctx, "release", "edit", ctx.tag, "--notes-file", str(path))
@@ -325,7 +327,9 @@ def run(ctx: Context) -> bool:
     notes = build_notes(ctx, commit)
     if notes is None:
         ctx.reporter.record(
-            STEP, Status.FAIL, f"{ctx.config.github.changelog} has no section [{ctx.version}]"
+            STEP,
+            Status.FAIL,
+            f"{ctx.config.github.changelog} [{ctx.version}] is missing or marked DRAFT",
         )
         return False
     if not check_ready(ctx, commit) or not confirm_visibility(ctx):

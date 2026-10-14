@@ -12,6 +12,9 @@ import re
 STEAM_CHANGENOTE_LIMIT = 8000
 """Longest change note the tool sends to Steam (characters); longer notes are refused."""
 
+DRAFT_MARKER = re.compile(r"\bDRAFT\b")
+"""Marks notes that are not reviewed yet; such text is never sent to Steam or GitHub."""
+
 _HEADING = re.compile(r"^## ", re.MULTILINE)
 """Any second-level heading."""
 
@@ -99,3 +102,15 @@ def to_bbcode(markdown: str) -> str:
     if in_list:
         out.append("[/list]")
     return "\n".join(out).strip()
+
+
+def is_draft(text: str) -> bool:
+    """Tell whether text still carries the ``DRAFT`` marker.
+
+    Args:
+        text: Changelog section or description.
+
+    Returns:
+        True when the word ``DRAFT`` (upper case) appears.
+    """
+    return DRAFT_MARKER.search(text) is not None

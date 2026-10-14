@@ -28,6 +28,10 @@ if TYPE_CHECKING:
     from releasekit.config import CommandSpec
 
 
+CHILD_STOP_SECONDS = 10
+"""How long an interrupted interactive child gets to exit before it is killed."""
+
+
 @dataclass(frozen=True)
 class CommandResult:
     """Exit code and combined output of a finished command."""
@@ -149,14 +153,25 @@ class SubprocessRunner:
             argv: Program and arguments (no shell).
             cwd: Working folder.
 
+        On Ctrl+C the child is stopped before the interrupt goes on, so no SteamCMD is left
+        running in the console (it would print into the next run's prompts).
+
         Returns:
             The exit code; 127 when the program cannot be started.
         """
         try:
-            completed = subprocess.run(list(argv), cwd=cwd, check=False)  # noqa: S603 - no shell
+            process = subprocess.Popen(list(argv), cwd=cwd)  # noqa: S603 - argv list, no shell
         except OSError:
             return 127
-        return completed.returncode
+        try:
+            return process.wait()
+        except KeyboardInterrupt:
+            process.terminate()
+            try:
+                process.wait(timeout=CHILD_STOP_SECONDS)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            raise
 
     def which(self, program: str) -> str | None:
         """Find a program on ``PATH``.

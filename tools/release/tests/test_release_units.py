@@ -6,6 +6,7 @@ Run with ``uv run pytest tools/release/tests``. No process, network or game is u
 from __future__ import annotations
 
 import io
+from dataclasses import replace
 from pathlib import Path
 from typing import override
 
@@ -31,6 +32,7 @@ from releasekit.signing import (
     reviewed_hashes,
     verify_signature,
 )
+from releasekit.vdf import VdfError, parse_vdf, render_vdf, tokenize
 from releasekit.versions import (
     CapieVersions,
     capie_problems,
@@ -38,6 +40,7 @@ from releasekit.versions import (
     read_capie_versions,
     stale_description_versions,
 )
+from releasekit.workshop import StagedItem, vdf_fields, vdf_problem
 
 REPO = Path(__file__).resolve().parents[3]
 """Root of the real repository (for read-only checks against its files)."""
@@ -210,3 +213,53 @@ def test_bbcode_joins_wrapped_list_items() -> None:
         changelog.to_bbcode(text)
         == "[list]\n[*]First release: the switch and the status line.\n[*]Second.\n[/list]"
     )
+
+
+def test_escaped_quotes_break_steamcmd_parsing() -> None:
+    """Regression of the first real upload: a backslash-escaped quote ends the string early."""
+    old = '"workshopitem"\n{\n\t"title"\t"RA"\n\t"description"\t"say \\"hi\\" now"\n}\n'
+    with pytest.raises(VdfError):
+        parse_vdf(old)
+    tokens = [token for token, _, _ in tokenize(old)]
+    assert "say \\" in tokens
+
+
+def test_vdf_round_trips_any_text_without_escapes() -> None:
+    """Quotes become ', backslashes become /, braces and // stay inside the string."""
+    fields = [
+        ("appid", "394360"),
+        ("contentfolder", "C:\\Users\\x\\content"),
+        ("description", 'A "quoted" {brace} // not a comment\n[*]C:\\Docs\\HOI4'),
+    ]
+    values = parse_vdf(render_vdf(fields))
+    assert values == {
+        "appid": "394360",
+        "contentfolder": "C:/Users/x/content",
+        "description": "A 'quoted' {brace} // not a comment\n[*]C:/Docs/HOI4",
+    }
+
+
+def test_every_configured_item_renders_a_parseable_vdf() -> None:
+    """Each real Workshop item, with its real description and change note, parses cleanly."""
+    config = load_config(REPO / "tools" / "release" / "release.toml")
+    for item in config.workshop.items:
+        descriptor = (config.resolve(item.content_dir) / "descriptor.mod").read_text(
+            encoding="utf-8"
+        )
+        version = descriptor_fields(descriptor)["version"]
+        notes = changelog.section(
+            config.resolve(item.changelog).read_text(encoding="utf-8"), version
+        )
+        assert notes is not None, item.key
+        assert not changelog.is_draft(notes), item.key
+        description = config.resolve(item.description_file).read_text(encoding="utf-8").strip()
+        staged = StagedItem(item, version, (), "", changelog.to_bbcode(notes), 2)
+        for published in (0, item.published_file_id):
+            fields = vdf_fields(
+                replace(staged, item=replace(item, published_file_id=published)),
+                Path("C:/out/content"),
+                config.resolve(item.preview_file),
+                config.workshop.app_id,
+                description,
+            )
+            assert vdf_problem(fields, render_vdf(fields)) is None, item.key
