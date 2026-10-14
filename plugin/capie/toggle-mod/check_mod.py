@@ -74,8 +74,11 @@ POLISH_GLYPH_FONTS = ("hoi_18", "hoi_18mbs", "hoi_16mbs", "Arial12")
 LANGUAGES = ("english", "polish")
 """Languages the switch mod ships localisation for."""
 
-WORKSHOP_TEXT = REPO / "docs" / "assets" / "promo" / "workshop" / "capie.bbcode"
-"""Workshop description of the switch mod (tools/release/release.toml, description_file)."""
+WORKSHOP_DIR = REPO / "docs" / "assets" / "promo" / "workshop"
+"""Single home of the Workshop descriptions (BBCode), one file per language."""
+
+WORKSHOP_TEXTS = {"en": WORKSHOP_DIR / "capie.bbcode", "pl": WORKSHOP_DIR / "capie.pl.bbcode"}
+"""Workshop descriptions of the switch mod; English is the release's description_file."""
 
 
 class Checks:
@@ -266,11 +269,7 @@ def check_content(checks: Checks) -> None:
     checks.check(
         "mod folder holds only the expected entries", ok={p.name for p in MOD.iterdir()} == allowed
     )
-    descriptions = {
-        language: HERE / f"workshop-description.{language}.txt" for language in ("en", "pl")
-    }
-    descriptions["workshop"] = WORKSHOP_TEXT
-    for language, path in descriptions.items():
+    for language, path in WORKSHOP_TEXTS.items():
         text = path.read_text(encoding="utf-8")
         checks.check(f"description {language}: title", ok="[h1]CAPIE[/h1]" in text)
         checks.check(f"description {language}: no exclamation marks", ok="!" not in text)

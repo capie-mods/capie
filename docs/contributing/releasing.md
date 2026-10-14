@@ -51,7 +51,8 @@ by the maintainer, ADR-0018), or build in CI and use the script only for the rem
    VirusTotal links; how to get past the SmartScreen warning for unsigned files; the
    multiplayer statement (not supported until tested).
 7. **Workshop.** Upload the mod and the switch mod with their descriptions in English and Polish
-   (the switch mod's are in `plugin/capie/toggle-mod/`).
+   (`docs/assets/promo/workshop/`: one BBCode file per item and language, the English one is the
+   `description_file` in `tools/release/release.toml`).
 8. **Documentation.** Fill in `OWNER` and `TAG` in the install commands, set `site_url` in both
    `zensical.toml` files, and enable the Pages workflow from `deploy-pages.yml.example`
    ([sites/README.md](../../sites/README.md)).

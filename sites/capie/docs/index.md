@@ -46,8 +46,9 @@ mod inside a game command.
   only the operations CAPIE defines, and CAPIE checks every input.
 - It is not anti-cheat and not a multiplayer server. In multiplayer it can only refuse to switch
   its own features on (see [Multiplayer](multiplayer.md)).
-- It does not touch flags. A custom country name is its own layer, separate from cosmetic tags
-  (see [Name layers](modders/name-layers.md)).
+- It does not change cosmetic tags. A custom country name and a chosen flag are layers of their
+  own, so renaming keeps the flag and choosing a flag keeps the name (see
+  [Name layers](modders/name-layers.md)).
 - It is not needed for names a mod knows in advance. Vanilla `set_cosmetic_tag`,
   `set_party_name` and `set_character_name` already handle those.
 
