@@ -34,3 +34,12 @@ host to be able to switch off any single feature of the mod for a game.
   CAPIE layer like the flag; the design is reviewed before implementation.
 - More game rules make the rules screen longer; they stay grouped and prefixed
   "Rename Anything:".
+
+## Amendment 2026-10-14
+
+- Pool rule "own country plus generals" means the own country's generals (and admirals).
+- A chosen portrait replaces only the country-leader portrait; army and navy portraits of the same
+  character stay as the game shows them.
+- The game does have script effects for portraits (`set_portraits`, `set_country_leader_portrait`,
+  `set_leader_portrait`); the native-layer versus script-only choice is decided after the
+  independent review of the design.
