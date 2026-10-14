@@ -50,6 +50,7 @@
 #include "../features/editor/transport.hpp"
 #include "../features/editor/window_view.hpp"
 #include "../features/focus/focus_adapter.hpp"
+#include "../features/host/host_pins.hpp"
 #if CAPIE_CONSOLE_CANDIDATE
 #include "../features/console/console_wiring.hpp"  // developer build only (build.ps1 -Console)
 #endif
@@ -504,6 +505,17 @@ InitCode initialize() {
 #if CAPIE_CONSOLE_CANDIDATE
     // Code bytes only; a failure turns the console feature off and is logged, the editor continues.
     static_cast<void>(console::wiring::prepare(text));
+#endif
+#if CAPIE_DEBUG_DIAGNOSTICS
+    // Host probe: log only (no capie_host record); a failed pin turns it off, the editor continues.
+    if (const char* failed = host::pins::first_failed_pin(text, core::ProcessMemory{}, image_base); failed == nullptr) {
+        host_probe_ready.store(true, std::memory_order_release);
+        write_log("CAPIE_HOST probe on (debug, log only, no record)\r\n");
+    } else {
+        char line[core::logging::suffix_capacity]{};
+        const int count = std::snprintf(line, sizeof(line), "CAPIE_HOST probe off; pin %s\r\n", failed);
+        write_log(line, core::logging::stored_bytes(count, sizeof(line)));
+    }
 #endif
     HMODULE pinned = nullptr;
     if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract, encoder via public_names_test the country and faction name layers and the flag layer (132 mutants).
+    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract, encoder via public_names_test the country and faction name layers, the flag layer and the host probe (143 mutants).
 
 .DESCRIPTION
     Reads tests/mutants.json: each mutant is one exact, unique textual replacement in one
@@ -19,7 +19,8 @@
     survivor fails the script. Never touches a game process.
 
 .PARAMETER MinHookDir
-    MinHook source folder.
+    MinHook source folder (include\MinHook.h, src\). Default: environment variable
+    CAPIE_MINHOOK_DIR.
 
 .PARAMETER VisualStudioDir
     Visual Studio folder; empty means "find it with vswhere".
@@ -46,7 +47,7 @@
 [CmdletBinding()]
 [OutputType([string])]
 param(
-    [string]$MinHookDir = 'C:\Users\user\AppData\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\Tools\minhook',
+    [string]$MinHookDir = $env:CAPIE_MINHOOK_DIR,
     [string]$VisualStudioDir = '',
     [int]$TimeoutSeconds = 60,
     [string]$Only = '*',
@@ -55,6 +56,9 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if (-not $MinHookDir -or -not (Test-Path -LiteralPath (Join-Path $MinHookDir 'include\MinHook.h'))) {
+    throw 'MinHook source not found: pass -MinHookDir <folder with include\MinHook.h and src\> or set CAPIE_MINHOOK_DIR.'
+}
 
 if (-not $VisualStudioDir) {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'

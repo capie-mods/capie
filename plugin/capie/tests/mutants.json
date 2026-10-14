@@ -1054,5 +1054,93 @@
   "replace": "true;",
   "suite": "tests/flag_layer_test.cpp",
   "summary": "flag layer tests:"
+ },
+ {
+  "name": "host-probe-server-flag-ignored",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "s.is_server == 1 && s.my_id == layout::host_machine_id",
+  "replace": "s.my_id == layout::host_machine_id",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-machine-id-inverted",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "s.my_id == layout::host_machine_id && s.my_index >= 0",
+  "replace": "s.my_id != layout::host_machine_id && s.my_index >= 0",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-names-not-compared",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "s.my_index == s.host_index && same_name(s.my_name, s.host_name)",
+  "replace": "s.my_index == s.host_index",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-backend-unchecked",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "s.backend_vtable_rva == layout::vt_network_server && s.mode == layout::mode_mp_host",
+  "replace": "s.mode == layout::mode_mp_host",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-client-flag-ignored",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "s.is_server == 0 && s.my_id",
+  "replace": "s.my_id",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-own-duplicates",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "if (my_hits != 1) {",
+  "replace": "if (false) {",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-host-duplicates",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "if (host_hits != 1) {",
+  "replace": "if (false) {",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-torn-keeps-index",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "s.my_index = -1;  // a torn or foreign element voids the list",
+  "replace": ";",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-human-vtable-unchecked",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "vt != image + layout::vt_human ||",
+  "replace": "false ||",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-long-name",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "size > layout::max_name_bytes ||",
+  "replace": "false ||",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
+ },
+ {
+  "name": "host-probe-line-names-equal",
+  "file": "src/features/host/host_probe.hpp",
+  "find": "names = same_name(s.my_name, s.host_name) ? \"equal\" : \"different\";",
+  "replace": "names = \"equal\";",
+  "suite": "tests/host_probe_test.cpp",
+  "summary": "host probe tests:"
  }
 ]

@@ -12,6 +12,17 @@ The default development loading path is the opt-in `version.dll` proxy. Build wi
 remains available. The proxy uses `current/runtime/` and requires the exact `-capie`
 argument or the explicit bootstrap config marker; it creates no injection helper process.
 
+## Host probe, debug flavor only (log, no record)
+
+`features/host/host_probe.hpp` (read-only chain: application, session, backend, human list) and
+`features/host/host_pins.hpp` (5 signatures, 11 instruction pins, 1 RIP pin, 2 vtable slot pins),
+design in `docs/evidence/session-20261014/host-detect/report.txt`. Only the debug flavor of
+`capie_editor.dll` checks the pins at start (`CAPIE_HOST probe on` or `off; pin <id>`) and logs one
+line per grammar Apply: `CAPIE_HOST probe would_be_host=yes|no|unreadable mode server backend
+machine humans own_entry own_is_host my_len host_len names=equal|different|unreadable record=none`.
+No player names in the log, no `capie_host` record; the release flavor has no probe. Tests:
+`host_probe_test.cpp`, `host_pins_exe_test.cpp`, 11 mutants.
+
 ## Country flag layer, API level 6 (CAPIE 1.4, developer build)
 
 `CONTRACT.md` section 17, design and review in `docs/evidence/session-20261014/flag-layer/`.
@@ -179,8 +190,9 @@ is a process singleton; the accepted tests address it directly), virtual interfa
 
 ```powershell
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook'   # both flavors, all offline tests, benchmarks
-.\plugin\capie\mutation_check.ps1                           # 132 mutants (bridge and public-editor ones in debug and release)
+.\plugin\capie\mutation_check.ps1                           # 143 mutants (bridge and public-editor ones in debug and release)
 .\plugin\capie\mutation_check.ps1 -MutantsFile tests\console\mutants_console.json   # 41 console mutants
+# mutation_check.ps1 takes -MinHookDir or the CAPIE_MINHOOK_DIR environment variable (folder with include\MinHook.h)
 uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tidy + clang-format (uv dev group)
 ```
 
