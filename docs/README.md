@@ -4,7 +4,7 @@ Start with the [README](../README.md) for what the project is and what works tod
 
 ## Players
 
-The player guides are the public sites, written in `sites/`:
+The player guides live on the two documentation sites, whose sources are in `sites/`:
 
 - Rename Anything: [overview](../sites/rename-anything/docs/index.md),
   [how to use](../sites/rename-anything/docs/how-to-use.md),
@@ -18,7 +18,7 @@ The player guides are the public sites, written in `sites/`:
 
 ## Modders
 
-- [CAPIE script contract](../plugin/capie/CONTRACT.md): the versioned contract (API level 4) and
+- [CAPIE script contract](../plugin/capie/CONTRACT.md): the versioned contract (API level 7) and
   [the console part](../plugin/capie/CONTRACT-console.md).
 - [CAPIE script SDK](../sdk/capie-script-sdk/README.md), with demo mods in
   `sdk/capie-script-sdk/examples/`.
@@ -38,14 +38,14 @@ The player guides are the public sites, written in `sites/`:
 - [Proxy loader](contributing/proxy-loader.md) and [multiplayer test plan](contributing/multiplayer-test-plan.md).
 - [CAPIE native code](../plugin/capie/README.md), [installer](../tools/bootstrap/README.md),
   [deployment notes](../plugin/capie/deploy/DEPLOYMENT.md).
-- [Design system](design/DESIGN-SYSTEM.md) and its [tokens](design/tokens.json): one visual
-  language for the game UI, diagrams, sites, launcher and CLI.
+- [Design system](design/DESIGN-SYSTEM.md) and its [tokens](design/tokens.json): the colours,
+  type and rules shared by the game UI, diagrams, sites, launcher and CLI.
 
 ## Decisions and research
 
 - [Architecture decision records](adr/README.md). The old numbered decision lists map to them in
   [API-DECISIONS.md](API-DECISIONS.md) and [DISTRIBUTION-DECISIONS.md](DISTRIBUTION-DECISIONS.md).
-- [Research](research/README.md): reverse engineering of how HOI4 1.19.3.0 handles names, and the
-  Workshop and native code study.
+- [Research](research/README.md): how HOI4 1.19.3.0 handles names, worked out by reverse
+  engineering, and a study of native DLLs on the Steam Workshop (policy, precedents, risks).
 - [Evidence archive](evidence/README.md): raw logs, screenshots, run notes and the original
   session notes behind the documents above.

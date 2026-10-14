@@ -1,30 +1,21 @@
 # CAPIE: Cyprian's API Extender (native code)
 
-Native part of the HOI4 mod "Rename Anything", reorganised in stage 2 from the accepted
-binaries `rename_anything_country.dll` (country capability 18841A6D…) and the generated
-caption-refresh bridge rev7 (3864532C…). Behaviour is equivalent; see
-`docs/evidence/session-20261011/claude-stage2/report.txt`. Supported game: `hoi4.exe`
-1.19.3.0, SHA-256 `7DC947BE…A031D5`, nothing else.
+Technical notes for people working on the native code. For what CAPIE is, what it gives mods
+and players, its status, its safety rules and screenshots, read the
+[CAPIE repository README](https://github.com/capie-mods/capie#readme). The contract for mods is
+[CONTRACT.md](CONTRACT.md).
 
-The default development loading path is the opt-in `version.dll` proxy. Build with
-`build_proxy.ps1` after preparing the reviewed stage-2 DLLs, then see
-[proxy loading and acceptance limits](../../docs/contributing/proxy-loader.md). The existing launcher
-remains available. The proxy uses `current/runtime/` and requires the exact `-capie`
-argument or the explicit bootstrap config marker; it creates no injection helper process.
+CAPIE started as the native part of the HOI4 mod "Rename Anything". Stage 2 rebuilt it from the
+accepted binaries `rename_anything_country.dll` (country capability 18841A6D…) and the generated
+caption-refresh bridge rev7 (3864532C…), with the same behaviour; see
+`docs/evidence/session-20261011/claude-stage2/report.txt`. It supports one game build:
+`hoi4.exe` 1.19.3.0, SHA-256 `7DC947BE…A031D5`.
 
-## In the game
-
-What CAPIE adds, as Rename Anything uses it (CAPIE 1.4 developer build, HOI4 1.19.3.0, single
-player). The text field bridge: the game's own `editBoxType`, with the typed text passed to the
-mod's Apply command.
-
-<img src="../../docs/assets/promo/capie/readme/native-field.jpg" alt="Two Rename Anything editors built on CAPIE: a leader name in the Politics panel and a subject's name and adjective, each in the game's own text field with Apply and Cancel." width="880">
-
-The country and faction name layers (API levels 4 and 5) and the country flag layer (API level 6).
-
-<img src="../../docs/assets/promo/capie/readme/name-layers.jpg" alt="Left: a country labelled Skbidi Kingdom on the map. Right: a faction labelled The Rizzlers in the faction map mode." width="880">
-
-<img src="../../docs/assets/promo/capie/readme/flag-layer.jpg" alt="Left: a flag picker listing the game's flags by letter. Right: the Politics panel of the renamed country Skbidi Kingdom showing its new flag." width="880">
+For development, CAPIE loads by default through the opt-in `version.dll` proxy. Prepare the
+reviewed stage-2 DLLs, build with `build_proxy.ps1`, then read
+[proxy loading and acceptance limits](../../docs/contributing/proxy-loader.md). The launcher is
+still available. The proxy uses `current/runtime/` and needs the exact `-capie` argument or the
+explicit bootstrap config marker; it starts no injection helper process.
 
 ## Country leader portrait layer, API level 7 (CAPIE 1.5, developer build)
 

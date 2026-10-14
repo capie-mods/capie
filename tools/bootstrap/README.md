@@ -89,9 +89,9 @@ the interface through the key, terminal, environment and raw-output adapters.
 
 With the launcher method, CAPIE loads only when the small "CAPIE" mod
 (`plugin/capie/toggle-mod/`) is enabled in the playset the game starts with. The launcher reads
-`Documents\Paradox Interactive\Hearts of Iron IV\dlc_load.json` after the game process exists;
-disabled means the clean game, an unreadable file means the clean game and one notice. The game
-is never blocked. `-Disable` removes the launcher from Steam entirely; `-Uninstall -Purge`
+`Documents\Paradox Interactive\Hearts of Iron IV\dlc_load.json` after the game process exists.
+If the mod is disabled, the game starts clean. If the file cannot be read, the game also starts
+clean and you get one notice. The launcher never blocks the game. `-Disable` removes the launcher from Steam entirely; `-Uninstall -Purge`
 restores the state from before the installation.
 
 ## Without an interactive console
@@ -139,9 +139,9 @@ purpose: ASCII needs none, and a BOM at the start of the downloaded text would b
 | `-Yes` | no questions; actions must be given as switches |
 | `-SteamRoot <dir>` | Steam folder override (default: `HKCU\Software\Valve\Steam\SteamPath`) |
 
-Omitted loading and activation options preserve an existing installation's choices;
-a fresh install defaults to Launcher (Proxy activation, if chosen, defaults to Flag). Use an explicit option to
-change a saved preference.
+If you leave out the loading and activation options, an existing installation keeps its
+choices. A fresh install uses Launcher (and, if you choose Proxy, the Flag activation). Pass an
+explicit option to change a saved preference.
 
 ## What exactly is changed
 
@@ -256,8 +256,8 @@ the maintainer's key.
 
 ## Source layout and the single-file build
 
-`install.ps1` is what users download, so it stays **one pure-ASCII file without BOM**
-(`irm | iex` runs exactly one file). It is **generated**; do not edit it by hand. The
+`install.ps1` is what users download, so it stays one pure-ASCII file without a BOM
+(`irm | iex` runs exactly one file). It is **generated**: do not edit it by hand. The
 source lives in vertical slices under `src/`:
 
 | Fragment | Content |
@@ -301,8 +301,8 @@ $env:RA_BOOTSTRAP_REAL_LOCALCONFIG = "C:\somewhere\localconfig-copy.vdf"
 Invoke-Pester -Script .\tools\bootstrap\install.Tests.ps1         # Pester 3.4 (built into Windows)
 ```
 
-They run offline: every network call is mocked, and unexpected requests fail. Steam is a
-synthetic folder tree, and shortcuts are created only in the work folder. Pester 3.4's
+The tests run offline: they mock every network call, and an unexpected request fails. Steam is
+a synthetic folder tree, and shortcuts go only into the work folder. Pester 3.4's
 `Should Throw` is broken on PowerShell 7, so the tests use their own `Assert-RaThrow`.
 The unit tests run under `Set-StrictMode -Version Latest`. Besides the behaviour tests
 there are tests for the build (`-Check`, ASCII, documented functions, adapter discipline)
@@ -314,9 +314,9 @@ Mutation test (each mutant disables one safety check; all must be killed):
 .\tools\bootstrap\mutation-test.ps1 -WorkRoot $env:TEMP\ra-mutation -PowerShellExe pwsh
 ```
 
-Static analysis for every PowerShell file in the repository (PSScriptAnalyzer with
-`PSScriptAnalyzerSettings.psd1` and the project rules in `tools/lint/RaScriptRules.psm1`).
-Nothing has to be installed into your profile:
+Every PowerShell file in the repository also goes through static analysis: PSScriptAnalyzer
+with `PSScriptAnalyzerSettings.psd1` and the project rules in `tools/lint/RaScriptRules.psm1`.
+You do not have to install anything into your profile:
 
 ```powershell
 Save-Module PSScriptAnalyzer -Path $env:TEMP\psmodules
