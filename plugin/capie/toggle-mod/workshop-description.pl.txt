@@ -9,7 +9,7 @@ Ten mod jest przełącznikiem CAPIE. Nie zawiera treści gry: tylko przełączni
 
 [h2]Linia stanu w menu głównym[/h2]
 [list]
-[*]„CAPIE 1.3” (załadowana wersja): CAPIE działa.
+[*]„CAPIE 1.4” (załadowana wersja): CAPIE działa.
 [*]„Brak CAPIE” na pomarańczowo: przełącznik jest włączony, ale CAPIE nie jest załadowane. Gra nie została uruchomiona przez launcher CAPIE, Twoja wersja gry nie jest jeszcze obsługiwana (launcher uruchamia wtedy grę bez CAPIE i o tym informuje) albo menu główne jeszcze się nie doczytało. CAPIE ładuje się około 20 sekund po pojawieniu się menu głównego.
 [/list]
 

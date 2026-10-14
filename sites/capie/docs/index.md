@@ -29,6 +29,11 @@ fields need it too: a script cannot read what the player typed, so CAPIE passes 
 mod inside a game command.
 
 <figure class="diagram" markdown="span">
+  ![Two Rename Anything editors built on CAPIE: a leader name in the Politics panel and a subject's name and adjective, each in the game's own text field with Apply and Cancel.](assets/screenshots/native-field.jpg)
+  <figcaption>Two Rename Anything editors on CAPIE: the game's own text field, opened next to the name it changes.</figcaption>
+</figure>
+
+<figure class="diagram" markdown="span">
   ![Three layers: mod scripts on top, CAPIE in the middle, the unmodified game at the bottom. Country names and the text field bridge work today; a public API and a multiplayer check are planned.](assets/shared/diagrams/architecture.svg)
   <figcaption>Mods call CAPIE through script. CAPIE talks to the running game. Game files stay as they are.</figcaption>
 </figure>

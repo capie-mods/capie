@@ -27,6 +27,11 @@ For a country, the game shows the first of these that exists:
 Removing the layer shows the current cosmetic tag again, not the base name. When the game or
 another mod changes the cosmetic tag later, the layer keeps showing.
 
+<figure class="diagram" markdown="span">
+  ![Left: a country labelled Skbidi Kingdom on the map. Right: a faction labelled The Rizzlers in the faction map mode.](../assets/screenshots/name-layers.jpg)
+  <figcaption>A country name layer on the map (left) and a faction name layer in the faction map mode (right), set through Rename Anything.</figcaption>
+</figure>
+
 !!! note "Open decision"
 
     Whether a cosmetic tag change should also clear a custom name is not settled. Today it does
@@ -108,6 +113,11 @@ the layer shows it again. When the faction gets another leader, the layer stays 
 leader and the faction shows the game's name.
 
 The SDK has no faction setter yet; write the variables as shown for countries, with one array.
+
+<figure class="diagram" markdown="span">
+  ![Left: a flag picker listing the game's flags by letter. Right: the Politics panel of the renamed country Skbidi Kingdom showing its new flag.](../assets/screenshots/flag-layer.jpg)
+  <figcaption>The country flag layer (API level 6, CAPIE 1.4 developer build): any flag of the game, chosen in Rename Anything, without changing the name or colour.</figcaption>
+</figure>
 
 ## Without CAPIE and in multiplayer
 

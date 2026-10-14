@@ -11,7 +11,8 @@ dependencies = []
 package = false
 # `observe` is installed by default so `ty` can resolve `import frida` in plugin/tools/observe.py;
 # `docs` for the same reason, so `ty` can resolve `import pygments` in the documentation lexer;
-# `assets` so `ty` can resolve `import PIL` in plugin/capie/toggle-mod/make_thumbnail.py.
+# `assets` so `ty` can resolve `import PIL` in plugin/capie/toggle-mod/make_thumbnail.py and
+# tools/promo/promo.py.
 default-groups = ["dev", "observe", "docs", "assets"]
 
 [tool.uv.sources]
@@ -19,7 +20,8 @@ default-groups = ["dev", "observe", "docs", "assets"]
 pygments-paradox-script = { path = "sites/shared/pygments-paradox", editable = true }
 
 [dependency-groups]
-# Drawing the CAPIE switch-mod thumbnail (plugin/capie/toggle-mod/make_thumbnail.py).
+# Drawing the CAPIE switch-mod thumbnail (plugin/capie/toggle-mod/make_thumbnail.py) and the
+# promotional images and Workshop previews (tools/promo/promo.py).
 assets = [
     "pillow>=12.2.0",
 ]
