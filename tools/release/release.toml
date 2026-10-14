@@ -1,0 +1,207 @@
+# Configuration of tools/release/release.py (local release: preflight, build, GitHub release,
+# VirusTotal, Steam Workshop). Usage: docs/contributing/release-script.md.
+#
+# Every path is relative to `root`, and `root` is relative to this file. Placeholders in
+# command lines: {python} (this interpreter), {pwsh}, {root}, {temp}, {out_dir},
+# {game_dir}, {game_exe}, {minhook_dir}, {psscriptanalyzer_dir}. A command whose
+# placeholder has no value on this machine is skipped and reported, never run.
+#
+# After the repository split (ADR-0034) each repository keeps the sections it ships:
+# capie keeps [build], [bundle], [signing], [github], [virustotal] and the switch-mod item;
+# rename-anything keeps the rename-anything item and its preflight commands.
+#
+# Never put a password, token, API key or private key here. The signing key path is a
+# command-line option, the VirusTotal key comes from the environment, and SteamCMD asks
+# for the Steam password itself.
+
+root = "../.."
+branch = "main"
+out_dir = "dist/release"  # git-ignored
+game_dir = "C:/Program Files (x86)/Steam/steamapps/common/Hearts of Iron IV"
+
+[versions]
+# Single source of truth of the CAPIE release version (capie_release), the supported
+# hoi4.exe hash and the multiplayer build number.
+capie_header = "plugin/capie/src/core/game_build.hpp"
+launcher_build_script = "plugin/capie/build_launcher.ps1"
+launcher_config = "plugin/capie/src/launcher/config.hpp"
+
+# --- Step 1: preflight ------------------------------------------------------------
+[preflight]
+
+[[preflight.commands]]
+name = "ruff check"
+argv = ["{python}", "-m", "ruff", "check"]
+
+[[preflight.commands]]
+name = "ruff format --check"
+argv = ["{python}", "-m", "ruff", "format", "--check"]
+
+[[preflight.commands]]
+name = "ty check"
+argv = ["{python}", "-m", "ty", "check"]
+
+[[preflight.commands]]
+name = "constant and function docstrings"
+argv = ["{python}", "tools/check_constant_docstrings.py"]
+
+[[preflight.commands]]
+name = "pytest"
+argv = ["{python}", "-m", "pytest", "-q"]
+
+[[preflight.commands]]
+name = "gen.py output equals mod/"
+argv = ["{python}", "tools/gen.py", "--game", "{game_dir}"]
+clean_after = ["mod"]
+
+[[preflight.commands]]
+name = "mod checks (tools/check.py)"
+argv = ["{python}", "tools/check.py", "{game_dir}"]
+
+[[preflight.commands]]
+name = "in-place editor checks"
+argv = ["{python}", "tools/tests/check_inline_editor.py"]
+
+[[preflight.commands]]
+name = "script SDK is up to date"
+argv = ["{python}", "sdk/capie-script-sdk/tools/gen_sdk.py", "--check"]
+
+[[preflight.commands]]
+name = "shared site theme is up to date"
+argv = ["{python}", "sites/shared/sync_shared.py", "--check"]
+
+[[preflight.commands]]
+name = "CAPIE switch mod checks"
+argv = ["{python}", "plugin/capie/toggle-mod/check_mod.py", "--game", "{game_dir}"]
+
+[[preflight.commands]]
+name = "install.ps1 matches its sources"
+argv = ["{pwsh}", "-NoProfile", "-File", "tools/bootstrap/build-install.ps1", "-Check"]
+
+[[preflight.commands]]
+name = "installer Pester suite"
+argv = ["{pwsh}", "-NoProfile", "-Command", "Invoke-Pester -Script tools/bootstrap/install.Tests.ps1 -EnableExit"]
+env = { RA_BOOTSTRAP_TEST_ROOT = "{temp}/ra-bootstrap-tests" }
+
+[[preflight.commands]]
+name = "PSScriptAnalyzer"
+argv = ["{pwsh}", "-NoProfile", "-File", "tools/lint-powershell.ps1", "-ModulePath", "{psscriptanalyzer_dir}"]
+
+[[preflight.commands]]
+# Compiles CAPIE into a scratch folder (the reviewed binaries stay untouched) and runs
+# every offline test; with the game installed also the pin checks against hoi4.exe.
+name = "CAPIE native build and offline tests"
+argv = ["{pwsh}", "-NoProfile", "-File", "plugin/capie/build.ps1", "-MinHookDir", "{minhook_dir}",
+        "-GameExe", "{game_exe}", "-OutputDirectory", "plugin/build/release-verify", "-SkipBenchmarks"]
+slow = true
+
+# --- Step 2: build ----------------------------------------------------------------
+[build]
+# Reviewed CAPIE binaries: the launcher and the proxy compile in these hashes.
+capie_output = "plugin/build/capie"
+reviewed_hashes = "plugin/capie/deploy/DEPLOYMENT.md"
+reviewed_files = ["capie_core.dll", "capie_editor.dll", "capie_injector.exe"]
+
+[build.rebuild_capie]
+name = "CAPIE build over the reviewed output (build.ps1)"
+argv = ["{pwsh}", "-NoProfile", "-File", "plugin/capie/build.ps1", "-MinHookDir", "{minhook_dir}",
+        "-GameExe", "{game_exe}"]
+
+[[build.commands]]
+name = "launcher build and tests (build_launcher.ps1)"
+argv = ["{pwsh}", "-NoProfile", "-File", "plugin/capie/build_launcher.ps1", "-GameExe", "{game_exe}"]
+
+[[build.commands]]
+name = "proxy build and tests (build_proxy.ps1)"
+argv = ["{pwsh}", "-NoProfile", "-File", "plugin/capie/build_proxy.ps1"]
+
+[bundle]
+# Release ZIP in the layout tools/bootstrap/install.ps1 installs (ZIP name: letters,
+# digits, . _ - only).
+zip_name = "CAPIE-{version}-win64.zip"
+launcher_zip_path = "RenameAnythingLauncher.exe"
+
+[[bundle.files]]
+zip = "RenameAnythingLauncher.exe"
+source = "plugin/build/capie-launcher/RenameAnythingLauncher.exe"
+
+[[bundle.files]]
+zip = "LICENSE.MinHook.txt"
+source = "plugin/build/capie-launcher/LICENSE.MinHook.txt"
+
+[[bundle.files]]
+zip = "runtime/capie_core.dll"
+source = "plugin/build/capie-launcher/runtime/capie_core.dll"
+reviewed = true
+
+[[bundle.files]]
+zip = "runtime/capie_editor.dll"
+source = "plugin/build/capie-launcher/runtime/capie_editor.dll"
+reviewed = true
+
+[[bundle.files]]
+zip = "runtime/capie_injector.exe"
+source = "plugin/build/capie-launcher/runtime/capie_injector.exe"
+reviewed = true
+
+[[bundle.files]]
+# Opt-in proxy loader (ADR-0024); a bundle without it refuses -LoadMethod Proxy.
+zip = "proxy/version.dll"
+source = "plugin/build/capie-proxy/version.dll"
+optional = true
+
+[bundle.switch_mod]
+# The "CAPIE" switch mod: mod/capie.mod (generated from descriptor.mod plus path) and
+# mod/capie/ (git-tracked files of source_dir).
+source_dir = "plugin/capie/toggle-mod/capie"
+zip_dir = "mod/capie"
+descriptor_zip_path = "mod/capie.mod"
+descriptor_path_value = "mod/capie"
+
+[signing]
+sign_script = "tools/bootstrap/sign-release-manifest.ps1"
+installer_configuration = "tools/bootstrap/src/Shared/Configuration.ps1"
+installer_build_script = "tools/bootstrap/build-install.ps1"
+installer_script = "tools/bootstrap/install.ps1"
+
+# --- Step 3: GitHub release ------------------------------------------------------
+[github]
+repo = "capie-mods/capie"
+tag_prefix = "v"
+title = "CAPIE {version}"
+changelog = "plugin/capie/CHANGELOG.md"
+
+# --- Step 4: VirusTotal (optional) ----------------------------------------------
+[virustotal]
+api_key_env = "VT_API_KEY"
+poll_seconds = 20
+max_wait_seconds = 600
+request_gap_seconds = 15  # public API: 4 requests per minute
+
+# --- Step 5: Steam Workshop -------------------------------------------------------
+[workshop]
+app_id = 394360
+steamcmd = ""     # empty: steamcmd on PATH
+steam_user = ""   # account NAME only, or pass --steam-user
+# Developer files never uploaded (matched against the path and each path part).
+exclude = ["*.md", "*.py", "*.pyc", "__pycache__", ".*", "*.ps1", "*.psd", "*.xcf", "*.kra",
+           "*.bak", "*.orig", "*.tmp", "*.log", "Thumbs.db", "desktop.ini"]
+
+[[workshop.items]]
+key = "rename-anything"
+title = "Rename Anything"
+content_dir = "mod"
+# Required by Steam and the Paradox Launcher (512 x 512 PNG under 1 MB); none exists yet.
+preview_file = "mod/thumbnail.png"
+description_file = ""
+changelog = "CHANGELOG.md"
+published_file_id = 0
+
+[[workshop.items]]
+key = "capie-switch"
+title = "CAPIE"
+content_dir = "plugin/capie/toggle-mod/capie"
+preview_file = "plugin/capie/toggle-mod/capie/thumbnail.png"
+description_file = "plugin/capie/toggle-mod/workshop-description.en.txt"
+changelog = "plugin/capie/toggle-mod/CHANGELOG.md"
+published_file_id = 0

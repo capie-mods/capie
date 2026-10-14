@@ -1,0 +1,506 @@
+"""Step tests of the release tool on a synthetic repository with fake gh, steamcmd and HTTP.
+
+Every external effect is answered by the fakes in ``fakes.py``; the tests check what
+the tool would have sent, and that nothing is sent without the required confirmation.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import zipfile
+from typing import TYPE_CHECKING
+
+from fakes import BINARIES, COMMIT, GAME_SHA, FakeRunner, Harness, KeyPair, make_repo
+from releasekit.package import BundleEntry, entry_problems, switch_mod_descriptor, write_zip
+from releasekit.workshop import is_excluded, render_vdf, vdf_published_id, workshop_descriptor
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+EXPECTED_ENTRIES = [
+    "RenameAnythingLauncher.exe",
+    "runtime/capie_core.dll",
+    "runtime/capie_editor.dll",
+    "runtime/capie_injector.exe",
+    "mod/capie.mod",
+    "mod/capie/descriptor.mod",
+    "mod/capie/interface/capie.gui",
+    "mod/capie/thumbnail.png",
+]
+"""ZIP entries of the synthetic bundle, in order."""
+
+NEW_STEAM_ID = 3000000099
+"""ID the fake SteamCMD assigns to a new item."""
+
+EXISTING_STEAM_ID = 3000000001
+"""ID of the already published switch mod in the synthetic configuration."""
+
+
+def _build(harness: Harness, *extra: str) -> int:
+    """Run the build step with the harness key.
+
+    Args:
+        harness: Test harness.
+        *extra: More options.
+
+    Returns:
+        Exit code.
+    """
+    return harness.run("build", "--signing-key", str(harness.key_file), *extra)
+
+
+# --- pure helpers --------------------------------------------------------------------
+
+
+def test_zip_is_reproducible_and_installer_safe(tmp_path: Path) -> None:
+    """Equal inputs give equal bytes; unsafe, duplicate and launcher-less bundles are refused.
+
+    Args:
+        tmp_path: pytest temporary folder.
+    """
+    entries = [BundleEntry("RenameAnythingLauncher.exe", b"a"), BundleEntry("mod/capie.mod", b"b")]
+    write_zip(tmp_path / "one.zip", entries)
+    write_zip(tmp_path / "two.zip", entries)
+    assert (tmp_path / "one.zip").read_bytes() == (tmp_path / "two.zip").read_bytes()
+    assert entry_problems(entries, "RenameAnythingLauncher.exe") == []
+    bad = [
+        BundleEntry("../x.dll", b""),
+        BundleEntry("a b.txt", b""),
+        BundleEntry("X", b""),
+        BundleEntry("x", b""),
+    ]
+    problems = entry_problems(bad, "RenameAnythingLauncher.exe")
+    assert len([p for p in problems if "unsafe" in p]) == 2  # noqa: PLR2004 - "../" and the space
+    assert any("duplicate" in p for p in problems)
+    assert any("launcher" in p for p in problems)
+
+
+def test_descriptor_rewrites() -> None:
+    """capie.mod gains path; the Workshop copy loses path and gains remote_file_id."""
+    original = 'version="1.0.0"\r\nname="CAPIE"\r\npath="C:/x"\r\nremote_file_id="1"\r\n'
+    assert (
+        switch_mod_descriptor(original, "mod/capie").decode()
+        == 'version="1.0.0"\nname="CAPIE"\npath="mod/capie"\n'
+    )
+    assert workshop_descriptor(original, 0) == 'version="1.0.0"\nname="CAPIE"\n'
+    assert (
+        workshop_descriptor(original, 77) == 'version="1.0.0"\nname="CAPIE"\nremote_file_id="77"\n'
+    )
+
+
+def test_vdf_and_exclusions() -> None:
+    """VDF strings are escaped; developer files are excluded by name or folder."""
+    text = render_vdf([("contentfolder", "C:\\a\\b"), ("changenote", 'say "hi"')])
+    assert '"contentfolder"\t"C:\\\\a\\\\b"' in text
+    assert '"changenote"\t"say \\"hi\\""' in text
+    assert vdf_published_id(text) == 0
+    assert vdf_published_id('"publishedfileid"\t"123"') == 123  # noqa: PLR2004
+    assert is_excluded("NOTES.md", ("*.md",))
+    assert is_excluded("gfx/__pycache__/x.pyc", ("__pycache__",))
+    assert is_excluded(".git/config", (".*",))
+    assert not is_excluded("common/rn.txt", ("*.md", ".*"))
+
+
+# --- preflight -----------------------------------------------------------------------
+
+
+def test_preflight_fails_on_a_dirty_tree_and_skips_commands_without_the_game(
+    harness: Harness,
+) -> None:
+    """A dirty tree fails; commands needing the game are skipped, others run.
+
+    Args:
+        harness: Test harness.
+    """
+    harness.runner.status = " M tools/gen.py\n"
+    assert harness.run("preflight") == 1
+    assert "working tree not clean" in harness.output
+    assert "SKIP  generator: needs game_dir" in harness.output
+    assert any(call[1:3] == ("-m", "pytest") for call in harness.runner.calls)
+
+
+def test_preflight_reports_stale_generator_output(harness: Harness, tmp_path: Path) -> None:
+    """A generator that changes mod/ fails the clean_after check.
+
+    Args:
+        harness: Test harness.
+        tmp_path: pytest temporary folder.
+    """
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "hoi4.exe").write_bytes(b"not the game")
+    runner = harness.runner
+
+    def dirty_after_gen(call: tuple[str, ...]) -> None:
+        """Make mod/ dirty once gen.py ran.
+
+        Args:
+            call: Command line.
+        """
+        if "tools/gen.py" in call:
+            runner.status = " M mod/common/rn.txt\n"
+
+    runner.on_run = dirty_after_gen
+    assert harness.run("preflight", "--game-dir", str(game)) == 1
+    assert "generator changed 1 tracked file(s) in mod: output is stale" in harness.output
+    assert "is not the supported build" in harness.output
+
+
+# --- build ---------------------------------------------------------------------------
+
+
+def test_build_writes_the_bundle_manifest_and_checksums(harness: Harness) -> None:
+    """The ZIP has the installer layout, the manifest matches it and the signature verifies.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0, harness.output
+    zip_path = harness.out / "CAPIE-1.4.0-win64.zip"
+    with zipfile.ZipFile(zip_path) as archive:
+        assert archive.namelist() == EXPECTED_ENTRIES
+        assert archive.read("runtime/capie_core.dll") == BINARIES["capie_core.dll"]
+        assert archive.read("mod/capie.mod").decode().endswith('path="mod/capie"\n')
+    manifest = json.loads((harness.out / "release-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["supportedGameSha256"] == [GAME_SHA]
+    assert "signature verifies with the installer public key" in harness.output
+    sums = (harness.out / "SHA256SUMS.txt").read_text(encoding="ascii")
+    assert hashlib.sha256(zip_path.read_bytes()).hexdigest() in sums
+    info = json.loads((harness.out / "build-info.json").read_text(encoding="utf-8"))
+    assert info["commit"] == COMMIT
+    assert "installer pins name 'RenameAnything-0.1.0-win64.zip'" in harness.output
+    assert "TO-BE-PINNED" in (
+        harness.root / "tools/bootstrap/src/Shared/Configuration.ps1"
+    ).read_text(encoding="utf-8")
+
+
+def test_build_write_pins_updates_the_installer(harness: Harness) -> None:
+    """--write-pins puts the new ZIP hash into Configuration.ps1 and rebuilds install.ps1.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness, "--write-pins") == 0, harness.output
+    text = (harness.root / "tools/bootstrap/src/Shared/Configuration.ps1").read_text(
+        encoding="utf-8"
+    )
+    zip_sha = (
+        hashlib.sha256((harness.out / "CAPIE-1.4.0-win64.zip").read_bytes()).hexdigest().upper()
+    )
+    assert f"ZipSha256           = '{zip_sha}'" in text
+    assert "'mod/capie/thumbnail.png'" in text
+    assert any("build-install.ps1" in " ".join(c) for c in harness.runner.calls)
+
+
+def test_build_refuses_a_key_inside_the_repository(harness: Harness) -> None:
+    """The private key must live outside the repository.
+
+    Args:
+        harness: Test harness.
+    """
+    inside = harness.root / "release.private.xml"
+    inside.write_text(harness.key_file.read_text(encoding="utf-8"), encoding="utf-8")
+    assert harness.run("build", "--signing-key", str(inside)) == 1
+    assert "inside the repository" in harness.output
+    assert not harness.out.exists()
+
+
+def test_build_refuses_unreviewed_binaries(harness: Harness) -> None:
+    """A CAPIE DLL that differs from DEPLOYMENT.md stops the build before packaging.
+
+    Args:
+        harness: Test harness.
+    """
+    (harness.root / "plugin/build/capie/capie_core.dll").write_bytes(b"MZ rebuilt")
+    assert _build(harness) == 1
+    assert "!= reviewed" in harness.output
+    assert not (harness.out / "CAPIE-1.4.0-win64.zip").exists()
+
+
+def test_rebuild_capie_stops_for_re_pinning(harness: Harness, tmp_path: Path) -> None:
+    """A fresh build.ps1 run with new hashes stops and names the files to re-pin.
+
+    Args:
+        harness: Test harness.
+        tmp_path: pytest temporary folder.
+    """
+    runner = harness.runner
+
+    def rebuild(call: tuple[str, ...]) -> None:
+        """Simulate build.ps1 producing new binaries.
+
+        Args:
+            call: Command line.
+        """
+        if "plugin/capie/build.ps1" in call:
+            (harness.root / "plugin/build/capie/capie_editor.dll").write_bytes(b"MZ new editor")
+
+    runner.on_run = rebuild
+    code = _build(harness, "--rebuild-capie", "--minhook-dir", str(tmp_path))
+    assert code == 1
+    assert "re-pin them in DEPLOYMENT.md" in harness.output
+    assert "capie_editor.dll" in harness.output
+
+
+def test_build_dry_run_writes_nothing(harness: Harness) -> None:
+    """A dry run lists the ZIP entries and commands and creates no file.
+
+    Args:
+        harness: Test harness.
+    """
+    assert harness.run("build", "--dry-run") == 0, harness.output
+    assert "PLAN    mod/capie.mod" in harness.output
+    assert not harness.out.exists()
+    assert not any("-MakeManifest" in c for c in harness.runner.calls)
+
+
+def test_build_without_installer_key_warns(tmp_path: Path, key: KeyPair) -> None:
+    """With the placeholder public key the signature is checked against the key itself.
+
+    Args:
+        tmp_path: pytest temporary folder.
+        key: Session key.
+    """
+    root = tmp_path / "repo"
+    config = make_repo(root, key, installer_key=False)
+    key_file = tmp_path / "k.xml"
+    key_file.write_text(key.xml(private=True), encoding="utf-8")
+    harness = Harness(root=root, config=config, key_file=key_file, runner=FakeRunner(root, key))
+    assert _build(harness) == 0, harness.output
+    assert "installer public key is a placeholder" in harness.output
+    assert "public part of the signing key" in harness.output
+
+
+# --- GitHub release ------------------------------------------------------------------
+
+
+def test_release_is_a_draft_prerelease_by_default(harness: Harness) -> None:
+    """The ``gh release create`` call gets --draft and --prerelease, the exact commit and the notes.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    assert harness.run("release") == 0, harness.output
+    (create,) = harness.runner.mutating()
+    assert create[:4] == ("gh", "release", "create", "v1.4.0")
+    assert "--draft" in create
+    assert "--prerelease" in create
+    assert create[create.index("--target") + 1] == COMMIT
+    assert create[create.index("--repo") + 1] == "capie-mods/capie"
+    notes = (harness.out / "release-notes.md").read_text(encoding="utf-8")
+    assert notes.startswith("- Flags.")
+    assert "Not declared multiplayer-compatible" in notes
+    assert "Pending" in notes
+
+
+def test_publish_needs_a_typed_confirmation(harness: Harness) -> None:
+    """--publish without the typed word creates nothing.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness, "--write-pins") == 0
+    assert harness.run("release", "--publish") == 1
+    assert harness.runner.mutating() == []
+    harness.prompter.words["publish"] = True
+    assert harness.run("release", "--publish") == 0, harness.output
+    (create,) = harness.runner.mutating()
+    assert "--draft" not in create
+    assert "--prerelease" in create
+
+
+def test_release_refuses_an_existing_tag_or_unpushed_commit(harness: Harness) -> None:
+    """An existing release or a commit missing on GitHub stops the step.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    harness.runner.release_exists = True
+    assert harness.run("release") == 1
+    assert "already exists" in harness.output
+    assert harness.runner.mutating() == []
+    harness.runner.release_exists = False
+    harness.runner.commit_on_remote = False
+    assert harness.run("release") == 1
+    assert "push it first" in harness.output
+    assert harness.runner.mutating() == []
+
+
+# --- VirusTotal ----------------------------------------------------------------------
+
+
+def test_virustotal_uploads_only_after_confirmation(harness: Harness) -> None:
+    """Known files are only looked up; unknown ones wait for the typed 'upload'.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    harness.env["VT_API_KEY"] = "vt-secret-123"
+    known = hashlib.sha256(BINARIES["capie_core.dll"]).hexdigest()
+    harness.transport.known[known] = {"malicious": 0, "undetected": 72}
+    assert harness.run("virustotal") == 0, harness.output
+    assert [r for r in harness.transport.requests if r[0] == "POST"] == []
+    assert "upload not confirmed" in harness.output
+    harness.prompter.words["upload"] = True
+    assert harness.run("virustotal") == 0, harness.output
+    posts = [r for r in harness.transport.requests if r[0] == "POST"]
+    assert len(posts) == 4  # noqa: PLR2004 - ZIP, launcher, editor, injector (core was known)
+    assert all(r[2]["x-apikey"] == "vt-secret-123" for r in harness.transport.requests)
+    notes = (harness.out / "virustotal.md").read_text(encoding="utf-8")
+    assert f"https://www.virustotal.com/gui/file/{known}" in notes
+    assert "vt-secret-123" not in harness.output
+    log = next((harness.root / "dist/release/logs").glob("*virustotal.log"))
+    assert "vt-secret-123" not in log.read_text(encoding="utf-8")
+
+
+def test_virustotal_without_key_fails_without_requests(harness: Harness) -> None:
+    """No key in the environment: nothing is sent.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    assert harness.run("virustotal") == 1
+    assert "VT_API_KEY" in harness.output
+    assert harness.transport.requests == []
+
+
+# --- Workshop ------------------------------------------------------------------------
+
+
+def test_new_workshop_item_is_hidden_and_its_id_is_stored(harness: Harness) -> None:
+    """A new item is uploaded hidden with title; only the account name reaches SteamCMD.
+
+    Args:
+        harness: Test harness.
+    """
+    assert (
+        harness.run("workshop", "--item", "rename-anything", "--steam-user", "maintainer", "--yes")
+        == 0
+    ), harness.output
+    (call,) = harness.runner.interactive
+    vdf_path = call[call.index("+workshop_build_item") + 1]
+    assert call == ("steamcmd", "+login", "maintainer", "+workshop_build_item", vdf_path, "+quit")
+    vdf = (harness.out / "workshop/rename-anything-0.1.0/item.vdf").read_text(encoding="utf-8")
+    assert '"visibility"\t"2"' in vdf
+    assert '"title"\t"Rename Anything"' in vdf
+    assert '"appid"\t"394360"' in vdf
+    assert "[list]\n[*]Renaming.\n[/list]" in vdf
+    content = harness.out / "workshop/rename-anything-0.1.0/content"
+    assert sorted(p.relative_to(content).as_posix() for p in content.rglob("*") if p.is_file()) == [
+        "common/rn.txt",
+        "descriptor.mod",
+        "thumbnail.png",
+    ]
+    assert "path=" not in (content / "descriptor.mod").read_text(encoding="utf-8")
+    config = harness.config.read_text(encoding="utf-8")
+    assert f"published_file_id = {NEW_STEAM_ID}" in config
+    assert f"published_file_id = {EXISTING_STEAM_ID}" in config
+
+
+def test_existing_item_keeps_visibility_and_description(harness: Harness) -> None:
+    """An update sends no visibility, title or description, and sets remote_file_id.
+
+    Args:
+        harness: Test harness.
+    """
+    assert (
+        harness.run("workshop", "--item", "capie-switch", "--steam-user", "maintainer", "--yes")
+        == 0
+    ), harness.output
+    vdf = (harness.out / "workshop/capie-switch-1.0.0/item.vdf").read_text(encoding="utf-8")
+    assert '"visibility"' not in vdf
+    assert '"description"' not in vdf
+    assert f'"publishedfileid"\t"{EXISTING_STEAM_ID}"' in vdf
+    descriptor = (harness.out / "workshop/capie-switch-1.0.0/content/descriptor.mod").read_text(
+        encoding="utf-8"
+    )
+    assert f'remote_file_id="{EXISTING_STEAM_ID}"' in descriptor
+
+
+def test_public_visibility_needs_a_typed_confirmation(harness: Harness) -> None:
+    """--visibility public without the typed word never starts SteamCMD.
+
+    Args:
+        harness: Test harness.
+    """
+    args = (
+        "workshop",
+        "--item",
+        "capie-switch",
+        "--steam-user",
+        "maintainer",
+        "--yes",
+        "--visibility",
+        "public",
+    )
+    assert harness.run(*args) == 1
+    assert harness.runner.interactive == []
+    harness.prompter.words["public"] = True
+    assert harness.run(*args) == 0, harness.output
+    vdf = (harness.out / "workshop/capie-switch-1.0.0/item.vdf").read_text(encoding="utf-8")
+    assert '"visibility"\t"0"' in vdf
+
+
+def test_workshop_rejects_anything_but_an_account_name(harness: Harness) -> None:
+    """A value with spaces (for example "user password") is refused before SteamCMD runs.
+
+    Args:
+        harness: Test harness.
+    """
+    assert (
+        harness.run("workshop", "--item", "capie-switch", "--steam-user", "user hunter2", "--yes")
+        == 1
+    )
+    assert harness.runner.interactive == []
+
+
+def test_workshop_upload_needs_confirmation_without_yes(harness: Harness) -> None:
+    """Without --yes the plain upload question must be answered with 'upload'.
+
+    Args:
+        harness: Test harness.
+    """
+    assert harness.run("workshop", "--item", "capie-switch", "--steam-user", "maintainer") == 0
+    assert "Workshop upload not confirmed" in harness.output
+    assert harness.runner.interactive == []
+
+
+# --- whole run -----------------------------------------------------------------------
+
+
+def test_dry_run_of_everything_sends_nothing(harness: Harness) -> None:
+    """``all --dry-run`` shows every step and sends, uploads and writes nothing.
+
+    Args:
+        harness: Test harness.
+    """
+    harness.env["VT_API_KEY"] = "vt-secret-123"
+    code = harness.run("all", "--dry-run", "--virustotal", "--steam-user", "maintainer")
+    assert code == 0, harness.output
+    for heading in ("Preflight", "Build", "VirusTotal", "GitHub release", "Steam Workshop"):
+        assert f"== {heading}" in harness.output
+    assert harness.runner.mutating() == []
+    assert harness.runner.interactive == []
+    assert harness.transport.requests == []
+    assert not harness.out.exists()
+    assert "steamcmd +login maintainer +workshop_build_item" in harness.output
+    assert "\x1b[" not in harness.output
+
+
+def test_dry_run_continues_after_a_failed_step(harness: Harness) -> None:
+    """A dry run with a dirty tree still shows every later step; a real run stops.
+
+    Args:
+        harness: Test harness.
+    """
+    harness.runner.status = " M tools/gen.py\n"
+    assert harness.run("all", "--dry-run", "--steam-user", "maintainer") == 1
+    assert "== Steam Workshop" in harness.output
+    assert harness.run("all", "--steam-user", "maintainer") == 1
+    assert "== Build" not in harness.output
+    assert "stopped after the preflight step" in harness.output

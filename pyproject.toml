@@ -45,7 +45,7 @@ target-version = "py313"
 # The scripts in tools/ import the sibling packages modgen/ and rncommon/ (and the tests
 # their helper package inline_checks/) through sys.path[0]; list those roots so the import
 # sorter classifies them as first-party.
-src = [".", "tools", "tools/tests", "sdk/capie-script-sdk/tools"]
+src = [".", "tools", "tools/tests", "tools/release", "tools/release/tests", "sdk/capie-script-sdk/tools"]
 # 100 instead of 88: the generators build long Paradox-script lines out of f-string pieces.
 line-length = 100
 # Python only. Ruff 0.17 also formats code blocks inside Markdown by default; the docs and
@@ -95,6 +95,8 @@ ignore = [
 # ApplyVM and reports a failed contract the same way. The pytest unit tests use bare `assert`,
 # which is pytest's assertion API.
 "tools/tests/**/*.py" = ["S101"]
+# The release tool's pytest unit tests (tools/release/tests) use pytest's bare `assert` too.
+"tools/release/tests/*.py" = ["S101"]
 # The CAPIE script SDK's pytest checks use bare `assert` (pytest's assertion API) as well.
 "sdk/capie-script-sdk/tests/*.py" = ["S101"]
 # check.py prints file paths exactly as glob/os.path produce them and relies on glob.glob
@@ -113,7 +115,7 @@ python-platform = "win32"
 # after inserting this directory into sys.path at runtime; mirror that for type checking.
 # tools/ (modgen, rncommon) and tools/tests (inline_checks) are the import roots of the tool
 # scripts and of the pytest unit tests.
-extra-paths = ["probes/rn_inline_pair_qa/tools", "tools", "tools/tests", "sdk/capie-script-sdk/tools"]
+extra-paths = ["probes/rn_inline_pair_qa/tools", "tools", "tools/tests", "tools/release", "tools/release/tests", "sdk/capie-script-sdk/tools"]
 
 [tool.ty.src]
 # Same exclusions, and the same reasons, as [tool.ruff] extend-exclude above.
@@ -135,6 +137,6 @@ error-on-warning = true
 # Unit tests of the generator slices and the shared helpers. The scripts are not an installed
 # package, so the import roots of tools/ (modgen, rncommon) and tools/tests (inline_checks)
 # are put on sys.path the same way the scripts find them at runtime.
-testpaths = ["tools/tests", "sdk/capie-script-sdk/tests"]
-pythonpath = ["tools", "tools/tests", "sdk/capie-script-sdk/tools"]
+testpaths = ["tools/tests", "tools/release/tests", "sdk/capie-script-sdk/tests"]
+pythonpath = ["tools", "tools/tests", "tools/release", "tools/release/tests", "sdk/capie-script-sdk/tools"]
 addopts = ["-p", "no:cacheprovider"]

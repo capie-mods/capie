@@ -33,6 +33,8 @@ The player guides are the public sites, written in `sites/`:
 - [In-game test record](contributing/in-game-test-record.md): what has been checked in the game,
   per feature.
 - [Releasing](contributing/releasing.md): the release checklist.
+- [Release script](contributing/release-script.md): local build, GitHub release, VirusTotal and
+  Steam Workshop upload with `tools/release/release.py`.
 - [Proxy loader](contributing/proxy-loader.md) and [multiplayer test plan](contributing/multiplayer-test-plan.md).
 - [CAPIE native code](../plugin/capie/README.md), [installer](../tools/bootstrap/README.md),
   [deployment notes](../plugin/capie/deploy/DEPLOYMENT.md).
