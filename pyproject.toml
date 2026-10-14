@@ -47,7 +47,7 @@ target-version = "py313"
 # The scripts in tools/ import the sibling packages modgen/ and rncommon/ (and the tests
 # their helper package inline_checks/) through sys.path[0]; list those roots so the import
 # sorter classifies them as first-party.
-src = [".", "tools", "tools/tests", "tools/release", "tools/release/tests", "sdk/capie-script-sdk/tools"]
+src = [".", "tools", "tools/tests", "tools/release", "tools/release/tests", "tools/promo", "sdk/capie-script-sdk/tools"]
 # 100 instead of 88: the generators build long Paradox-script lines out of f-string pieces.
 line-length = 100
 # Python only. Ruff 0.17 also formats code blocks inside Markdown by default; the docs and
@@ -117,7 +117,7 @@ python-platform = "win32"
 # after inserting this directory into sys.path at runtime; mirror that for type checking.
 # tools/ (modgen, rncommon) and tools/tests (inline_checks) are the import roots of the tool
 # scripts and of the pytest unit tests.
-extra-paths = ["probes/rn_inline_pair_qa/tools", "tools", "tools/tests", "tools/release", "tools/release/tests", "sdk/capie-script-sdk/tools"]
+extra-paths = ["probes/rn_inline_pair_qa/tools", "tools", "tools/tests", "tools/release", "tools/release/tests", "tools/promo", "sdk/capie-script-sdk/tools"]
 
 [tool.ty.src]
 # Same exclusions, and the same reasons, as [tool.ruff] extend-exclude above.

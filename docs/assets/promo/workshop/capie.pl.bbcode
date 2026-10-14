@@ -1,4 +1,6 @@
+[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/banner.jpg[/img]
 [h1]CAPIE[/h1]
+[b]Zrobione z pomocą AI.[/b] Ten mod powstał z pomocą narzędzi AI (Claude Code i Codex) i mówię o tym otwarcie. Jeśli nie chcesz grać w mody robione z pomocą AI, po prostu go nie pobieraj.
 CAPIE (Cyprian's API Extender) to mała natywna biblioteka, która daje modom do Hearts of Iron IV kilka możliwości niedostępnych w języku skryptów: odczyt tego, co gracz wpisze w pole tekstowe gry, oraz własne warstwy nazwy państwa, nazwy frakcji i flagi zapisywane w zapisie gry. Rename Anything jest pierwszym modem zbudowanym na CAPIE.
 
 Ten przedmiot jest przełącznikiem. Nie zawiera treści gry: tylko przełącznik i jedną linię stanu w prawym dolnym rogu menu głównego.
@@ -10,24 +12,29 @@ Kolejność ładowania nie ma znaczenia.
 
 [b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.5 (poziom API skryptów 7), sprawdzona w grze jednoosobowej na HOI4 1.19.3.0, na wersjach rozwojowych.
 
+[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-status-line-pl.png[/img]
 [h2]Linia stanu w menu głównym[/h2]
 [list]
-[*]„CAPIE 1.5”: CAPIE działa.
-[*]„Brak CAPIE” na pomarańczowo: przełącznik jest włączony, ale CAPIE nie jest załadowane. Gra nie została uruchomiona przez launcher CAPIE, Twoja wersja gry nie jest obsługiwana albo menu główne jeszcze się nie doczytało. CAPIE ładuje się około 20 sekund po pojawieniu się menu głównego.
+[*]CAPIE 1.5: CAPIE działa.
+[*]Brak CAPIE na pomarańczowo: przełącznik jest włączony, ale CAPIE nie jest załadowane. Gra nie została uruchomiona przez launcher CAPIE, Twoja wersja gry nie jest obsługiwana albo menu główne jeszcze się nie doczytało. CAPIE ładuje się około 20 sekund po pojawieniu się menu głównego.
 [/list]
 
+[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-requirements-pl.png[/img]
 [h2]Wymagania[/h2]
 [list]
 [*]Hearts of Iron IV 1.19.3.0 na Windows.
 [*]Launcher CAPIE, który konfiguruje instalator. Bez niego ten przedmiot nic nie robi.
 [/list]
 
+[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-installing-pl.png[/img]
 [h2]Instalacja[/h2]
 Instalator jest w przygotowaniu. Będzie dostępny jako jedna linia w PowerShell ([i]irm ... | iex[/i]) i jako instalator w GitHub Releases, razem z pierwszym wydaniem. Instaluje launcher, a później potrafi wyłączyć albo odinstalować CAPIE.
 
+[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-how-it-works-pl.png[/img]
 [h2]Jak to działa[/h2]
-Po naciśnięciu „Graj” Paradox Launcher zapisuje zestaw modów do pliku dlc_load.json w Dokumenty\Paradox Interactive\Hearts of Iron IV. Launcher CAPIE odczytuje ten plik, gdy gra już wystartowała. Jeśli ten przedmiot jest na liście, CAPIE zostaje załadowane, gdy gra dojdzie do menu głównego. Jeśli pliku nie da się odczytać, gra działa bez CAPIE, a krótki komunikat to wyjaśnia. Gra nigdy nie jest wstrzymywana.
+Po naciśnięciu Graj Paradox Launcher zapisuje zestaw modów do pliku dlc_load.json w Dokumenty\Paradox Interactive\Hearts of Iron IV. Launcher CAPIE odczytuje ten plik, gdy gra już wystartowała. Jeśli ten przedmiot jest na liście, CAPIE zostaje załadowane, gdy gra dojdzie do menu głównego. Jeśli pliku nie da się odczytać, gra działa bez CAPIE, a krótki komunikat to wyjaśnia. Gra nigdy nie jest wstrzymywana.
 
+[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-safety-pl.png[/img]
 [h2]Bezpieczeństwo i ograniczenia[/h2]
 [list]
 [*]Pliki gry zostają bez zmian. Launcher niczego nie dodaje do folderu gry.
@@ -38,7 +45,18 @@ Po naciśnięciu „Graj” Paradox Launcher zapisuje zestaw modów do pliku dlc
 [*]Niektóre programy antywirusowe mogą ostrzegać przed CAPIE, bo ładuje się ono do procesu gry. Każde wydanie zostanie przeskanowane w VirusTotal, a linki do wyników trafią do informacji o wydaniu.
 [/list]
 
+[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-clean-game-pl.png[/img]
 [h2]Powrót do czystej gry[/h2]
-Wyłącz ten przedmiot w zestawie: kolejny start będzie bez CAPIE. Aby całkowicie usunąć CAPIE, uruchom instalator i wybierz „Odinstaluj”. Zapisy i inne mody pozostają bez zmian.
+Wyłącz ten przedmiot w zestawie: kolejny start będzie bez CAPIE. Aby całkowicie usunąć CAPIE, uruchom instalator i wybierz Odinstaluj. Zapisy i inne mody pozostają bez zmian.
 
-Kod źródłowy i dokumentacja są na GitHubie. Hearts of Iron IV jest znakiem towarowym Paradox Interactive. Ten projekt nie jest powiązany z Paradox Interactive ani przez nią wspierany.
+
+[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-links-pl.png[/img]
+[h2]Kod i linki[/h2]
+[list]
+[*][url=https://github.com/capie-mods/rename-anything]Rename Anything na GitHubie[/url]
+[*][url=https://github.com/capie-mods/capie]CAPIE na GitHubie[/url]
+[*][url=https://github.com/capie-mods/capie-script-sdk]CAPIE Script SDK na GitHubie[/url]
+[*][url=https://github.com/capie-mods]Organizacja capie-mods[/url]
+[/list]
+
+Hearts of Iron IV jest znakiem towarowym Paradox Interactive. Ten projekt nie jest powiązany z Paradox Interactive ani przez nią wspierany.

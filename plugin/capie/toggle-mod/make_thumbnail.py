@@ -1,9 +1,12 @@
 """Draws thumbnail.png of the "CAPIE" switch mod from docs/design/tokens.json.
 
-The picture follows docs/design/DESIGN-SYSTEM.md: a flat panel-umber panel in a window-ink
-frame, the CAPIE connector mark (three brass bars beside a field-ink plate with a steel
-bevel), the name in parchment, the full name in khaki and one hairline-separated line that
-says what the switch does, with the "works today" mark. No gradients, glow or shadows.
+The picture follows docs/design/DESIGN-SYSTEM.md and shares its layout with the Rename Anything
+preview (tools/promo/promo.py, ``preview_canvas``): a flat panel-umber panel in a window-ink
+frame, a real screenshot on top (a Rename Anything editor in the game's own text fields, the
+thing CAPIE makes possible), and under it the CAPIE mark Overprint, the name in parchment and the
+full name in khaki. The mark is read from capie-mark-detail.svg, the same geometry as the
+capie-mods organisation mark, so it is never drawn a second time. Letters are sized to stay
+readable at the 200 px Steam shows in lists. No gradients, glow or shadows.
 
 Fonts: Segoe UI (part of the design system's fallback stack, present on every Windows
 installation). Ubuntu is preferred by the system but is not installed on the build machine.
@@ -17,11 +20,10 @@ from __future__ import annotations
 
 import argparse
 import io
-import json
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 """Folder of this script (``plugin/capie/toggle-mod``)."""
@@ -29,26 +31,14 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 """Repository root."""
 
-TOKENS = REPO / "docs" / "design" / "tokens.json"
-"""Design tokens; every colour of the picture is read from this file."""
-
 OUTPUT = HERE / "capie" / "thumbnail.png"
 """The switch mod's preview image (``picture`` in its descriptor.mod)."""
 
-FONT_DIR = Path("C:/Windows/Fonts")
-"""Windows font folder."""
+sys.path.insert(0, str(REPO / "tools" / "promo"))
+import promo  # noqa: E402 - the promo pipeline sits outside this folder
 
-FONT_BOLD = FONT_DIR / "segoeuib.ttf"
-"""Bold face for the name (design system fallback stack)."""
-
-FONT_REGULAR = FONT_DIR / "segoeui.ttf"
-"""Regular face for the full name and the body lines."""
-
-SIZE = 512
-"""Final edge in pixels (Workshop and Paradox Launcher preview)."""
-
-SCALE = 4
-"""Supersampling factor for smooth edges."""
+SCREENSHOT = promo.Shot("subject-editor", (30, 22, 426, 249))
+"""A Rename Anything editor with two of the game's own text fields, cropped to 1.74:1."""
 
 
 def load_colors() -> dict[str, str]:
@@ -57,52 +47,7 @@ def load_colors() -> dict[str, str]:
     Returns:
         Every colour token by name, for example "panel-umber" -> "#272421".
     """
-    tokens = json.loads(TOKENS.read_text(encoding="utf-8"))
-    colors: dict[str, str] = {}
-    for group in tokens["color"].values():
-        for name, token in group.items():
-            colors[name] = token["$value"]
-    return colors
-
-
-def px(value: float) -> int:
-    """Converts a coordinate of the 512 px design grid to the supersampled canvas.
-
-    Args:
-        value: Coordinate on the design grid.
-
-    Returns:
-        The coordinate on the supersampled canvas.
-    """
-    return round(value * SCALE)
-
-
-def box(x0: float, y0: float, x1: float, y1: float) -> tuple[int, int, int, int]:
-    """Maps a rectangle of the design grid to the supersampled canvas.
-
-    Args:
-        x0: Left edge on the design grid.
-        y0: Top edge on the design grid.
-        x1: Right edge on the design grid.
-        y1: Bottom edge on the design grid.
-
-    Returns:
-        The rectangle as (left, top, right, bottom) canvas pixels.
-    """
-    return (px(x0), px(y0), px(x1), px(y1))
-
-
-def font(path: Path, size: float) -> ImageFont.FreeTypeFont:
-    """Loads a font at a design-grid size.
-
-    Args:
-        path: Font file.
-        size: Size on the design grid.
-
-    Returns:
-        The font scaled for the supersampled canvas.
-    """
-    return ImageFont.truetype(str(path), px(size))
+    return promo.load_colors()
 
 
 def draw(colors: dict[str, str]) -> Image.Image:
@@ -114,45 +59,16 @@ def draw(colors: dict[str, str]) -> Image.Image:
     Returns:
         The final 512 x 512 RGB image.
     """
-    canvas = Image.new("RGB", (px(SIZE), px(SIZE)), colors["window-ink"])
-    pen = ImageDraw.Draw(canvas)
-
-    # Panel: umber field inside the window-ink frame, one rim hairline.
-    pen.rectangle(box(12, 12, SIZE - 12, SIZE - 12), fill=colors["panel-umber"])
-    pen.rectangle(box(12, 12, SIZE - 12, SIZE - 12), outline=colors["panel-rim"], width=px(2))
-
-    # Connector mark: field-ink plate with a steel bevel, three brass bars on its left.
-    plate = box(92, 106, 196, 266)
-    pen.rounded_rectangle(
-        plate, radius=px(2), fill=colors["field-ink"], outline=colors["steel-bevel"], width=px(3)
-    )
-    for top in (138, 178, 218):
-        pen.rectangle(box(48, top, 92, top + 16), fill=colors["brass"])
-
-    # Name and full name, left-aligned beside the mark.
-    pen.text((px(226), px(110)), "CAPIE", font=font(FONT_BOLD, 84), fill=colors["parchment"])
+    canvas, pen, s = promo.preview_canvas(SCREENSHOT, colors)
+    stamp = promo.draw_overprint(pen, (36 * s, 314 * s), 162 * s, colors["panel-umber"])
+    x = 36 * s + stamp + 26 * s
     pen.text(
-        (px(229), px(214)),
-        "Cyprian's API Extender",
-        font=font(FONT_REGULAR, 25),
-        fill=colors["khaki"],
+        (x, 298 * s), "CAPIE", font=promo.font(promo.FONT_BOLD, 84 * s), fill=colors["parchment"]
     )
-
-    # What the switch does, under one hairline.
-    pen.rectangle(box(48, 330, SIZE - 48, 332), fill=colors["panel-rim"])
-    pen.rectangle(box(48, 372, 64, 388), fill=colors["pencil-green-lit"])
-    body = font(FONT_REGULAR, 24)
-    pen.text(
-        (px(78), px(362)),
-        "Enabled in the playset: CAPIE loads",
-        font=body,
-        fill=colors["parchment"],
-    )
-    pen.text(
-        (px(78), px(400)), "Disabled: the game starts without it", font=body, fill=colors["ash"]
-    )
-
-    return canvas.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+    face = promo.font(promo.FONT_REGULAR, 22 * s)
+    pen.text((x + 3 * s, 398 * s), "Cyprian's API", font=face, fill=colors["khaki"])
+    pen.text((x + 3 * s, 426 * s), "Extender", font=face, fill=colors["khaki"])
+    return canvas.resize((promo.PREVIEW_SIZE, promo.PREVIEW_SIZE), Image.Resampling.LANCZOS)
 
 
 def encode(image: Image.Image) -> bytes:
@@ -175,7 +91,7 @@ def main() -> int:
     Returns:
         The process exit code.
     """
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument(
         "--check", action="store_true", help="exit 1 when thumbnail.png differs from a fresh render"
     )

@@ -48,6 +48,7 @@ import argparse
 import io
 import json
 import math
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -117,6 +118,9 @@ PREVIEW_MAX_BYTES = 1_000_000
 
 TAG_TRACKING = 0.08
 """Letter spacing of the ``tag`` text style, in em (tokens.json, typography.tag)."""
+
+LABEL_TRACKING = 0.14
+"""Letter spacing of the ``label-caps`` text style, in em (tokens.json)."""
 
 SUPERSAMPLE = 4
 """Supersampling factor of the drawn (non-photo) parts of the preview image."""
@@ -291,6 +295,31 @@ SOURCES = (
         (449, 517),
         "World news event about the new country name.",
     ),
+    Source(
+        "rules-host",
+        "Zrzut ekranu 2026-10-14 213839.png",
+        (302, 44),
+        "Game rule options for who may rename, with the host option's tooltip.",
+    ),
+    Source(
+        "rules-news",
+        "Zrzut ekranu 2026-10-14 213857.png",
+        (346, 82),
+        "Game rule: news event on or off, with its tooltip.",
+    ),
+    Source(
+        "decision",
+        "Zrzut ekranu 2026-10-14 214006.png",
+        None,
+        "Decision category Rename Anything with Rename characters. Only the top left part is "
+        "used: the tooltip on the right lists every character and state like a debug dump.",
+    ),
+    Source(
+        "editor-characters",
+        "Zrzut ekranu 2026-10-14 214505.png",
+        (348, 447),
+        "Name editor, Characters tab. A tooltip covers one row; every crop stops above it.",
+    ),
 )
 """Every screenshot that passed the review. Rejected captures are listed in the report."""
 
@@ -423,27 +452,378 @@ CAPIE_FLAGS = Frame(
     "flag-layer",
     (Shot("flag-picker"), Shot("leader-result")),
     "row",
-    "Country flag layer",
+    "Country flag layer (API level 6)",
     "Any flag from the game, without changing the country's name or colour.",
     "Left: a flag picker listing the game's flags by letter. Right: the Politics panel of the "
     "renamed country Skbidi Kingdom showing its new flag.",
 )
 """CAPIE flag layer."""
 
-RA_README = (HERO, COUNTRY, LEADER, SUBJECTS, FACTIONS, NEWS, MAP)
-"""Frames of the Rename Anything README and site."""
+COUNTRY_NAME = Frame(
+    "country-name",
+    (Shot("country-edit"), Shot("map-africa")),
+    "row",
+    "Your country's name and adjective",
+    "Type them into the game's own text field; the map and every panel follow.",
+    "Left: the Politics panel with the country name Skbidi Kingdom and the adjective Skibidish in "
+    "text fields. Right: the map of East Africa labelled Skbidi Kingdom.",
+)
+"""Country name and adjective, editor and map."""
 
-RA_GALLERY = (HERO, COUNTRY, LEADER, SUBJECTS, FACTIONS, NEWS, CITIES, RULES)
-"""Rename Anything Workshop gallery, in order."""
+FLAGS = Frame(
+    "flag",
+    (Shot("flag-picker"), Shot("leader-result")),
+    "row",
+    "Any flag the game has",
+    "Pick a flag by letter or from your own country's set; the name and colour stay.",
+    "Left: the Flag tab with flags listed by letter. Right: the Politics panel of Skbidi Kingdom "
+    "with its new flag in the top left corner.",
+)
+"""Flag picker and the flag in use."""
+
+SUBJECT_TABS = Frame(
+    "subjects",
+    (Shot("subject-editor", (0, 22, 502, 249)), Shot("subject-raj", (0, 80, 1342, 786))),
+    "row",
+    "Subjects, renamed by their overlord",
+    "Rename this country, in Diplomacy: name, adjective, leader, party and flag.",
+    "Left: the subject editor with Country, Leader, Party and Flag tabs and the name Province of "
+    "Rizzia. Right: the same editor over the British Raj, renamed British Mandate of India.",
+)
+"""The subject editor, close up and in context."""
+
+CHARACTERS = Frame(
+    "characters",
+    (Shot("decision", (0, 0, 505, 150)), Shot("editor-characters", (0, 0, 554, 340))),
+    "row",
+    "Generals, admirals and advisers",
+    "The decision Rename characters opens the name editor. No CAPIE needed.",
+    "Left: the Rename Anything decision category with the decision Rename characters. Right: "
+    "the name editor's Characters tab listing the leader, generals and admirals with Rename "
+    "buttons.",
+)
+"""Characters, through the decision and the name editor."""
+
+RULES_RIGHTS = Frame(
+    "rules-rights",
+    (Shot("rules-who", (0, 50, 678, 296)), Shot("rules-host")),
+    "column",
+    "Game rules: who may rename",
+    "Own country and subjects, own country only, or the host renames every country.",
+    "Lobby game rules: Rename Anything: who may rename, set to Own country and subjects, and its "
+    "open list with the option Host renames every country and its tooltip.",
+)
+"""The rename rights rule."""
+
+RULES_NEWS_FLAGS = Frame(
+    "rules-news-flags",
+    (Shot("rules-news"), Shot("rules-flags", (0, 14, 895, 185))),
+    "column",
+    "Game rules: news event and flags",
+    "A news event for every country when a name changes, and which flags the picker offers.",
+    "Lobby game rules: the news event rule with Off and On and its tooltip, and the flag choice "
+    "rule with its three options and tooltip.",
+)
+"""The news and flag rules."""
+
+CAPIE_COUNTRY = Frame(
+    "country-layer",
+    (Shot("country-edit"), Shot("map-africa")),
+    "row",
+    "Country name layer (API level 4)",
+    "A custom name and adjective that the game draws everywhere; flag and colour stay.",
+    "Left: a country editor with the name Skbidi Kingdom typed in. Right: the map labelled "
+    "Skbidi Kingdom.",
+)
+"""CAPIE country name layer."""
+
+CAPIE_FACTION = Frame(
+    "faction-layer",
+    (FACTION_DIALOG, Shot("faction-map", (600, 0, 1543, 643))),
+    "row",
+    "Faction name layer (API level 5)",
+    "Stored on the faction leader; the game's own faction name stays underneath.",
+    "Left: the diplomatic action Rename faction and its dialog. Right: the faction map mode with "
+    "the faction The Rizzlers.",
+)
+"""CAPIE faction name layer."""
+
+CAPIE_FALLBACK = Frame(
+    "without-capie",
+    (Shot("editor-states"), Shot("map-london")),
+    "row",
+    "Without CAPIE, the scripts still run",
+    "A mod built on CAPIE loads without it; Rename Anything keeps its state and city editor.",
+    "Left: Rename Anything's name editor, States tab, which needs no CAPIE. Right: the map with "
+    "the renamed city Skibidi London.",
+)
+"""What a mod keeps when CAPIE is missing."""
+
+
+@dataclass(frozen=True)
+class Tile:
+    """One screenshot on its own small panel, for two-column README galleries.
+
+    Attributes:
+        name: File stem of the output.
+        shot: The screenshot.
+        alt: English alternative text.
+        wide: Use the wide tile (for short, wide screenshots such as game rules).
+    """
+
+    name: str
+    shot: Shot
+    alt: str
+    wide: bool = False
+
+
+RA_TILES = (
+    Tile(
+        "country-name",
+        Shot("country-edit"),
+        "The Politics panel with the country name Skbidi Kingdom and the adjective Skibidish in "
+        "the game's own text fields.",
+    ),
+    Tile(
+        "country-map",
+        Shot("map-africa"),
+        "The map of East Africa labelled Skbidi Kingdom, with a province tooltip naming the owner "
+        "Skbidi Kingdom.",
+    ),
+    Tile(
+        "flag-picker",
+        Shot("flag-picker"),
+        "The Flag tab of the country editor: flags listed by letter, with This country and All.",
+    ),
+    Tile(
+        "flag-result",
+        Shot("leader-result"),
+        "The Politics panel of Skbidi Kingdom with its new flag in the top left corner and the "
+        "leader Stanley Egghead.",
+    ),
+    Tile(
+        "leader-edit",
+        Shot("leader-edit", (0, 18, 533, 470)),
+        "The Politics panel with a text field under the leader portrait reading Stanley Baldwin.",
+    ),
+    Tile(
+        "party-diplomacy",
+        Shot("subject-hero", (0, 77, 530, 400)),
+        "Diplomacy view of the Province of Rizzia: leader Rizzler King and ruling party Rizz "
+        "Party, both renamed.",
+    ),
+    Tile(
+        "subject-editor",
+        Shot("subject-editor", (0, 22, 502, 249)),
+        "The subject editor with Country, Leader, Party and Flag tabs, the name Province of Rizzia "
+        "and the adjective Rizzian.",
+    ),
+    Tile(
+        "subject-raj",
+        Shot("subject-raj", (0, 80, 1342, 786)),
+        "The subject editor over the British Raj, renamed British Mandate of India, with the map "
+        "behind it.",
+    ),
+    Tile(
+        "faction-dialog",
+        FACTION_DIALOG,
+        "The diplomatic action Rename faction and a dialog asking to open the rename editor for "
+        "Allies.",
+    ),
+    Tile(
+        "faction-map",
+        Shot("faction-map", (600, 0, 1543, 643)),
+        "The faction map mode with the renamed faction The Rizzlers across Africa and India.",
+    ),
+    Tile(
+        "states",
+        Shot("editor-states"),
+        "The name editor's States tab with Rename, Reset and Cities buttons for each state.",
+    ),
+    Tile("cities", Shot("map-london"), "The map of England with the renamed city Skibidi London."),
+    Tile(
+        "characters-decision",
+        Shot("decision", (0, 0, 505, 150)),
+        "The Rename Anything decision category with the decision Rename characters.",
+        wide=True,
+    ),
+    Tile(
+        "characters-editor",
+        Shot("editor-characters", (0, 0, 554, 340)),
+        "The name editor's Characters tab listing the leader, generals and admirals with Rename "
+        "buttons.",
+        wide=True,
+    ),
+    Tile(
+        "news-country",
+        Shot("country-gb", (0, 104, 1019, 573)),
+        "The country editor with the name Great Britian, the map of the British Isles behind it.",
+    ),
+    Tile("news-event", Shot("news"), "A World News event titled New country name: Great Britian."),
+    Tile(
+        "rules-rights",
+        Shot("rules-who", (0, 50, 678, 296)),
+        "Lobby game rules with Rename Anything: who may rename and its tooltip.",
+        wide=True,
+    ),
+    Tile(
+        "rules-host",
+        Shot("rules-host"),
+        "The who may rename rule opened: Own country and subjects, Host renames every country, "
+        "Own country only.",
+        wide=True,
+    ),
+    Tile(
+        "rules-news",
+        Shot("rules-news"),
+        "The news event rule opened: Off and On, with its tooltip.",
+        wide=True,
+    ),
+    Tile(
+        "rules-flags",
+        Shot("rules-flags", (0, 14, 895, 185)),
+        "The flag choice rule opened: every flag in the game, the country's own flags, or own "
+        "flags and the overlord's.",
+        wide=True,
+    ),
+)
+"""Two-column gallery of the Rename Anything README, in reading order (pairs)."""
+
+CAPIE_TILES = (
+    Tile(
+        "field-leader",
+        Shot("leader-edit", (0, 18, 533, 470)),
+        "A leader name in the game's own text field in the Politics panel.",
+    ),
+    Tile(
+        "field-subject",
+        Shot("subject-editor", (0, 22, 502, 249)),
+        "A two-field editor: name Province of Rizzia and adjective Rizzian, in the game's own "
+        "text fields.",
+    ),
+    Tile(
+        "country-edit",
+        Shot("country-edit"),
+        "A country editor with the name Skbidi Kingdom and the adjective Skibidish typed in.",
+    ),
+    Tile(
+        "country-map",
+        Shot("map-africa"),
+        "The map labelled Skbidi Kingdom, drawn from the country name layer.",
+    ),
+    Tile("faction-dialog", FACTION_DIALOG, "The diplomatic action Rename faction and its dialog."),
+    Tile(
+        "faction-map",
+        Shot("faction-map", (600, 0, 1543, 643)),
+        "The faction map mode with the faction The Rizzlers, drawn from the faction name layer.",
+    ),
+    Tile("flag-picker", Shot("flag-picker"), "A flag picker listing the game's flags by letter."),
+    Tile(
+        "flag-result",
+        Shot("leader-result"),
+        "The Politics panel with the chosen flag in the top left corner, drawn from the flag "
+        "layer.",
+    ),
+)
+"""Two-column gallery of the CAPIE repository README, in pairs."""
+
+RA_README = (HERO, COUNTRY, LEADER, SUBJECTS, FACTIONS, NEWS, MAP)
+"""Frames of the Rename Anything site (the README uses the tiles)."""
+
+RA_GALLERY = (
+    HERO,
+    COUNTRY_NAME,
+    FLAGS,
+    LEADER,
+    SUBJECT_TABS,
+    FACTIONS,
+    NEWS,
+    CITIES,
+    CHARACTERS,
+    RULES_RIGHTS,
+    RULES_NEWS_FLAGS,
+)
+"""Rename Anything Workshop gallery, in upload order."""
 
 CAPIE_FRAMES = (CAPIE_FIELD, CAPIE_NAMES, CAPIE_FLAGS)
-"""Frames of the CAPIE README, site and Workshop gallery."""
+"""Frames of the CAPIE site."""
+
+CAPIE_GALLERY = (CAPIE_FIELD, CAPIE_COUNTRY, CAPIE_FACTION, CAPIE_FLAGS, CAPIE_FALLBACK)
+"""CAPIE Workshop gallery, in upload order."""
+
+PROFILE_FRAMES = (COUNTRY, FACTIONS, MAP)
+"""Extra frames for the capie-mods organisation profile README."""
 
 README_SIZE = (1600, 900)
 """Size of README and site frames (shown 880 px wide, sharp on high-density screens)."""
 
 GALLERY_SIZE = (1920, 1080)
 """Size of Workshop gallery images (16:9)."""
+
+TILE_SIZE = (960, 720)
+"""Size of a README gallery tile (shown about 436 px wide, two per row)."""
+
+WIDE_TILE_SIZE = (960, 420)
+"""Size of a wide README gallery tile, for short and wide screenshots."""
+
+TILE_QUALITY = 85
+"""JPEG quality of README tiles; there are many, so they are compressed a little more."""
+
+
+@dataclass(frozen=True)
+class Header:
+    """One Workshop description graphic: the banner or a section header.
+
+    Attributes:
+        name: File stem.
+        title: Section title as printed (the banner leaves it empty).
+    """
+
+    name: str
+    title: str
+
+
+RA_HEADERS = (
+    Header("what-you-can-rename", "What you can rename"),
+    Header("game-rules", "Game rules"),
+    Header("requirements", "Requirements"),
+    Header("installing", "Installing CAPIE"),
+    Header("limits", "Limits"),
+    Header("removing", "Removing it"),
+    Header("links", "Source and links"),
+)
+"""Section headers of the Rename Anything Workshop description."""
+
+CAPIE_HEADERS = (
+    Header("status-line", "The status line in the main menu"),
+    Header("requirements", "Requirements"),
+    Header("installing", "Installing"),
+    Header("how-it-works", "How it works"),
+    Header("safety", "Safety and limits"),
+    Header("clean-game", "Back to the clean game"),
+    Header("links", "Source and links"),
+)
+"""Section headers of the CAPIE Workshop description (English)."""
+
+CAPIE_HEADERS_PL = (
+    Header("status-line-pl", "Linia stanu w menu głównym"),
+    Header("requirements-pl", "Wymagania"),
+    Header("installing-pl", "Instalacja"),
+    Header("how-it-works-pl", "Jak to działa"),
+    Header("safety-pl", "Bezpieczeństwo i ograniczenia"),
+    Header("clean-game-pl", "Powrót do czystej gry"),
+    Header("links-pl", "Kod i linki"),
+)
+"""Section headers of the Polish CAPIE Workshop description."""
+
+HEADER_SIZE = (1260, 120)
+"""Size of a section header: twice the 630 px Workshop description column, for sharp screens."""
+
+BANNER_SIZE = (1260, 440)
+"""Size of the banner at the top of a Workshop description (2x the 630 px column)."""
+
+ORG_RAW = "https://raw.githubusercontent.com/capie-mods/.github/main"
+"""Public base URL of files in the capie-mods/.github repository (Workshop description images)."""
 
 
 def load_colors() -> Colors:
@@ -754,17 +1134,176 @@ def draw_pencil_mark(
     )
 
 
-def render_preview(colors: Colors) -> Image.Image:
-    """Draw the 512 x 512 Workshop preview of Rename Anything.
+@dataclass(frozen=True)
+class MarkShape:
+    """One flat shape of the Overprint mark on its 500 px grid.
 
-    Same structure as the CAPIE switch mod's thumbnail: mark and name on top, one hairline, then
-    what the mod does, here shown as a recessed game text field with a typed name.
+    Attributes:
+        kind: ``rect`` or ``circle``.
+        fill: Hex colour.
+        a: Rect left or circle centre x.
+        b: Rect top or circle centre y.
+        c: Rect right or circle radius.
+        d: Rect bottom (0 for circles).
+        tilted: True for the overprint shapes, which turn by the mark's angle.
+    """
+
+    kind: str
+    fill: str
+    a: float
+    b: float
+    c: float
+    d: float
+    tilted: bool
+
+
+MARK_GRID = 500.0
+"""Edge of the Overprint mark's drawing grid."""
+
+MARK_CANDIDATES = (
+    REPO / "sites" / "shared" / "theme" / "marks" / "capie-mark-detail.svg",
+    REPO / "sites" / "capie" / "docs" / "assets" / "shared" / "marks" / "capie-mark-detail.svg",
+)
+"""Where the detail drawing of the CAPIE mark lives: the shared theme in the monorepo and the
+design repository, the site copy in the capie repository."""
+
+_SVG_RECT = re.compile(
+    r'<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="(#[0-9a-f]{6})"/>'
+)
+"""One positioned rectangle of the mark SVG (the full-grid ground has no x and y)."""
+
+_SVG_CIRCLE = re.compile(
+    r'<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" fill="(#[0-9a-f]{6})"/>'
+)
+"""One circle (a perforation tooth) of the mark SVG."""
+
+_SVG_TILT = re.compile(r'<g transform="rotate\((-?[\d.]+) [\d.]+ [\d.]+\)">(.*?)</g>', re.DOTALL)
+"""The tilted overprint group of the mark SVG and its angle."""
+
+
+def overprint_shapes() -> tuple[list[MarkShape], float]:
+    """Read the Overprint mark from its SVG, so the geometry is not drawn a second time.
+
+    Returns:
+        The shapes back to front, without the square ground, and the overprint angle in degrees.
+
+    Raises:
+        FileNotFoundError: No copy of capie-mark-detail.svg was found.
+    """
+    path = next((p for p in MARK_CANDIDATES if p.is_file()), None)
+    if path is None:
+        msg = "capie-mark-detail.svg not found"
+        raise FileNotFoundError(msg)
+    text = path.read_text(encoding="utf-8")
+    tilt = _SVG_TILT.search(text)
+    angle = float(tilt.group(1)) if tilt else 0.0
+    plain = text[: tilt.start()] if tilt else text
+    shapes: list[MarkShape] = []
+    for body, tilted in ((plain, False), (tilt.group(2) if tilt else "", True)):
+        for match in re.finditer(f"{_SVG_RECT.pattern}|{_SVG_CIRCLE.pattern}", body):
+            if match.group(1) is not None:
+                x, y, w, h = (float(match.group(i)) for i in range(1, 5))
+                shapes.append(MarkShape("rect", match.group(5), x, y, x + w, y + h, tilted))
+            else:
+                cx, cy, r = (float(match.group(i)) for i in range(6, 9))
+                shapes.append(MarkShape("circle", match.group(9), cx, cy, r, 0.0, tilted))
+    return shapes, angle
+
+
+def draw_overprint(
+    pen: ImageDraw.ImageDraw, origin: tuple[float, float], height: float, ground: str
+) -> float:
+    """Draw the Overprint mark so that its stamp is ``height`` pixels tall.
 
     Args:
+        pen: Drawing context.
+        origin: Top-left corner of the stamp (not of the 500 px grid).
+        height: Stamp height in output pixels.
+        ground: Colour behind the mark; the perforation teeth are cut in this colour.
+
+    Returns:
+        The stamp width in output pixels.
+    """
+    shapes, angle = overprint_shapes()
+    stamp = shapes[0]
+    k = height / (stamp.d - stamp.b)
+    ox = origin[0] - stamp.a * k
+    oy = origin[1] - stamp.b * k
+    t = math.radians(angle)
+    half = MARK_GRID / 2
+
+    def at(x: float, y: float, *, tilted: bool) -> tuple[float, float]:
+        """Map a grid point to the canvas, turning overprint points around the grid centre.
+
+        Args:
+            x: Grid x.
+            y: Grid y.
+            tilted: Whether to apply the overprint angle.
+
+        Returns:
+            The canvas point.
+        """
+        if tilted:
+            dx, dy = x - half, y - half
+            x, y = (
+                half + dx * math.cos(t) - dy * math.sin(t),
+                half + dx * math.sin(t) + dy * math.cos(t),
+            )
+        return (ox + x * k, oy + y * k)
+
+    for shape in shapes:
+        fill = ground if shape.fill == shapes[1].fill and shape.kind == "circle" else shape.fill
+        if shape.kind == "circle":
+            cx, cy = at(shape.a, shape.b, tilted=shape.tilted)
+            r = shape.c * k
+            pen.ellipse((cx - r, cy - r, cx + r, cy + r), fill=fill)
+        else:
+            corners = [
+                (shape.a, shape.b),
+                (shape.c, shape.b),
+                (shape.c, shape.d),
+                (shape.a, shape.d),
+            ]
+            pen.polygon([at(x, y, tilted=shape.tilted) for x, y in corners], fill=fill)
+    return (stamp.c - stamp.a) * k
+
+
+def fill_box(canvas: Image.Image, image: Image.Image, box: Box, border: int, ink: str) -> None:
+    """Scale an image to cover a box exactly (cropping the overflow) and frame it.
+
+    Args:
+        canvas: Target image, changed in place.
+        image: The screenshot, already cropped close to the box's aspect ratio.
+        box: Outer box including the frame.
+        border: Frame width in pixels.
+        ink: Frame colour.
+    """
+    left, top, right, bottom = box
+    ImageDraw.Draw(canvas).rectangle((left, top, right - 1, bottom - 1), fill=ink)
+    width, height = right - left - 2 * border, bottom - top - 2 * border
+    factor = max(width / image.width, height / image.height)
+    scaled = image.resize(
+        (math.ceil(image.width * factor), math.ceil(image.height * factor)),
+        Image.Resampling.LANCZOS,
+    )
+    x = (scaled.width - width) // 2
+    y = (scaled.height - height) // 2
+    canvas.paste(scaled.crop((x, y, x + width, y + height)), (left + border, top + border))
+
+
+def preview_canvas(shot: Shot, colors: Colors) -> tuple[Image.Image, ImageDraw.ImageDraw, int]:
+    """Start a 512 x 512 Workshop preview: frame, panel and a real screenshot in the top part.
+
+    Both previews (Rename Anything here, CAPIE in make_thumbnail.py) share this layout, so they
+    read as one family in a Workshop list. The lower part, under the screenshot, is left for the
+    mark and the name.
+
+    Args:
+        shot: Screenshot, cropped close to 464 x 266 (1.74:1).
         colors: Colour tokens.
 
     Returns:
-        The preview image.
+        The supersampled canvas, its drawing context and the supersampling factor.
     """
     s = SUPERSAMPLE
     size = PREVIEW_SIZE * s
@@ -774,32 +1313,152 @@ def render_preview(colors: Colors) -> Image.Image:
     pen.rectangle(
         (12 * s, 12 * s, size - 12 * s, size - 12 * s), outline=colors["panel-rim"], width=2 * s
     )
-
-    draw_pencil_mark(pen, (48 * s, 104 * s), 7.6 * s, colors)
-    name = font(FONT_BOLD, 62 * s)
-    pen.text((222 * s, 96 * s), "Rename", font=name, fill=colors["parchment"])
-    pen.text((222 * s, 164 * s), "Anything", font=name, fill=colors["parchment"])
-    pen.text(
-        (224 * s, 244 * s),
-        "Hearts of Iron IV",
-        font=font(FONT_REGULAR, 24 * s),
-        fill=colors["khaki"],
+    fill_box(
+        canvas, shot_image(shot), (24 * s, 24 * s, 488 * s, 290 * s), 3 * s, colors["window-ink"]
     )
+    return canvas, pen, s
 
-    pen.rectangle((48 * s, 330 * s, size - 48 * s, 332 * s), fill=colors["panel-rim"])
-    # The game's text field: recessed field-ink box in a steel frame, typed text and a caret.
-    pen.rectangle(
-        (48 * s, 356 * s, size - 48 * s, 408 * s),
-        fill=colors["field-ink"],
-        outline=colors["steel-shadow"],
-        width=2 * s,
-    )
-    typed = font(FONT_REGULAR, 28 * s)
-    pen.text((62 * s, 362 * s), "Skbidi Kingdom", font=typed, fill=colors["parchment"])
-    caret = 62 * s + typed.getlength("Skbidi Kingdom") + 3 * s
-    pen.rectangle((caret, 366 * s, caret + 2 * s, 398 * s), fill=colors["parchment"])
-    tracked(pen, (48 * s, 436 * s), "BUILT ON CAPIE", font(FONT_BOLD, 18 * s), colors["khaki"])
+
+def render_preview(colors: Colors) -> Image.Image:
+    """Draw the 512 x 512 Workshop preview of Rename Anything.
+
+    A real screenshot (the renamed subject on the map) on top, the pencil mark and the name
+    below it in letters large enough to read at the 200 px Steam shows in lists.
+
+    Args:
+        colors: Colour tokens.
+
+    Returns:
+        The preview image.
+    """
+    canvas, pen, s = preview_canvas(Shot("subject-hero", (560, 200, 1336, 645)), colors)
+    draw_pencil_mark(pen, (30 * s, 318 * s), 7.4 * s, colors)
+    name = font(FONT_BOLD, 56 * s)
+    pen.text((196 * s, 300 * s), "Rename", font=name, fill=colors["parchment"])
+    pen.text((196 * s, 362 * s), "Anything", font=name, fill=colors["parchment"])
+    tracked(pen, (199 * s, 446 * s), "BUILT ON CAPIE", font(FONT_BOLD, 17 * s), colors["khaki"])
     return canvas.resize((PREVIEW_SIZE, PREVIEW_SIZE), Image.Resampling.LANCZOS)
+
+
+def render_tile(tile: Tile, colors: Colors) -> Image.Image:
+    """Draw one README gallery tile: a single screenshot on a small panel.
+
+    Args:
+        tile: The tile.
+        colors: Colour tokens.
+
+    Returns:
+        The tile image.
+    """
+    canvas, scale, area = panel(WIDE_TILE_SIZE if tile.wide else TILE_SIZE, colors)
+    place_shots(canvas, Arrangement((tile.shot,), "row"), area, scale, colors)
+    return canvas
+
+
+def perforate(pen: ImageDraw.ImageDraw, band: Box, pitch: float, radius: float, ink: str) -> None:
+    """Cut stamp perforations (half circles) into the top and bottom edge of a band.
+
+    Args:
+        pen: Drawing context.
+        band: The band.
+        pitch: Distance between tooth centres.
+        radius: Tooth radius.
+        ink: Colour of the ground the teeth show.
+    """
+    left, top, right, bottom = band
+    x = left + pitch / 2
+    while x < right:
+        for y in (top, bottom):
+            pen.ellipse((x - radius, y - radius, x + radius, y + radius), fill=ink)
+        x += pitch
+
+
+def render_header(header: Header, colors: Colors) -> Image.Image:
+    """Draw one Workshop section header: a perforated stamp band with the section title.
+
+    The title is in label caps; two thin vermilion rules run from the title to the right edge,
+    the strike bars of the Overprint mark laid flat.
+
+    Args:
+        header: The header.
+        colors: Colour tokens.
+
+    Returns:
+        The header image (twice the 630 px description column).
+    """
+    width, height = HEADER_SIZE
+    s = width / 630
+    canvas = Image.new("RGB", (width, height), colors["window-ink"])
+    pen = ImageDraw.Draw(canvas)
+    band = (0, round(8 * s), width, round(52 * s))
+    pen.rectangle(band, fill=colors["panel-umber"])
+    perforate(pen, band, 12 * s, 3 * s, colors["window-ink"])
+    face = font(FONT_BOLD, 16 * s)
+    text = header.title.upper()
+    y = (band[1] + band[3]) / 2
+    end = 20 * s
+    for char in text:  # label caps: 0.14em tracking (tokens.json, typography.label-caps)
+        pen.text((end, y - 11 * s), char, font=face, fill=colors["parchment"])
+        end += face.getlength(char) + face.size * LABEL_TRACKING
+    gap = 3 * s
+    rule = 2.5 * s
+    for top in (y - gap / 2 - rule, y + gap / 2):
+        pen.rectangle((end + 16 * s, top, width - 20 * s, top + rule), fill=colors["vermilion"])
+    return canvas
+
+
+def render_banner(product: str, colors: Colors) -> Image.Image:
+    """Draw the banner at the top of a Workshop description.
+
+    Name, one line on what the item does and a real screenshot, on the same perforated band as
+    the section headers.
+
+    Args:
+        product: ``rename-anything`` or ``capie``.
+        colors: Colour tokens.
+
+    Returns:
+        The banner image (twice the 630 px description column).
+    """
+    width, height = BANNER_SIZE
+    s = width / 630
+    canvas = Image.new("RGB", (width, height), colors["window-ink"])
+    pen = ImageDraw.Draw(canvas)
+    band = (0, round(8 * s), width, round(212 * s))
+    pen.rectangle(band, fill=colors["panel-umber"])
+    perforate(pen, band, 12 * s, 3 * s, colors["window-ink"])
+    if product == "capie":
+        shot = Shot("subject-editor", (44, 22, 387, 249))
+        stamp_w = draw_overprint(pen, (24 * s, 30 * s), 74 * s, colors["panel-umber"])
+        name, x_name = "CAPIE", 24 * s + stamp_w + 14 * s
+        line = "Cyprian's API Extender: typed text, custom names and flags for HOI4 mods."
+        tag = "THE PLAYSET SWITCH"
+    else:
+        shot = Shot("subject-hero", (560, 180, 1320, 680))
+        draw_pencil_mark(pen, (24 * s, 34 * s), 3.4 * s, colors)
+        name, x_name = "Rename Anything", 24 * s + 80 * s
+        line = "Rename your country, leader, parties, subjects, factions, states and cities."
+        tag = "BUILT ON CAPIE"
+    size = 40
+    title = font(FONT_BOLD, size * s)
+    while title.getlength(name) > 326 * s - x_name:
+        size -= 1
+        title = font(FONT_BOLD, size * s)
+    pen.text((x_name, 36 * s), name, font=title, fill=colors["parchment"])
+    tracked(pen, (x_name + 2 * s, 82 * s), tag, font(FONT_BOLD, 10 * s), colors["khaki"])
+    body = font(FONT_REGULAR, 14 * s)
+    y = 122 * s
+    for text_line in wrap(line, body, 296 * s):
+        pen.text((24 * s, y), text_line, font=body, fill=colors["parchment"])
+        y += 21 * s
+    fill_box(
+        canvas,
+        shot_image(shot),
+        (round(342 * s), round(24 * s), round(608 * s), round(196 * s)),
+        round(2 * s),
+        colors["window-ink"],
+    )
+    return canvas
 
 
 def render_linkedin(shot: Shot, size: tuple[int, int], colors: Colors) -> Image.Image:
@@ -851,17 +1510,18 @@ def render_linkedin(shot: Shot, size: tuple[int, int], colors: Colors) -> Image.
     return canvas
 
 
-def jpeg(image: Image.Image) -> bytes:
+def jpeg(image: Image.Image, quality: int = JPEG_QUALITY) -> bytes:
     """Encode an image as JPEG without metadata.
 
     Args:
         image: RGB image.
+        quality: JPEG quality.
 
     Returns:
         The encoded bytes.
     """
     buffer = io.BytesIO()
-    image.save(buffer, format="JPEG", quality=JPEG_QUALITY, subsampling=0, optimize=True)
+    image.save(buffer, format="JPEG", quality=quality, subsampling=0, optimize=True)
     return buffer.getvalue()
 
 
@@ -905,16 +1565,30 @@ def plan(colors: Colors) -> dict[Path, Callable[[], bytes]]:
         """
         return lambda: jpeg(render_frame(frame, size, colors, caption=caption))
 
+    def tile_job(tile: Tile) -> Callable[[], bytes]:
+        """Bind one tile render.
+
+        Args:
+            tile: The tile.
+
+        Returns:
+            A function that renders and encodes the tile.
+        """
+        return lambda: jpeg(render_tile(tile, colors), TILE_QUALITY)
+
     for frame in RA_README:
         outputs[ra / "readme" / f"{frame.name}.jpg"] = frame_job(frame, README_SIZE, caption=False)
         outputs[SITE_SHOTS["rename-anything"] / f"{frame.name}.jpg"] = frame_job(
             frame, README_SIZE, caption=False
         )
+    workshop = PROMO_DIR / "workshop"
     for number, frame in enumerate(RA_GALLERY, start=1):
-        outputs[ra / "workshop" / f"gallery-{number:02d}-{frame.name}.jpg"] = frame_job(
-            frame, GALLERY_SIZE, caption=True
+        outputs[workshop / "rename-anything" / "gallery" / f"{number:02d}-{frame.name}.jpg"] = (
+            frame_job(frame, GALLERY_SIZE, caption=True)
         )
-    outputs[ra / "workshop" / "preview.png"] = lambda: png(render_preview(colors))
+    for tile in RA_TILES:
+        outputs[ra / "readme" / "tiles" / f"{tile.name}.jpg"] = tile_job(tile)
+    outputs[workshop / "rename-anything" / "preview.png"] = lambda: png(render_preview(colors))
     outputs[MOD_THUMBNAIL] = lambda: png(render_preview(colors))
     linkedin = ra / "linkedin"
     outputs[linkedin / "linkedin-1200x627-subject.jpg"] = lambda: jpeg(
@@ -933,27 +1607,102 @@ def plan(colors: Colors) -> dict[Path, Callable[[], bytes]]:
         outputs[SITE_SHOTS["capie"] / f"{frame.name}.jpg"] = frame_job(
             frame, README_SIZE, caption=False
         )
-    for number, frame in enumerate(CAPIE_FRAMES, start=1):
-        outputs[capie / "workshop" / f"gallery-{number:02d}-{frame.name}.jpg"] = frame_job(
+    for number, frame in enumerate(CAPIE_GALLERY, start=1):
+        outputs[workshop / "capie" / "gallery" / f"{number:02d}-{frame.name}.jpg"] = frame_job(
             frame, GALLERY_SIZE, caption=True
         )
-    outputs[capie / "workshop" / "preview.png"] = CAPIE_THUMBNAIL.read_bytes
+    for tile in CAPIE_TILES:
+        outputs[capie / "readme" / "tiles" / f"{tile.name}.jpg"] = tile_job(tile)
+    outputs[workshop / "capie" / "preview.png"] = CAPIE_THUMBNAIL.read_bytes
     return outputs
 
 
-def build(*, check: bool) -> int:
+def org_plan(root: Path, colors: Colors) -> dict[Path, Callable[[], bytes]]:
+    """List the files for the public capie-mods/.github repository.
+
+    That repository is public while the product repositories are not, so it hosts the pictures
+    of the Workshop descriptions (Steam does not host description images) and the extra frames
+    of the organisation profile.
+
+    Args:
+        root: Checkout of capie-mods/.github.
+        colors: Colour tokens.
+
+    Returns:
+        A renderer per output path.
+    """
+    outputs: dict[Path, Callable[[], bytes]] = {}
+    for frame in PROFILE_FRAMES:
+        path = root / "profile" / "assets" / f"rename-anything-{frame.name}.jpg"
+        outputs[path] = _frame_bytes(frame, colors)
+    for product, headers in (
+        ("rename-anything", RA_HEADERS),
+        ("capie", CAPIE_HEADERS + CAPIE_HEADERS_PL),
+    ):
+        folder = root / "workshop" / product
+        outputs[folder / "banner.jpg"] = _banner_bytes(product, colors)
+        for header in headers:
+            outputs[folder / f"h-{header.name}.png"] = _header_bytes(header, colors)
+    return outputs
+
+
+def _frame_bytes(frame: Frame, colors: Colors) -> Callable[[], bytes]:
+    """Bind a README-size frame render without caption.
+
+    Args:
+        frame: The frame.
+        colors: Colour tokens.
+
+    Returns:
+        A function that renders and encodes the frame.
+    """
+    return lambda: jpeg(render_frame(frame, README_SIZE, colors, caption=False), TILE_QUALITY)
+
+
+def _banner_bytes(product: str, colors: Colors) -> Callable[[], bytes]:
+    """Bind a Workshop banner render.
+
+    Args:
+        product: ``rename-anything`` or ``capie``.
+        colors: Colour tokens.
+
+    Returns:
+        A function that renders and encodes the banner.
+    """
+    return lambda: jpeg(render_banner(product, colors), TILE_QUALITY)
+
+
+def _header_bytes(header: Header, colors: Colors) -> Callable[[], bytes]:
+    """Bind a Workshop section header render.
+
+    Args:
+        header: The header.
+        colors: Colour tokens.
+
+    Returns:
+        A function that renders and encodes the header.
+    """
+    return lambda: png(render_header(header, colors))
+
+
+def build(*, check: bool, org: Path | None = None) -> int:
     """Render every output and write it, or compare it with the file on disk.
 
     Args:
         check: Compare only; write nothing.
+        org: Checkout of capie-mods/.github; when given, its files are rendered instead of the
+            monorepo's.
 
     Returns:
         The process exit code.
     """
     stale = 0
-    for path, job in plan(load_colors()).items():
+    colors = load_colors()
+    base = org if org is not None else REPO
+    outputs = org_plan(org, colors) if org is not None else plan(colors)
+    for path, job in outputs.items():
         data = job()
-        relative = path.relative_to(REPO).as_posix()
+        relative = path.relative_to(base).as_posix()
         if path.suffix == ".png" and "preview" in path.name and len(data) >= PREVIEW_MAX_BYTES:
             print(f"TOO LARGE {relative} ({len(data)} bytes, Steam needs under 1 MB)")
             stale += 1
@@ -1040,6 +1789,11 @@ def main() -> int:
     build_parser.add_argument(
         "--check", action="store_true", help="exit 1 when a file differs from a fresh render"
     )
+    build_parser.add_argument(
+        "--org",
+        type=Path,
+        help="checkout of capie-mods/.github: render its Workshop and profile pictures instead",
+    )
     import_parser = commands.add_parser("import", help="copy the reviewed screenshots")
     import_parser.add_argument("--from", dest="folder", type=Path, required=True)
     sheet_parser = commands.add_parser("contact-sheet", help="overview of a folder of captures")
@@ -1047,7 +1801,7 @@ def main() -> int:
     sheet_parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "build":
-        return build(check=args.check)
+        return build(check=args.check, org=args.org)
     if args.command == "import":
         return import_sources(args.folder)
     return contact_sheet(args.folder, args.out)
