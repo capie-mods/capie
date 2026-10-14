@@ -19,6 +19,9 @@ inline constexpr std::uint32_t country_capabilities_v1 = 0x524e4301;
 /// @brief Value returned when the name layer (API level 4) is active too ('RNC' v2).
 /// The editor bridge requires it for a country Apply: without the layer a stored name would not be shown.
 inline constexpr std::uint32_t country_capabilities_v2 = 0x524e4302;
+/// @brief Value returned when the flag layer (API level 6) is active as well ('RNC' v3).
+/// A country Apply accepts v2 and v3; grammar Apply commands report v3 as `capie_flag = 1`.
+inline constexpr std::uint32_t country_capabilities_v3 = 0x524e4303;
 /// @brief Name of the capability export.
 inline constexpr char capabilities_export[] = "RNCountryCapabilities";
 

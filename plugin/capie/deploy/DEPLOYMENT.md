@@ -14,7 +14,7 @@ pins are compiled in. The bootstrap's unpublished release configuration remains 
 placeholder; this change does not publish or silently repin a release.
 
 Development startup acceptance and cleanup evidence:
-[proxy-loader.md](../../../docs/proxy-loader.md).
+[proxy-loader.md](../../../docs/contributing/proxy-loader.md).
 
 Stage 2 does not touch the accepted manifests. After independent review and a full
 in-game test of the CAPIE build, these replacements are needed. SHA-256 values must be

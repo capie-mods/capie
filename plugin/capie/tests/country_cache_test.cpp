@@ -55,10 +55,10 @@ std::unordered_map<std::string, std::unique_ptr<const std::string>>& legacy_cach
  */
 const char* legacy_override(std::string_view key) {
     if (key == "RN_PLUGIN_STATUS" || key == "RN_PLUGIN_STATUS_EN") {
-        return "CAPIE 1.3 loaded";
+        return "CAPIE 1.4 loaded";
     }
     if (key == "RN_PLUGIN_STATUS_PL") {
-        return "CAPIE 1.3 załadowane";
+        return "CAPIE 1.4 załadowane";
     }
     auto decoded = decode_country_key(key);
     if (!decoded) {

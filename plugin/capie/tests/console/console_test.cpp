@@ -203,6 +203,55 @@ std::string layer_effect(const std::string& tag, const std::string& name, const 
     return out + "set_variable = { capie_cn_ver = 1 } ";
 }
 
+void flag_plan_tests() {
+    using console::CommandId;
+    using console::Delegate;
+    auto plan = plan_typed(CommandId::change_nation_flag, "POL POL_");
+    check(plan.delegate == Delegate::eval_effect && plan.needs_cosmetic && plan.flag_plan && plan.tag.view() == "POL",
+          "change_nation_flag plans an eval_effect that needs the cosmetic tag");
+    console::finish_plan(plan, "");
+    check(plan.tokens[0].view() ==
+              "POL = { clear_array = capie_cf_s add_to_array = { capie_cf_s = 174694 } "
+              "add_to_array = { capie_cf_s = 258048 } set_variable = { capie_cf_len = 4 } clear_array = capie_cf_cos "
+              "set_variable = { capie_cf_cos_len = 0 } set_variable = { capie_cf_ver = 1 } "
+              "set_variable = { capie_cf_rev = 1 } }",
+          "flag effect: packed stem (CONTRACT 17.3 example), snapshot 0, commit last: " +
+              std::string(plan.tokens[0].view()));
+    plan = plan_typed(CommandId::change_nation_flag, "ENG ENG_dominion");
+    console::finish_plan(plan, "ENG_x");
+    check(plan.tokens[0].view().find("add_to_array = { capie_cf_cos = ") != std::string_view::npos &&
+              plan.tokens[0].view().find("set_variable = { capie_cf_cos_len = 5 } ") != std::string_view::npos &&
+              plan.tokens[0].view().ends_with(
+                  "set_variable = { capie_cf_ver = 1 } set_variable = { capie_cf_rev = 1 } }"),
+          "flag effect: snapshot of the current cosmetic tag");
+    plan = plan_typed(CommandId::change_nation_flag, "GER GER_x");
+    console::finish_plan(plan, "RN1|Neues Reich|neu|");
+    check(plan.tokens[0].view().find("clear_variable = capie_cf_cos_len ") != std::string_view::npos &&
+              plan.tokens[0].view().find("capie_cf_cos_len = ") == std::string_view::npos,
+          "a cosmetic tag outside the alphabet: no snapshot");
+    for (const char* bad : {"POL POL.tga", "POL ../x", "POL a/b", "POL \"\"", "POL", "POL a b"}) {
+        plan = plan_typed(CommandId::change_nation_flag, bad);
+        check(plan.delegate == Delegate::none, std::string("refused: ") + bad);
+    }
+    plan = plan_typed(CommandId::change_nation_flag, "POL " + std::string(64, 'a'));
+    check(plan.delegate == Delegate::none, "64 characters refused");
+    plan = plan_typed(CommandId::change_nation_flag, "POL " + std::string(63, 'Z'));
+    console::finish_plan(plan, "");
+    check(plan.delegate == Delegate::eval_effect &&
+              plan.tokens[0].view().find("capie_cf_len = 63 ") != std::string_view::npos,
+          "63 characters accepted");
+    plan = plan_typed(CommandId::reset_nation_flag, "POL");
+    console::finish_plan(plan, "POL_x");
+    check(plan.delegate == Delegate::eval_effect &&
+              plan.tokens[0].view() ==
+                  "POL = { clear_array = capie_cf_s clear_array = capie_cf_cos "
+                  "clear_variable = capie_cf_len clear_variable = capie_cf_cos_len "
+                  "clear_variable = capie_cf_ver set_variable = { capie_cf_rev = 1 } }",
+          "reset_nation_flag clears the layer only: " + std::string(plan.tokens[0].view()));
+    plan = plan_typed(CommandId::reset_nation_flag, "pol");
+    check(plan.delegate == Delegate::none, "reset_nation_flag: invalid tag");
+}
+
 void plan_tests() {
     using console::CommandId;
     using console::Delegate;
@@ -274,7 +323,7 @@ void plan_tests() {
 
     plan = plan_typed(CommandId::mod_command, R"(demo echo "ab" "")");
     const std::string expected =
-        "FROM = { set_temp_variable = { capie_cap = 5 } set_temp_variable = { capie_ver = 10300 } "
+        "FROM = { set_temp_variable = { capie_cap = 6 } set_temp_variable = { capie_ver = 10400 } "
         "set_temp_variable = { capie_src = 2 } set_temp_variable = { capie_nf = 2 } "
         "set_temp_variable = { capie_f1_err = 0 } set_temp_variable = { capie_f1_at = 0 } "
         "set_temp_variable = { capie_f1_len = 2 } set_temp_variable = { capie_f1_0 = 1 } "
@@ -835,6 +884,13 @@ void bridge_tests() {
     calls_now = state.calls.size();
     check(dispatch("reset_nation_name SWE") == "Invalid tag for the command" && state.calls.size() == calls_now,
           "reset of an unknown tag");
+    check(dispatch("change_nation_flag FRA FRA_alt").empty() && state.calls.back().name == "eval_effect" &&
+              state.calls.back().tokens[0].starts_with("FRA = { clear_array = capie_cf_s ") &&
+              state.calls.back().tokens[0].find("set_variable = { capie_cf_cos_len = 7 } ") != std::string::npos,
+          "change_nation_flag goes through eval_effect with FRA's cosmetic tag as the snapshot");
+    check(dispatch("change_nation_flag SWE SWE_x") == "Invalid tag for the command", "flag: unknown tag refused");
+    check(dispatch("reset_nation_flag POL").empty() && state.calls.back().tokens[0].starts_with("POL = { clear_array"),
+          "reset_nation_flag goes through eval_effect");
     check(dispatch("capie_cmd demo echo hi").empty() && state.calls.back().name == "eval_effect" &&
               state.calls.back().tokens.size() == 1 && state.calls.back().tokens[0].starts_with("FROM = { ") &&
               state.calls.back().tokens[0].ends_with("capie_v1_cmd__demo__echo = yes }"),
@@ -925,6 +981,7 @@ int main() {
         line_tests();
         text_tests();
         plan_tests();
+        flag_plan_tests();
         if constexpr (console::candidate_enabled) {
             bridge_tests();
         } else {

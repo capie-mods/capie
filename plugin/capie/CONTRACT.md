@@ -1,10 +1,11 @@
-# CAPIE script contract, API level 5 (CAPIE 1.3)
+# CAPIE script contract, API level 6 (CAPIE 1.4)
 
 This is the versioned contract between CAPIE (the native DLLs in `plugin/capie/`) and HOI4
 mods. It covers the names a mod gives its editor GUI, the temporary records CAPIE adds to the
 player's Apply command, the localisation keys CAPIE answers, the alphabet, the error codes the
 script SDK reports, behaviour without CAPIE, permissions, the multiplayer handshake, the
-country name layer (section 14) and the faction name layer (section 15).
+country name layer (section 14), the faction name layer (section 15) and the country flag
+layer (section 17).
 
 Status, 2026-10-14: API level 2 is implemented in `capie_core.dll` / `capie_editor.dll` 1.1 and
 1.2 and in `sdk/capie-script-sdk/`; API level 3 (console) is in `CONTRACT-console.md`; API level
@@ -13,7 +14,9 @@ Status, 2026-10-14: API level 2 is implemented in `capie_core.dll` / `capie_edit
 (commit cb44cc0: no flag change, console reset, save, restart and load). API level 5 (section 15
 faction name layer, `capie_pf1_*` records of section 5.1) is implemented in the 1.3 developer
 build (`plugin/build/capie-v13-dev`) and covered by offline tests; it has not run in the game
-yet. Rows marked **in-game test** below are the open checks.
+yet. API level 6 (section 17, country flag layer; record `capie_flag`) is implemented in the 1.4
+developer build (`plugin/build/capie-v14-dev`) and covered by offline tests; it has not run in
+the game yet. Rows marked **in-game test** below are the open checks.
 
 The variant is B from `docs/API-DECISIONS.md`: plain HOI4 script, data passed through
 temporary variables of one command, no new script keywords. A mod written against this
@@ -21,11 +24,11 @@ contract parses and runs the same way with or without CAPIE; only the branch it 
 
 ## 1. Versions
 
-| Name | Value in 1.3 (1.2, 1.1) | Where a mod sees it | Meaning |
+| Name | Value in 1.4 (1.3, 1.2, 1.1) | Where a mod sees it | Meaning |
 |---|---|---|---|
-| API level | `5` (`4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1). Compare with `>=`. |
-| Release | `1.3.0` (`1.2.0`, `1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
-| Build number | `10300` (`10200`, `10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
+| API level | `6` (`5`, `4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1); level 6 the country flag layer (section 17) and the `capie_flag` record. Compare with `>=`. |
+| Release | `1.4.0` (`1.3.0`, `1.2.0`, `1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
+| Build number | `10400` (`10300`, `10200`, `10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
 | SDK major | `v1` | every SDK path and name (`capie_sdk_v1_*`, `capie_v1_*`) | A breaking change goes into `v2` names; two majors can coexist. |
 
 Mods require a minimum API level (`capie_min_api`), never a release.
@@ -108,8 +111,9 @@ a presence signal, not a permission (section 9).
 
 | Record | Value |
 |---|---|
-| `capie_cap` | API level (`5` in CAPIE 1.3) |
-| `capie_ver` | build number (`10300` in CAPIE 1.3) |
+| `capie_cap` | API level (`6` in CAPIE 1.4) |
+| `capie_ver` | build number (`10400` in CAPIE 1.4) |
+| `capie_flag` | API level 6: `1` when the country flag layer of section 17 is active in this game session (its pins matched), `0` when CAPIE runs without it. A flag editor refuses with a message when it is `0` or absent |
 | `capie_epoch` | opening epoch read from the carrier, `>= 1` |
 | `capie_nf` | number of fields that follow, `0..4` |
 | `capie_f<n>_err` | `0` valid, otherwise the field error (5.3) |
@@ -118,8 +122,9 @@ a presence signal, not a permission (section 9).
 | `capie_f<n>_0` .. `capie_f<n>_31` | character codes (section 7); `0` past the length and for an invalid field |
 | `capie_pf1_err`, `capie_pf1_at`, `capie_pf1_len`, `capie_pf1_0` .. `capie_pf1_31` | API level 5: the text prefill carrier 1 (`capie_v1_pf__<mod>__<editor>__1`) showed when this opening began, encoded like a field (same error codes; a character outside the alphabet gives `err = 6`). Sent only when the editor has that carrier, field 1 exists and the carrier text was readable at the opening; absent otherwise |
 
-`n` runs from 1 to `capie_nf`. One field is 35 records; the opening text adds 35 more, so the
-largest Apply adds 4 + 4 × 35 + 35 = 179 records (144 before API level 5). Every name fits the
+`n` runs from 1 to `capie_nf`. One field is 35 records; the opening text adds 35 more and
+`capie_flag` one, so the largest Apply adds 5 + 4 × 35 + 35 = 180 records (144 before API level
+5, 179 in API level 5). Every name fits the
 game's 15-byte short-string layout, which CAPIE builds directly (the longest, `capie_pf1_err`,
 has 13 bytes).
 
@@ -220,11 +225,11 @@ Rename Anything's legacy fields keep the 84-code table; its decoder knows no oth
 `capie_core.dll` answers these keys whenever the game draws them. The SDK localisation holds the
 fallback, which is what players see without CAPIE.
 
-| Key | With CAPIE 1.3 (1.2, 1.1) | SDK fallback |
+| Key | With CAPIE 1.4 (1.3, 1.2, 1.1) | SDK fallback |
 |---|---|---|
-| `CAPIE_STATUS` | `CAPIE 1.3` (`CAPIE 1.2`, `CAPIE 1.1`) | `§OCAPIE missing§!` |
-| `CAPIE_API` | `5` (`4`, `2`) | `0` |
-| `CAPIE_BUILD` | `1.3.0` (`1.2.0`, `1.1.0`) | `-` |
+| `CAPIE_STATUS` | `CAPIE 1.4` (`CAPIE 1.3`, `CAPIE 1.2`, `CAPIE 1.1`) | `§OCAPIE missing§!` |
+| `CAPIE_API` | `6` (`5`, `4`, `2`) | `0` |
+| `CAPIE_BUILD` | `1.4.0` (`1.3.0`, `1.2.0`, `1.1.0`) | `-` |
 
 They are text only. A trigger cannot read them, so they decide what is shown, never what runs.
 Nest them in your own keys (`MYMOD_CAPIE_LINE: "$CAPIE_STATUS$"`). Whether the main menu draws
@@ -331,7 +336,7 @@ it reported:
 The handshake runs on synchronised state only, so every client takes the same branch. Its
 limits: a value saved by a player who later joins without CAPIE stays until that player presses
 the check button or any SDK Apply; nobody is kicked; temporary records surviving network
-serialisation is a hypothesis until the two-machine test (`docs/mp-test-plan.md`).
+serialisation is a hypothesis until the two-machine test (`docs/contributing/multiplayer-test-plan.md`).
 
 ## 13. What needs an in-game test
 
@@ -349,6 +354,7 @@ serialisation is a hypothesis until the two-machine test (`docs/mp-test-plan.md`
 | Multiplayer handshake | needs two machines |
 | Name layer: own country, a subject (overlord), a country with a story cosmetic tag; flag and colour unchanged; reset back to the cosmetic tag; a later cosmetic tag change keeps the name; save, restart, load; load without CAPIE | Section 14; accepted in the game 2026-10-14 (cb44cc0) |
 | Faction name layer: faction window, diplomacy, `[X.GetFactionName]`, tooltips; reset; leader change; save, restart, load; load without CAPIE | Section 15; `CFaction::GetName` is pinned statically only, the refresh of open windows is unverified |
+| Flag layer: own country and a subject; the exact file (also another ideology's variant); name and colour unchanged; cosmetic tag change (event or console) shows the game's flag at once; reset; save, restart, load (full atlas rebuild on worker threads); load without CAPIE; a missing file | Section 17; the atlas keys and the load path are pinned statically only |
 | `capie_pf1_*` in an Apply (179 records with 4 fields) | Section 5.1; larger command than before, multiplayer serialisation unverified |
 
 ## 14. Country name layer (API level 4, CAPIE 1.2)
@@ -484,3 +490,142 @@ the scenario" and at about 35 other places), but its meaning in a running game, 
 player, is not established without a runtime test. Following the fail-closed rule, no record is
 sent rather than a possibly wrong one. A script must keep treating "host" as unknown in
 multiplayer. See `docs/evidence/session-20261014/capie-v13/report.txt`.
+
+## 17. Country flag layer (API level 6, CAPIE 1.4)
+
+Decision record: `docs/adr/0032-custom-flag-layer.md`. Design and review:
+`docs/evidence/session-20261014/flag-layer/` (design.txt, review.txt K1 to K9).
+
+### 17.1 What it is
+
+A flag a player chooses for a country is its own layer, like the country name layer: the
+cosmetic tag is not touched, so the name and the map colour stay the game's. On screen:
+
+1. the flag layer, when set, valid, its snapshot of the cosmetic tag still matches (17.4) and its
+   file loads;
+2. otherwise the game's flag: cosmetic tag with ideology variant, cosmetic tag, tag with
+   ideology variant, tag.
+
+The layer names one file of `gfx/flags/` (and of `gfx/flags/medium/` and `gfx/flags/small/`,
+which the game loads for the three flag sizes) by its stem, the file name without `.tga`, for
+example `POL_KINGDOM_neutrality`. The game's ideology suffix is not added: the chosen file is
+shown as it is, whatever the country's ideology. A missing or unreadable file shows the game's
+flag.
+
+There is no "overlord's flag, live" mode. A mod that offers the overlord's flag resolves the
+overlord's current flag file in script and stores that stem (a snapshot); it does not follow the
+overlord later.
+
+### 17.2 Variables (on the country whose flag changes)
+
+| Variable | Value |
+|---|---|
+| `capie_cf_ver` | `1` while the layer is set (format 1); absent = no layer |
+| `capie_cf_len` | number of characters of the stem, `1..63` |
+| `capie_cf_s` | array of the stem, three characters per element (17.3), `^num` = ceil(`capie_cf_len` / 3) |
+| `capie_cf_cos_len` | cosmetic tag the country had when the flag was chosen: absent = no snapshot (no check), `0` = it had no cosmetic tag, `1..63` = its length |
+| `capie_cf_cos` | array of that cosmetic tag, packed like `capie_cf_s` (only when `capie_cf_cos_len` > 0) |
+| `capie_cf_rev` | set by every change, as the **last** statement; the value is not used |
+
+They are ordinary country variables: written only by script effects, saved, synchronised in
+multiplayer.
+
+### 17.3 Character packing (file-name alphabet)
+
+The stem and the cosmetic snapshot use their own alphabet, not the one of section 7:
+
+| Codes | Characters |
+|---|---|
+| 1..26 | `a`..`z` |
+| 27..52 | `A`..`Z` |
+| 53..62 | `0`..`9` |
+| 63 | `_` |
+
+Characters `c0 c1 c2` (in reading order) are stored as one element `c0 * 4096 + c1 * 64 + c2`.
+The last element is padded with `0`: a stem of 4 characters `POL_` is
+`[42*4096 + 41*64 + 38, 63*4096]` = `[174694, 258048]`. Every other value is invalid: a code `0`
+before the end, a non-zero code after it, an element outside `0..262143`, a fraction, a length
+outside `1..63`, a `^num` that is not ceil(length / 3). Path characters (`/`, `\`, `.`, `:`)
+cannot be expressed, so a stem can never leave the flag folders.
+
+### 17.4 Cosmetic tag change resets the flag
+
+A change of the cosmetic tag always ends the player's flag (ADR-0032). CAPIE writes no game
+state, so the reset is shared:
+
+- **Display, immediately (CAPIE):** while `capie_cf_cos_len` is present and the country's
+  current cosmetic tag differs from the snapshot (or the snapshot is `0` and the country now has
+  one), CAPIE treats the layer as absent. The game reloads the flag when its cosmetic tag
+  changes, so the game's flag shows in the same frame as in vanilla.
+- **State, by script (the mod):** a daily check (`on_daily`, limited to countries with
+  `capie_cf_ver`) compares the cosmetic tag with the same snapshot and runs the mod's reset
+  effect (17.5). It is identical on every client, so multiplayer stays in sync. A mod that cannot
+  name the cosmetic tag (one it does not know) leaves the snapshot absent: then only its own
+  daily check can reset.
+
+Limits: a change A → B → A within one day is not reset by the daily check, and the display gate
+shows the layer again after the return to A. The country name layer (section 14) does not reset
+on a cosmetic tag change (ADR-0028).
+
+### 17.5 Writing and removing
+
+```text
+# Scope: the country. Stem "POL_" (4 characters), snapshot: no cosmetic tag.
+clear_array = capie_cf_s
+add_to_array = { capie_cf_s = 174694 }
+add_to_array = { capie_cf_s = 258048 }
+set_variable = { capie_cf_len = 4 }
+clear_array = capie_cf_cos
+set_variable = { capie_cf_cos_len = 0 }
+set_variable = { capie_cf_ver = 1 }
+set_variable = { capie_cf_rev = 1 }        # last: CAPIE reloads the flag now
+
+# Remove it (the game's flag comes back; nothing else changes):
+clear_array = capie_cf_s
+clear_array = capie_cf_cos
+clear_variable = capie_cf_len
+clear_variable = capie_cf_cos_len
+clear_variable = capie_cf_ver
+set_variable = { capie_cf_rev = 1 }
+```
+
+Use `set_variable` (not `add_to_variable`) for `capie_cf_rev`, without a scope prefix, in the
+scope of the country. The reset does not change the cosmetic tag or the name layer.
+
+### 17.6 What CAPIE does
+
+HOI4 keeps country flags in three texture atlases (large, medium, small) with one slot per
+country, and reloads a slot only when its key (ideology group, flag tag, cosmetic tag) changes.
+`capie_core.dll` hooks three functions of that path:
+
+- `LoadCountryFlag` (123F7E0) and `BuildFlagCandidates` (147D990): while a slot of a country with
+  an active layer is loaded, the game's candidate list is built from the stem alone (no
+  cosmetic tag, no ideology), so the game loads exactly that file with its own loader and
+  overlay. If that file does not load, the slot is loaded a second time with the game's own
+  candidates (fail-closed). The candidate hook changes arguments only when the call comes from
+  this load for the same country (the cosmetic argument is that country's cosmetic tag field).
+- `UpdateFlagAtlas` (123FE20), the game's per-frame atlas update: when a layer was set, changed
+  or removed, CAPIE marks that country's slot key as changed (an impossible cosmetic id), so the
+  game reloads the slot through its own incremental path.
+
+The layer is read on the logic thread (when the game recomputes a country's names, which it does
+on load and on every cosmetic tag change, and after `set_variable` of `capie_cf_rev`) into a
+cache. The atlas hooks only read that cache: the full atlas rebuild loads flags in parallel on
+worker threads, so nothing on that path reads variables or takes an exclusive lock.
+
+Not covered: the flag on the save-game list and the main menu (built from save metadata), images
+with a flag drawn into the texture, and the tooltip of the `set_cosmetic_tag` effect.
+
+### 17.7 Activation, multiplayer, without CAPIE
+
+The flag layer has its own pins (signatures of the three functions and the atlas key layout). If
+one does not match, the flag layer is off and the name layers keep working; Apply commands then
+carry `capie_flag = 0`. The flag is a local texture: CAPIE changes no game state, every client
+holds the same variables, a client without CAPIE (or a save loaded without it) shows the game's
+flags.
+
+### 17.8 Console (developer build)
+
+`change_nation_flag <TAG> <stem>` writes the layer (with the current cosmetic tag as the
+snapshot) and `reset_nation_flag <TAG>` removes it, through `eval_effect`, in single player only
+(`CONTRACT-console.md`).

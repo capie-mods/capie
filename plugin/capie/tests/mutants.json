@@ -958,5 +958,101 @@
   "replace": "public_previous_header_format[] = \"capie_f%zu_%s\";",
   "suite": "tests/public_editor_test.cpp",
   "summary": "public editor tests:"
+ },
+ {
+  "name": "flag-layer-underscore-code",
+  "file": "src/features/country/flag_layer.hpp",
+  "find": "return code == 63 ? '_' : '\\0';",
+  "replace": "return code == 62 ? '_' : '\\0';",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-padding-ignored",
+  "file": "src/features/country/flag_layer.hpp",
+  "find": "} else if (codes[slot] != 0) {",
+  "replace": "} else if (false) {",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-num-ignored",
+  "file": "src/features/country/flag_layer.hpp",
+  "find": "!layer::whole(raw, count) || count != elements",
+  "replace": "!layer::whole(raw, count)",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-empty-stem",
+  "file": "src/features/country/flag_layer.hpp",
+  "find": "length < (allow_empty ? 0 : 1)",
+  "replace": "length < 0",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-gate-off",
+  "file": "src/features/country/flag_layer.hpp",
+  "find": "return !cosmetic_too_long && flag.snapshot.view() == cosmetic;",
+  "replace": "return true;",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-no-second-load",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "if (status == status_loaded || status == status_loaded_alt) {",
+  "replace": "if (true) {",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-status5-fails",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "if (status == status_loaded || status == status_loaded_alt) {",
+  "replace": "if (status == status_loaded) {",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-any-candidate-call",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "reinterpret_cast<uptr>(cosmetic) == frame->country + core::off::country_cosmetic_tag",
+  "replace": "true",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-keeps-group",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "return originals_.candidates(out, &stem, &empty, nullptr);",
+  "replace": "return originals_.candidates(out, &stem, &empty, group);",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-poke-unchanged",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "if (entry.changed > since) {",
+  "replace": "if (true) {",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-poke-out-of-range",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "index <= 0 || index >= slots || index >= count ||",
+  "replace": "index <= 0 || index >= count ||",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-layer-stale-list-slot",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "core::rd(mem_, list, static_cast<uptr>(index) * sizeof(uptr), at) && at == country;",
+  "replace": "true;",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
  }
 ]

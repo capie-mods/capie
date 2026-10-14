@@ -220,12 +220,12 @@ int main(int argc, char** argv) {
                   "pins, 225E320(manager,null) once per transition); own copied history, scalar remote requests, fresh post-Tick "
                   "snapshots, observed Execute; dispatch is not execution and Execute is not effect success; no auto-Apply, no "
                   "synthetic input, focus only released (never set) on politics hide, Escape not handled; stale Apply -> epoch -1 "
-                  "sentinel; invalid field -> rn_native(b)_err; CAPIE 1.3 capie_editor flavor=debug"
+                  "sentinel; invalid field -> rn_native(b)_err; CAPIE 1.4 capie_editor flavor=debug"
                 : "RN_LIFECYCLE initialized; exact image + 11 bridge + 25 caption + 8 focus unique fingerprints; 4 hooks (Tick, "
                   "Bind, Dispatch, effect ctor); caption refresh armed (B6E210(gui,12) only, seed gate on leader/party Apply); "
                   "focus release on politics hide (225E320(manager,null) once per transition); no auto-Apply, no synthetic input, "
                   "Escape not handled; stale Apply -> epoch -code sentinel; invalid field -> rn_native(b)_err; log channels "
-                  "error+lifecycle; CAPIE 1.3 capie_editor flavor=release";
+                  "error+lifecycle; CAPIE 1.4 capie_editor flavor=release";
         const auto before_init = logs().size();
         write_init_line();
         const auto written = logs().substr(before_init);
