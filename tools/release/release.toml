@@ -196,7 +196,7 @@ content_dir = "mod"
 preview_file = "mod/thumbnail.png"
 description_file = "docs/assets/promo/workshop/rename-anything.bbcode"
 changelog = "CHANGELOG.md"
-published_file_id = 0
+published_file_id = 3819937546
 
 [[workshop.items]]
 key = "capie-switch"
