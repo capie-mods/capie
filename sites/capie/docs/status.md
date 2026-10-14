@@ -23,6 +23,7 @@ evidence and the limits of each check.
 | Start-up checks: game hash, unique patterns at expected addresses | Unknown builds and mismatches leave CAPIE off |
 | Two DLLs, `capie_core.dll` and `capie_editor.dll` | Release variant without diagnostic hooks; debug variant with diagnostics. Both checked in the game |
 | Country name layer (API level 4) | CAPIE 1.2 developer build. Name and adjective change, flag and colour stay; survives save, restart and load. See [Name layers](modders/name-layers.md) |
+| Faction name layer (API level 5) and country flag layer (API level 6) | CAPIE 1.4 developer build. Faction name with Polish letters and reset; own flag and a subject taking the overlord's flag, name and colour unchanged. See [Name and flag layers](modders/name-layers.md) |
 | Country names from an `RN1` cosmetic tag | CAPIE 1.0 and 1.1; still read for older saves |
 | Native text field to game command | Text typed into the game's own field reaches the script inside the player's command |
 | Text editors for any mod (API level 2) | The SDK's demo mod ran on CAPIE 1.1 after a fix |
@@ -39,7 +40,7 @@ evidence and the limits of each check.
 
 | Item | Page |
 |---|---|
-| Faction name layer and the `capie_pf1_*` record of the displayed name (API level 5, CAPIE 1.3 developer build) | [Name layers](modders/name-layers.md#faction) |
+| The `capie_pf1_*` record of the displayed name (API level 5) | [Name and flag layers](modders/name-layers.md) |
 | Country name layer: story cosmetic tags, a cosmetic tag change after a rename, loading without CAPIE, migration of `RN1` saves | [Name layers](modders/name-layers.md) |
 | Prefill of grammar editors from carriers | [Building an editor](modders/editors.md) |
 | `CAPIE_STATUS`, `CAPIE_API`, `CAPIE_BUILD` localisation keys | [Detecting CAPIE](modders/detection.md) |

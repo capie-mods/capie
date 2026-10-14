@@ -5,7 +5,7 @@
  *
  * Every colour comes from tokens.css (generated from docs/design/tokens.json),
  * except the light-scheme page colours marked "derived": the design system
- * defines only the game's dark panels, so the light scheme uses parchment and
+ * defines only the game's dark panels, so the light scheme uses a field grey and
  * ink shades mixed from those tokens to keep WCAG AA contrast.
  *
  * Rules from docs/design/DESIGN-SYSTEM.md applied here: flat (no shadows, no
@@ -96,29 +96,32 @@
   --color-backdrop: 15 14 13;
 }
 
-/* ---------- Light scheme: parchment and ink (derived) ---------- */
+/* ---------- Light scheme: field grey and ink (derived) ---------- */
 
+/* The design system defines only the game's dark panels. The light scheme is the grey of a staff
+   map sheet: steel-bevel (#76776b) mixed with white, 13 % for the page, 22 % for recessed
+   surfaces, 35 % for rims. Text stays window-ink and field-ink; every pairing keeps WCAG AA. */
 [data-md-color-scheme="default"] {
-  --md-default-bg-color: #f6f2e7; /* derived: parchment lifted towards white */
-  --md-default-bg-color--light: rgb(246 242 231 / 70%);
-  --md-default-bg-color--lighter: rgb(246 242 231 / 30%);
-  --md-default-bg-color--lightest: rgb(246 242 231 / 12%);
-  --md-default-fg-color: #1d1a17; /* derived: between window-ink and field-ink */
-  --md-default-fg-color--light: #4f483e; /* derived: khaki darkened, 8.4:1 */
-  --md-default-fg-color--lighter: #6f6656; /* derived: ash darkened, 5.3:1 */
+  --md-default-bg-color: #ededeb; /* derived: steel-bevel 13 % on white */
+  --md-default-bg-color--light: rgb(237 237 235 / 70%);
+  --md-default-bg-color--lighter: rgb(237 237 235 / 30%);
+  --md-default-bg-color--lightest: rgb(237 237 235 / 12%);
+  --md-default-fg-color: #1d1a17; /* derived: between window-ink and field-ink, 14.8:1 */
+  --md-default-fg-color--light: #4a443b; /* derived: khaki darkened, 8.2:1 */
+  --md-default-fg-color--lighter: #645c4e; /* derived: ash darkened, 5.6:1 */
   --md-default-fg-color--lightest: rgb(29 26 23 / 10%);
 
   --md-typeset-color: #1d1a17;
-  --md-typeset-a-color: #7a5322; /* derived: brass darkened to 6.4:1 on the page */
+  --md-typeset-a-color: #6e4a1d; /* derived: brass darkened, 6.7:1 on the page */
   --md-accent-fg-color: #5c3d14;
-  --md-accent-fg-color--transparent: rgb(122 83 34 / 10%);
+  --md-accent-fg-color--transparent: rgb(110 74 29 / 10%);
   --md-typeset-mark-color: rgb(208 160 112 / 40%);
-  --md-typeset-table-color: #ddd4bf;
-  --md-typeset-table-color--light: rgb(221 212 191 / 40%);
-  --md-typeset-kbd-color: #ece6d3;
-  --md-typeset-kbd-accent-color: #fbf8f0;
-  --md-typeset-kbd-border-color: #b8ad95;
-  --md-admonition-bg-color: #efe9da;
+  --md-typeset-table-color: #cecec9;
+  --md-typeset-table-color--light: rgb(206 206 201 / 40%);
+  --md-typeset-kbd-color: #e1e1de;
+  --md-typeset-kbd-accent-color: #f6f6f5;
+  --md-typeset-kbd-border-color: #a9aaa1;
+  --md-admonition-bg-color: #e1e1de;
   --md-admonition-fg-color: #1d1a17;
   --md-footer-bg-color: var(--capie-window-ink);
   --md-footer-bg-color--dark: var(--capie-window-ink);
@@ -126,19 +129,19 @@
   --md-shadow-z2: none;
   --md-shadow-z3: none;
 
-  --site-label-color: #7a5400; /* derived: header-amber darkened for text on parchment */
-  --site-muted: #6f6656;
-  --site-surface: #efe9da;
-  --site-rim: #ddd4bf;
-  --site-ok: #3d6b2a; /* derived: go-green darkened, 5.9:1 */
-  --site-progress: #7a5400;
-  --site-planned: #7a5322;
-  --site-not: #a33a0c; /* derived: warning-rust darkened, 6.1:1 */
+  --site-label-color: #6b4a00; /* derived: header-amber darkened, 6.9:1 on the page */
+  --site-muted: #574f43; /* derived: ash darkened, 6.9:1 on the page, 6.2:1 on surfaces */
+  --site-surface: #e1e1de; /* derived: steel-bevel 22 % on white */
+  --site-rim: #cecec9; /* derived: steel-bevel 35 % on white */
+  --site-ok: #36602a; /* derived: go-green darkened, 6.3:1 */
+  --site-progress: #6b4a00;
+  --site-planned: #6e4a1d;
+  --site-not: #92340b; /* derived: warning-rust darkened, 6.6:1 */
 
   --color-foreground: 29 26 23;
-  --color-background: 246 242 231;
-  --color-background-subtle: 239 233 218;
-  --color-backdrop: 221 212 191;
+  --color-background: 237 237 235;
+  --color-background-subtle: 225 225 222;
+  --color-backdrop: 206 206 201;
 }
 
 /* ---------- Typography ---------- */
@@ -180,7 +183,7 @@
 .md-nav__item--section > .md-nav__link,
 .md-nav--primary .md-nav__title {
   color: var(--site-label-color);
-  font-size: 0.6rem;
+  font-size: 11.5px; /* token label-caps */
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -298,6 +301,12 @@
   font-size: 0.78rem;
 }
 
+.md-typeset .admonition-title,
+.md-typeset summary {
+  padding-bottom: 0.4rem;
+  padding-top: 0.4rem;
+}
+
 /* "Proposed" and "planned": dashed brass, the design system's planned look. */
 .md-typeset .admonition.proposed,
 .md-typeset .admonition.planned {
@@ -369,7 +378,7 @@
 .md-typeset .st {
   align-items: center;
   display: inline-flex;
-  font-size: 0.68rem;
+  font-size: 12px; /* token tag (10px) raised to the 11px floor for running text */
   font-weight: 700;
   gap: 0.4em;
   letter-spacing: 0.08em;
@@ -418,7 +427,7 @@
   align-items: baseline;
   color: var(--site-muted);
   display: flex;
-  font-size: 0.72rem;
+  font-size: 13px;
   gap: 0.4rem;
   margin: 0;
 }
@@ -451,7 +460,7 @@
   border-radius: var(--capie-radius-node);
   color: var(--site-planned);
   display: inline-block;
-  font-size: 0.62rem;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   margin-bottom: 0.3em;
@@ -465,7 +474,7 @@
   border: 1px solid var(--site-rim);
   border-radius: var(--capie-radius-node);
   box-shadow: none;
-  font-size: 0.74rem;
+  font-size: 14px;
 }
 
 .md-typeset table:not([class]) th {
@@ -492,7 +501,7 @@
 
 .md-typeset figure.diagram figcaption {
   color: var(--site-muted);
-  font-size: 0.7rem;
+  font-size: 13px;
   margin-top: 0.6em;
   max-width: 44rem;
 }
@@ -520,6 +529,27 @@
 
 /* ---------- Motion ---------- */
 
+/* The navigation does not animate its height: layout properties never animate (DESIGN-SYSTEM,
+   "Diagram motion"; the same rule holds for page chrome). */
+.md-nav {
+  transition: none;
+}
+
+/* The language menu fades and moves with opacity and transform only; visibility, not
+   max-height, takes it out of the layout when it is closed. */
+.md-select__inner {
+  max-height: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s, visibility 0s 0.25s;
+  visibility: hidden;
+}
+
+.md-select:focus-within .md-select__inner,
+.md-select:hover .md-select__inner {
+  max-height: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s, visibility 0s;
+  visibility: visible;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -534,7 +564,7 @@
 /* Endorsement line on Rename Anything surfaces: "Built on CAPIE", tag style, smaller than the name. */
 .md-typeset .endorse {
   color: var(--site-planned);
-  font-size: 0.62rem;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   margin-top: -0.4em;
@@ -583,4 +613,129 @@
   font-style: normal;
   margin-left: 0;
   text-align: left;
+}
+
+/* ---------- Page chrome: legibility and the footer ---------- */
+
+/* Body text keeps a reading measure; tables, code and diagrams may use the full width. */
+.md-typeset > p,
+.md-typeset > ul,
+.md-typeset > ol,
+.md-typeset .admonition p {
+  max-width: 60ch; /* about 75 characters of Ubuntu */
+}
+
+/* On small screens tables keep the page's side gutter instead of running to the screen edge. */
+@media screen and (max-width: 44.984375em) {
+  .md-typeset__scrollwrap {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+/* Small chrome text never drops below 12px. */
+.md-nav__title,
+.md-skip,
+.md-footer__direction,
+.md-copyright,
+.md-copyright__highlight {
+  font-size: 12px;
+}
+
+/* The footer is window-ink in both schemes, so its text uses the dark-scheme colours always
+   (parchment 15.5:1, khaki 9.1:1 on window-ink). */
+.md-footer,
+.md-footer-meta {
+  background-color: var(--capie-window-ink);
+  --md-footer-fg-color: var(--capie-parchment);
+  --md-footer-fg-color--light: var(--capie-khaki);
+  --md-footer-fg-color--lighter: var(--capie-khaki);
+  --md-default-fg-color: var(--capie-parchment);
+  --md-default-fg-color--light: var(--capie-khaki);
+  --md-default-fg-color--lighter: var(--capie-khaki);
+  --md-default-fg-color--lightest: rgb(236 230 211 / 12%);
+  color: var(--capie-parchment);
+}
+
+.md-footer-meta {
+  padding: 0.6rem 0.8rem;
+}
+
+.md-footer-meta.md-typeset a:not(:focus, :hover),
+.md-copyright {
+  color: var(--capie-khaki);
+}
+
+.md-footer-meta.md-typeset a:hover,
+.md-footer-meta.md-typeset a:focus-visible,
+.md-footer__link:hover,
+.md-footer__link:focus-visible {
+  color: var(--capie-header-amber);
+}
+
+/* Inline code, keys and code blocks: 14px, so code never reads smaller than the surrounding
+   table text. */
+.md-typeset code,
+.md-typeset kbd,
+.md-typeset .highlight span.filename {
+  font-size: 14px;
+}
+
+/* Search button in the header: the header is window-ink in both schemes. */
+.md-header .md-search__button:focus,
+.md-header .md-search__button:hover {
+  background-color: var(--capie-panel-umber);
+  color: var(--capie-parchment);
+}
+
+/* Drawer overlay on small screens: a flat dimmed layer, no blur (no glassmorphism). It is
+   shown and hidden with opacity and visibility, not by animating its size. */
+@media screen and (max-width: 76.234375em) {
+  .md-overlay {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    height: 100%;
+    transition: opacity 0.25s, visibility 0s 0.25s;
+    visibility: hidden;
+    width: 100%;
+  }
+
+  [data-md-toggle="drawer"]:checked ~ .md-overlay {
+    transition: opacity 0.25s, visibility 0s;
+    visibility: visible;
+  }
+}
+
+/* Content tabs: the indicator moves, it does not stretch. */
+.js .md-typeset .tabbed-labels::before {
+  transition: background-color 0.25s, transform 0.25s;
+}
+
+/* No clipping container around the page: menus, tooltips and the copy buttons may extend past
+   their boxes. Wide tables and code scroll inside their own wrappers, and the off-canvas drawer
+   is fixed, so nothing widens the page. */
+html {
+  overflow-x: visible;
+}
+
+/* Version menu (not used yet, kept consistent with the language menu). */
+.md-version__list {
+  max-height: none;
+  transition: opacity 0.25s, visibility 0s 0.25s;
+  visibility: hidden;
+}
+
+.md-version:focus-within .md-version__list,
+.md-version:hover .md-version__list {
+  max-height: 10rem;
+  transition: opacity 0.25s, visibility 0s;
+  visibility: visible;
+}
+
+/* Narrow screens: long code in a table cell wraps instead of pushing the table past the gutter. */
+@media screen and (max-width: 44.984375em) {
+  .md-typeset table:not([class]) td,
+  .md-typeset table:not([class]) th {
+    overflow-wrap: anywhere;
+  }
 }

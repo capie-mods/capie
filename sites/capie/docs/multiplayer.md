@@ -33,7 +33,9 @@ From reading the game's code and from single-player runs:
 - CAPIE must never change game state on one machine outside a command to "fix" a mismatch. That
   would itself cause an out-of-sync game.
 
-## The version check in script <span class="st st-progress">Built, needs a two-machine test</span> { #version-check }
+## The version check in script <span class="st st-progress">In progress</span> { #version-check }
+
+Built in the SDK; it needs a test on two machines.
 
 CAPIE does not kick anyone and does not touch the network. Instead, every CAPIE feature built on
 the SDK stays off for everyone until every human player has shown the same CAPIE build, and a

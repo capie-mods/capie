@@ -1,8 +1,8 @@
 ---
-description: The CAPIE name layers. A custom country name (API level 4) and a custom faction name (API level 5) stored as their own layer, separate from cosmetic tags, so flags and colours stay the game's.
+description: The CAPIE name and flag layers. A custom country name (API level 4), faction name (API level 5) and country flag (API level 6), each stored as its own layer, separate from cosmetic tags.
 ---
 
-# Name layers
+# Name and flag layers
 
 A name a player or a mod gives a country is its own layer, kept in ordinary country variables.
 It is not a cosmetic tag, so the country keeps its flag and colour. CAPIE draws the layer when the
@@ -11,7 +11,8 @@ game asks for the country's name.
 | Layer | API level | State |
 |---|---|---|
 | Country name and adjective | 4 (CAPIE 1.2) | <span class="st st-today">Works today</span> on a developer build: own country, a subject, reset from the console, save, restart and load |
-| Faction name | 5 (CAPIE 1.3) | <span class="st st-progress">In progress</span> developer build with offline tests; not yet run in the game |
+| Faction name | 5 (CAPIE 1.3) | <span class="st st-today">Works today</span> on a CAPIE 1.4 developer build: name with Polish letters and its reset |
+| Country flag | 6 (CAPIE 1.4) | <span class="st st-today">Works today</span> on a developer build: own flag, a subject taking the overlord's flag, reset |
 
 Nothing is released yet. The full text is in sections 14 and 15 of `plugin/capie/CONTRACT.md` in
 the repository.
@@ -97,7 +98,7 @@ tag. CAPIE still draws it. Rename Anything drops that cosmetic tag once, on the 
 reset of the country. The cosmetic tag that `RN1|` replaced was never stored, so it cannot come
 back.
 
-## Faction name layer (API level 5) <span class="st st-progress">In progress</span> { #faction }
+## Faction name layer (API level 5) { #faction }
 
 The same idea for factions, stored on the faction leader:
 
@@ -113,6 +114,26 @@ the layer shows it again. When the faction gets another leader, the layer stays 
 leader and the faction shows the game's name.
 
 The SDK has no faction setter yet; write the variables as shown for countries, with one array.
+
+## Country flag layer (API level 6) { #flag }
+
+A flag chosen for a country is a layer too. The cosmetic tag is not touched, so the name and the
+map colour stay the game's. The layer names one flag file of the game by its stem (the file name
+without `.tga`, for example `POL_KINGDOM_neutrality`); the game loads that file for all three flag
+sizes. A missing file shows the game's flag.
+
+| Variable | Value |
+|---|---|
+| `capie_cf_ver` | `1` while the layer is set |
+| `capie_cf_len` | number of characters of the stem, 1 to 63 |
+| `capie_cf_s` | the stem, three characters per array element, in the file-name alphabet `a-z A-Z 0-9 _` |
+| `capie_cf_cos_len`, `capie_cf_cos` | the cosmetic tag the country had when the flag was chosen |
+| `capie_cf_rev` | set last by every change |
+
+Unlike the name, the flag ends when the cosmetic tag changes: CAPIE stops showing it at once, and
+the mod's daily check removes the variables. A subject that takes its overlord's flag stores a
+copy of the overlord's flag at that moment; it does not follow later changes. The packing of the
+stem, the reset rules and the exact effect blocks are in section 17 of `plugin/capie/CONTRACT.md`.
 
 <figure class="diagram" markdown="span">
   ![Left: a flag picker listing the game's flags by letter. Right: the Politics panel of the renamed country Skbidi Kingdom showing its new flag.](../assets/screenshots/flag-layer.jpg)

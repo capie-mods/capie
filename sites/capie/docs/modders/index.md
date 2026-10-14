@@ -73,7 +73,7 @@ from parts while the game runs.
 | [Script contract](contract.md) | Editor names, the records CAPIE adds, sentinels, alphabet, the hard rule about where CAPIE data exists |
 | [Building an editor](editors.md) | A complete one-field editor from the SDK's demo mod |
 | [Text tools](text-tools.md) | Work buffer, trim, validation, text slots, setters, error codes |
-| [Name layers](name-layers.md) | Custom country names (API level 4) and faction names (API level 5) without touching flags |
+| [Name and flag layers](name-layers.md) | Custom country names (API level 4), faction names (API level 5) and country flags (API level 6), separate from cosmetic tags |
 | [Detecting CAPIE](detection.md) | The three detection signals and which one to use for what |
 | [Indicators](indicators.md) | The "mod requires CAPIE but it is missing" snippet and the main-menu line |
 | [Versions and fallback](versioning.md) | API levels, release versions, deprecation, graceful degradation |
