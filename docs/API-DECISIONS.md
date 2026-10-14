@@ -151,3 +151,15 @@ w MP/ironman, polskie znaki, `help`). Kontrakt API level 3 do dopisania w `plugi
   POWINNA BYĆ OSOBNYM BYTEM!”
 - Wejście do zmiany nazwy podmiotu: przy przyciskach akcji dyplomatycznych (góra lub dół listy),
   najlepiej z ikoną.
+
+## 2026-10-14 — uprawnienia, frakcje, eventy, flagi (decyzje użytkownika)
+
+- Reguła gry „kto może zmieniać nazwy”: (1, domyślna) własny kraj i własne podmioty; (2) host – wszystkie
+  kraje; (3) każdy gracz tylko własny kraj. Te same opcje dla nazw frakcji.
+- „Przywróć nazwę” podlega temu samemu cooldownowi co zmiana nazwy (zmiana decyzji z 2026-10-14 rano).
+- Reguła gry „event o zmianie nazwy”: domyślnie wyłączona; po włączeniu generyczny event „X zmieniło
+  nazwę na Y” (X = ostatnia faktyczna nazwa: nazwa gracza > cosmetic > bazowa), z opisem używającym
+  m.in. przymiotnika; dla własnego kraju i podmiotów.
+- Własny wybór flagi państwa jako osobny atrybut (jak warstwa nazwy, niezależny od cosmetic taga):
+  pula wszystkich flag, jakie dane państwo może mieć, albo flaga overlorda; ładne UI. Najpierw projekt,
+  potem niezależna weryfikacja, czy to najlepszy sposób.
