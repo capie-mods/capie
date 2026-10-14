@@ -290,8 +290,8 @@
  {
   "name": "console-bridge-ignores-cosmetic",
   "file": "src/features/console/console_bridge.hpp",
-  "find": "finish_layer_plan(plan, is_capie_cosmetic(cosmetic.view()));",
-  "replace": "finish_layer_plan(plan, false);",
+  "find": "finish_plan(plan, cosmetic.view());",
+  "replace": "finish_plan(plan, \"\");",
   "suite": "tests/console/console_test.cpp",
   "summary": "console tests (candidate=1):"
  },
@@ -300,6 +300,30 @@
   "file": "src/features/console/console_bridge.hpp",
   "find": "            if (!read_cosmetic(plan.tag.view(), cosmetic)) {\n                say(out, \"Invalid tag for the command\");  // the vanilla text for an unknown tag\n                return out;\n            }",
   "replace": "            static_cast<void>(read_cosmetic(plan.tag.view(), cosmetic));",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-flag-pack-order",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "(element * country::flag::pack_base) +",
+  "replace": "(element * 63) +",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-flag-no-snapshot",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "if (detail::packable(cosmetic, true)) {",
+  "replace": "if (false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-flag-no-version",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "effect.add(\"set_variable = { capie_cf_ver = 1 } \").add(flag_commit);",
+  "replace": "effect.add(flag_commit);",
   "suite": "tests/console/console_test.cpp",
   "summary": "console tests (candidate=1):"
  }

@@ -37,6 +37,8 @@ inline constexpr char public_key_fields[] = "capie_nf";
 inline constexpr char public_field_header_format[] = "capie_f%zu_%s";
 /// @brief Format of a field code record: field number, slot.
 inline constexpr char public_field_slot_format[] = "capie_f%zu_%u";
+/// @brief API level 6 record: `1` when the flag layer is active, else `0`.
+inline constexpr char public_key_flag[] = "capie_flag";
 /// @brief Header record name format of the opening text of prefill carrier n: `capie_pf<n>_<suffix>` (API 5).
 inline constexpr char public_previous_header_format[] = "capie_pf%zu_%s";
 /// @brief Code record name format of the opening text: `capie_pf<n>_<slot>`.
@@ -50,13 +52,13 @@ inline constexpr char public_suffix_at[] = "at";
 /// @brief Field header suffix: number of characters.
 inline constexpr char public_suffix_len[] = "len";
 
-/// @brief Header records of a payload Apply: cap, ver, epoch, field count.
-inline constexpr std::size_t public_header_records = 4;
+/// @brief Header records of a payload Apply: cap, ver, epoch, field count, flag (API level 6).
+inline constexpr std::size_t public_header_records = 5;
 /// @brief Records of a sentinel Apply: cap, ver, epoch.
 inline constexpr std::size_t public_sentinel_records = 3;
 /// @brief Records per field: err, at, len and 32 codes.
 inline constexpr std::size_t public_records_per_field = 3 + code_slots;
-/// @brief Most records one public Apply adds (179: 144 of API level 2 plus 35 `capie_pf1_*`).
+/// @brief Most records one public Apply adds (180: 144 of API level 2, 35 `capie_pf1_*`, `capie_flag`).
 inline constexpr std::size_t max_public_records =
     public_header_records + ((grammar::max_fields + public_previous_fields) * public_records_per_field);
 /// @brief Most records any own or public Apply adds (sizes the dispatch frame).

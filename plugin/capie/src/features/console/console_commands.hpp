@@ -16,6 +16,14 @@
  *         -> eval_effect "<TAG> = { clear_array = capie_cn_n clear_array = capie_cn_a
  *                         clear_variable = capie_cn_ver
  *                         [drop_cosmetic_tag = yes] set_variable = { capie_cn_rev = 1 } }"
+ *     change_nation_flag <TAG> <file>                        (flag layer, API level 6)
+ *         -> eval_effect "<TAG> = { clear_array = capie_cf_s add_to_array = { capie_cf_s = <packed> } ...
+ *                         set_variable = { capie_cf_len = <n> } clear_array = capie_cf_cos
+ *                         [add_to_array = { capie_cf_cos = <packed> } ... set_variable = { capie_cf_cos_len = <n> }]
+ *                         set_variable = { capie_cf_ver = 1 } set_variable = { capie_cf_rev = 1 } }"
+ *            (snapshot = the country's current cosmetic tag, read by the bridge)
+ *     reset_nation_flag <TAG>
+ *         -> eval_effect "<TAG> = { clear_array ... clear_variable ... set_variable = { capie_cf_rev = 1 } }"
  *     capie_cmd <mod> <command> [arg1 .. arg4]
  *         -> eval_effect "FROM = { <records> capie_v1_cmd__<mod>__<command> = yes }"
  *            (records as in CONTRACT-console.md; FROM of eval_effect is the player's
@@ -35,6 +43,7 @@
  */
 #pragma once
 #include "../../core/game_build.hpp"
+#include "../country/flag_layer.hpp"
 #include "../editor/input_codes.hpp"
 #include "console_line.hpp"
 #include "console_text.hpp"
@@ -96,9 +105,11 @@ enum class CommandId {
     change_nation_name,  ///< Rename a country.
     reset_nation_name,   ///< Drop a country's cosmetic tag.
     mod_command,         ///< Run a mod's `capie_v1_cmd__<mod>__<command>` effect.
+    change_nation_flag,  ///< Give a country a flag file (flag layer, API level 6).
+    reset_nation_flag,   ///< Remove the flag layer.
 };
 /// @brief Number of CAPIE commands.
-inline constexpr std::size_t command_count = 3;
+inline constexpr std::size_t command_count = 5;
 
 /// @brief Vanilla console commands CAPIE delegates to.
 enum class Delegate {
@@ -137,7 +148,7 @@ struct CommandSpec {
     std::string_view usage;                ///< Usage line printed on a wrong call.
 };
 
-/// @brief The three commands CAPIE registers, in registration order.
+/// @brief The commands CAPIE registers, in registration order.
 inline constexpr std::array<CommandSpec, command_count> command_specs{{
     {CommandId::change_nation_name,
      "change_nation_name",
@@ -158,6 +169,19 @@ inline constexpr std::array<CommandSpec, command_count> command_specs{{
      {"<mod>", "<command>", R"(["<argument>" ...])"},
      3,
      R"(Usage: capie_cmd <mod> <command> ["<argument>" ...] (up to 4 arguments))"},
+    {CommandId::change_nation_flag,
+     "change_nation_flag",
+     "CAPIE: shows gfx/flags/<file>.tga as a country's flag (its own layer; name and colour unchanged). Single "
+     "player only.",
+     {"<TAG>", "<file>", {}},
+     2,
+     "Usage: change_nation_flag <TAG> <file name without .tga, a-z A-Z 0-9 _>"},
+    {CommandId::reset_nation_flag,
+     "reset_nation_flag",
+     "CAPIE: removes a flag set by change_nation_flag or a mod; the game's flag comes back.",
+     {"<TAG>", {}, {}},
+     1,
+     "Usage: reset_nation_flag <TAG>"},
 }};
 
 /**
@@ -219,7 +243,8 @@ struct Plan {
     std::array<Text<max_delegate_bytes>, max_delegate_tokens> tokens{};  ///< Its tokens.
     std::size_t token_count{};                                           ///< Used tokens.
     Message message{};                                                   ///< Error or usage text (when `none`).
-    bool needs_cosmetic{};         ///< The bridge must read `tag`'s cosmetic tag and call `finish_layer_plan`.
+    bool needs_cosmetic{};         ///< The bridge must read `tag`'s cosmetic tag and call `finish_plan`.
+    bool flag_plan{};              ///< A flag-layer plan (`finish_flag_plan`), else a name-layer plan.
     Text<text::tag_length> tag{};  ///< Country tag of a name command.
 };
 
@@ -379,6 +404,148 @@ inline void finish_layer_plan(Plan& plan, bool legacy_rn1) noexcept {
     }
 }
 
+/// @brief Opens a flag-layer effect after the tag: clears the stem array.
+inline constexpr std::string_view flag_clear_stem = " = { clear_array = capie_cf_s ";
+/// @brief Removes the whole flag layer.
+inline constexpr std::string_view flag_clear_all =
+    "clear_array = capie_cf_s clear_array = capie_cf_cos clear_variable = capie_cf_len "
+    "clear_variable = capie_cf_cos_len clear_variable = capie_cf_ver ";
+/// @brief Last statement of every flag-layer change.
+inline constexpr std::string_view flag_commit = "set_variable = { capie_cf_rev = 1 } }";
+
+namespace detail {
+
+/**
+ * @brief Appends `add_to_array = { <array> = <element> }` for a text packed three characters per element.
+ * @param out Effect text.
+ * @param array Array name.
+ * @param text Text in the file-name alphabet (checked by the caller).
+ */
+template <std::size_t Capacity>
+void add_packed(Text<Capacity>& out, std::string_view array, std::string_view text) noexcept {
+    for (std::size_t start = 0; start < text.size(); start += country::flag::chars_per_element) {
+        std::int64_t element = 0;
+        for (std::size_t slot = 0; slot < country::flag::chars_per_element; ++slot) {
+            const std::size_t at = start + slot;
+            element = (element * country::flag::pack_base) + (at < text.size() ? country::flag::code_of(text[at]) : 0);
+        }
+        out.add("add_to_array = { ").add(array).add(" = ").add_number(static_cast<std::size_t>(element)).add(" } ");
+    }
+}
+
+/**
+ * @brief Whether a text can be stored in the file-name alphabet.
+ * @param text Text.
+ * @param allow_empty `true` for the cosmetic snapshot.
+ * @return `true` for 0/1..63 characters from `a-z A-Z 0-9 _`.
+ */
+constexpr bool packable(std::string_view text, bool allow_empty) noexcept {
+    if ((!allow_empty && text.empty()) || text.size() > country::flag::max_chars) {
+        return false;
+    }
+    for (const char c : text) {
+        if (country::flag::code_of(c) == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+}  // namespace detail
+
+/**
+ * @brief Plans `change_nation_flag <TAG> <file>`.
+ * @param args Parsed arguments.
+ * @return Plan for `eval_effect` (unfinished: the bridge calls `finish_plan`), or a message.
+ */
+inline Plan plan_change_nation_flag(const line::Arguments& args) noexcept {
+    Plan plan{};
+    if (args.count != 2) {
+        plan.message.add(spec(CommandId::change_nation_flag).usage);
+        return plan;
+    }
+    if (!text::valid_tag(args.at(0))) {
+        plan.message.add("CAPIE: invalid tag (expected 3 characters A-Z or 0-9)");
+        return plan;
+    }
+    if (!detail::packable(args.at(1), false)) {
+        plan.message.add("CAPIE: invalid flag file (1-63 characters a-z A-Z 0-9 _, without .tga)");
+        return plan;
+    }
+    plan.delegate = Delegate::eval_effect;
+    plan.token_count = 1;
+    plan.needs_cosmetic = true;
+    plan.flag_plan = true;
+    plan.tag.add(args.at(0));
+    auto& effect = plan.tokens[0];
+    effect.add(args.at(0)).add(flag_clear_stem);
+    detail::add_packed(effect, "capie_cf_s", args.at(1));
+    effect.add("set_variable = { capie_cf_len = ").add_number(args.at(1).size()).add(" } ");
+    return plan;
+}
+
+/**
+ * @brief Plans `reset_nation_flag <TAG>`: removes the flag layer.
+ * @param args Parsed arguments.
+ * @return Plan for `eval_effect` (unfinished), or a message.
+ */
+inline Plan plan_reset_nation_flag(const line::Arguments& args) noexcept {
+    Plan plan{};
+    if (args.count != 1) {
+        plan.message.add(spec(CommandId::reset_nation_flag).usage);
+        return plan;
+    }
+    if (!text::valid_tag(args.at(0))) {
+        plan.message.add("CAPIE: invalid tag (expected 3 characters A-Z or 0-9)");
+        return plan;
+    }
+    plan.delegate = Delegate::eval_effect;
+    plan.token_count = 1;
+    plan.needs_cosmetic = true;
+    plan.flag_plan = true;
+    plan.tag.add(args.at(0));
+    plan.tokens[0].add(args.at(0)).add(" = { ").add(flag_clear_all).add(flag_commit);
+    return plan;
+}
+
+/**
+ * @brief Completes a flag effect with the cosmetic snapshot (CONTRACT.md 17.4) and the commit.
+ * @param plan Plan from `plan_change_nation_flag` (a reset plan is already complete).
+ * @param cosmetic The country's current cosmetic tag.
+ */
+inline void finish_flag_plan(Plan& plan, std::string_view cosmetic) noexcept {
+    plan.needs_cosmetic = false;
+    auto& effect = plan.tokens[0];
+    if (effect.view().ends_with(flag_commit)) {
+        return;  // reset: no snapshot
+    }
+    effect.add("clear_array = capie_cf_cos ");
+    if (detail::packable(cosmetic, true)) {
+        detail::add_packed(effect, "capie_cf_cos", cosmetic);
+        effect.add("set_variable = { capie_cf_cos_len = ").add_number(cosmetic.size()).add(" } ");
+    } else {
+        effect.add("clear_variable = capie_cf_cos_len ");  // a tag the alphabet cannot hold: no snapshot
+    }
+    effect.add("set_variable = { capie_cf_ver = 1 } ").add(flag_commit);
+    if (effect.overflow) {
+        plan = Plan{};
+        plan.message.add("CAPIE: flag file too long for one command");
+    }
+}
+
+/**
+ * @brief Completes a name or flag plan once the bridge has read the country's cosmetic tag.
+ * @param plan Plan with `needs_cosmetic`.
+ * @param cosmetic Current cosmetic tag.
+ */
+inline void finish_plan(Plan& plan, std::string_view cosmetic) noexcept {
+    if (plan.flag_plan) {
+        finish_flag_plan(plan, cosmetic);
+    } else {
+        finish_layer_plan(plan, is_capie_cosmetic(cosmetic));
+    }
+}
+
 /**
  * @brief Plans `capie_cmd <mod> <command> [arg1 .. arg4]` as one inline effect.
  * @param args Parsed arguments.
@@ -469,6 +636,10 @@ inline Plan plan_command(CommandId id, const std::string_view* tokens, std::size
             return plan_reset_nation_name(args);
         case CommandId::mod_command:
             return plan_mod_command(args);
+        case CommandId::change_nation_flag:
+            return plan_change_nation_flag(args);
+        case CommandId::reset_nation_flag:
+            return plan_reset_nation_flag(args);
     }
     return Plan{};
 }

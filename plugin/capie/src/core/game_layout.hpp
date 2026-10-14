@@ -46,6 +46,12 @@ inline constexpr std::uintptr_t country_of = 0xBB4390;
 inline constexpr std::uintptr_t gamestate_global = 0x332F260;
 /// @brief `string* CFaction::GetName(faction*, string* out)`: +0x18 text, else template name; hooked.
 inline constexpr std::uintptr_t faction_get_name = 0xD8BB80;
+/// @brief `u64 UpdateFlagAtlas(atlas*, gfx*)`: per-frame key check and reload of one flag atlas; hooked.
+inline constexpr std::uintptr_t flag_atlas_update = 0x123FE20;
+/// @brief `int LoadCountryFlag(atlas*, country*, dst*, int, int, int, int, void*)`: one atlas slot; hooked.
+inline constexpr std::uintptr_t load_country_flag = 0x123F7E0;
+/// @brief `vector* BuildFlagCandidates(vector* out, const string* tag, const string* cosmetic, group*)`; hooked.
+inline constexpr std::uintptr_t build_flag_candidates = 0x147D990;
 /// @brief `string* string_copy(string* out, const string* source)` (MSVC copy-construct on the game heap); called.
 inline constexpr std::uintptr_t string_copy = 0x11E010;
 
@@ -151,8 +157,12 @@ inline constexpr std::uintptr_t variable_entry_key = 0x8;     ///< MSVC string k
 inline constexpr std::uintptr_t variable_entry_value = 0x28;  ///< int64 fixed-point value (BC7EC6).
 inline constexpr std::uintptr_t set_variable_name =
     0xC8;  ///< Effect +0x58 scoped variable, +0x70 name (364C75, 54502F).
-inline constexpr std::uintptr_t gamestate_countries = 0x310;      ///< Country pointer array (1A645B, BB44A7).
-inline constexpr std::uintptr_t gamestate_country_count = 0x31C;  ///< int32 number of countries (1A6462).
+inline constexpr std::uintptr_t gamestate_countries = 0x310;       ///< Country pointer array (1A645B, BB44A7).
+inline constexpr std::uintptr_t gamestate_country_count = 0x31C;   ///< int32 number of countries (1A6462).
+inline constexpr std::uintptr_t flag_atlas_cosmetic_keys = 0xC0;   ///< int64 cosmetic id per slot (12403C0).
+inline constexpr std::uintptr_t flag_atlas_cosmetic_count = 0xCC;  ///< int32 slots of that array (124008A).
+inline constexpr std::uintptr_t country_cosmetic_tag = 0x1488;     ///< Cosmetic tag string (123F84D, 711279).
+inline constexpr std::uintptr_t country_tag = 0x8;                 ///< Tag; its int is the slot index (BB54A3).
 inline constexpr std::uintptr_t faction_members = 0x58;       ///< Member country pointer array; [0] = leader (4ABB81).
 inline constexpr std::uintptr_t faction_member_count = 0x64;  ///< int32 member count (C5E2EF).
 // ---- Scripted window ----------------------------------------------------------------------

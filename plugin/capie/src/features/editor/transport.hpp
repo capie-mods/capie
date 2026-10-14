@@ -191,24 +191,41 @@ inline bool capture_fields(Origin& current, InputSnapshot (&snapshots)[max_field
 }
 
 /**
- * @brief Queries `capie_core.dll` afresh: loaded and initialized?
- * @return `true` only when its capability export returns `country_capabilities_v2` (names and name layer).
+ * @brief Queries the capability export of `capie_core.dll` afresh.
+ * @return The export's value, 0 when the module or export is missing or the call faults.
  */
-inline bool country_ready() noexcept {
+inline DWORD country_capabilities() noexcept {
     using Query = DWORD(WINAPI*)();
     auto* const module = GetModuleHandleW(core::core_dll_name);
     if (module == nullptr) {
-        return false;
+        return 0;
     }
     const auto query = reinterpret_cast<Query>(GetProcAddress(module, country::capabilities_export));
     if (query == nullptr) {
-        return false;
+        return 0;
     }
     __try {
-        return query() == country::country_capabilities_v2;
+        return query();
     } __except (core::memory_exception(GetExceptionCode())) {
-        return false;
+        return 0;
     }
+}
+
+/**
+ * @brief Whether a country Apply may run: `capie_core.dll` is initialized with the name layers.
+ * @return `true` for `country_capabilities_v2` (name layers) or `_v3` (name and flag layers).
+ */
+inline bool country_ready() noexcept {
+    const auto value = country_capabilities();
+    return value == country::country_capabilities_v2 || value == country::country_capabilities_v3;
+}
+
+/**
+ * @brief Whether the flag layer is active (API level 6, record `capie_flag`).
+ * @return `true` only for `country_capabilities_v3`.
+ */
+inline bool flag_ready() noexcept {
+    return country_capabilities() == country::country_capabilities_v3;
 }
 
 /**

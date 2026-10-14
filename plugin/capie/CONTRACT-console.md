@@ -1,4 +1,4 @@
-# CAPIE console contract, API level 3 to 5 (candidate)
+# CAPIE console contract, API level 3 to 6 (candidate)
 
 This is the console part of the CAPIE script contract. It lives in its own file while CAPIE 1.1
 (API level 2, `CONTRACT.md`) is being revised; the two will be merged later. Everything not
@@ -17,14 +17,15 @@ evidence is in `docs/evidence/session-20261011/claude-console/` (`re-evidence.md
 
 | Name | Value | Where a mod sees it |
 |---|---|---|
-| API level | `5` in CAPIE 1.3 (`4` in 1.2, `3` in the 1.1 candidate) | `temp_var:capie_cap` of a console command |
+| API level | `6` in CAPIE 1.4 (`5` in 1.3, `4` in 1.2, `3` in the 1.1 candidate) | `temp_var:capie_cap` of a console command |
 | Source | `2` | `temp_var:capie_src`: 2 = console command (editor Apply commands do not set it) |
 | Build number | as `CONTRACT.md` | `temp_var:capie_ver` |
 
 API level 3 added the console commands; API level 4 adds the country name layer
 (`CONTRACT.md` section 14); API level 5 the faction name layer (section 15), which has no console
-command yet. Since CAPIE 1.2 console and editor commands send the same level (`capie_cap = 5` in
-1.3). Compare with `>=`, never with `=`.
+command yet; API level 6 the country flag layer (section 17) with two commands. Since CAPIE 1.2
+console and editor commands send the same level (`capie_cap = 6` in 1.4). Compare with `>=`,
+never with `=`.
 
 ## 2. Commands CAPIE adds to the game console
 
@@ -32,14 +33,16 @@ command yet. Since CAPIE 1.2 console and editor commands send the same level (`c
 |---|---|---|
 | `change_nation_name` | `<TAG> "<name>" ["<adjective>"]` | The game's `eval_effect "<TAG> = { ... }"` that writes the name layer (codes into `capie_cn_n` / `capie_cn_a`, `capie_cn_ver = 1`, then `capie_cn_rev = 1`); the adjective defaults to the name. Flag and colour stay |
 | `reset_nation_name` | `<TAG>` | The game's `eval_effect "<TAG> = { ... }"` that clears the layer (`clear_array` both, `clear_variable = capie_cn_ver`, then `capie_cn_rev = 1`). The country shows its cosmetic tag or base name again |
+| `capie_cmd` | `<mod> <command> ["<arg>" ...]` | The game's `eval_effect` with the inline effect of section 4, which calls the mod's `capie_v1_cmd__<mod>__<command>` |
+| `change_nation_flag` | `<TAG> <file>` | The game's `eval_effect "<TAG> = { ... }"` that writes the flag layer (`CONTRACT.md` section 17): the stem packed into `capie_cf_s`, `capie_cf_len`, the current cosmetic tag as the snapshot `capie_cf_cos` / `capie_cf_cos_len` (no snapshot when the tag is outside the file-name alphabet), `capie_cf_ver = 1`, then `capie_cf_rev = 1`. `<file>` is the file name without `.tga`, 1..63 characters `a-z A-Z 0-9 _` |
+| `reset_nation_flag` | `<TAG>` | The game's `eval_effect "<TAG> = { ... }"` that clears the flag layer; the game's flag comes back |
 
 Both name commands first read the country's current cosmetic tag (read only). When it is a
 legacy `RN1|...` tag of CAPIE 1.0/1.1, the effect also contains `drop_cosmetic_tag = yes`, which
 migrates the country; a cosmetic tag of the game or another mod is never dropped. An unknown tag
 prints the game's "Invalid tag for the command".
-| `capie_cmd` | `<mod> <command> ["<arg>" ...]` | The game's `eval_effect` with the inline effect of section 4, which calls the mod's `capie_v1_cmd__<mod>__<command>` |
 
-`help` lists the three commands with their arguments (in-game check pending).
+`help` lists the five commands with their arguments (in-game check pending).
 
 Arguments are bare words or quoted strings. Inside quotes, `\"` is a quote and `\\` a
 backslash. CAPIE rebuilds the line itself, because the game splits it at every space.
@@ -65,7 +68,7 @@ CAPIE validates every argument and then runs this inline effect through the game
 
 ```text
 FROM = {
-    set_temp_variable = { capie_cap = 5 }      # 4 in 1.2, 3 in the 1.1 candidate
+    set_temp_variable = { capie_cap = 6 }      # 5 in 1.3, 4 in 1.2, 3 in the 1.1 candidate
     set_temp_variable = { capie_ver = <build> }
     set_temp_variable = { capie_src = 2 }
     set_temp_variable = { capie_nf = <n> }               # 0..4 arguments

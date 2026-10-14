@@ -1,4 +1,4 @@
-# CAPIE 1.0: Cyprian's API Extender (native code)
+# CAPIE: Cyprian's API Extender (native code)
 
 Native part of the HOI4 mod "Rename Anything", reorganised in stage 2 from the accepted
 binaries `rename_anything_country.dll` (country capability 18841A6D…) and the generated
@@ -8,9 +8,29 @@ caption-refresh bridge rev7 (3864532C…). Behaviour is equivalent; see
 
 The default development loading path is the opt-in `version.dll` proxy. Build with
 `build_proxy.ps1` after preparing the reviewed stage-2 DLLs, then see
-[proxy loading and acceptance limits](../../docs/proxy-loader.md). The existing launcher
+[proxy loading and acceptance limits](../../docs/contributing/proxy-loader.md). The existing launcher
 remains available. The proxy uses `current/runtime/` and requires the exact `-capie`
 argument or the explicit bootstrap config marker; it creates no injection helper process.
+
+## Country flag layer, API level 6 (CAPIE 1.4, developer build)
+
+`CONTRACT.md` section 17, design and review in `docs/evidence/session-20261014/flag-layer/`.
+Built into `plugin/build/capie-v14-dev`.
+
+- `capie_core.dll` adds 3 hooks on the flag atlas path: `UpdateFlagAtlas` (123FE20) forces a
+  reload of changed slots (slot key = an impossible cosmetic id), `LoadCountryFlag` (123F7E0)
+  loads a layer's file with the game's own loader and falls back to the game's flag when that
+  file does not load, `BuildFlagCandidates` (147D990) reduces the candidates to `<stem>.tga`
+  only inside that load for the same country. Logic in `features/country/flag_layer.hpp`
+  (packing, snapshot gate), `flag_layer_hooks.hpp` (cache, thread-local frames, shared lock only
+  on the TBB rebuild path) and `flag_layer_pins.hpp` (3 signatures, 7 instruction pins, 3 call
+  pins). The flag layer needs the name-layer pins as well.
+- `RNCountryCapabilities` returns v3 (`0x524E4303`) with the flag layer; grammar Apply carries
+  `capie_flag` (1 or 0).
+- Console (`-Console`): `change_nation_flag <TAG> <file>`, `reset_nation_flag <TAG>`.
+- Version 1.4.0, API level 6, build 10400.
+- Tests: `flag_layer_test.cpp` (both flavors), `flag_layer_pins_exe_test.cpp`; 12 more mutants,
+  4 more console mutants.
 
 ## Faction name layer and opening text, API level 5 (CAPIE 1.3, developer build)
 
@@ -159,8 +179,8 @@ is a process singleton; the accepted tests address it directly), virtual interfa
 
 ```powershell
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook'   # both flavors, all offline tests, benchmarks
-.\plugin\capie\mutation_check.ps1                           # 120 mutants (bridge and public-editor ones in debug and release)
-.\plugin\capie\mutation_check.ps1 -MutantsFile tests\console\mutants_console.json   # 38 console mutants
+.\plugin\capie\mutation_check.ps1                           # 132 mutants (bridge and public-editor ones in debug and release)
+.\plugin\capie\mutation_check.ps1 -MutantsFile tests\console\mutants_console.json   # 41 console mutants
 uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tidy + clang-format (uv dev group)
 ```
 
@@ -175,7 +195,11 @@ as a file for the static signature checks.
 (`... "<game>\dowser.exe"`), or a double-click (finds the game, starts its Paradox
 Launcher). It starts the given `dowser.exe`/`hoi4.exe` unchanged inside a job object,
 binds only a `hoi4.exe` from that tree (job membership, or a running parent chain with
-older creation times), waits for the main menu (responsive window + two
+older creation times), checks the playset the game was started with
+(`Documents\Paradox Interactive\Hearts of Iron IV\dlc_load.json`, `playset_gate.hpp`): CAPIE
+loads only when the "CAPIE" switch mod (`toggle-mod/`, identity `mod/capie.mod`, later its
+Workshop ID in `config.hpp`) is enabled; disabled means vanilla without a notice, an unreadable
+or invalid file means vanilla with one non-blocking notice. Then it waits for the main menu (responsive window + two
 `Executing History from` lines in this session's game.log + 15 s) and runs
 `capie_injector.exe PID ABS_PATH` for `capie_core.dll`, then `capie_editor.dll`.
 Unknown game hash or damaged bundle: the game runs without CAPIE and the player gets a

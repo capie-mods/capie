@@ -78,14 +78,14 @@ int main() {
     check(is(lookup_z("CAPIE_STATUS"), game_text) && forwarded == 1, "inactive: forwarded once");
 
     active.store(true);
-    check(is(override_value("CAPIE_STATUS"), "CAPIE 1.3"), "CAPIE_STATUS");
-    check(is(override_value("CAPIE_API"), "5"), "CAPIE_API");
-    check(is(override_value("CAPIE_BUILD"), "1.3.0"), "CAPIE_BUILD");
+    check(is(override_value("CAPIE_STATUS"), "CAPIE 1.4"), "CAPIE_STATUS");
+    check(is(override_value("CAPIE_API"), "6"), "CAPIE_API");
+    check(is(override_value("CAPIE_BUILD"), "1.4.0"), "CAPIE_BUILD");
     forwarded = 0;
-    check(is(lookup_z("CAPIE_STATUS"), "CAPIE 1.3") && is(lookup_z("CAPIE_API"), "5") &&
-              is(lookup_z("CAPIE_BUILD"), "1.3.0"),
+    check(is(lookup_z("CAPIE_STATUS"), "CAPIE 1.4") && is(lookup_z("CAPIE_API"), "6") &&
+              is(lookup_z("CAPIE_BUILD"), "1.4.0"),
           "lookup_z answers the public keys");
-    check(is(lookup_n("CAPIE_BUILD", 11), "1.3.0") && is(lookup_n("CAPIE_STATUSXYZ", 12), "CAPIE 1.3"),
+    check(is(lookup_n("CAPIE_BUILD", 11), "1.4.0") && is(lookup_n("CAPIE_STATUSXYZ", 12), "CAPIE 1.4"),
           "lookup_n uses the explicit length");
     check(forwarded == 0, "answered keys never reach the game");
 
@@ -98,8 +98,8 @@ int main() {
         forwarded = 0;
         check(is(lookup_n(key, static_cast<int>(std::strlen(key))), game_text) && forwarded == 1, key);
     }
-    // Rename Anything's keys are unchanged (with the 1.3 version text).
-    check(is(override_value("RN_PLUGIN_STATUS"), "CAPIE 1.3 loaded"), "RN_PLUGIN_STATUS");
+    // Rename Anything's keys are unchanged (with the 1.4 version text).
+    check(is(override_value("RN_PLUGIN_STATUS"), "CAPIE 1.4 loaded"), "RN_PLUGIN_STATUS");
     check(is(override_value("RN1|Polska|polski|_ADJ"), "polski"), "RN1 unchanged");
     std::printf("public keys tests: %u checks, %u failures\n", checks, failures);
     return failures == 0 ? 0 : 1;

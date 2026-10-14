@@ -3,9 +3,9 @@
  * @brief Composition root of `capie_core.dll`: country names, the name layer, status text and the capability export.
  *
  * This DLL hooks the three localisation lookups of the pinned `hoi4.exe` so that RN1 keys
- * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.3
- * loaded" / "CAPIE 1.3 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
- * `CAPIE_BUILD` answer "CAPIE 1.3", "5" and "1.3.0" (`features/country/country_names.hpp`).
+ * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.4
+ * loaded" / "CAPIE 1.4 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
+ * `CAPIE_BUILD` answer "CAPIE 1.4", "6" and "1.4.0" (`features/country/country_names.hpp`).
  *
  * Name layers (API levels 4 and 5, `features/country/name_layer*.hpp`): four more hooks
  * (`UpdateNames`, `BuildNameKey`, `SetVariable::Execute`, `CFaction::GetName`) show a country
@@ -26,7 +26,8 @@
  * because a callback may be in flight; residual hooks forward to the game while `active` is
  * false.
  *
- * `RNCountryCapabilities` returns `country_capabilities_v2` while active with the layer,
+ * `RNCountryCapabilities` returns `country_capabilities_v3` with the name and flag layers,
+ * `country_capabilities_v2` with the name layers only,
  * `country_capabilities_v1` while active without it. The editor bridge queries it before
  * every country Apply and requires v2.
  *
@@ -41,6 +42,8 @@
 #include "../core/signature_table.hpp"
 #include "../features/country/capability.hpp"
 #include "../features/country/country_names.hpp"
+#include "../features/country/flag_layer_hooks.hpp"
+#include "../features/country/flag_layer_pins.hpp"
 #include "../features/country/name_layer_hooks.hpp"
 #include "../features/country/name_layer_pins.hpp"
 
@@ -58,17 +61,24 @@ using core::InitCode;
 /// @brief Longest path buffer for the executable path.
 constexpr DWORD max_path_chars = 32768;
 /// @brief Debugger message after a successful initialization.
-constexpr char initialized_message[] = "CAPIE 1.3: country hooks initialized (capie_core, pinned 1.19.3.0)\n";
+constexpr char initialized_message[] = "CAPIE 1.4: country hooks initialized (capie_core, pinned 1.19.3.0)\n";
 /// @brief Size of a lifecycle line buffer.
 constexpr std::size_t line_bytes = 200;
 /// @brief Number of localisation hooks (always installed).
 constexpr std::size_t localisation_hooks = 3;
+/// @brief Number of name-layer hooks (country and faction names).
+constexpr std::size_t name_layer_hooks = 4;
 
 /// @brief Memory policy of the name layer.
 const core::ProcessMemory layer_memory{};
 /// @brief The name layer of this process.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): hook state is a process singleton
 layer::NameLayer<core::ProcessMemory> name_layer{layer_memory};
+/// @brief Memory policy of the flag layer (reads plus the atlas slot-key write).
+const flag::FlagMemory flag_memory{};
+/// @brief The flag layer of this process.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): hook state is a process singleton
+flag::FlagLayer<flag::FlagMemory> flag_layer{flag_memory};
 
 /**
  * @brief Writes one log line (appends CRLF) if its channel is enabled.
@@ -92,7 +102,9 @@ void write_line(core::logging::Channel channel, const char* line) noexcept {
  * @return The original's result.
  */
 std::uint64_t update_names_hook(core::uptr country) noexcept {
-    return name_layer.update_names(country);
+    const auto result = name_layer.update_names(country);
+    static_cast<void>(flag_layer.update(country));  // after the original: the cosmetic tag is current
+    return result;
 }
 
 /**
@@ -119,6 +131,40 @@ void* build_name_key_hook(void* out, const void* tag, void* a3, void* a4, void* 
  */
 void set_variable_hook(core::uptr effect, core::uptr context) noexcept {
     name_layer.set_variable(effect, context);
+    if (flag_layer.enabled() &&
+        engine::string_equals(layer_memory, effect + core::off::set_variable_name, flag::commit_variable)) {
+        static_cast<void>(flag_layer.refresh_all());
+    }
+}
+
+/**
+ * @brief Hook body of `UpdateFlagAtlas`.
+ * @param atlas Atlas.
+ * @param gfx Graphics object.
+ * @return The original's result.
+ */
+std::uint64_t flag_atlas_hook(core::uptr atlas, core::uptr gfx) noexcept {
+    return flag_layer.atlas_update(atlas, gfx);
+}
+
+/**
+ * @brief Hook body of `LoadCountryFlag` (8 arguments, forwarded unchanged).
+ * @return The original's status.
+ */
+int load_flag_hook(core::uptr atlas, core::uptr country, void* dst, int a4, int a5, int a6, int a7, void* a8) noexcept {
+    return flag_layer.load_flag(atlas, country, dst, a4, a5, a6, a7, a8);
+}
+
+/**
+ * @brief Hook body of `BuildFlagCandidates`.
+ * @param out Candidate vector.
+ * @param tag Tag string.
+ * @param cosmetic Cosmetic tag string.
+ * @param group Ideology group.
+ * @return The original's result.
+ */
+void* flag_candidates_hook(void* out, const void* tag, const void* cosmetic, void* group) noexcept {
+    return flag_layer.candidates(out, tag, cosmetic, group);
 }
 
 /**
@@ -179,6 +225,8 @@ InitCode initialize() {
     open_log();
     const char* const failed_pin = layer::pins::first_failed_pin(text);
     const bool layer_ok = failed_pin == nullptr;
+    const char* const failed_flag_pin = flag::pins::first_failed_pin(text);
+    const bool flag_ok = layer_ok && failed_flag_pin == nullptr;
     const core::HookSpec hooks[] = {
         {"country.lookup_n", core::rva::loc_lookup_n, reinterpret_cast<void*>(&lookup_n),
          reinterpret_cast<void**>(&original_n)},
@@ -194,8 +242,17 @@ InitCode initialize() {
          reinterpret_cast<void**>(&name_layer.originals().set_variable)},
         {"faction.get_name", core::rva::faction_get_name, reinterpret_cast<void*>(&faction_name_hook),
          reinterpret_cast<void**>(&name_layer.originals().faction_name)},
+        {"flag.atlas_update", core::rva::flag_atlas_update, reinterpret_cast<void*>(&flag_atlas_hook),
+         reinterpret_cast<void**>(&flag_layer.originals().atlas_update)},
+        {"flag.load_country_flag", core::rva::load_country_flag, reinterpret_cast<void*>(&load_flag_hook),
+         reinterpret_cast<void**>(&flag_layer.originals().load_flag)},
+        {"flag.build_candidates", core::rva::build_flag_candidates, reinterpret_cast<void*>(&flag_candidates_hook),
+         reinterpret_cast<void**>(&flag_layer.originals().candidates)},
     };
-    const std::size_t hook_count = layer_ok ? std::size(hooks) : localisation_hooks;
+    std::size_t hook_count = localisation_hooks;
+    if (layer_ok) {
+        hook_count = flag_ok ? std::size(hooks) : localisation_hooks + name_layer_hooks;
+    }
     char line[line_bytes]{};
     if (const auto installed = core::install_all_at_once(base, hooks, hook_count); installed != InitCode::ok) {
         active.store(false);
@@ -208,11 +265,15 @@ InitCode initialize() {
         name_layer.activate(reinterpret_cast<core::uptr>(base), &write_line,
                             reinterpret_cast<layer::StringCopyFn>(base + core::rva::string_copy));
     }
+    if (flag_ok) {
+        flag_layer.activate(reinterpret_cast<core::uptr>(base), &write_line);
+    }
     active.store(true);
-    static_cast<void>(
-        std::snprintf(line, sizeof(line), "CAPIE_CORE %s initialized: %zu hooks, name layer %s %s, flavor=%s",
-                      core::capie_version, hook_count, name_layer.enabled() ? "on" : "off", layer_ok ? "" : failed_pin,
-                      core::logging::debug_diagnostics ? "debug" : "release"));
+    static_cast<void>(std::snprintf(
+        line, sizeof(line), "CAPIE_CORE %s initialized: %zu hooks, name layer %s %s, flag layer %s %s, flavor=%s",
+        core::capie_version, hook_count, name_layer.enabled() ? "on" : "off", layer_ok ? "" : failed_pin,
+        flag_layer.enabled() ? "on" : "off", failed_flag_pin != nullptr ? failed_flag_pin : "",
+        core::logging::debug_diagnostics ? "debug" : "release"));
     write_line(core::logging::Channel::lifecycle, line);
     OutputDebugStringA(initialized_message);
     return InitCode::ok;
@@ -231,8 +292,11 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
     if (!capie::country::active.load(std::memory_order_acquire)) {
         return 0;
     }
-    return capie::country::name_layer.enabled() ? capie::country::country_capabilities_v2
-                                                : capie::country::country_capabilities_v1;
+    if (!capie::country::name_layer.enabled()) {
+        return capie::country::country_capabilities_v1;
+    }
+    return capie::country::flag_layer.enabled() ? capie::country::country_capabilities_v3
+                                                : capie::country::country_capabilities_v2;
 }
 
 /**

@@ -337,7 +337,7 @@ public:
                 say(out, "Invalid tag for the command");  // the vanilla text for an unknown tag
                 return out;
             }
-            finish_layer_plan(plan, is_capie_cosmetic(cosmetic.view()));
+            finish_plan(plan, cosmetic.view());
             if (plan.delegate == Delegate::none) {
                 say(out, plan.message.view());
                 return out;

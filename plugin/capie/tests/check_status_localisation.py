@@ -23,10 +23,10 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 KEYS = ("RN_PLUGIN_STATUS", "RN_PLUGIN_STATUS_EN", "RN_PLUGIN_STATUS_PL", "RN_COUNTRY_PLUGIN")
 """Localisation keys involved in the status line."""
 
-LOADED_EN = "CAPIE 1.3 loaded"
+LOADED_EN = "CAPIE 1.4 loaded"
 """English text served by capie_core.dll."""
 
-LOADED_PL = "CAPIE 1.3 załadowane"
+LOADED_PL = "CAPIE 1.4 załadowane"
 """Polish text served by capie_core.dll."""
 
 MISSING_EN = "CAPIE missing: Rename Anything needs it"
