@@ -48,6 +48,8 @@ jobs:
       - run: uv sync --locked --only-group docs
       # Fails if the site copies of the shared theme drifted from sites/shared/theme.
       - run: uv run --no-sync python sites/shared/sync_shared.py --check
+      # Zensical's assets without layout transitions, into sites/<site>/overrides (gitignored).
+      - run: uv run --no-sync python sites/shared/zensical_overrides.py
       - run: uv run --no-sync zensical build -f sites/capie/zensical.toml --clean --strict
       - uses: actions/upload-pages-artifact@v5
         with:

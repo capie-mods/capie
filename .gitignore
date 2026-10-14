@@ -35,6 +35,8 @@ plugin/build/
 # Documentation site build output and Zensical cache (sites/README.md)
 /sites/*/site/
 /sites/*/.cache/
+# Generated Zensical override (sites/shared/zensical_overrides.py)
+/sites/*/overrides/
 
 # Local RE index caches (large, regenerable)
 **/re-tools/_cache/
