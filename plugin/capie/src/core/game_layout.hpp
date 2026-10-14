@@ -54,6 +54,16 @@ inline constexpr std::uintptr_t load_country_flag = 0x123F7E0;
 inline constexpr std::uintptr_t build_flag_candidates = 0x147D990;
 /// @brief `string* string_copy(string* out, const string* source)` (MSVC copy-construct on the game heap); called.
 inline constexpr std::uintptr_t string_copy = 0x11E010;
+/// @brief `entry* ResolvePortrait(map*, entry* out, int type, int size, character*, const char* fallback)`; hooked.
+inline constexpr std::uintptr_t portrait_resolve = 0x139DF20;
+/// @brief `bool PortraitEntryValid(const entry*)` (sprite exists for kind 0); called by the portrait hook.
+inline constexpr std::uintptr_t portrait_valid = 0x139D1E0;
+/// @brief `sprite* FindSprite(database*, const string* name)`; called by the console (sprite check).
+inline constexpr std::uintptr_t sprite_find = 0x2238DF0;
+/// @brief Global pointer to the sprite database (read by 139D211).
+inline constexpr std::uintptr_t sprite_database_global = 0x3453090;
+/// @brief `CCharacter` primary vtable (hierarchy CCharacter, CReferenceObject, CPersistent).
+inline constexpr std::uintptr_t vt_character = 0x297EA60;
 
 // ---- Scripted window manager and widgets (hooked or called by capie_editor.dll) ---------
 /// @brief `void Tick(window*, char force)`; per-frame scripted window update, hooked.
@@ -165,6 +175,17 @@ inline constexpr std::uintptr_t country_cosmetic_tag = 0x1488;     ///< Cosmetic
 inline constexpr std::uintptr_t country_tag = 0x8;                 ///< Tag; its int is the slot index (BB54A3).
 inline constexpr std::uintptr_t faction_members = 0x58;       ///< Member country pointer array; [0] = leader (4ABB81).
 inline constexpr std::uintptr_t faction_member_count = 0x64;  ///< int32 member count (C5E2EF).
+// ---- Leader portrait layer (session-20261014/portrait-layer, design and review) ----------------
+inline constexpr std::uintptr_t character_id = 0xC;            ///< int32 character id (139DFC9).
+inline constexpr std::uintptr_t character_variables = 0xD8;    ///< Inline variable container (FA688B, FA5246).
+inline constexpr std::uintptr_t country_politics = 0xF90;      ///< Politics object pointer (6CF890).
+inline constexpr std::uintptr_t politics_ruling_party = 0xD0;  ///< Ruling party pointer (2E56B7).
+inline constexpr std::uintptr_t party_leaders = 0x70;          ///< Leader role pointer array (11A3309).
+inline constexpr std::uintptr_t party_leader_count = 0x7C;     ///< int32 leader count (11A3300).
+inline constexpr std::uintptr_t leader_role_character = 0x8;   ///< Character pointer of a leader role (2AA270).
+inline constexpr std::uintptr_t portrait_entry_kind = 0x4;     ///< int32 0 = sprite name, 1 = .dds path (139D1EF).
+inline constexpr std::uintptr_t portrait_entry_name = 0x8;     ///< MSVC string (139D20D).
+inline constexpr std::uintptr_t portrait_entry_handle = 0x28;  ///< Texture handle of a path entry (139D1F7).
 // ---- Scripted window ----------------------------------------------------------------------
 inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (B88BEE).
 inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model pointer (runtime-proven).

@@ -26,6 +26,31 @@ The country and faction name layers (API levels 4 and 5) and the country flag la
 
 <img src="../../docs/assets/promo/capie/readme/flag-layer.jpg" alt="Left: a flag picker listing the game's flags by letter. Right: the Politics panel of the renamed country Skbidi Kingdom showing its new flag." width="880">
 
+## Country leader portrait layer, API level 7 (CAPIE 1.5, developer build)
+
+`CONTRACT.md` section 18, design and review in `docs/evidence/session-20261014/portrait-layer/`.
+Built into `plugin/build/capie-v15-dev`.
+
+- `capie_core.dll` adds one hook: `ResolvePortrait` (139DF20), the function every GUI portrait
+  icon uses (only caller B44520). For the civilian portrait of a ruling country leader with a
+  layer (same object, same id), it builds the chosen sprite's entry, checks it with the game's
+  validity function (139D1E0, the sprite exists) and only then fills the caller's buffer; a
+  missing sprite (for example a DLC the client lacks) shows the game's portrait. Army and navy
+  portraits are never changed. Game data are never written.
+- The cache holds each country's ruling leader (game chain: politics +0xF90, ruling party
+  +0xD0, first leader role, role +0x8) and is filled on the logic thread from UpdateNames and,
+  rebuilt whole, after `set_variable` of `capie_pt_rev`. Logic in
+  `features/country/portrait_layer.hpp`, `portrait_layer_hooks.hpp`, pins in
+  `portrait_layer_pins.hpp` (2 signatures, 18 instruction pins, 7 call pins; character layout
+  as CCharacter::Write/Read use it).
+- `RNCountryCapabilities` returns a v4 value (`0x524E4402`, `0x524E4403` with the flag layer);
+  grammar Apply carries `capie_portrait` (1 or 0), 181 records at most.
+- Console (`-Console`): `change_leader_portrait <TAG> <sprite>`, `reset_leader_portrait <TAG>`
+  (sprites checked in the game's sprite database).
+- Version 1.5.0, API level 7, build 10500.
+- Tests: `portrait_layer_test.cpp` (both flavors), `portrait_layer_pins_exe_test.cpp`; 12 more
+  mutants, 4 more console mutants.
+
 ## Host probe, debug flavor only (log, no record)
 
 `features/host/host_probe.hpp` (read-only chain: application, session, backend, human list) and
@@ -204,8 +229,8 @@ is a process singleton; the accepted tests address it directly), virtual interfa
 
 ```powershell
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook'   # both flavors, all offline tests, benchmarks
-.\plugin\capie\mutation_check.ps1                           # 143 mutants (bridge and public-editor ones in debug and release)
-.\plugin\capie\mutation_check.ps1 -MutantsFile tests\console\mutants_console.json   # 41 console mutants
+.\plugin\capie\mutation_check.ps1                           # 155 mutants (bridge and public-editor ones in debug and release)
+.\plugin\capie\mutation_check.ps1 -MutantsFile tests\console\mutants_console.json   # 45 console mutants
 # mutation_check.ps1 takes -MinHookDir or the CAPIE_MINHOOK_DIR environment variable (folder with include\MinHook.h)
 uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1   # clang-tidy + clang-format (uv dev group)
 ```

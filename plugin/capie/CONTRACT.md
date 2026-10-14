@@ -1,11 +1,11 @@
-# CAPIE script contract, API level 6 (CAPIE 1.4)
+# CAPIE script contract, API level 7 (CAPIE 1.5)
 
 This is the versioned contract between CAPIE (the native DLLs in `plugin/capie/`) and HOI4
 mods. It covers the names a mod gives its editor GUI, the temporary records CAPIE adds to the
 player's Apply command, the localisation keys CAPIE answers, the alphabet, the error codes the
 script SDK reports, behaviour without CAPIE, permissions, the multiplayer handshake, the
-country name layer (section 14), the faction name layer (section 15) and the country flag
-layer (section 17).
+country name layer (section 14), the faction name layer (section 15), the country flag layer
+(section 17) and the country leader portrait layer (section 18).
 
 Status, 2026-10-14: API level 2 is implemented in `capie_core.dll` / `capie_editor.dll` 1.1 and
 1.2 and in `sdk/capie-script-sdk/`; API level 3 (console) is in `CONTRACT-console.md`; API level
@@ -16,7 +16,9 @@ faction name layer, `capie_pf1_*` records of section 5.1) is implemented in the 
 build (`plugin/build/capie-v13-dev`) and covered by offline tests; it has not run in the game
 yet. API level 6 (section 17, country flag layer; record `capie_flag`) is implemented in the 1.4
 developer build (`plugin/build/capie-v14-dev`) and covered by offline tests; it has not run in
-the game yet. Rows marked **in-game test** below are the open checks.
+the game yet. API level 7 (section 18, country leader portrait layer; record `capie_portrait`) is
+implemented in the 1.5 developer build (`plugin/build/capie-v15-dev`) and covered by offline
+tests; it has not run in the game yet. Rows marked **in-game test** below are the open checks.
 
 The variant is B from `docs/API-DECISIONS.md`: plain HOI4 script, data passed through
 temporary variables of one command, no new script keywords. A mod written against this
@@ -26,9 +28,9 @@ contract parses and runs the same way with or without CAPIE; only the branch it 
 
 | Name | Value in 1.4 (1.3, 1.2, 1.1) | Where a mod sees it | Meaning |
 |---|---|---|---|
-| API level | `6` (`5`, `4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1); level 6 the country flag layer (section 17) and the `capie_flag` record. Compare with `>=`. |
-| Release | `1.4.0` (`1.3.0`, `1.2.0`, `1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
-| Build number | `10400` (`10300`, `10200`, `10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
+| API level | `7` (`6`, `5`, `4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1); level 6 the country flag layer (section 17) and the `capie_flag` record; level 7 the country leader portrait layer (section 18) and the `capie_portrait` record. Compare with `>=`. |
+| Release | `1.5.0` (`1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
+| Build number | `10500` (`10400`, `10300`, `10200`, `10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
 | SDK major | `v1` | every SDK path and name (`capie_sdk_v1_*`, `capie_v1_*`) | A breaking change goes into `v2` names; two majors can coexist. |
 
 Mods require a minimum API level (`capie_min_api`), never a release.
@@ -111,9 +113,10 @@ a presence signal, not a permission (section 9).
 
 | Record | Value |
 |---|---|
-| `capie_cap` | API level (`6` in CAPIE 1.4) |
-| `capie_ver` | build number (`10400` in CAPIE 1.4) |
+| `capie_cap` | API level (`7` in CAPIE 1.5) |
+| `capie_ver` | build number (`10500` in CAPIE 1.5) |
 | `capie_flag` | API level 6: `1` when the country flag layer of section 17 is active in this game session (its pins matched), `0` when CAPIE runs without it. A flag editor refuses with a message when it is `0` or absent |
+| `capie_portrait` | API level 7: `1` when the country leader portrait layer of section 18 is active in this game session (its pins matched), `0` when CAPIE runs without it. A portrait editor refuses with a message when it is `0` or absent |
 | `capie_epoch` | opening epoch read from the carrier, `>= 1` |
 | `capie_nf` | number of fields that follow, `0..4` |
 | `capie_f<n>_err` | `0` valid, otherwise the field error (5.3) |
@@ -123,10 +126,10 @@ a presence signal, not a permission (section 9).
 | `capie_pf1_err`, `capie_pf1_at`, `capie_pf1_len`, `capie_pf1_0` .. `capie_pf1_31` | API level 5: the text prefill carrier 1 (`capie_v1_pf__<mod>__<editor>__1`) showed when this opening began, encoded like a field (same error codes; a character outside the alphabet gives `err = 6`). Sent only when the editor has that carrier, field 1 exists and the carrier text was readable at the opening; absent otherwise |
 
 `n` runs from 1 to `capie_nf`. One field is 35 records; the opening text adds 35 more and
-`capie_flag` one, so the largest Apply adds 5 + 4 × 35 + 35 = 180 records (144 before API level
-5, 179 in API level 5). Every name fits the
-game's 15-byte short-string layout, which CAPIE builds directly (the longest, `capie_pf1_err`,
-has 13 bytes).
+`capie_flag` and `capie_portrait` one each, so the largest Apply adds 6 + 4 × 35 + 35 = 181 records
+(144 before API level 5, 179 in API level 5, 180 in API level 6). Every name fits the game's
+15-byte short-string layout, which CAPIE builds directly (the longest, `capie_portrait`, has 14
+bytes).
 
 `capie_pf1_*` is what the player saw before the change: with `[ROOT.GetName]` (or
 `[This.GetFactionName]`) in the carrier it is the name on screen at the opening (player-given
@@ -225,11 +228,11 @@ Rename Anything's legacy fields keep the 84-code table; its decoder knows no oth
 `capie_core.dll` answers these keys whenever the game draws them. The SDK localisation holds the
 fallback, which is what players see without CAPIE.
 
-| Key | With CAPIE 1.4 (1.3, 1.2, 1.1) | SDK fallback |
+| Key | With CAPIE 1.5 (1.4, 1.3, 1.2, 1.1) | SDK fallback |
 |---|---|---|
-| `CAPIE_STATUS` | `CAPIE 1.4` (`CAPIE 1.3`, `CAPIE 1.2`, `CAPIE 1.1`) | `§OCAPIE missing§!` |
-| `CAPIE_API` | `6` (`5`, `4`, `2`) | `0` |
-| `CAPIE_BUILD` | `1.4.0` (`1.3.0`, `1.2.0`, `1.1.0`) | `-` |
+| `CAPIE_STATUS` | `CAPIE 1.5` (`CAPIE 1.4`, `CAPIE 1.3`, `CAPIE 1.2`, `CAPIE 1.1`) | `§OCAPIE missing§!` |
+| `CAPIE_API` | `7` (`6`, `5`, `4`, `2`) | `0` |
+| `CAPIE_BUILD` | `1.5.0` (`1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`) | `-` |
 
 They are text only. A trigger cannot read them, so they decide what is shown, never what runs.
 Nest them in your own keys (`MYMOD_CAPIE_LINE: "$CAPIE_STATUS$"`). Whether the main menu draws
@@ -355,6 +358,7 @@ serialisation is a hypothesis until the two-machine test (`docs/contributing/mul
 | Name layer: own country, a subject (overlord), a country with a story cosmetic tag; flag and colour unchanged; reset back to the cosmetic tag; a later cosmetic tag change keeps the name; save, restart, load; load without CAPIE | Section 14; accepted in the game 2026-10-14 (cb44cc0) |
 | Faction name layer: faction window, diplomacy, `[X.GetFactionName]`, tooltips; reset; leader change; save, restart, load; load without CAPIE | Section 15; `CFaction::GetName` is pinned statically only, the refresh of open windows is unverified |
 | Flag layer: own country and a subject; the exact file (also another ideology's variant); name and colour unchanged; cosmetic tag change (event or console) shows the game's flag at once; reset; save, restart, load (full atlas rebuild on worker threads); load without CAPIE; a missing file | Section 17; the atlas keys and the load path are pinned statically only |
+| Portrait layer: politics and diplomacy views, interesting countries, diplomatic request, adviser slot; small size; a game event with `set_portraits` after the choice keeps the choice, Restore shows the event's portrait; a generic leader; a missing sprite shows the game's portrait (not the unknown image); leader change; save, restart, load (before unpausing); load without CAPIE | Section 18; the portrait hook, the leader chain and the character layout are pinned statically only |
 | `capie_pf1_*` in an Apply (179 records with 4 fields) | Section 5.1; larger command than before, multiplayer serialisation unverified |
 
 ## 14. Country name layer (API level 4, CAPIE 1.2)
@@ -629,3 +633,142 @@ flags.
 `change_nation_flag <TAG> <stem>` writes the layer (with the current cosmetic tag as the
 snapshot) and `reset_nation_flag <TAG>` removes it, through `eval_effect`, in single player only
 (`CONTRACT-console.md`).
+
+## 18. Country leader portrait layer (API level 7, CAPIE 1.5)
+
+Decision record: `docs/adr/0036-leader-portrait-and-feature-switches.md` (with its amendment:
+U1, U2). Design and review: `docs/evidence/session-20261014/portrait-layer/` (design.txt,
+review.txt).
+
+### 18.1 What it is
+
+A portrait a player chooses for a country leader is its own layer, like the flag layer: the
+game's portrait data of the character is not touched (no `set_portraits`), so the choice can be
+removed exactly. On screen, wherever the game draws the **civilian** portrait of the character
+that is **currently the ruling country leader** of a country (politics view, diplomacy view,
+interesting countries, diplomatic request window, the adviser slot when the same person sits
+there):
+
+1. the layer, when set, valid and its sprite exists in the game's sprite database;
+2. otherwise the game's portrait (the character's own, one set by a game event with
+   `set_portraits`, or the generic one the game picks).
+
+Army and navy portraits (the same person as a general or admiral) are never changed. A
+character who stops being the ruling leader shows the game's portrait again (the variables stay
+on the character; when the person rules again, the layer shows again).
+
+The layer names sprites by their game names (`GFX_portrait_...`), the large one and the small one
+(the small one is drawn where the game uses the small size, for example in adviser slots). A
+sprite of a mod works the same as a vanilla one, as long as its name fits the alphabet of 17.3.
+Names of sprites a mod generates per version (a catalog index) must not be used: a save would
+show another portrait after an update.
+
+### 18.2 Variables (on the character, the ruling leader whose portrait changes)
+
+| Variable | Value |
+|---|---|
+| `capie_pt_ver` | `1` while the layer is set (format 1); absent = no layer |
+| `capie_pt_len` | number of characters of the large sprite name, `1..63` |
+| `capie_pt_s` | array of the large sprite name, packed as in 17.3, `^num` = ceil(`capie_pt_len` / 3) |
+| `capie_pt_slen` | number of characters of the small sprite name, `1..63`; absent or `0` = the game's small portrait stays (only as a last resort: a mod should always write the small one, 18.3) |
+| `capie_pt_ss` | array of the small sprite name, packed as in 17.3 (only when `capie_pt_slen` > 0) |
+
+The commit variable is on the **country**: `capie_pt_rev`, set by every change as the **last**
+statement (value not used). They are ordinary variables: written only by script effects, saved
+with the character and the country, synchronised in multiplayer. The character variables are
+saved with the character (CCharacter::Write, token `variables`) and read back on load.
+
+### 18.3 Which small portrait
+
+Always write both sizes. For a character from `common/characters`, the small one is the
+`small` of the same block when it has one; otherwise the large name with `_small` appended, when
+that sprite exists (the game's own convention); otherwise the large one again (a large sprite in a
+small frame is scaled by the game). Leave `capie_pt_slen` out only when none of these exists.
+
+### 18.4 Writing and removing
+
+```text
+# Scope: the country. Sprite GFX_portrait_POL_ignacy_moscicki (32 characters) and its small one.
+random_character = {
+    limit = { is_country_leader = yes }
+    clear_array = capie_pt_s
+    add_to_array = { capie_pt_s = <element 1> }   # 11 elements, packed as in 17.3
+    ...
+    set_variable = { capie_pt_len = 32 }
+    clear_array = capie_pt_ss
+    add_to_array = { capie_pt_ss = <element 1> }  # GFX_portrait_POL_ignacy_moscicki_small, 38 characters, 13 elements
+    ...
+    set_variable = { capie_pt_slen = 38 }
+    set_variable = { capie_pt_ver = 1 }
+}
+set_variable = { capie_pt_rev = 1 }        # last, in the country scope: CAPIE re-reads every leader now
+
+# Remove it (the game's portrait comes back; nothing else changes):
+random_character = {
+    limit = { is_country_leader = yes }
+    clear_array = capie_pt_s
+    clear_array = capie_pt_ss
+    clear_variable = capie_pt_len
+    clear_variable = capie_pt_slen
+    clear_variable = capie_pt_ver
+}
+set_variable = { capie_pt_rev = 1 }
+```
+
+`capie_pt_rev` uses `set_variable` (not `add_to_variable`) without a scope prefix, in a
+country scope (any country: CAPIE re-reads the ruling leaders of all countries). The character
+scope of the writes is the mod's choice; the example uses vanilla's idiom for "the leader".
+CAPIE shows the layer only on the character that is the ruling leader per the game's own chain
+(18.6), so writing to a non-ruling leader has no visible effect until that person rules.
+
+Daily refresh (required): once a day (`on_daily` of the country, limited to a country whose
+ruling leader has `capie_pt_ver`), set `capie_pt_rev = 1` again. CAPIE reads every ruling leader
+when the game recomputes country names, which happens on load and on government changes; the
+daily commit covers leader changes that do not recompute names. It is identical on every client.
+
+### 18.5 Validity
+
+The sprite names use the alphabet and packing of 17.3 (a path, `/`, `.` or `-` cannot be
+expressed). A layer is invalid, and the game's portrait shows, when: `capie_pt_ver` is not `1`, a
+length is outside `1..63`, a `^num` is not ceil(length / 3), an element is outside `0..262143` or a
+fraction, a code `0` is followed by a non-zero code, the variables are unreadable, or the sprite
+does not exist (CAPIE checks the substituted entry with the game's own validity check before
+using it; on failure the game's own entry is kept, never the "unknown leader" image).
+
+Sprites of a DLC: a layer may name a sprite that only a DLC defines. A client without that DLC
+has no such sprite, so CAPIE shows the game's portrait there (the same check; the log notes only
+the first eight misses per session). The variables stay the same on every client. Mods must not
+read `has_dlc` (or anything else that differs between clients) in effects that write or remove
+the layer: the stored state would then differ between clients and the game would go out of sync.
+`has_dlc` belongs only in the GUI (for example which sprite collections a player can browse).
+
+### 18.6 What CAPIE does
+
+`capie_core.dll`:
+
+- reads the layer on the logic thread into a cache: the ruling leader of a country through the
+  game's chain (country → politics → ruling party → first leader → character, the path of the
+  `set_country_leader_portrait` effect), when the game recomputes that country's names (on load,
+  on government and name changes) and for all countries after `set_variable` of `capie_pt_rev`;
+  the cache keeps, per country, the character, its id and the two names;
+- hooks the function that resolves a character's portrait for the GUI (139DF20, the only one the
+  portrait icons of the politics and diplomacy views use): after the game's own result, only for
+  the civilian portrait of a cached character (same object, same id), it builds the entry for
+  the chosen sprite, checks it with the game's validity function (139D1E0, sprite exists) and
+  only then copies the name into the caller's buffer. Game data are never written.
+
+### 18.7 Activation, multiplayer, without CAPIE
+
+The portrait layer has its own pins (the hooked function and its only caller, the argument
+layout, the validity check, the character layout as written by CCharacter::Write, the leader
+chain). If one does not match, the portrait layer is off and the other layers keep working;
+Apply commands then carry `capie_portrait = 0`. The portrait is local display: CAPIE changes no
+game state, every client holds the same variables, a client without CAPIE (or a save loaded
+without it) shows the game's portraits.
+
+### 18.8 Console (developer build)
+
+`change_leader_portrait <TAG> <sprite>` writes the layer on the ruling leader of `TAG` (the small
+sprite is `<sprite>_small` when it exists, otherwise the large one) and `reset_leader_portrait
+<TAG>` removes it, through `eval_effect`, in single player only (`CONTRACT-console.md`). Both
+sprites are checked in the game's sprite database before the command runs.

@@ -24,6 +24,17 @@
  *            (snapshot = the country's current cosmetic tag, read by the bridge)
  *     reset_nation_flag <TAG>
  *         -> eval_effect "<TAG> = { clear_array ... clear_variable ... set_variable = { capie_cf_rev = 1 } }"
+ *     change_leader_portrait <TAG> <sprite>                  (portrait layer, API level 7)
+ *         -> eval_effect "<TAG> = { random_character = { limit = { is_country_leader = yes }
+ *                         clear_array = capie_pt_s add_to_array = { capie_pt_s = <packed> } ...
+ *                         set_variable = { capie_pt_len = <n> } clear_array = capie_pt_ss ...
+ *                         set_variable = { capie_pt_slen = <n> } set_variable = { capie_pt_ver = 1 } }
+ *                         set_variable = { capie_pt_rev = 1 } }"
+ *            (small = <sprite>_small when that sprite exists, else <sprite>; the bridge checks both
+ *            in the game's sprite database first)
+ *     reset_leader_portrait <TAG>
+ *         -> eval_effect "<TAG> = { random_character = { limit = { is_country_leader = yes }
+ *                         clear_array ... clear_variable ... } set_variable = { capie_pt_rev = 1 } }"
  *     capie_cmd <mod> <command> [arg1 .. arg4]
  *         -> eval_effect "FROM = { <records> capie_v1_cmd__<mod>__<command> = yes }"
  *            (records as in CONTRACT-console.md; FROM of eval_effect is the player's
@@ -102,14 +113,16 @@ constexpr bool is_capie_cosmetic(std::string_view cosmetic) noexcept {
 
 /// @brief CAPIE's commands.
 enum class CommandId {
-    change_nation_name,  ///< Rename a country.
-    reset_nation_name,   ///< Drop a country's cosmetic tag.
-    mod_command,         ///< Run a mod's `capie_v1_cmd__<mod>__<command>` effect.
-    change_nation_flag,  ///< Give a country a flag file (flag layer, API level 6).
-    reset_nation_flag,   ///< Remove the flag layer.
+    change_nation_name,      ///< Rename a country.
+    reset_nation_name,       ///< Drop a country's cosmetic tag.
+    mod_command,             ///< Run a mod's `capie_v1_cmd__<mod>__<command>` effect.
+    change_nation_flag,      ///< Give a country a flag file (flag layer, API level 6).
+    reset_nation_flag,       ///< Remove the flag layer.
+    change_leader_portrait,  ///< Give a country's ruling leader a portrait sprite (portrait layer, API level 7).
+    reset_leader_portrait,   ///< Remove the portrait layer of a country's ruling leader.
 };
 /// @brief Number of CAPIE commands.
-inline constexpr std::size_t command_count = 5;
+inline constexpr std::size_t command_count = 7;
 
 /// @brief Vanilla console commands CAPIE delegates to.
 enum class Delegate {
@@ -182,6 +195,19 @@ inline constexpr std::array<CommandSpec, command_count> command_specs{{
      {"<TAG>", {}, {}},
      1,
      "Usage: reset_nation_flag <TAG>"},
+    {CommandId::change_leader_portrait,
+     "change_leader_portrait",
+     "CAPIE: shows a portrait sprite (GFX_...) for a country's ruling leader (its own layer; the game's portrait "
+     "data unchanged). Single player only.",
+     {"<TAG>", "<sprite>", {}},
+     2,
+     "Usage: change_leader_portrait <TAG> <sprite name, a-z A-Z 0-9 _>"},
+    {CommandId::reset_leader_portrait,
+     "reset_leader_portrait",
+     "CAPIE: removes a portrait set by change_leader_portrait or a mod; the game's portrait comes back.",
+     {"<TAG>", {}, {}},
+     1,
+     "Usage: reset_leader_portrait <TAG>"},
 }};
 
 /**
@@ -245,7 +271,9 @@ struct Plan {
     Message message{};                                                   ///< Error or usage text (when `none`).
     bool needs_cosmetic{};         ///< The bridge must read `tag`'s cosmetic tag and call `finish_plan`.
     bool flag_plan{};              ///< A flag-layer plan (`finish_flag_plan`), else a name-layer plan.
+    bool portrait_plan{};          ///< A portrait plan: the bridge checks `sprite` and calls `finish_portrait_plan`.
     Text<text::tag_length> tag{};  ///< Country tag of a name command.
+    Text<country::flag::max_chars> sprite{};  ///< Large sprite of a portrait plan.
 };
 
 namespace detail {
@@ -533,6 +561,113 @@ inline void finish_flag_plan(Plan& plan, std::string_view cosmetic) noexcept {
     }
 }
 
+/// @brief Opens the ruling leader's scope after `<TAG> = { `.
+inline constexpr std::string_view portrait_leader_scope = "random_character = { limit = { is_country_leader = yes } ";
+/// @brief Removes the whole portrait layer (inside the leader's scope).
+inline constexpr std::string_view portrait_clear_all =
+    "clear_array = capie_pt_s clear_array = capie_pt_ss clear_variable = capie_pt_len "
+    "clear_variable = capie_pt_slen clear_variable = capie_pt_ver ";
+/// @brief Closes the leader's scope and commits on the country (last statement).
+inline constexpr std::string_view portrait_commit = "} set_variable = { capie_pt_rev = 1 } }";
+/// @brief Suffix of the game's small portrait sprites (6B64E0).
+inline constexpr std::string_view small_suffix = "_small";
+
+/**
+ * @brief Plans `change_leader_portrait <TAG> <sprite>`.
+ * @param args Parsed arguments.
+ * @return Plan for `eval_effect` (unfinished: the bridge checks the sprites and calls `finish_portrait_plan`).
+ */
+inline Plan plan_change_leader_portrait(const line::Arguments& args) noexcept {
+    Plan plan{};
+    if (args.count != 2) {
+        plan.message.add(spec(CommandId::change_leader_portrait).usage);
+        return plan;
+    }
+    if (!text::valid_tag(args.at(0))) {
+        plan.message.add("CAPIE: invalid tag (expected 3 characters A-Z or 0-9)");
+        return plan;
+    }
+    if (!detail::packable(args.at(1), false)) {
+        plan.message.add("CAPIE: invalid sprite name (1-63 characters a-z A-Z 0-9 _)");
+        return plan;
+    }
+    plan.delegate = Delegate::eval_effect;
+    plan.token_count = 1;
+    plan.needs_cosmetic = true;  // the bridge resolves the tag first ("Invalid tag for the command")
+    plan.portrait_plan = true;
+    plan.tag.add(args.at(0));
+    plan.sprite.add(args.at(1));
+    return plan;
+}
+
+/**
+ * @brief Plans `reset_leader_portrait <TAG>`: removes the portrait layer of the ruling leader.
+ * @param args Parsed arguments.
+ * @return Plan for `eval_effect` (complete; the bridge still resolves the tag).
+ */
+inline Plan plan_reset_leader_portrait(const line::Arguments& args) noexcept {
+    Plan plan{};
+    if (args.count != 1) {
+        plan.message.add(spec(CommandId::reset_leader_portrait).usage);
+        return plan;
+    }
+    if (!text::valid_tag(args.at(0))) {
+        plan.message.add("CAPIE: invalid tag (expected 3 characters A-Z or 0-9)");
+        return plan;
+    }
+    plan.delegate = Delegate::eval_effect;
+    plan.token_count = 1;
+    plan.needs_cosmetic = true;
+    plan.portrait_plan = true;
+    plan.tag.add(args.at(0));
+    plan.tokens[0].add(args.at(0)).add(" = { ").add(portrait_leader_scope).add(portrait_clear_all).add(portrait_commit);
+    return plan;
+}
+
+/**
+ * @brief The small sprite a portrait plan asks the bridge about: `<sprite>_small`, if it fits.
+ * @param plan Portrait plan.
+ * @return Name, empty when it would exceed 63 characters.
+ */
+inline Text<country::flag::max_chars> small_candidate(const Plan& plan) noexcept {
+    Text<country::flag::max_chars> out{};
+    if (plan.sprite.size + small_suffix.size() <= country::flag::max_chars) {
+        out.add(plan.sprite.view()).add(small_suffix);
+    }
+    return out;
+}
+
+/**
+ * @brief Completes a portrait plan once the bridge has checked the sprites (CONTRACT.md 18.3, 18.8).
+ * @param plan Plan from `plan_change_leader_portrait` (a reset plan is already complete).
+ * @param large_exists `<sprite>` is in the game's sprite database.
+ * @param small_exists `<sprite>_small` is in it.
+ */
+inline void finish_portrait_plan(Plan& plan, bool large_exists, bool small_exists) noexcept {
+    plan.needs_cosmetic = false;
+    auto& effect = plan.tokens[0];
+    if (effect.view().ends_with(portrait_commit)) {
+        return;  // reset
+    }
+    if (!large_exists) {
+        plan = Plan{};
+        plan.message.add("CAPIE: sprite not found in the game's sprite database");
+        return;
+    }
+    const auto small_name = small_candidate(plan);
+    const std::string_view small = small_exists && small_name.size != 0 ? small_name.view() : plan.sprite.view();
+    effect.add(plan.tag.view()).add(" = { ").add(portrait_leader_scope).add("clear_array = capie_pt_s ");
+    detail::add_packed(effect, "capie_pt_s", plan.sprite.view());
+    effect.add("set_variable = { capie_pt_len = ").add_number(plan.sprite.size).add(" } clear_array = capie_pt_ss ");
+    detail::add_packed(effect, "capie_pt_ss", small);
+    effect.add("set_variable = { capie_pt_slen = ").add_number(small.size()).add(" } ");
+    effect.add("set_variable = { capie_pt_ver = 1 } ").add(portrait_commit);
+    if (effect.overflow) {
+        plan = Plan{};
+        plan.message.add("CAPIE: sprite name too long for one command");
+    }
+}
+
 /**
  * @brief Completes a name or flag plan once the bridge has read the country's cosmetic tag.
  * @param plan Plan with `needs_cosmetic`.
@@ -640,6 +775,10 @@ inline Plan plan_command(CommandId id, const std::string_view* tokens, std::size
             return plan_change_nation_flag(args);
         case CommandId::reset_nation_flag:
             return plan_reset_nation_flag(args);
+        case CommandId::change_leader_portrait:
+            return plan_change_leader_portrait(args);
+        case CommandId::reset_leader_portrait:
+            return plan_reset_leader_portrait(args);
     }
     return Plan{};
 }

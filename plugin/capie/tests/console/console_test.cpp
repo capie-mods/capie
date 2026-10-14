@@ -29,6 +29,7 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -203,6 +204,60 @@ std::string layer_effect(const std::string& tag, const std::string& name, const 
     return out + "set_variable = { capie_cn_ver = 1 } ";
 }
 
+void portrait_plan_tests() {
+    using console::CommandId;
+    using console::Delegate;
+    auto plan = plan_typed(CommandId::change_leader_portrait, "POL GFX_a");
+    check(plan.delegate == Delegate::eval_effect && plan.needs_cosmetic && plan.portrait_plan &&
+              plan.tag.view() == "POL" && plan.sprite.view() == "GFX_a" &&
+              console::small_candidate(plan).view() == "GFX_a_small",
+          "change_leader_portrait plans an eval_effect that needs the sprite check");
+    console::finish_portrait_plan(plan, true, true);
+    check(plan.tokens[0].view() ==
+              "POL = { random_character = { limit = { is_country_leader = yes } clear_array = capie_pt_s "
+              "add_to_array = { capie_pt_s = 137266 } add_to_array = { capie_pt_s = 258112 } "
+              "set_variable = { capie_pt_len = 5 } clear_array = capie_pt_ss add_to_array = { capie_pt_ss = 137266 } "
+              "add_to_array = { capie_pt_ss = 258175 } add_to_array = { capie_pt_ss = 78657 } "
+              "add_to_array = { capie_pt_ss = 49920 } set_variable = { capie_pt_slen = 11 } "
+              "set_variable = { capie_pt_ver = 1 } } set_variable = { capie_pt_rev = 1 } }",
+          "portrait effect: packed large and small, leader scope, commit on the country: " +
+              std::string(plan.tokens[0].view()));
+    plan = plan_typed(CommandId::change_leader_portrait, "POL GFX_a");
+    console::finish_portrait_plan(plan, true, false);
+    check(plan.tokens[0].view().find("set_variable = { capie_pt_slen = 5 } ") != std::string_view::npos &&
+              plan.tokens[0].view().find("capie_pt_ss = 258175") == std::string_view::npos,
+          "no _small sprite: the large one is the small one");
+    plan = plan_typed(CommandId::change_leader_portrait, "POL GFX_a");
+    console::finish_portrait_plan(plan, false, true);
+    check(plan.delegate == Delegate::none && plan.message.view().find("not found") != std::string_view::npos,
+          "missing sprite refused");
+    plan = plan_typed(CommandId::change_leader_portrait, "POL " + std::string(58, 'a'));
+    check(console::small_candidate(plan).size == 0, "a 58-character sprite has no _small candidate (64 > 63)");
+    console::finish_portrait_plan(plan, true, true);
+    check(plan.delegate == Delegate::eval_effect &&
+              plan.tokens[0].view().find("set_variable = { capie_pt_slen = 58 } ") != std::string_view::npos,
+          "58 characters: small = large");
+    plan = plan_typed(CommandId::change_leader_portrait, "POL " + std::string(57, 'b'));
+    check(console::small_candidate(plan).size == 63, "57 characters: _small fits exactly");
+    for (const char* bad : {"POL GFX.a", "POL gfx/a", "POL", "POL a b", "pol GFX_a", "POL GFX-a"}) {
+        plan = plan_typed(CommandId::change_leader_portrait, bad);
+        check(plan.delegate == Delegate::none, std::string("portrait refused: ") + bad);
+    }
+    plan = plan_typed(CommandId::change_leader_portrait, "POL " + std::string(64, 'a'));
+    check(plan.delegate == Delegate::none, "64-character sprite refused");
+    plan = plan_typed(CommandId::reset_leader_portrait, "POL");
+    check(plan.delegate == Delegate::eval_effect && plan.portrait_plan &&
+              plan.tokens[0].view() ==
+                  "POL = { random_character = { limit = { is_country_leader = yes } clear_array = capie_pt_s "
+                  "clear_array = capie_pt_ss clear_variable = capie_pt_len clear_variable = capie_pt_slen "
+                  "clear_variable = capie_pt_ver } set_variable = { capie_pt_rev = 1 } }",
+          "reset_leader_portrait clears the layer: " + std::string(plan.tokens[0].view()));
+    console::finish_portrait_plan(plan, false, false);
+    check(plan.delegate == Delegate::eval_effect, "a reset needs no sprite");
+    plan = plan_typed(CommandId::reset_leader_portrait, "POL x");
+    check(plan.delegate == Delegate::none, "reset_leader_portrait: two arguments refused");
+}
+
 void flag_plan_tests() {
     using console::CommandId;
     using console::Delegate;
@@ -323,7 +378,7 @@ void plan_tests() {
 
     plan = plan_typed(CommandId::mod_command, R"(demo echo "ab" "")");
     const std::string expected =
-        "FROM = { set_temp_variable = { capie_cap = 6 } set_temp_variable = { capie_ver = 10400 } "
+        "FROM = { set_temp_variable = { capie_cap = 7 } set_temp_variable = { capie_ver = 10500 } "
         "set_temp_variable = { capie_src = 2 } set_temp_variable = { capie_nf = 2 } "
         "set_temp_variable = { capie_f1_err = 0 } set_temp_variable = { capie_f1_at = 0 } "
         "set_temp_variable = { capie_f1_len = 2 } set_temp_variable = { capie_f1_0 = 1 } "
@@ -401,21 +456,23 @@ struct DelegateCall {
 
 /// @brief All fake game state.
 struct FakeGame {
-    FakeConsoleHeader header{};                           ///< Console header.
-    std::vector<layout::CommandEntry> entries;            ///< Entry array (data of `header`).
-    std::deque<std::string> heap;                         ///< Strings "allocated by the game".
-    std::vector<DelegateCall> calls;                      ///< Delegate calls.
-    unsigned add_calls = 0;                               ///< Calls of add_or_replace.
-    bool drop_on_add = false;                             ///< Fake add that silently does nothing.
-    bool corrupt_on_add = false;                          ///< Fake add that stores another action.
-    bool wrong_context_on_add = false;                    ///< Fake add that stores another context.
-    bool multiplayer = false;                             ///< Gate B.
-    bool ironman = false;                                 ///< Gate C.
-    std::deque<std::string> alias_storage;                ///< Alias bytes (deque: addresses stay stable).
-    uptr console_slot = 0;                                ///< The singleton pointer.
-    std::array<std::vector<unsigned char>, 5> countries;  ///< Country objects by tag index (1..4).
-    std::uint32_t thread = 100;                           ///< Thread id the fake game reports.
-    std::vector<std::string> log;                         ///< Bridge log lines.
+    FakeConsoleHeader header{};                                      ///< Console header.
+    std::vector<layout::CommandEntry> entries;                       ///< Entry array (data of `header`).
+    std::deque<std::string> heap;                                    ///< Strings "allocated by the game".
+    std::vector<DelegateCall> calls;                                 ///< Delegate calls.
+    unsigned add_calls = 0;                                          ///< Calls of add_or_replace.
+    bool drop_on_add = false;                                        ///< Fake add that silently does nothing.
+    bool corrupt_on_add = false;                                     ///< Fake add that stores another action.
+    bool wrong_context_on_add = false;                               ///< Fake add that stores another context.
+    bool multiplayer = false;                                        ///< Gate B.
+    bool ironman = false;                                            ///< Gate C.
+    std::deque<std::string> alias_storage;                           ///< Alias bytes (deque: addresses stay stable).
+    uptr console_slot = 0;                                           ///< The singleton pointer.
+    std::array<std::vector<unsigned char>, 5> countries;             ///< Country objects by tag index (1..4).
+    std::uint32_t thread = 100;                                      ///< Thread id the fake game reports.
+    std::set<std::string> sprites{"GFX_a", "GFX_a_small", "GFX_b"};  ///< Sprites in the fake database.
+    uptr sprite_database = 0x5EED;                                   ///< Fake database pointer value.
+    std::vector<std::string> log;                                    ///< Bridge log lines.
 };
 /**
  * @brief The fake game (function-local static: constructed on first use, not at load).
@@ -707,6 +764,19 @@ void set_cosmetic(std::size_t index, const std::string& cosmetic) {
     std::memcpy(country.data() + layout::country_cosmetic_tag, &value, sizeof(value));
 }
 
+/**
+ * @brief Fake `2238DF0`: a sprite of the fake database.
+ * @param database Database.
+ * @param name Name.
+ * @return Non-null when the name is in `sprites`.
+ */
+void* fake_sprite_find(void* database, const MsvcString* name) {
+    if (reinterpret_cast<uptr>(database) != game->sprite_database) {
+        return nullptr;
+    }
+    return game->sprites.contains(bytes_of(*name)) ? database : nullptr;
+}
+
 /** @brief Fake thread id. @return The fake game's current thread. */
 std::uint32_t fake_thread() {
     return game->thread;
@@ -732,6 +802,8 @@ console::NativeApi fake_api(FakeGame& state) {
     api.eval_effect = reinterpret_cast<uptr>(&fake_eval_effect);
     api.tag_parse = fake_tag_parse;
     api.country_of = fake_country_of;
+    api.sprite_find = fake_sprite_find;
+    api.sprite_database_slot = reinterpret_cast<uptr>(&state.sprite_database);
     api.current_thread = fake_thread;
     api.log = fake_log;
     api.verified = true;
@@ -891,6 +963,30 @@ void bridge_tests() {
     check(dispatch("change_nation_flag SWE SWE_x") == "Invalid tag for the command", "flag: unknown tag refused");
     check(dispatch("reset_nation_flag POL").empty() && state.calls.back().tokens[0].starts_with("POL = { clear_array"),
           "reset_nation_flag goes through eval_effect");
+    check(dispatch("change_leader_portrait FRA GFX_a").empty() && state.calls.back().name == "eval_effect" &&
+              state.calls.back().tokens[0].starts_with("FRA = { random_character = ") &&
+              state.calls.back().tokens[0].find("set_variable = { capie_pt_slen = 11 } ") != std::string::npos,
+          "change_leader_portrait goes through eval_effect with the _small sprite");
+    check(dispatch("change_leader_portrait FRA GFX_b").empty() &&
+              state.calls.back().tokens[0].find("set_variable = { capie_pt_slen = 5 } ") != std::string::npos,
+          "no GFX_b_small in the database: small = large");
+    calls_now = state.calls.size();
+    check(dispatch("change_leader_portrait FRA GFX_missing").find("not found") != std::string::npos &&
+              state.calls.size() == calls_now,
+          "a sprite outside the database is refused before any call");
+    check(dispatch("change_leader_portrait SWE GFX_a") == "Invalid tag for the command" &&
+              state.calls.size() == calls_now,
+          "portrait: unknown tag refused");
+    const auto database = state.sprite_database;
+    state.sprite_database = 0;
+    check(dispatch("change_leader_portrait FRA GFX_a").find("not found") != std::string::npos &&
+              state.calls.size() == calls_now,
+          "no sprite database: refused");
+    state.sprite_database = database;
+    check(dispatch("reset_leader_portrait POL").empty() &&
+              state.calls.back().tokens[0].starts_with("POL = { random_character = ") &&
+              state.calls.back().tokens[0].ends_with("set_variable = { capie_pt_rev = 1 } }"),
+          "reset_leader_portrait goes through eval_effect");
     check(dispatch("capie_cmd demo echo hi").empty() && state.calls.back().name == "eval_effect" &&
               state.calls.back().tokens.size() == 1 && state.calls.back().tokens[0].starts_with("FROM = { ") &&
               state.calls.back().tokens[0].ends_with("capie_v1_cmd__demo__echo = yes }"),
@@ -982,6 +1078,7 @@ int main() {
         text_tests();
         plan_tests();
         flag_plan_tests();
+        portrait_plan_tests();
         if constexpr (console::candidate_enabled) {
             bridge_tests();
         } else {

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract, encoder via public_names_test the country and faction name layers, the flag layer and the host probe (143 mutants).
+    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract, encoder via public_names_test the country and faction name layers, the flag layer, the host probe and the leader portrait layer (155 mutants).
 
 .DESCRIPTION
     Reads tests/mutants.json: each mutant is one exact, unique textual replacement in one
