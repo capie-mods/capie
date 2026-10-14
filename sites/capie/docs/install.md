@@ -11,6 +11,27 @@ description: Installing CAPIE as a player. The one-line installer, Steam launch 
     signing key are placeholders, and it refuses to install on purpose. The proxy and launcher
     modes have development builds. This page describes the intended release installation.
 
+## How it will work <span class="st st-progress">In progress</span> { #plan }
+
+1. Subscribe to the mods you want (for example Rename Anything) and to the small **CAPIE** mod on
+   the Steam Workshop, and add them to a playset in the Paradox Launcher.
+2. Install CAPIE once, in one of two ways:
+    - one line in PowerShell (`irm ... | iex`), which runs the installer with a terminal
+      interface;
+    - the installer from the project's GitHub Releases page.
+3. Press Play as usual. CAPIE loads only while the CAPIE mod is enabled in the active playset.
+   Disable that mod and the next start is the plain game, as if CAPIE were not installed.
+4. To remove CAPIE completely, run the installer's uninstall command. It puts back what it changed.
+
+The Paradox Launcher cannot get an extra button, which is why the switch is a mod. The CAPIE mod
+contains no game content; the CAPIE launcher reads the playset the Paradox Launcher writes and
+decides from it. If that file cannot be read, the game starts without CAPIE and a short notice
+says so.
+
+The rest of this page describes the installer script as it exists in development. Its default
+today is the proxy loader; the launcher with the playset switch above is the method chosen for
+release, and the proxy stays available as the alternative.
+
 You need Windows, Hearts of Iron IV 1.19.3.0 from Steam, and Windows PowerShell 5.1 (built into
 Windows) or PowerShell 7. Proxy installation needs write access to the game directory.
 The launcher alternative keeps its files in your local application data.
@@ -147,6 +168,7 @@ a copy.
 ## Today: development builds
 
 Testers who are comfortable with a developer setup can load CAPIE by hand. The steps are in the
-repository's `plugin/README.md`: build the DLL and run the injector against the running game.
+repository's `plugin/capie/README.md`: build the DLLs and run the injector against the running
+game.
 This must be repeated every time the game starts. It is a development path, not the way players
 are meant to install CAPIE.

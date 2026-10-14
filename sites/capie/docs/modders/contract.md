@@ -1,15 +1,16 @@
 ---
-description: The CAPIE 1.1 script contract (API level 2). Editor names, the records CAPIE adds to the Apply command, sentinels, the alphabet and the hard rule about where CAPIE data exists.
+description: The CAPIE script contract (API level 2 to 4). Editor names, the records CAPIE adds to the Apply command, sentinels, the alphabet and the hard rule about where CAPIE data exists.
 ---
 
-# Script contract (API level 2)
+# Script contract
 
-!!! proposed "Built, not yet tested in the game"
+!!! proposed "Built, not released"
 
-    CAPIE 1.1 and the script SDK implement everything on this page, and offline tests cover the
-    native side. None of it has run in the game yet. Rows marked
-    <span class="st st-progress">needs in-game test</span> are the open checks. The full,
-    versioned text is `plugin/capie/CONTRACT.md` in the repository.
+    CAPIE 1.1 and the script SDK implement everything on this page (API level 2), and offline
+    tests cover the native side. The SDK's demo mod ran in the game on CAPIE 1.1. Rows marked
+    <span class="st st-progress">needs in-game test</span> are the open checks. CAPIE 1.2
+    (API level 4) adds the [name layers](name-layers.md). The full, versioned text is
+    `plugin/capie/CONTRACT.md` in the repository.
 
 ## How it works
 
@@ -34,9 +35,9 @@ which reads the variables, checks them and calls the game's own setters.
 
 | Number | Value | Where you read it |
 |---|---|---|
-| API level | `2` | `temp_var:capie_cap` in the command, localisation key `CAPIE_API` |
-| Release | `1.1.0` | localisation key `CAPIE_BUILD` |
-| Build number | `10100` | `temp_var:capie_ver` (used by the multiplayer check) |
+| API level | `4` in CAPIE 1.2 (`2` in 1.1) | `temp_var:capie_cap` in the command, localisation key `CAPIE_API` |
+| Release | `1.2.0` (`1.1.0`) | localisation key `CAPIE_BUILD` |
+| Build number | `10200` (`10100`) | `temp_var:capie_ver` (used by the multiplayer check) |
 
 Require an API level (`capie_min_api`), never a release. See
 [Versions and fallback](versioning.md).
@@ -81,8 +82,8 @@ apply twice.
 
 | Record | Value |
 |---|---|
-| `capie_cap` | API level, `2` |
-| `capie_ver` | build number, `10100` |
+| `capie_cap` | API level, `4` in CAPIE 1.2 |
+| `capie_ver` | build number, `10200` in CAPIE 1.2 |
 | `capie_epoch` | the epoch read from the carrier, or `-code` (below) |
 | `capie_nf` | number of fields, 0 to 4 |
 | `capie_f<n>_err` | `0` valid, otherwise a field error (below) |

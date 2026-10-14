@@ -34,3 +34,6 @@ plugin/build/
 # Documentation site build output and Zensical cache (sites/README.md)
 /sites/*/site/
 /sites/*/.cache/
+
+# Local RE index caches (large, regenerable)
+**/re-tools/_cache/

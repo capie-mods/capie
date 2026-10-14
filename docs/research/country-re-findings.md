@@ -8,18 +8,18 @@ to the already-running game process and test user data.
 
 ## Evidence and corrected assumptions
 
-- **Observed static, new targeted Ghidra pass:** the root agent decompiled
+- **Observed static, new targeted Ghidra pass:** a read-only decompilation covered
   `CCountry_BuildNameKey` (RVA `0x6ECFF0`), `CCountry_UpdateNames` (`0x716580`),
   `PdxLoc_LookupKeyN` (`0x239EE20`), `PdxLoc_LookupKeyZ` (`0x239ED40`), and
-  `PdxLoc_KeyExists` (`0x239D0F0`) from an exact-hash Ghidra project, read-only.
-  Retained source output: [country-targeted-decompile.txt](evidence/session-20261011/country-targeted-decompile.txt).
+  `PdxLoc_KeyExists` (`0x239D0F0`) in an exact-hash Ghidra project.
+  Retained source output: [country-targeted-decompile.txt](../evidence/session-20261011/country-targeted-decompile.txt).
 - **Correction of the first Ghidra interpretation:** raw Capstone instructions show
   LookupKeyN/Z calculate FNV-1a and tail-jump to FindByHash (N at `0x239EE6A`, Z at
   `0x239ED88`); KeyExists calls FindByHash. Ghidra folded the tail-called body into
   its pseudocode, which initially led to an incorrect inline-search interpretation.
   A FindByHash hook could cover the lookups if it had a payload-to-hash registry.
   The implemented N/Z hooks instead access the original payload directly.
-  [localization-abi-capstone.txt](evidence/session-20261011/localization-abi-capstone.txt)
+  [localization-abi-capstone.txt](../evidence/session-20261011/localization-abi-capstone.txt)
 - **Observed static, bounded Capstone pass:** the BuildNameKey lookup wrapper at
   `0x2244840` is `mov rcx,[rcx]; jmp 0x239D0F0`. Its eight bytes are
   `48 8B 09 E9 A8 88 15 00`. Therefore the KeyExists hook covers those checks.
@@ -34,13 +34,13 @@ to the already-running game process and test user data.
   writer limits are not established by this bounded pass. The reader does not directly
   call UpdateNames in the cosmetic-tag case; the exact later refresh caller is unknown.
   A subsequent independent full-restart/load test confirmed the final displayed name.
-  [country-save-decompile.txt](evidence/session-20261011/country-save-decompile.txt),
-  [read-only Ghidra run](evidence/session-20261011/country-save-ghidra.log).
+  [country-save-decompile.txt](../evidence/session-20261011/country-save-decompile.txt),
+  [read-only Ghidra run](../evidence/session-20261011/country-save-ghidra.log).
 - **Bounded static follow-up, exact postload caller remains unknown:** CCountry vtable slot8 points
   to `0x6FE1D0`, a postload candidate, which does not directly call UpdateNames.
   Separate routines at `0x6FF1F0` (when its mask bit0 is set) and `0x6EAB50`
   call UpdateNames. Their lifecycle roles were not established by this pass.
-  [country-postload-candidates.txt](evidence/session-20261011/country-postload-candidates.txt)
+  [country-postload-candidates.txt](../evidence/session-20261011/country-postload-candidates.txt)
   preserves those decompilations with candidate names rather than claiming execution.
 - **REA attempt:** open_binary accepted the original file, provider Ghidra 12.1.4,
   and returned the exact target hash. The first batch_decompile request timed out
@@ -49,16 +49,16 @@ to the already-running game process and test user data.
   targeted Ghidra output and bounded disassembly above provide the static evidence.
 - **Frida attempt:** the guarded observational runner selected live PID25684 and
   verified the exact image hash at 00:31:56 Europe/Warsaw. Attach did not finish;
-  the host was stopped at about00:35 to isolate UI input. No hook-ready lines or
-  callback executions were observed. [country-passive.log](evidence/qa-20261011/country-passive.log)
+  the host was stopped at about 00:35 to isolate UI input. No hook-ready lines or
+  callback executions were observed. [country-passive.log](../evidence/qa-20261011/country-passive.log)
   proves target selection, not live function semantics. No gameplay-state write
   was attempted by this probe.
 - **Observed live, native initialization:** the bounded injector loaded the final
-  DLL into fresh PID43732 in under one second and returned0. Initialization checks
+  DLL into fresh PID43732 in under one second and returned 0. Initialization checks
   the EXE SHA-256, unique signatures at the three exact expected RVAs, and successful
   MinHook installation. Thus the three entrypoints are verified in the running
   build; UI semantics still require the independent game tests.
-  [native-inject-43732.log](evidence/session-20261011/native-inject-43732.log)
+  [native-inject-43732.log](../evidence/session-20261011/native-inject-43732.log)
 
 ## Implemented candidate
 
@@ -75,21 +75,21 @@ which the scripted GUI sets through meta_effect.
 The DLL validates the on-disk EXE hash and unique runtime signatures at exact RVAs
 before enabling any hook. The injector separately validates the target image,
 loads the DLL outside the game directory, initializes it outside DllMain, and
-bounds each remote call to30seconds. Unsupported binaries or signature changes
-fail closed. The corrected parser passes31 checks covering field splitting, strict
+bounds each remote call to 30 seconds. Unsupported binaries or signature changes
+fail closed. The corrected parser passes 31 checks covering field splitting, strict
 suffix selection, decision/focus-key regression cases, Polish UTF-8, length bounds,
-malformed UTF-8, markup and invalid payloads. The unsupported-process guard returns10.
+malformed UTF-8, markup and invalid payloads. The unsupported-process guard returns 10.
 
-Build completed successfully using VS2022 x64 and the user-supplied MinHook source.
+Build completed successfully using VS2022 x64 and a locally supplied MinHook source.
 The first candidate DLL had SHA-256
 `2AE7708696C62E8614AF748FBAC376E87FFCE721E95530186BBCEE69D55F2A38`
 and is superseded by the corrected build below.
-Build outputs are excluded from Git. [plugin/README.md](../plugin/README.md) describes
+Build outputs are excluded from Git. [plugin/README.md](../../plugin/README.md) describes
 building, injection, removal, refusal codes and compatibility constraints.
 
 ## Native source review, 2026-10-11
 
-Two reviews found initialization lifetime issues and the source was corrected:
+Two reviews found initialization lifetime issues, which were corrected in the source:
 
 - The build links the MSVC runtime with `/MT`; `DllMain` now leaves thread notifications
   enabled. The installed MSVC 14.44.35207 source at
@@ -108,7 +108,7 @@ activation failure was reviewed from source; it has not been fault-injected into
 
 ## Decision localization regression and cause, 2026-10-11
 
-The user reported that the first loaded DLL displayed the custom country name but
+In-game testing found that the first loaded DLL displayed the custom country name but
 also replaced every decision title/description with that name. This invalidates a
 release claim for that DLL. The cause is the original parser's broad suffix acceptance,
 not a pointer-wrapper ABI mismatch.
@@ -122,50 +122,50 @@ appends `_desc` before calling the same resolver. Thus the initial hooks claimed
 overrides, and returned Name. Category headings can remain normal because their
 lookup path differs.
 
-The root agent tightened the parser to exact empty/`_ADJ`/`_DEF` suffixes and added
+The parser was tightened to exact empty/`_ADJ`/`_DEF` suffixes and added
 regression checks. This makes country-specific decision probes fall through to
 vanilla. Raw assembly and the Localize consumer confirm the lookup return is a raw
 NUL-terminated C string from blob+signed offset, and KeyExists returns bool in AL;
 no wrapper/shared-return-buffer hypothesis is needed. Independent QA applied
 `qaąęłż` / `testowy` in fresh PID32656 and verified the original visible decision
 titles plus the full Looming Peasants' Strike tooltip.
-[Before](evidence/qa-20261011/10-fixed-decision-before.jpg),
-[after](evidence/qa-20261011/13-fixed-decision-after.jpg). This covers the reproduced
+[Before](../evidence/qa-20261011/10-fixed-decision-before.jpg),
+[after](../evidence/qa-20261011/13-fixed-decision-after.jpg). This covers the reproduced
 regression; it does not exhaustively test every decision.
 
 Primary static evidence:
 
-- [decision-cosmetic-resolver-decompile.txt](evidence/session-20261011/decision-cosmetic-resolver-decompile.txt)
-- [decision-title-caller-decompile.txt](evidence/session-20261011/decision-title-caller-decompile.txt)
-- [decision-localization-helpers-decompile.txt](evidence/session-20261011/decision-localization-helpers-decompile.txt)
-- [localization-consumers-decompile.txt](evidence/session-20261011/localization-consumers-decompile.txt)
-- [localization-abi-capstone.txt](evidence/session-20261011/localization-abi-capstone.txt)
+- [decision-cosmetic-resolver-decompile.txt](../evidence/session-20261011/decision-cosmetic-resolver-decompile.txt)
+- [decision-title-caller-decompile.txt](../evidence/session-20261011/decision-title-caller-decompile.txt)
+- [decision-localization-helpers-decompile.txt](../evidence/session-20261011/decision-localization-helpers-decompile.txt)
+- [localization-consumers-decompile.txt](../evidence/session-20261011/localization-consumers-decompile.txt)
+- [localization-abi-capstone.txt](../evidence/session-20261011/localization-abi-capstone.txt)
 
 ## Verification ledger (updated after live tests)
 
-The independent Polish run loaded the user's unmodified `POL_1936_01_01_12.hoi4`
+The independent Polish run loaded an unmodified player save, `POL_1936_01_01_12.hoi4`,
 after a full game restart, with the corrected DLL already active. No new Apply
 preceded the checks. The custom country name appeared on the map, in diplomacy
 and in its tooltip. The mod panel retained the saved adjective. This proves the
 observed persistence path while leaving the exact postload refresh caller unknown.
-[Map](evidence/qa-20261011/16-pl-load-country-map.jpg),
-[fields](evidence/qa-20261011/17-pl-load-country-fields.jpg),
-[diplomacy/tooltip](evidence/qa-20261011/18-pl-load-diplomacy-tooltip.jpg).
+[Map](../evidence/qa-20261011/16-pl-load-country-map.jpg),
+[fields](../evidence/qa-20261011/17-pl-load-country-fields.jpg),
+[diplomacy/tooltip](../evidence/qa-20261011/18-pl-load-diplomacy-tooltip.jpg).
 
 | Question | Current evidence | Status |
 |---|---|---|
-| Exact three function signatures | 42/42 static signatures rescanned; native init0 in fresh corrected processes | static and runtime entrypoints confirmed |
+| Exact three function signatures | 42/42 static signatures rescanned; native init 0 in fresh corrected processes | static and runtime entrypoints confirmed |
 | Custom country name via UI | independent QA Apply `qaąęłż`; country map and control decision titles/description | PASS for tested contexts |
 | Adjective | UTF-8 parser; saved `testowy` visible in mod panel | native GetAdjective event context pending |
-| Map/diplomacy/tooltips | independent restart/load screenshots 16–18 | PASS for tested contexts |
+| Map/diplomacy/tooltips | independent restart/load screenshots 16-18 | PASS for tested contexts |
 | Division/template/party names | vanilla uses literal names such as Dywizja Piechoty and Sanacja | unchanged by country adjective; documented scope limitation |
 | Save -> restart -> load | unmodified user save, DLL loaded before load, no re-Apply | PASS for country name and stored adjective; other target cases separate |
 | Polish letters | independent EN Apply plus PL restart/load of `qaąęłż` | PASS in observed country contexts; complete font coverage not claimed |
 | New errors in error.log | independent bounded EN and PL deltas both 593 -> 593 | no new errors in those action ranges; complete final run pending |
-| Two-client synchronization | normal scripted command architecture only; user has no second client | unverified; no MP claim |
+| Two-client synchronization | normal scripted command architecture only; no second client was available | unverified; no MP claim |
 | Startup/load without native DLL | vanilla localization fallback inferred | game test pending |
 | Later ideology changes/puppet names | base fallback statically confirmed; arbitrary suffixes rejected | game test pending; puppet-specific names unsupported |
 
 Successful compilation alone does not establish gameplay behavior or multiplayer
 synchronization. The full target matrix and action boundaries are maintained in
-[test-report.md](test-report.md).
+[test-report.md](../evidence/notes/test-report.md).

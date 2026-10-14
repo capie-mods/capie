@@ -15,12 +15,12 @@ game itself, is never modified.
 ```text
  Dependent mods (Rename Anything, others)
    call SDK effects and triggers, ship the indicator snippet
- CAPIE script SDK (plain HOI4 script, versioned file names)        planned
+ CAPIE script SDK (plain HOI4 script, versioned file names)
    capie_v1_* triggers, effects, scripted loc, loc keys
    fallback branches, authority checks, cooldowns, validation
  CAPIE modules (native)
-   text transport | names (RN1 cosmetic tag) | UI refresh
-   status loc keys | version record for multiplayer (planned)
+   text transport | name layers | UI refresh
+   status loc keys | version record for multiplayer | console commands
  CAPIE core (native)
    game build check (SHA-256) | signature table | hook manager
    input validation | capability and version registry | logging
@@ -38,13 +38,15 @@ The core decides whether CAPIE may run at all.
 - Hook manager. CAPIE uses MinHook. It enables all hooks or none, and it keeps trampolines until
   the process exits, because a call may still be running through one.
   <span class="st st-today">Works today</span>
-- Signature table. One signed table per supported game build instead of constants in several
-  source files. <span class="st st-planned">Planned</span>
-- Capability registry. One API level plus a bit for each module that started.
-  <span class="st st-planned">Planned</span> Today the country module exports a single capability
-  value that is non-zero only after a successful start.
+- Signature table. Every signature and pin is one row of a table in the source, checked by one
+  matcher and by an offline test against the game file. <span class="st st-today">Works today</span>
+  A signed table per supported game build is <span class="st st-planned">Planned</span>.
+- Capability and API level. `capie_core.dll` exports a capability value that is non-zero only
+  after a successful start, and every annotated command carries the API level as `capie_cap`.
+  <span class="st st-today">Works today</span>
 
-This is the pattern check from today's country module, unchanged:
+This is the pattern check of the first country module, from before CAPIE; the current matcher
+in `plugin/capie/src/core/signatures.hpp` applies the same rules to a table of signatures:
 
 ```cpp title="plugin/src/country.cpp"
 struct HookSpec { size_t rva; std::vector<int> pattern; void* replacement; void** original; };
@@ -91,15 +93,17 @@ Start-up errors are numbered, so a log line tells you which check stopped CAPIE:
 
 | Module | What it does | State |
 |---|---|---|
-| Names | Supplies a country's name and adjective from an `RN1\|Name\|Adjective\|` cosmetic tag when the game looks them up (three localisation lookups) | <span class="st st-today">Works today</span> |
-| Status loc keys | Overrides reserved localisation keys when they are drawn; proven with `RN_PLUGIN_STATUS` | <span class="st st-today">Works today</span> for the mechanism; `CAPIE_*` keys <span class="st st-planned">Planned</span> |
-| Text transport | Copies the text of a known native text field into temporary records of the player's own Apply command | <span class="st st-today">Works today</span> for Rename Anything's fields; other mods <span class="st st-planned">Planned</span> |
-| Capability records | Adds the API level to known commands and removes script-set copies | <span class="st st-today">Works today</span> as `rn_native_cap`; `capie_cap` <span class="st st-planned">Planned</span> |
-| UI refresh | Redraws a name in the open panel after a successful rename | <span class="st st-progress">In progress</span> |
-| Version record | Adds the CAPIE version (`capie_ver`) to every annotated command, for the multiplayer check | <span class="st st-planned">Planned</span> |
+| Name layers | Puts a country's custom name and adjective in place while the game rebuilds its name caches, without touching the cosmetic tag or flag ([Name layers](modders/name-layers.md)); still reads the older `RN1\|Name\|Adjective\|` cosmetic tag | <span class="st st-today">Works today</span> on a developer build; faction names <span class="st st-progress">In progress</span> |
+| Status loc keys | Overrides reserved localisation keys when they are drawn; proven with `RN_PLUGIN_STATUS` | <span class="st st-today">Works today</span> for the mechanism; `CAPIE_*` keys built, need an in-game test |
+| Text transport | Copies the text of a known native text field into temporary records of the player's own Apply command | <span class="st st-today">Works today</span> for Rename Anything's fields and for grammar editors of other mods |
+| Capability records | Adds the API level to known commands and removes script-set copies | <span class="st st-today">Works today</span> as `rn_native_cap` and `capie_cap` |
+| UI refresh | Redraws the leader's name in the open Politics panel after a successful rename | <span class="st st-today">Works today</span> |
+| Version record | Adds the CAPIE version (`capie_ver`) to every annotated command, for the multiplayer check | Built, needs a two-machine test |
+| Console commands | `change_nation_name`, `reset_nation_name` and `capie_cmd` in the game's console | <span class="st st-today">Works today</span> in developer builds only |
 
-Modules are compiled into one DLL, not loaded at run time, so the launcher's hash of that DLL
-covers all native code.
+Modules are compiled into two DLLs, not loaded at run time: `capie_core.dll` (names, status,
+capability) and `capie_editor.dll` (editors, refresh). The launcher's hashes of the two files
+cover all native code.
 
 ## One rename, end to end
 
@@ -112,11 +116,11 @@ covers all native code.
 2. On Apply or Enter, the game builds the scripted GUI command. CAPIE copies the field's text into
    temporary records of that command, as character codes, and adds the capability record.
 3. The game runs the command's effect. The script checks the capability record, checks authority,
-   decodes and validates the text, then calls a vanilla setter. For a country it sets a cosmetic
-   tag of the form `RN1|Name|Adjective|`.
-4. When the game draws the country's name, it looks up the localisation for that cosmetic tag.
-   CAPIE answers that lookup with the stored name. Without CAPIE the lookup falls through to the
-   game, which shows the original name.
+   decodes and validates the text, then calls a vanilla setter. For a country it writes the
+   name layer: country variables with the character codes of the name and adjective.
+4. When the game rebuilds the country's cached names, CAPIE puts the layer in place of the tag
+   the names are built from. Without CAPIE the game builds the names as usual and shows the
+   cosmetic tag or base name.
 
 ## Principles
 

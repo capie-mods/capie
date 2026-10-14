@@ -27,6 +27,7 @@ nav = [
     { "Script contract" = "modders/contract.md" },
     { "Building an editor" = "modders/editors.md" },
     { "Text tools" = "modders/text-tools.md" },
+    { "Name layers" = "modders/name-layers.md" },
     { "Console commands" = "modders/console.md" },
     { "Detecting CAPIE" = "modders/detection.md" },
     { "Indicators" = "modders/indicators.md" },

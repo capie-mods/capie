@@ -403,6 +403,48 @@
   border: 1.5px solid var(--capie-warning-rust);
 }
 
+/* Status legend: the four marks in one row, explained once per page that uses them.
+   Space follows relationship: 8px between a mark and its meaning, 24px between entries. */
+.md-typeset ul.st-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+  list-style: none;
+  margin: 1em 0 1.4em;
+  padding: 0;
+}
+
+.md-typeset ul.st-legend > li {
+  align-items: baseline;
+  color: var(--site-muted);
+  display: flex;
+  font-size: 0.72rem;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+/* Language menu in the header: a flat panel like the game's, no floating shadow. */
+.md-select__inner {
+  background-color: var(--capie-window-ink);
+  border: 1px solid var(--capie-panel-rim);
+  border-radius: var(--capie-radius-node);
+  box-shadow: none;
+}
+
+.md-select__inner::after {
+  border-bottom-color: var(--capie-panel-rim);
+}
+
+.md-select__link {
+  color: var(--capie-parchment);
+}
+
+.md-select__link:hover,
+.md-select__link:focus-visible {
+  background-color: var(--capie-panel-umber);
+  color: var(--capie-header-amber);
+}
+
 /* "Proposed, subject to change" tag placed above proposed code. */
 .md-typeset .proposed-tag {
   border: 1px dashed var(--capie-brass-dim);

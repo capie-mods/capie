@@ -6,9 +6,10 @@ description: CAPIE in multiplayer. Not supported today; the plan keeps CAPIE fea
 
 !!! warning "Not supported"
 
-    CAPIE has never been tested with two players. Do not use it in multiplayer. Remove the CAPIE
-    launch option before you join or host a multiplayer game
-    (`install.ps1 -RemoveSteamLaunchOption`, or by hand in Steam).
+    CAPIE has never been tested with two players. Do not use it in multiplayer. Switch CAPIE
+    off before you join or host a multiplayer game: disable the CAPIE mod in your playset once
+    that switch ships, or remove the CAPIE launch option (`install.ps1 -RemoveSteamLaunchOption`,
+    or by hand in Steam).
 
 Two game instances cannot run on one desktop: the game checks for an existing window at start-up
 and exits. A real test needs a second machine, and that test has not happened yet.
@@ -25,8 +26,8 @@ From reading the game's code and from single-player runs:
 - The game runs a command's effect without checking who sent it and without repeating the
   button's `visible` and `enabled` triggers. Every rule about who may do what must be checked
   inside the effect itself. See [Permissions](permissions.md).
-- Each client draws country names from its own CAPIE. A client without CAPIE sees the original
-  name. The cosmetic tag itself is ordinary synchronised game state. If any game code stored a
+- Each client draws country names from its own CAPIE. A client without CAPIE sees the game's
+  name. The name layer itself is ordinary country variables, synchronised like any other. If any game code stored a
   drawn name into game state, clients could diverge; no such code was found, but it was not
   ruled out either. So all players need the same CAPIE version.
 - CAPIE must never change game state on one machine outside a command to "fix" a mismatch. That
