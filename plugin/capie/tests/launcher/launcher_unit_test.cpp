@@ -13,6 +13,7 @@
 #include "../../src/launcher/game_location.hpp"
 #include "../../src/launcher/injection.hpp"
 #include "../../src/launcher/launcher_log.hpp"
+#include "../../src/launcher/playset_gate.hpp"
 #include "../../src/launcher/process_tree.hpp"
 #include "../../src/launcher/readiness.hpp"
 
@@ -383,7 +384,7 @@ void log_and_notices(const std::wstring& dir) {
     WIN32_FILE_ATTRIBUTE_DATA fresh{};
     check(GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fresh) != 0 && fresh.nFileSizeLow < 200,
           "new log started");
-    for (int notice = 0; notice <= static_cast<int>(cl::Notice::start_failed); ++notice) {
+    for (int notice = 0; notice <= static_cast<int>(cl::last_notice); ++notice) {
         check(!cl::notice_text(static_cast<cl::Notice>(notice), true).empty() &&
                   !cl::notice_text(static_cast<cl::Notice>(notice), false).empty(),
               "every notice has PL and EN text");
@@ -423,6 +424,98 @@ void readiness_rules(const std::wstring& dir) {
     check(!cl::game_log_ready(log, 0), "one marker is not enough");
     check(!cl::game_log_ready(dir + L"\\missing.log", 0), "missing log");
     check(!cl::window_responsive(GetCurrentProcessId(), 100), "console test process has no visible window");
+}
+
+/// @brief dlc_load.json formats and the CAPIE switch-mod decision.
+void playset_rules(const std::wstring& dir) {
+    using cl::PlaysetState;
+    const cl::ModIdentity local{.workshop_id = {}, .descriptors = {"mod/capie.mod"}};
+    const cl::ModIdentity workshop{.workshop_id = "3500000001", .descriptors = {"mod/capie.mod"}};
+    const auto state = [](std::string_view json, const cl::ModIdentity& identity) {
+        return cl::evaluate_playset(json, identity).state;
+    };
+    // Real Paradox Launcher shape (one line, Workshop entries, empty DLC list).
+    const std::string real =
+        R"({"enabled_mods":["mod/ugc_3274762952.mod","mod/capie.mod","mod/ugc_820260968.mod"],"disabled_dlcs":[]})";
+    check(state(real, local) == PlaysetState::enabled, "local descriptor enabled");
+    check(state(R"({"enabled_mods":["mod/ugc_3274762952.mod"],"disabled_dlcs":[]})", local) == PlaysetState::disabled,
+          "other mods only: disabled");
+    check(state(R"({"enabled_mods":[],"disabled_dlcs":[]})", local) == PlaysetState::disabled, "vanilla playset");
+    check(state("{\n  \"disabled_dlcs\" : [ \"dlc/x\" ],\r\n\t\"enabled_mods\" : [\n    \"mod/capie.mod\"\n  ]\n}\n",
+                local) == PlaysetState::enabled,
+          "pretty-printed, keys in any order");
+    check(state("\xEF\xBB\xBF{\"enabled_mods\":[\"mod/capie.mod\"]}", local) == PlaysetState::enabled, "UTF-8 BOM");
+    check(state(R"({"enabled_mods":["MOD\\CAPIE.MOD"]})", local) == PlaysetState::enabled,
+          "backslash and case insensitive");
+    check(state(R"({"enabled_mods":["mod\/capie.mod"]})", local) == PlaysetState::enabled, "escaped slash");
+    check(state(R"({"enabled_mods":["mod/\u0063apie.mod"]})", local) == PlaysetState::enabled, "unicode escape");
+    check(state(R"({"enabled_mods":["mod/capie.mod.bak","mod/my_capie.mod","capie.mod"]})", local) ==
+              PlaysetState::disabled,
+          "near names do not match");
+    check(state(R"({"enabled_mods":["mod/ugc_3500000001.mod"]})", workshop) == PlaysetState::enabled,
+          "Workshop id matches");
+    check(state(R"({"enabled_mods":["mod/ugc_3500000001.mod"]})", local) == PlaysetState::disabled,
+          "Workshop entry without a configured id");
+    check(state(R"({"enabled_mods":["mod/ugc_35000000010.mod"]})", workshop) == PlaysetState::disabled,
+          "longer Workshop id does not match");
+    check(
+        state(
+            R"({"enabled_mods":["mod/capie.mod"],"meta":{"a":[1,-2.5e3,true,false,null,{"b":"\u00e9 \ud83d\ude00 é"}]}})",
+            local) == PlaysetState::enabled,
+        "unknown nested keys skipped");
+    // Uncertain input: vanilla through `unknown`.
+    const std::array<std::string_view, 16> broken = {
+        "",
+        "   ",
+        "[]",
+        R"({"disabled_dlcs":[]})",
+        R"({"enabled_mods":"mod/capie.mod"})",
+        R"({"enabled_mods":["mod/capie.mod",1]})",
+        R"({"enabled_mods":["mod/capie.mod"])",
+        R"({"enabled_mods":["mod/capie.mod"]} trailing)",
+        R"({"enabled_mods":["mod/capie.mod"],})",
+        R"({"enabled_mods":["mod/capie.mod"]}{})",
+        R"({"enabled_mods":[],"enabled_mods":["mod/capie.mod"]})",
+        R"({"enabled_mods":["mod/capie.mod\x"]})",
+        R"({"enabled_mods":["\ud800"]})",
+        R"({'enabled_mods':['mod/capie.mod']})",
+        R"({"x":01,"enabled_mods":["mod/capie.mod"]})",
+        "{\"enabled_mods\":[\"mod/capie\n.mod\"]}",
+    };
+    for (const auto& json : broken) {
+        check(state(json, local) == PlaysetState::unknown, "uncertain dlc_load.json is unknown");
+    }
+    std::string deep = R"({"x":)";
+    for (int i = 0; i < 40; ++i) {
+        deep += "[";
+    }
+    for (int i = 0; i < 40; ++i) {
+        deep += "]";
+    }
+    deep += R"(,"enabled_mods":["mod/capie.mod"]})";
+    check(state(deep, local) == PlaysetState::unknown, "nesting beyond the limit refused");
+    check(state(real, cl::ModIdentity{}) == PlaysetState::unknown, "no identity configured");
+    check(state(real, cl::ModIdentity{.workshop_id = "12a", .descriptors = {""}}) == PlaysetState::unknown,
+          "malformed identity is not usable");
+    check(
+        cl::capie_mod_identity().descriptors.size() == 1 && cl::capie_mod_identity().descriptors[0] == "mod/capie.mod",
+        "production identity: local descriptor");
+    // File access.
+    const auto file = dir + L"\\dlc_load.json";
+    write_file(file, real);
+    check(cl::read_playset(file, local).state == PlaysetState::enabled, "file: enabled");
+    write_file(file, "{\"enabled_mods\":[");
+    check(cl::read_playset(file, local).state == PlaysetState::unknown, "file: truncated JSON");
+    write_file(file, "");
+    check(cl::read_playset(file, local).state == PlaysetState::unknown, "file: empty");
+    write_file(file, R"({"enabled_mods":["mod/capie.mod"]})" + std::string(cl::dlc_load_read_limit, ' '));
+    check(cl::read_playset(file, local).state == PlaysetState::unknown, "file: over the size limit");
+    check(cl::read_playset(dir + L"\\missing\\dlc_load.json", local).state == PlaysetState::unknown, "file: missing");
+    check(cl::read_playset(L"", local).state == PlaysetState::unknown, "file: no path");
+    check(cl::read_playset(dir, local).state == PlaysetState::unknown, "file: a folder");
+    check(!cl::read_playset(dir + L"\\missing.json", local).reason.empty(), "unknown carries a reason");
+    check(cl::default_dlc_load().ends_with(L"\\Paradox Interactive\\Hearts of Iron IV\\dlc_load.json"),
+          "production dlc_load.json under Documents");
 }
 
 /// @brief Parent-chain rules with synthetic process facts.
@@ -530,6 +623,7 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
         game_location(dir);
         log_and_notices(dir);
         readiness_rules(dir);
+        playset_rules(dir);
         ancestry_rules();
         injection_rules();
         job_membership(dir, argv[2]);

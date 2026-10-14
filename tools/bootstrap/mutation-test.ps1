@@ -65,6 +65,14 @@ $script:Mutations = [ordered]@{
     'https-only-skip'            = @(, @('if ($Url -notmatch $script:RaHttpsPrefixPattern) {', 'if ($false) {'))
     'backup-overwrite'           = @(, @('    while (Test-Path -LiteralPath $backup) {', '    while ($false) {'))
     'undo-exact-restore-skip'    = @(, @('if ($null -ne $Entry -and $Current -ceq $Entry.WrittenValue) {', 'if ($false) {'))
+    'purge-any-backup'           = @(, @('Where-Object { $_.Name -match $script:RaBackupNamePattern }', 'Where-Object { $_.Name -like ''localconfig.vdf.*'' }'))
+    'purge-foreign-root'         = @(, @('    if ($rest.Count -gt 0) {', '    if ($false) {'))
+    'disable-ignores-steam'      = @(, @("throw 'Steam is running; launch option not changed.' }`n    } else {", "}`n    } else {"))
+    'latest-uses-pinned'         = @(, @('        if ($Options.Latest) { [void](Install-RaLatest', '        if ($false) { [void](Install-RaLatest'))
+    'tui-keeps-yes'              = @(, @('        $script:RaAssumeYes = $savedYes', '        $null = $savedYes'))
+    'mod-no-backup'              = @(, @('            if ($current -and -not ($record -and $current -ieq $record.Sha256)) {', '            if ($false) {'))
+    'mod-remove-changed'         = @(, @('            if ((Get-RaFileSha256 $path) -ine $record.Sha256) {', '            if ($false) {'))
+    'default-proxy'              = @(, @("`$Options.LoadMethod } else { 'Launcher' }", "`$Options.LoadMethod } else { 'Proxy' }"))
 }
 
 function Invoke-MutationRun {

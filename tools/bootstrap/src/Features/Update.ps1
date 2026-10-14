@@ -113,6 +113,7 @@ function Get-RaRemoteRelease {
     $mBytes = Get-RaHttpContent $assets[$script:RaManifestAssetName]
     $sigText = ConvertFrom-RaUtf8 (Get-RaHttpContent $assets[$script:RaSignatureAssetName])
     $m = Assert-RaSignedManifest $mBytes $sigText
+    Write-RaLog (Get-RaText 'ReleaseVerified' @($m.Version))
     if (([string]$rel.tag_name).TrimStart($script:RaReleaseTagPrefix) -ne $m.Version) {
         throw "Release tag $($rel.tag_name) does not match manifest version $($m.Version)."
     }

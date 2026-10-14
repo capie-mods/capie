@@ -24,7 +24,8 @@ function Write-RaLog {
     .SYNOPSIS
         Writes a message to the console (coloured by level) and appends it to bootstrap.log.
     .DESCRIPTION
-        The console line is skipped with -NoConsole or when $script:RaQuiet is set.
+        The console line is skipped with -NoConsole or when $script:RaQuiet is set. While the
+        terminal interface runs, the line goes to $script:RaLogSink (status-word rendering).
         Nothing is written to disk in dry-run mode. A failing log write never fails the run.
     .PARAMETER Message
         Text to log.
@@ -45,7 +46,9 @@ function Write-RaLog {
         [switch]$NoConsole
     )
     $line = '{0} [{1}] {2}' -f (Get-RaNow).ToString($script:RaLogTimestampFormat), $Level, $Message
-    if (-not $NoConsole -and -not $script:RaQuiet) { Write-RaHost $Message -Color $script:RaLogColors[$Level] }
+    if (-not $NoConsole -and -not $script:RaQuiet) {
+        if ($script:RaLogSink) { & $script:RaLogSink $Level $Message } else { Write-RaHost $Message -Color $script:RaLogColors[$Level] }
+    }
     if ($script:RaDry) { return }
     try {
         Initialize-RaRoot

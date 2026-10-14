@@ -34,6 +34,9 @@ $script:RaProxyBundlePath = 'proxy/version.dll'
 $script:RaProxyConfigName = 'proxy.enabled'
 $script:RaProxyConfigContent = "CAPIE_PROXY_ENABLED_V1`n"
 $script:RaProxyFlag = '-capie'
+# "CAPIE" switch mod: bundle prefix and the game's user mod folder (relative to Documents).
+$script:RaModBundlePrefix = 'mod/'
+$script:RaGameUserModRelPath = 'Paradox Interactive\Hearts of Iron IV\mod'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'
@@ -46,6 +49,8 @@ $script:RaDownloadPrefix = 'download-'
 $script:RaBrokenInfix = '.broken-'
 $script:RaJunctionTempInfix = '.new-'
 $script:RaIconIndexSuffix = ',0'
+# localconfig.vdf backups made by New-RaBackupPath (only these are deleted by -Uninstall -Purge).
+$script:RaBackupNamePattern = '^localconfig\.vdf\.renameanything-backup-\d{8}-\d{6}(-\d+)?$'
 
 # --- Formats --------------------------------------------------------------
 $script:RaLogTimestampFormat = 'yyyy-MM-ddTHH:mm:ss.fffK'
@@ -108,3 +113,50 @@ $script:RaPolishLanguage = 'pl'
 $script:RaGameHashDisplayLength = 16
 $script:RaExitSuccess = 0
 $script:RaExitFailure = 1
+# Switches that name an action; without any of them an interactive run opens the menu.
+$script:RaActionOptionNames = @(
+    'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'RemoveSteamLaunchOption', 'Uninstall',
+    'CheckUpdate', 'Update', 'Rollback', 'Disable'
+)
+
+# --- Terminal interface ---------------------------------------------------
+# Colours copied from docs/design/tokens.json (a Pester test keeps them equal).
+$script:RaTuiPalette = [ordered]@{
+    'field-ink'        = '#161412'
+    'panel-rim'        = '#3c3936'
+    'steel-bevel'      = '#76776b'
+    'olive-button'     = '#2e3627'
+    'olive-lit'        = '#424e38'
+    'pencil-green-lit' = '#507040'
+    'brass'            = '#d0a070'
+    'parchment'        = '#ece6d3'
+    'khaki'            = '#c3b091'
+    'ash'              = '#a39a86'
+    'header-amber'     = '#ffbd00'
+    'go-green'         = '#7db35a'
+    'alarm-red'        = '#ff3232'
+    'caution-orange'   = '#ff7019'
+}
+$script:RaTuiBackground = 'field-ink'       # recessed panel; alarm-red reaches 5.0:1 on it
+$script:RaTuiSelectedBackground = 'olive-button'
+$script:RaTuiMaxWidth = 78
+$script:RaTuiMinWidth = 44                 # the map sheet is 39 columns plus the indent
+$script:RaTuiFallbackWidth = 80
+$script:RaTuiIndent = 2
+$script:RaTuiFrameDelayMs = 45              # one character per frame: the pencil writes
+$script:RaTuiHoldDelayMs = 350              # still frame after the name is written
+$script:RaTuiStatusWidth = 6                # "OK    ", "FAIL  " ...
+$script:RaTuiKeyWidth = 14                  # summary key column
+# Status words of the CLI pattern (DESIGN-SYSTEM.md, "CLI output pattern") and their colours.
+$script:RaTuiStatusStyles = [ordered]@{ OK = 'go-green'; ASK = 'header-amber'; SKIP = 'khaki'; NOTE = 'khaki'; FAIL = 'alarm-red' }
+$script:RaTuiLevelStatus = @{ INFO = 'OK'; WARN = 'NOTE'; ERROR = 'FAIL'; PLAN = 'SKIP' }
+$script:RaTuiEnvNoColor = 'NO_COLOR'
+$script:RaTuiEnvNoAnimation = 'RA_NO_ANIMATION'
+$script:RaTuiEnvCi = 'CI'
+$script:RaTuiEnvTerm = 'TERM'
+$script:RaTuiDumbTerm = 'dumb'
+$script:RaTuiMenuActions = @('Install', 'Update', 'Disable', 'Uninstall', 'Quit')
+# The pencil writes this name into the margin of the map sheet, next to the grid square of the flag.
+$script:RaTuiAnnotationName = 'Rename Anything'
+$script:RaTuiAnnotationRef = 'C3'
+$script:RaTuiPencil = '<====]'

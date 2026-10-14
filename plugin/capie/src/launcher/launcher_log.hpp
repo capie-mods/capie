@@ -118,7 +118,11 @@ enum class Notice : std::uint8_t {
     capie_failed,        ///< an injector step failed
     invalid_command,     ///< wrapped command refused
     start_failed,        ///< the wrapped program could not start
+    playset_unknown,     ///< the active playset could not be read; CAPIE stays off
 };
+
+/// @brief Last notice value (tests iterate every notice up to it).
+inline constexpr Notice last_notice = Notice::playset_unknown;
 
 /**
  * @brief Whether the Windows UI language is Polish.
@@ -170,6 +174,11 @@ inline std::wstring_view notice_text(Notice notice, bool polish) noexcept {
                             L"The Steam launch options should read: \"...\\RenameAnythingLauncher.exe\" %command%";
         case Notice::start_failed:
             return polish ? L"Nie można uruchomić gry." : L"The game could not be started.";
+        case Notice::playset_unknown:
+            return polish ? L"Nie udało się odczytać aktywnego zestawu modów, więc nie wiadomo, czy mod „CAPIE” jest "
+                            L"włączony. Gra działa bez CAPIE. Nic nie zmieniono."
+                          : L"The active playset could not be read, so it is not known whether the \"CAPIE\" mod is "
+                            L"enabled. The game runs without CAPIE. Nothing was changed.";
     }
     return {};
 }

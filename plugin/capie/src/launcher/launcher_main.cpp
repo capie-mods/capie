@@ -53,7 +53,8 @@ constexpr wchar_t usage_text[] =
     L"Double-click:         finds the game and starts its Paradox Launcher\n"
     L"--game ABS --verify-only   check bundle and game hash only (no process, no writes)\n"
     L"--no-dialogs               notices go to %LOCALAPPDATA%\\RenameAnything\\launcher.log only\n"
-    L"CAPIE is loaded only into hoi4.exe started by this launcher's own process tree.";
+    L"CAPIE is loaded only into hoi4.exe started by this launcher's own process tree, and only\n"
+    L"when the \"CAPIE\" mod is enabled in the playset the game was started with.";
 
 /**
  * @brief Writes a line to stdout or stderr as UTF-8 (console use only).
@@ -90,7 +91,8 @@ std::wstring own_folder() {
 
 /**
  * @brief The production policy.
- * @return Pinned game hash, bundle next to the launcher, game.log in Documents, default timeouts.
+ * @return Pinned game hash, bundle next to the launcher, game.log and dlc_load.json in Documents,
+ *         the CAPIE switch mod identity, default timeouts.
  */
 capie::launcher::Policy production_policy() {
     capie::launcher::Policy policy;
@@ -101,6 +103,8 @@ capie::launcher::Policy production_policy() {
         policy.bundle.at(i) = {.name = entry.name, .sha256 = entry.sha256, .dll = entry.dll};
     }
     policy.game_log = capie::launcher::default_game_log();
+    policy.dlc_load = capie::launcher::default_dlc_load();
+    policy.capie_mod = capie::launcher::capie_mod_identity();
     return policy;
 }
 

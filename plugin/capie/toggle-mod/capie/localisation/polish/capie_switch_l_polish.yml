@@ -1,0 +1,4 @@
+﻿l_polish:
+ # Tekst zastępczy, gdy CAPIE nie jest załadowane. Ten sam klucz i tekst co w CAPIE script SDK;
+ # gdy CAPIE działa, podaje tu swoją wersję.
+ CAPIE_STATUS:0 "§OBrak CAPIE§!"

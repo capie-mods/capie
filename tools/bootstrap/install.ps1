@@ -5,10 +5,12 @@
 
 .DESCRIPTION
     Runs on Windows PowerShell 5.1 and PowerShell 7, without administrator rights
-    and without external modules. Proxy mode adds one version.dll to the HOI4
-    installation. Workshop content and saves are untouched. See tools/bootstrap/README.md.
+    and without external modules. The default Launcher method writes nothing into the HOI4
+    installation; the explicit Proxy alternative adds one version.dll there. Saves are
+    untouched. See tools/bootstrap/README.md.
 
-    Interactive (no action switches):
+    Interactive (no action switches): a terminal interface (menu: install, update, disable,
+    uninstall) when the console is interactive, plain prompts otherwise or with -Plain.
         irm <release-url>/install.ps1 | iex
     Noninteractive:
         & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
@@ -22,10 +24,16 @@
     Edit the fragments in src/ and rebuild; never edit install.ps1 by hand.
 
 .PARAMETER Install
-    Install or verify the release pinned in this script.
+    Install or verify the release pinned in this script (with -Latest: the newest signed release).
+
+.PARAMETER Latest
+    With -Install: download the newest release from GitHub Releases, verify its signed manifest
+    and every SHA-256, and install it into %LOCALAPPDATA%\RenameAnything (never the game folder).
 
 .PARAMETER LoadMethod
-    Proxy (default): game-local version.dll activated by -capie. Launcher: external launcher.
+    Launcher (default): the CAPIE launcher in the Steam launch options; nothing in the game folder;
+    CAPIE loads only when the "CAPIE" mod is enabled in the playset. Proxy (explicit alternative,
+    alias -Method): game-local version.dll activated by -capie; it does not read the playset.
 
 .PARAMETER ProxyActivation
     Flag (default): requires -capie. Config: explicit persistent activation fallback.
@@ -47,6 +55,19 @@
 
 .PARAMETER Uninstall
     Remove the launch option part, our shortcuts and the installed files (the log is kept).
+
+.PARAMETER Purge
+    With -Uninstall: also delete the log and the localconfig.vdf backups this script made, so
+    nothing of the installation is left.
+
+.PARAMETER Disable
+    Remove only our part of the Steam launch options and the proxy activation marker; files stay.
+
+.PARAMETER NoAnimation
+    Terminal interface without the splash animation (also: RA_NO_ANIMATION=1, NO_COLOR, CI).
+
+.PARAMETER Plain
+    Plain question-and-answer prompts instead of the terminal interface.
 
 .PARAMETER DryRun
     Show what would happen and write nothing (alias -WhatIf).
@@ -92,7 +113,8 @@
 [OutputType([int])]
 param(
     [switch]$Install,
-    [ValidateSet('Proxy', 'Launcher')][string]$LoadMethod,
+    [switch]$Latest,
+    [Alias('Method')][ValidateSet('Proxy', 'Launcher')][string]$LoadMethod,
     [ValidateSet('Flag', 'Config')][string]$ProxyActivation,
     [switch]$Shortcut,
     [string]$ShortcutPath,
@@ -100,6 +122,10 @@ param(
     [string]$SteamAccount,
     [switch]$RemoveSteamLaunchOption,
     [switch]$Uninstall,
+    [switch]$Purge,
+    [switch]$Disable,
+    [switch]$NoAnimation,
+    [switch]$Plain,
     [Alias('WhatIf')][switch]$DryRun,
     [switch]$Yes,
     [string]$PackagePath,
@@ -184,6 +210,9 @@ $script:RaProxyBundlePath = 'proxy/version.dll'
 $script:RaProxyConfigName = 'proxy.enabled'
 $script:RaProxyConfigContent = "CAPIE_PROXY_ENABLED_V1`n"
 $script:RaProxyFlag = '-capie'
+# "CAPIE" switch mod: bundle prefix and the game's user mod folder (relative to Documents).
+$script:RaModBundlePrefix = 'mod/'
+$script:RaGameUserModRelPath = 'Paradox Interactive\Hearts of Iron IV\mod'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'
@@ -196,6 +225,8 @@ $script:RaDownloadPrefix = 'download-'
 $script:RaBrokenInfix = '.broken-'
 $script:RaJunctionTempInfix = '.new-'
 $script:RaIconIndexSuffix = ',0'
+# localconfig.vdf backups made by New-RaBackupPath (only these are deleted by -Uninstall -Purge).
+$script:RaBackupNamePattern = '^localconfig\.vdf\.renameanything-backup-\d{8}-\d{6}(-\d+)?$'
 
 # --- Formats --------------------------------------------------------------
 $script:RaLogTimestampFormat = 'yyyy-MM-ddTHH:mm:ss.fffK'
@@ -258,6 +289,53 @@ $script:RaPolishLanguage = 'pl'
 $script:RaGameHashDisplayLength = 16
 $script:RaExitSuccess = 0
 $script:RaExitFailure = 1
+# Switches that name an action; without any of them an interactive run opens the menu.
+$script:RaActionOptionNames = @(
+    'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'RemoveSteamLaunchOption', 'Uninstall',
+    'CheckUpdate', 'Update', 'Rollback', 'Disable'
+)
+
+# --- Terminal interface ---------------------------------------------------
+# Colours copied from docs/design/tokens.json (a Pester test keeps them equal).
+$script:RaTuiPalette = [ordered]@{
+    'field-ink'        = '#161412'
+    'panel-rim'        = '#3c3936'
+    'steel-bevel'      = '#76776b'
+    'olive-button'     = '#2e3627'
+    'olive-lit'        = '#424e38'
+    'pencil-green-lit' = '#507040'
+    'brass'            = '#d0a070'
+    'parchment'        = '#ece6d3'
+    'khaki'            = '#c3b091'
+    'ash'              = '#a39a86'
+    'header-amber'     = '#ffbd00'
+    'go-green'         = '#7db35a'
+    'alarm-red'        = '#ff3232'
+    'caution-orange'   = '#ff7019'
+}
+$script:RaTuiBackground = 'field-ink'       # recessed panel; alarm-red reaches 5.0:1 on it
+$script:RaTuiSelectedBackground = 'olive-button'
+$script:RaTuiMaxWidth = 78
+$script:RaTuiMinWidth = 44                 # the map sheet is 39 columns plus the indent
+$script:RaTuiFallbackWidth = 80
+$script:RaTuiIndent = 2
+$script:RaTuiFrameDelayMs = 45              # one character per frame: the pencil writes
+$script:RaTuiHoldDelayMs = 350              # still frame after the name is written
+$script:RaTuiStatusWidth = 6                # "OK    ", "FAIL  " ...
+$script:RaTuiKeyWidth = 14                  # summary key column
+# Status words of the CLI pattern (DESIGN-SYSTEM.md, "CLI output pattern") and their colours.
+$script:RaTuiStatusStyles = [ordered]@{ OK = 'go-green'; ASK = 'header-amber'; SKIP = 'khaki'; NOTE = 'khaki'; FAIL = 'alarm-red' }
+$script:RaTuiLevelStatus = @{ INFO = 'OK'; WARN = 'NOTE'; ERROR = 'FAIL'; PLAN = 'SKIP' }
+$script:RaTuiEnvNoColor = 'NO_COLOR'
+$script:RaTuiEnvNoAnimation = 'RA_NO_ANIMATION'
+$script:RaTuiEnvCi = 'CI'
+$script:RaTuiEnvTerm = 'TERM'
+$script:RaTuiDumbTerm = 'dumb'
+$script:RaTuiMenuActions = @('Install', 'Update', 'Disable', 'Uninstall', 'Quit')
+# The pencil writes this name into the margin of the map sheet, next to the grid square of the flag.
+$script:RaTuiAnnotationName = 'Rename Anything'
+$script:RaTuiAnnotationRef = 'C3'
+$script:RaTuiPencil = '<====]'
 #endregion Shared/Constants.ps1
 
 #region Shared/Adapters.ps1
@@ -281,6 +359,8 @@ $script:RaAssumeYes = $false    # -Yes: never prompt
 $script:RaQuiet = $false        # tests: no console output
 $script:RaAfterWriteHook = $null # tests: simulate a bad write before verification
 $script:RaBeforeOwnedRemove = $null # tests: simulate a replacement after ownership verification
+$script:RaLogSink = $null       # terminal interface: receives (Level, Message) of console log lines
+$script:RaMpWarningShown = $false # terminal interface already showed the multiplayer note
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -289,6 +369,29 @@ $script:RaReadHost = { param([string]$Prompt) Read-Host -Prompt $Prompt }
 $script:RaWriteHost = { param([string]$Message, [string]$Color) Write-RaConsoleLine -Message $Message -Color $Color }
 # GetUiLanguage() -> two-letter ISO language name of the Windows UI
 $script:RaGetUiLanguage = { (Get-UICulture).TwoLetterISOLanguageName }
+
+# --- Terminal interface (raw console) --------------------------------------
+# GetTerminal() -> [pscustomobject]@{ Interactive; Vt; Width }. Interactive = neither input nor
+# output is redirected and the session is user-interactive; Vt = the host renders ANSI sequences.
+$script:RaGetTerminal = {
+    $interactive = $false
+    $width = 0
+    try {
+        $interactive = [Environment]::UserInteractive -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
+        $width = [Console]::WindowWidth
+    } catch { $interactive = $false }
+    $vt = $false
+    try { $vt = [bool]$Host.UI.SupportsVirtualTerminal } catch { $vt = $false }
+    [pscustomobject]@{ Interactive = $interactive; Vt = $vt; Width = $width }
+}
+# GetEnv(Name) -> value or $null
+$script:RaGetEnv = { param([string]$Name) [Environment]::GetEnvironmentVariable($Name) }
+# WriteRaw(Text) -> nothing; text may contain ANSI sequences and no implicit newline
+$script:RaWriteRaw = { param([string]$Text) $Host.UI.Write($Text) }
+# ReadKey() -> System.ConsoleKeyInfo (no echo)
+$script:RaReadKey = { [Console]::ReadKey($true) }
+# Sleep(Milliseconds) -> nothing (animation frames only)
+$script:RaSleep = { param([int]$Milliseconds) Start-Sleep -Milliseconds $Milliseconds }
 
 # --- Processes, registry, clock, desktop ----------------------------------
 # GetSteamProcess() -> array; empty when Steam is not running
@@ -303,6 +406,8 @@ $script:RaGetRegistryValue = {
 $script:RaNow = { Get-Date }
 # DesktopPath() -> folder
 $script:RaDesktopPath = { [Environment]::GetFolderPath('Desktop') }
+# DocumentsPath() -> folder (the game's user folder lives under it)
+$script:RaDocumentsPath = { [Environment]::GetFolderPath('MyDocuments') }
 # FolderPicker(DefaultFolder) -> folder or $null. $null adapter = real FolderBrowserDialog.
 $script:RaFolderPicker = $null
 
@@ -471,12 +576,12 @@ $script:RaMessages = @{
     en = @{
         Title                      = 'Rename Anything for Hearts of Iron IV - bootstrap'
         Intro                      = @(
-            'Proxy mode adds one version.dll to the game directory; Launcher mode keeps the game directory unchanged. ',
-            'Workshop and saves are untouched. Log: {0}'
+            'The CAPIE launcher (default) keeps the game folder unchanged and adds the "CAPIE" switch mod to your ',
+            'mod folder; the Proxy alternative adds one version.dll to the game folder. Saves are untouched. Log: {0}'
         ) -join ''
         AskLoadMethod              = @(
-            'Loading method: 1 = proxy version.dll (recommended, requires -capie); ',
-            '2 = external launcher (no game files added). Choice [{0}]'
+            'Loading method: 1 = CAPIE launcher (recommended; switch CAPIE with the "CAPIE" mod in the playset, ',
+            'no game files added); 2 = proxy version.dll in the game folder (requires -capie). Choice [{0}]'
         ) -join ''
         AskModeProxy               = @(
             'Proxy activation: 1 = add -capie to Steam launch options; 4 = install only (add -capie manually). ',
@@ -522,16 +627,67 @@ $script:RaMessages = @{
             'Your hoi4.exe build ({0}...) is not supported yet. The launcher starts the game without the DLL; check again ',
             'later (release notes / versions.json).'
         ) -join ''
+        DisableDone                = 'Disabled: Steam starts the clean game. Files stay installed; run -SteamLaunchOption to enable again.'
+        PurgeDone                  = 'Uninstalled. Nothing of this setup is left; the Steam launch options are as before the installation.'
+        ReleaseVerified            = 'Release {0}: signed manifest verified.'
+        TuiTagline                 = "Built on CAPIE (Cyprian's API Extender)"
+        TuiMenuTitle               = 'What should this setup do?'
+        TuiInstall                 = 'Install'
+        TuiInstallHint             = 'CAPIE launcher in your user folder, started by Steam'
+        TuiUpdate                  = 'Update'
+        TuiUpdateHint              = 'newest signed release; the previous one stays for rollback'
+        TuiDisable                 = 'Disable'
+        TuiDisableHint             = 'Steam starts the clean game; files stay'
+        TuiUninstall               = 'Uninstall'
+        TuiUninstallHint           = 'restore the state before the installation'
+        TuiQuit                    = 'Quit'
+        TuiQuitHint                = 'change nothing'
+        TuiKeys                    = 'Up and Down or 1-5 to choose, Enter to confirm, Esc to quit.'
+        TuiStatusNone              = 'CAPIE is not installed.'
+        TuiStatusInstalled         = 'Installed: CAPIE {0}, {1}.'
+        TuiSteamOn                 = 'started by Steam'
+        TuiSteamOff                = 'not in the Steam launch options'
+        TuiMpNote                  = @(
+            'While CAPIE is loaded, the game is not declared multiplayer-compatible. Before multiplayer, ',
+            'disable the "CAPIE" mod in your playset or choose Disable here.'
+        ) -join ''
+        TuiAskSteam                = 'Add the CAPIE launcher to the HOI4 Steam launch options? [Y/n]'
+        TuiAskDisable              = 'Remove the CAPIE launcher from the Steam launch options? Files stay. [Y/n]'
+        TuiAskUninstall            = 'Remove CAPIE and restore the Steam launch options from before the installation? [y/N]'
+        TuiAskPurge                = 'Also delete the setup log and the Steam config backups this setup made? [y/N]'
+        TuiAskSteamClosed          = 'Steam is running. Close it completely (Steam > Exit), then press Enter. Q skips the Steam step.'
+        TuiWorking                 = 'Working'
+        TuiSummary                 = 'Summary'
+        TuiRowInstalled            = 'Installed'
+        TuiRowSteam                = 'Steam'
+        TuiRowGame                 = 'Game folder'
+        TuiRowSwitch               = 'Switch'
+        TuiRowUndo                 = 'Undo'
+        TuiRowLog                  = 'Log'
+        TuiRowMod                  = 'CAPIE mod'
+        TuiRowResult               = 'Result'
+        TuiGameUnchanged           = 'unchanged'
+        TuiNone                    = 'nothing'
+        TuiSwitchValue             = 'enable the "CAPIE" mod in your playset to load CAPIE; disable it for the clean game'
+        TuiUndoValue               = 'run this setup again and choose Disable or Uninstall'
+        TuiNothingChanged          = 'Nothing was changed.'
+        TuiFailed                  = 'The step failed. Details in the log: {0}'
+        TuiYes                     = 'yes'
+        TuiNo                      = 'no'
+        TuiDone                    = 'Done.'
+        TuiCancelled               = 'Cancelled. Nothing was changed.'
+        TuiRemovedAll              = 'removed; no files of this setup are left'
+        TuiRemovedKeptLog          = 'removed; the log was kept'
     }
     pl = @{
         Title                      = 'Rename Anything dla Hearts of Iron IV \u2014 bootstrap'
         Intro                      = @(
-            'Tryb Proxy dodaje version.dll do folderu gry; tryb Launcher nie zmienia tego folderu. ',
-            'Workshop i zapisy pozostaj\u0105 bez zmian. Log: {0}'
+            'Launcher CAPIE (domy\u015Blnie) nie zmienia folderu gry i dodaje mod-prze\u0142\u0105cznik \u201ECAPIE\u201D ',
+            'do folderu mod\u00F3w; alternatywa Proxy dodaje version.dll do folderu gry. Zapisy bez zmian. Log: {0}'
         ) -join ''
         AskLoadMethod              = @(
-            'Metoda: 1 = proxy version.dll (zalecane, wymaga -capie); ',
-            '2 = zewn\u0119trzny launcher (bez plik\u00F3w w folderze gry). Wyb\u00F3r [{0}]'
+            'Metoda: 1 = launcher CAPIE (zalecane; CAPIE w\u0142\u0105czasz modem \u201ECAPIE\u201D w zestawie, ',
+            'bez plik\u00F3w w folderze gry); 2 = proxy version.dll w folderze gry (wymaga -capie). Wyb\u00F3r [{0}]'
         ) -join ''
         AskModeProxy               = @(
             'Aktywacja Proxy: 1 = dodaj -capie w opcjach Steam; 4 = sama instalacja (dodaj -capie r\u0119cznie). ',
@@ -586,6 +742,66 @@ $script:RaMessages = @{
             'Twoja wersja hoi4.exe ({0}...) nie jest jeszcze wspierana. Launcher uruchomi gr\u0119 bez DLL; sprawd\u017A ',
             'p\u00F3\u017Aniej (release notes / versions.json).'
         ) -join ''
+        DisableDone                = @(
+            'Wy\u0142\u0105czono: Steam uruchamia czyst\u0105 gr\u0119. Pliki zostaj\u0105; aby w\u0142\u0105czy\u0107 ',
+            'ponownie, uruchom z -SteamLaunchOption.'
+        ) -join ''
+        PurgeDone                  = 'Odinstalowano. Nic z tej instalacji nie zosta\u0142o; opcje uruchamiania w Steam s\u0105 jak przed instalacj\u0105.'
+        ReleaseVerified            = 'Wydanie {0}: podpis manifestu sprawdzony.'
+        TuiTagline                 = "Zbudowane na CAPIE (Cyprian's API Extender)"
+        TuiMenuTitle               = 'Co ma zrobi\u0107 instalator?'
+        TuiInstall                 = 'Zainstaluj'
+        TuiInstallHint             = 'launcher CAPIE w folderze u\u017Cytkownika, start przez Steam'
+        TuiUpdate                  = 'Aktualizuj'
+        TuiUpdateHint              = 'najnowsze podpisane wydanie; poprzednie zostaje'
+        TuiDisable                 = 'Wy\u0142\u0105cz'
+        TuiDisableHint             = 'Steam uruchamia czyst\u0105 gr\u0119; pliki zostaj\u0105'
+        TuiUninstall               = 'Odinstaluj'
+        TuiUninstallHint           = 'przywr\u00F3\u0107 stan sprzed instalacji'
+        TuiQuit                    = 'Wyjd\u017A'
+        TuiQuitHint                = 'nic nie zmieniaj'
+        TuiKeys                    = 'Strza\u0142ki albo 1-5 wybieraj\u0105, Enter zatwierdza, Esc ko\u0144czy.'
+        TuiStatusNone              = 'CAPIE nie jest zainstalowane.'
+        TuiStatusInstalled         = 'Zainstalowano: CAPIE {0}, {1}.'
+        TuiSteamOn                 = 'uruchamiane przez Steam'
+        TuiSteamOff                = 'poza opcjami uruchamiania Steam'
+        TuiMpNote                  = @(
+            'Gdy CAPIE jest za\u0142adowane, gra nie jest deklarowana jako zgodna z trybem wieloosobowym. Przed gr\u0105 ',
+            'wieloosobow\u0105 wy\u0142\u0105cz mod \u201ECAPIE\u201D w zestawie mod\u00F3w albo wybierz tutaj \u201EWy\u0142\u0105cz\u201D.'
+        ) -join ''
+        TuiAskSteam                = 'Doda\u0107 launcher CAPIE do opcji uruchamiania HOI4 w Steam? [T/n]'
+        TuiAskDisable              = 'Usun\u0105\u0107 launcher CAPIE z opcji uruchamiania Steam? Pliki zostaj\u0105. [T/n]'
+        TuiAskUninstall            = 'Usun\u0105\u0107 CAPIE i przywr\u00F3ci\u0107 opcje uruchamiania Steam sprzed instalacji? [t/N]'
+        TuiAskPurge                = 'Usun\u0105\u0107 te\u017C log instalatora i kopie konfiguracji Steam zrobione przez instalator? [t/N]'
+        TuiAskSteamClosed          = @(
+            'Steam jest uruchomiony. Zamknij go ca\u0142kowicie (Steam > Zako\u0144cz), potem naci\u015Bnij Enter. ',
+            'Q pomija krok Steam.'
+        ) -join ''
+        TuiWorking                 = 'W toku'
+        TuiSummary                 = 'Podsumowanie'
+        TuiRowInstalled            = 'Zainstalowano'
+        TuiRowSteam                = 'Steam'
+        TuiRowGame                 = 'Folder gry'
+        TuiRowSwitch               = 'Prze\u0142\u0105cznik'
+        TuiRowUndo                 = 'Cofni\u0119cie'
+        TuiRowLog                  = 'Log'
+        TuiRowMod                  = 'Mod CAPIE'
+        TuiRowResult               = 'Wynik'
+        TuiGameUnchanged           = 'bez zmian'
+        TuiNone                    = 'nic'
+        TuiSwitchValue             = @(
+            'w\u0142\u0105cz mod \u201ECAPIE\u201D w zestawie mod\u00F3w, aby \u0142adowa\u0107 CAPIE; ',
+            'wy\u0142\u0105cz go dla czystej gry'
+        ) -join ''
+        TuiUndoValue               = 'uruchom instalator ponownie i wybierz \u201EWy\u0142\u0105cz\u201D albo \u201EOdinstaluj\u201D'
+        TuiNothingChanged          = 'Nic nie zmieniono.'
+        TuiFailed                  = 'Krok si\u0119 nie powi\u00F3d\u0142. Szczeg\u00F3\u0142y w logu: {0}'
+        TuiYes                     = 'tak'
+        TuiNo                      = 'nie'
+        TuiDone                    = 'Gotowe.'
+        TuiCancelled               = 'Anulowano. Nic nie zmieniono.'
+        TuiRemovedAll              = 'usuni\u0119to; nie zosta\u0142y \u017Cadne pliki tej instalacji'
+        TuiRemovedKeptLog          = 'usuni\u0119to; log zachowano'
     }
 }
 
@@ -689,7 +905,8 @@ function Write-RaLog {
     .SYNOPSIS
         Writes a message to the console (coloured by level) and appends it to bootstrap.log.
     .DESCRIPTION
-        The console line is skipped with -NoConsole or when $script:RaQuiet is set.
+        The console line is skipped with -NoConsole or when $script:RaQuiet is set. While the
+        terminal interface runs, the line goes to $script:RaLogSink (status-word rendering).
         Nothing is written to disk in dry-run mode. A failing log write never fails the run.
     .PARAMETER Message
         Text to log.
@@ -710,7 +927,9 @@ function Write-RaLog {
         [switch]$NoConsole
     )
     $line = '{0} [{1}] {2}' -f (Get-RaNow).ToString($script:RaLogTimestampFormat), $Level, $Message
-    if (-not $NoConsole -and -not $script:RaQuiet) { Write-RaHost $Message -Color $script:RaLogColors[$Level] }
+    if (-not $NoConsole -and -not $script:RaQuiet) {
+        if ($script:RaLogSink) { & $script:RaLogSink $Level $Message } else { Write-RaHost $Message -Color $script:RaLogColors[$Level] }
+    }
     if ($script:RaDry) { return }
     try {
         Initialize-RaRoot
@@ -1153,7 +1372,8 @@ function New-RaState {
         Creates an empty state object.
     .DESCRIPTION
         Shape: InstalledVersion, PreviousVersion, Shortcuts (paths), SteamEntries
-        (AccountId, ConfigPath, OriginalValue, WrittenValue, LauncherPath).
+        (AccountId, ConfigPath, OriginalValue, WrittenValue, LauncherPath), ModFiles (Path, Sha256,
+        Backup) of the "CAPIE" switch mod in the player's mod folder.
     .OUTPUTS
         System.Management.Automation.PSCustomObject
     .EXAMPLE
@@ -1164,7 +1384,7 @@ function New-RaState {
     param()
     return [pscustomobject]@{
         InstalledVersion = $null; PreviousVersion = $null; Shortcuts = @(); SteamEntries = @()
-        LoadMethod = 'Launcher'; Proxy = $null; ProxyActivation = 'Flag'; ProxyConfigSha256 = $null
+        LoadMethod = 'Launcher'; Proxy = $null; ProxyActivation = 'Flag'; ProxyConfigSha256 = $null; ModFiles = @()
     }
 }
 
@@ -1195,6 +1415,7 @@ function Read-RaState {
             if ($j.PSObject.Properties['Proxy']) { $state.Proxy = $j.Proxy }
             if ($j.PSObject.Properties['ProxyActivation'] -and $j.ProxyActivation -in @('Flag', 'Config')) { $state.ProxyActivation = $j.ProxyActivation }
             if ($j.PSObject.Properties['ProxyConfigSha256']) { $state.ProxyConfigSha256 = $j.ProxyConfigSha256 }
+            if ($j.PSObject.Properties['ModFiles']) { $state.ModFiles = @($j.ModFiles | Where-Object { $_ }) }
         } catch { Write-RaLog "state.json unreadable, ignoring: $($_.Exception.Message)" -Level WARN }
     }
     return $state
@@ -1227,6 +1448,7 @@ function Save-RaState {
         Proxy            = $State.Proxy
         ProxyActivation  = $State.ProxyActivation
         ProxyConfigSha256 = $State.ProxyConfigSha256
+        ModFiles         = @($State.ModFiles)
     } | ConvertTo-Json -Depth $script:RaJsonDepth
     [IO.File]::WriteAllText((Get-RaStatePath), $json, (New-Object System.Text.UTF8Encoding($false)))
 }
@@ -2018,6 +2240,7 @@ function Install-RaVersion {
         if ($hash -ne $Manifest.ZipSha256.ToUpperInvariant()) {
             throw "Package SHA256 mismatch: expected $($Manifest.ZipSha256), got $hash. Nothing was installed."
         }
+        Write-RaLog "Package $($Manifest.ZipName): SHA256 matches the manifest."
         New-Item -ItemType Directory -Path $staging | Out-Null
         Expand-RaVerifiedZip -Manifest $Manifest -ZipPath $package.Path -Destination $staging
         if (-not (Test-RaInstalledVersion $Manifest $staging)) { throw 'Staged files failed verification.' }
@@ -2216,6 +2439,615 @@ function Remove-RaUnusedVersion {
     }
 }
 #endregion Shared/VersionStore.ps1
+
+#region Shared/Tui.ps1
+# ---------------------------------------------------------------------------
+# Terminal interface: capability detection and rendering (shared building blocks).
+#
+# Visual direction (docs/design/DESIGN-SYSTEM.md, "The Staff Annotation"): a recessed
+# field-ink panel, a small staff map sheet with a grid, a flag planted in square C3, and
+# the pencil writing the mod's name into the margin next to it. The only motion is the
+# pencil writing, one character per frame; the resting frame is complete. Status lines use
+# the CLI pattern (OK, ASK, SKIP, NOTE, FAIL) and read the same without colour.
+#
+# Everything here is pure (returns strings or line models) except the few Write/Read
+# helpers at the end, which go through the adapters in Adapters.ps1.
+# A line model is an array of segments; a segment is @{ S = '<token name>'; T = '<text>' }.
+# ---------------------------------------------------------------------------
+
+# Map sheet: grid letters, frame, six rows. The flag (#==) stands on the pole in C3.
+$script:RaTuiMapHeader = '     A     B     C     D     E     F'
+$script:RaTuiMapFrame = '  +-----+-----+-----+-----+-----+-----+'
+$script:RaTuiMapRows = @(
+    ' ~ ~ ~ ~ ~ ~ ~ ~ ______ ~ ~ ~ ~ ~ ~',
+    ' ~ ~ ~ ~ ~ ~ ___/      \___ ~ ~ ~ ~',
+    ' ~ ~ ~ ~ __/  |##==        \_ ~ ~ ~',
+    ' ~ ~ ~ _/     |              \ ~ ~ ',
+    ' ~ ~ ~ \__    |          ____/ ~ ~ ',
+    ' ~ ~ ~ ~ ~\___|_________/ ~ ~ ~ ~ ~'
+)
+# Character classes of the map and their tokens.
+$script:RaTuiMapStyles = [ordered]@{ '~' = 'ash'; '#' = 'header-amber'; '=' = 'header-amber'; '|' = 'steel-bevel' }
+$script:RaTuiCoastStyle = 'khaki'
+$script:RaTuiFrameStyle = 'steel-bevel'
+
+function New-RaTuiSegment {
+    <#
+    .SYNOPSIS
+        Creates one styled text segment of a line model.
+    .DESCRIPTION
+        S is a colour token name from $script:RaTuiPalette, T the text.
+    .PARAMETER Style
+        Token name.
+    .PARAMETER Text
+        Text.
+    .OUTPUTS
+        System.Collections.Hashtable
+    .EXAMPLE
+        New-RaTuiSegment 'khaki' 'Install'
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Style,
+        [Parameter(Position = 1)][AllowEmptyString()][string]$Text = ''
+    )
+    return @{ S = $Style; T = $Text }
+}
+
+function Get-RaTuiMode {
+    <#
+    .SYNOPSIS
+        Decides how the run talks to the user: terminal interface or plain prompts.
+    .DESCRIPTION
+        The interface opens only for an interactive console when no action switch, -Yes or
+        -Plain was given. Colour needs a virtual-terminal host and is off with NO_COLOR or
+        TERM=dumb. Animation also needs colour and is off with -NoAnimation,
+        RA_NO_ANIMATION (any value except 0) or CI. Width is the console width minus one,
+        clamped to 44..78.
+    .PARAMETER Options
+        Normalized option table.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject (Tui, Color, Vt, Animate, Width)
+    .EXAMPLE
+        $mode = Get-RaTuiMode $options
+    #>
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    $terminal = & $script:RaGetTerminal
+    $action = $false
+    foreach ($name in $script:RaActionOptionNames) { if ($Options.ContainsKey($name) -and $Options[$name]) { $action = $true } }
+    $noColor = [bool](& $script:RaGetEnv $script:RaTuiEnvNoColor) -or ((& $script:RaGetEnv $script:RaTuiEnvTerm) -eq $script:RaTuiDumbTerm)
+    $noAnimationEnv = & $script:RaGetEnv $script:RaTuiEnvNoAnimation
+    $noAnimation = ([bool]$noAnimationEnv -and $noAnimationEnv -ne '0') -or [bool](& $script:RaGetEnv $script:RaTuiEnvCi) -or [bool]$Options['NoAnimation']
+    $tui = [bool]$terminal.Interactive -and -not $action -and -not $Options['Yes'] -and -not $Options['Plain']
+    $color = $tui -and [bool]$terminal.Vt -and -not $noColor
+    $width = [int]$terminal.Width - 1
+    if ($width -lt 1) { $width = $script:RaTuiFallbackWidth }
+    $width = [Math]::Max($script:RaTuiMinWidth, [Math]::Min($script:RaTuiMaxWidth, $width))
+    return [pscustomobject]@{ Tui = $tui; Color = $color; Vt = ($tui -and [bool]$terminal.Vt); Animate = ($color -and -not $noAnimation); Width = $width }
+}
+
+function ConvertTo-RaTuiSgr {
+    <#
+    .SYNOPSIS
+        ANSI 24-bit colour sequence for a palette token.
+    .DESCRIPTION
+        Foreground by default, background with -Background.
+    .PARAMETER Style
+        Token name from $script:RaTuiPalette.
+    .PARAMETER Background
+        Background instead of foreground.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        ConvertTo-RaTuiSgr 'parchment'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][string]$Style, [switch]$Background)
+    $hex = $script:RaTuiPalette[$Style]
+    if (-not $hex) { throw "Unknown palette token: $Style" }
+    $r = [Convert]::ToInt32($hex.Substring(1, 2), 16)
+    $g = [Convert]::ToInt32($hex.Substring(3, 2), 16)
+    $b = [Convert]::ToInt32($hex.Substring(5, 2), 16)
+    $kind = if ($Background) { 48 } else { 38 }
+    return ('{0}[{1};2;{2};{3};{4}m' -f [char]27, $kind, $r, $g, $b)
+}
+
+function Format-RaTuiLine {
+    <#
+    .SYNOPSIS
+        Renders one line model as a string for the console.
+    .DESCRIPTION
+        With colour: panel background, indent, each segment in its colour, padded to the
+        panel width, then a reset. Without colour: indent and plain text, trailing blanks
+        removed. Text beyond the panel width is cut (callers wrap first).
+    .PARAMETER Segments
+        Line model.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .PARAMETER Background
+        Panel token for this line (default: the panel background).
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Format-RaTuiLine @((New-RaTuiSegment 'khaki' 'x')) $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][AllowEmptyCollection()][object[]]$Segments,
+        [Parameter(Mandatory, Position = 1)][psobject]$Mode,
+        [string]$Background = $script:RaTuiBackground
+    )
+    $room = $Mode.Width - $script:RaTuiIndent
+    $plain = ''
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($segment in $Segments) {
+        $text = [string]$segment.T
+        if ($plain.Length + $text.Length -gt $room) { $text = $text.Substring(0, [Math]::Max(0, $room - $plain.Length)) }
+        $plain += $text
+        if ($Mode.Color) { [void]$sb.Append((ConvertTo-RaTuiSgr $segment.S)).Append($text) }
+    }
+    $indent = ' ' * $script:RaTuiIndent
+    if (-not $Mode.Color) { return ($indent + $plain).TrimEnd() }
+    $pad = ' ' * ($room - $plain.Length)
+    return (ConvertTo-RaTuiSgr $Background -Background) + $indent + $sb.ToString() + $pad + ('{0}[0m' -f [char]27)
+}
+
+function Split-RaTuiText {
+    <#
+    .SYNOPSIS
+        Word-wraps text to a width.
+    .DESCRIPTION
+        Breaks at spaces; a word longer than the width (a path, a hash) is cut into pieces.
+        Explicit line breaks are kept. Always returns at least one (possibly empty) line.
+    .PARAMETER Text
+        Text.
+    .PARAMETER Width
+        Maximum characters per line (at least 1).
+    .OUTPUTS
+        System.String[]
+    .EXAMPLE
+        Split-RaTuiText 'a long sentence' 6
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]])]
+    param(
+        [Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$Text,
+        [Parameter(Mandatory, Position = 1)][ValidateRange(1, 1000)][int]$Width
+    )
+    $lines = New-Object System.Collections.Generic.List[string]
+    foreach ($paragraph in ([string]$Text).Replace("`r`n", "`n").Split("`n")) {
+        $current = ''
+        foreach ($word in $paragraph.Split(' ')) {
+            if ($word -eq '') { continue }
+            while ($word.Length -gt $Width) {
+                if ($current) { $lines.Add($current); $current = '' }
+                $lines.Add($word.Substring(0, $Width))
+                $word = $word.Substring($Width)
+            }
+            if (-not $current) { $current = $word }
+            elseif ($current.Length + 1 + $word.Length -le $Width) { $current += ' ' + $word }
+            else { $lines.Add($current); $current = $word }
+        }
+        $lines.Add($current)
+    }
+    return $lines.ToArray()
+}
+
+function Get-RaTuiStatusModel {
+    <#
+    .SYNOPSIS
+        Line models of one status line in the CLI pattern ("OK    Package verified").
+    .DESCRIPTION
+        The status word is padded to a fixed column and coloured by $script:RaTuiStatusStyles;
+        the text wraps under itself with a hanging indent.
+    .PARAMETER Word
+        OK, ASK, SKIP, NOTE or FAIL.
+    .PARAMETER Text
+        Message.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.Object[] (line models)
+    .EXAMPLE
+        Get-RaTuiStatusModel -Word 'OK' -Text 'CAPIE launcher installed' -Mode $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory, Position = 0)][ValidateSet('OK', 'ASK', 'SKIP', 'NOTE', 'FAIL')][string]$Word,
+        [Parameter(Position = 1)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory, Position = 2)][psobject]$Mode
+    )
+    $room = $Mode.Width - $script:RaTuiIndent - $script:RaTuiStatusWidth
+    $textStyle = if ($Word -in @('SKIP', 'NOTE')) { 'khaki' } else { 'parchment' }
+    $result = @()
+    $first = $true
+    foreach ($line in (Split-RaTuiText $Text $room)) {
+        $head = if ($first) { $Word.PadRight($script:RaTuiStatusWidth) } else { ' ' * $script:RaTuiStatusWidth }
+        $result += , @((New-RaTuiSegment $script:RaTuiStatusStyles[$Word] $head), (New-RaTuiSegment $textStyle $line))
+        $first = $false
+    }
+    return , $result
+}
+
+function Get-RaTuiTextModel {
+    <#
+    .SYNOPSIS
+        Line models of a wrapped paragraph in one colour.
+    .DESCRIPTION
+        Used for headings, hints and notes.
+    .PARAMETER Text
+        Text.
+    .PARAMETER Style
+        Token name.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.Object[] (line models)
+    .EXAMPLE
+        Get-RaTuiTextModel -Text 'What should this setup do?' -Style 'parchment' -Mode $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Position = 0)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory, Position = 1)][string]$Style,
+        [Parameter(Mandatory, Position = 2)][psobject]$Mode
+    )
+    $result = @()
+    foreach ($line in (Split-RaTuiText $Text ($Mode.Width - $script:RaTuiIndent))) { $result += , @((New-RaTuiSegment $Style $line)) }
+    return , $result
+}
+
+function Get-RaTuiMapModel {
+    <#
+    .SYNOPSIS
+        Line models of the staff map sheet.
+    .DESCRIPTION
+        Grid letters and row numbers in ash, frame in steel, sea in ash, coast in khaki, the
+        pole in steel and the flag in header amber (the one highlighted target of the view).
+    .OUTPUTS
+        System.Object[] (line models)
+    .EXAMPLE
+        Get-RaTuiMapModel
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param()
+    $result = @(, @((New-RaTuiSegment 'ash' $script:RaTuiMapHeader)))
+    $result += , @((New-RaTuiSegment $script:RaTuiFrameStyle $script:RaTuiMapFrame))
+    $row = 1
+    foreach ($inner in $script:RaTuiMapRows) {
+        $segments = @((New-RaTuiSegment 'ash' "$row "), (New-RaTuiSegment $script:RaTuiFrameStyle '|'))
+        $runStyle = $null
+        $run = ''
+        foreach ($ch in $inner.ToCharArray()) {
+            $key = [string]$ch
+            $style = $script:RaTuiCoastStyle
+            if ($ch -eq ' ') { $style = $runStyle } elseif ($script:RaTuiMapStyles.Contains($key)) { $style = $script:RaTuiMapStyles[$key] }
+            if (-not $style) { $style = 'ash' }
+            if ($style -ne $runStyle -and $run) { $segments += New-RaTuiSegment $runStyle $run; $run = '' }
+            $runStyle = $style
+            $run += $key
+        }
+        if ($run) { $segments += New-RaTuiSegment $runStyle $run }
+        $segments += New-RaTuiSegment $script:RaTuiFrameStyle '|'
+        $result += , $segments
+        $row++
+    }
+    $result += , @((New-RaTuiSegment $script:RaTuiFrameStyle $script:RaTuiMapFrame))
+    return , $result
+}
+
+function Get-RaTuiAnnotationLine {
+    <#
+    .SYNOPSIS
+        Line model of the margin note: grid square, the name written so far, the pencil.
+    .DESCRIPTION
+        Frame k of the splash shows the first k characters; the last frame shows the full
+        name with the pencil resting after it.
+    .PARAMETER Count
+        Characters written (clamped to the name length).
+    .OUTPUTS
+        System.Object[] (line model)
+    .EXAMPLE
+        Get-RaTuiAnnotationLine 7
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param([Parameter(Mandatory, Position = 0)][int]$Count)
+    $name = $script:RaTuiAnnotationName
+    $written = $name.Substring(0, [Math]::Max(0, [Math]::Min($Count, $name.Length)))
+    return , @(
+        (New-RaTuiSegment 'ash' "$($script:RaTuiAnnotationRef)   "),
+        (New-RaTuiSegment 'parchment' $written),
+        (New-RaTuiSegment 'pencil-green-lit' $script:RaTuiPencil)
+    )
+}
+
+function Get-RaTuiMenuModel {
+    <#
+    .SYNOPSIS
+        Line models of the action menu.
+    .DESCRIPTION
+        One row per action: number, name, hint (a long hint wraps under itself). The selected
+        row is marked with ">" (so it reads without colour) and drawn on the olive button
+        background.
+    .PARAMETER Selected
+        Zero-based index of the selected action.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.Object[] (pscustomobject rows: Segments, Background)
+    .EXAMPLE
+        Get-RaTuiMenuModel 0 $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param([Parameter(Mandatory, Position = 0)][int]$Selected, [Parameter(Mandatory, Position = 1)][psobject]$Mode)
+    $result = @()
+    $nameWidth = 0
+    foreach ($action in $script:RaTuiMenuActions) { $nameWidth = [Math]::Max($nameWidth, (Get-RaText "Tui$action").Length) }
+    for ($i = 0; $i -lt $script:RaTuiMenuActions.Count; $i++) {
+        $action = $script:RaTuiMenuActions[$i]
+        $on = ($i -eq $Selected)
+        $marker = if ($on) { '> ' } else { '  ' }
+        $head = '{0}{1}  {2}  ' -f $marker, ($i + 1), (Get-RaText "Tui$action").PadRight($nameWidth)
+        $hintRoom = [Math]::Max(1, $Mode.Width - $script:RaTuiIndent - $head.Length)
+        $nameStyle = if ($on) { 'parchment' } else { 'khaki' }
+        $background = if ($on) { $script:RaTuiSelectedBackground } else { $script:RaTuiBackground }
+        $first = $true
+        foreach ($hint in (Split-RaTuiText (Get-RaText "Tui$($action)Hint") $hintRoom)) {
+            $lead = if ($first) { $head } else { ' ' * $head.Length }
+            $result += [pscustomobject]@{
+                Segments   = @((New-RaTuiSegment $nameStyle $lead), (New-RaTuiSegment 'ash' $hint))
+                Background = $background
+            }
+            $first = $false
+        }
+    }
+    return , $result
+}
+
+function Get-RaTuiSummaryModel {
+    <#
+    .SYNOPSIS
+        Line models of the summary: a key column and a value column under a hairline.
+    .DESCRIPTION
+        Keys in ash, values in parchment, values wrap under themselves.
+    .PARAMETER Rows
+        Array of two-element arrays (key, value).
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.Object[] (line models)
+    .EXAMPLE
+        Get-RaTuiSummaryModel @(, @('Log', 'C:\x\bootstrap.log')) $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param([Parameter(Mandatory, Position = 0)][object[]]$Rows, [Parameter(Mandatory, Position = 1)][psobject]$Mode)
+    $room = $Mode.Width - $script:RaTuiIndent - $script:RaTuiKeyWidth
+    $result = @(, @((New-RaTuiSegment 'parchment' (Get-RaText 'TuiSummary'))))
+    $result += , @((New-RaTuiSegment 'steel-bevel' ('-' * ($Mode.Width - $script:RaTuiIndent))))
+    foreach ($row in $Rows) {
+        $first = $true
+        foreach ($line in (Split-RaTuiText ([string]$row[1]) $room)) {
+            $key = if ($first) { ([string]$row[0]).PadRight($script:RaTuiKeyWidth) } else { ' ' * $script:RaTuiKeyWidth }
+            $result += , @((New-RaTuiSegment 'ash' $key), (New-RaTuiSegment 'parchment' $line))
+            $first = $false
+        }
+    }
+    return , $result
+}
+
+function Write-RaTuiModel {
+    <#
+    .SYNOPSIS
+        Writes line models to the console through the raw-output adapter.
+    .DESCRIPTION
+        Accepts plain line models or menu rows (objects with Segments and Background).
+    .PARAMETER Lines
+        Line models.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Write-RaTuiModel (Get-RaTuiMapModel) $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][AllowEmptyCollection()][object[]]$Lines, [Parameter(Mandatory, Position = 1)][psobject]$Mode)
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($line in $Lines) {
+        if ($line -is [psobject] -and $line.PSObject.Properties['Segments']) {
+            [void]$sb.Append((Format-RaTuiLine @($line.Segments) $Mode -Background $line.Background)).Append("`n")
+        } else {
+            [void]$sb.Append((Format-RaTuiLine @($line) $Mode)).Append("`n")
+        }
+    }
+    & $script:RaWriteRaw $sb.ToString()
+}
+
+function Write-RaTuiBlank {
+    <#
+    .SYNOPSIS
+        Writes one empty panel line.
+    .DESCRIPTION
+        Keeps the panel background continuous between groups.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Write-RaTuiBlank $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$Mode)
+    Write-RaTuiModel @(, @()) $Mode
+}
+
+function Show-RaTuiSplash {
+    <#
+    .SYNOPSIS
+        Draws the map sheet and lets the pencil write the name into the margin.
+    .DESCRIPTION
+        With animation the margin line is redrawn in place (carriage return) one character
+        per frame, then held still. Without animation only the final frame is drawn. The
+        endorsement line follows in both cases.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.Int32 (number of frames drawn for the margin line)
+    .EXAMPLE
+        [void](Show-RaTuiSplash $mode)
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$Mode)
+    Write-RaTuiBlank $Mode
+    Write-RaTuiModel (Get-RaTuiMapModel) $Mode
+    Write-RaTuiBlank $Mode
+    $frames = 0
+    $total = $script:RaTuiAnnotationName.Length
+    if ($Mode.Animate) {
+        for ($k = 0; $k -lt $total; $k++) {
+            & $script:RaWriteRaw ("`r" + (Format-RaTuiLine (Get-RaTuiAnnotationLine $k) $Mode))
+            & $script:RaSleep $script:RaTuiFrameDelayMs
+            $frames++
+        }
+        & $script:RaWriteRaw ("`r" + (Format-RaTuiLine (Get-RaTuiAnnotationLine $total) $Mode) + "`n")
+        $frames++
+        & $script:RaSleep $script:RaTuiHoldDelayMs
+    } else {
+        Write-RaTuiModel @(, (Get-RaTuiAnnotationLine $total)) $Mode
+        $frames++
+    }
+    $tag = Get-RaText 'TuiTagline'
+    $at = $tag.IndexOf('CAPIE')
+    $refPad = ' ' * ($script:RaTuiAnnotationRef.Length + 3)
+    Write-RaTuiModel @(, @(
+            (New-RaTuiSegment 'ash' ($refPad + $tag.Substring(0, $at))),
+            (New-RaTuiSegment 'brass' 'CAPIE'),
+            (New-RaTuiSegment 'ash' $tag.Substring($at + 5))
+        )) $Mode
+    Write-RaTuiBlank $Mode
+    return $frames
+}
+
+function Read-RaTuiKey {
+    <#
+    .SYNOPSIS
+        Reads one key and names it.
+    .DESCRIPTION
+        Returns Up, Down, Enter, Escape, or the typed character in lower case.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        $key = Read-RaTuiKey
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    $info = & $script:RaReadKey
+    switch ([string]$info.Key) {
+        'UpArrow' { return 'Up' }
+        'DownArrow' { return 'Down' }
+        'Enter' { return 'Enter' }
+        'Escape' { return 'Escape' }
+    }
+    return ([string]$info.KeyChar).ToLowerInvariant()
+}
+
+function Select-RaTuiAction {
+    <#
+    .SYNOPSIS
+        Shows the menu and returns the chosen action.
+    .DESCRIPTION
+        Up/Down move the selection, digits pick directly, Enter confirms, Esc or Q quits.
+        On a virtual-terminal host the menu is redrawn in place (cursor up); otherwise the
+        menu is printed again below, and a digit confirms at once.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.String (Install, Update, Disable, Uninstall or Quit)
+    .EXAMPLE
+        $action = Select-RaTuiAction $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$Mode)
+    $selected = 0
+    $count = $script:RaTuiMenuActions.Count
+    $model = Get-RaTuiMenuModel $selected $Mode
+    Write-RaTuiModel $model $Mode
+    while ($true) {
+        $key = Read-RaTuiKey
+        $before = $selected
+        if ($key -eq 'Up') { $selected = ($selected + $count - 1) % $count }
+        elseif ($key -eq 'Down') { $selected = ($selected + 1) % $count }
+        elseif ($key -eq 'Enter') { return $script:RaTuiMenuActions[$selected] }
+        elseif ($key -eq 'Escape' -or $key -eq $script:RaQuitAnswer) { return 'Quit' }
+        elseif ($key -match '^[1-9]$' -and [int]$key -le $count) {
+            $selected = [int]$key - 1
+            if (-not $Mode.Vt) { return $script:RaTuiMenuActions[$selected] }
+        }
+        if ($selected -ne $before) {
+            if ($Mode.Vt) { & $script:RaWriteRaw ('{0}[{1}A' -f [char]27, @($model).Count) } else { Write-RaTuiBlank $Mode }
+            $model = Get-RaTuiMenuModel $selected $Mode
+            Write-RaTuiModel $model $Mode
+        }
+    }
+}
+
+function Confirm-RaTui {
+    <#
+    .SYNOPSIS
+        Asks a yes/no question as an ASK line and reads one key.
+    .DESCRIPTION
+        Y/T answer yes, N answers no, Enter takes the default, Esc answers no. The answer is
+        echoed after the question so the transcript stays readable.
+    .PARAMETER Prompt
+        Question (ends with the default in brackets).
+    .PARAMETER Default
+        Answer for Enter.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Confirm-RaTui -Prompt (Get-RaText 'TuiAskSteam') -Default $true -Mode $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Prompt,
+        [Parameter(Mandatory, Position = 1)][bool]$Default,
+        [Parameter(Mandatory, Position = 2)][psobject]$Mode
+    )
+    Write-RaTuiModel (Get-RaTuiStatusModel -Word 'ASK' -Text $Prompt -Mode $Mode) $Mode
+    while ($true) {
+        $key = Read-RaTuiKey
+        $answer = $null
+        if ($key -eq 'Enter') { $answer = $Default }
+        elseif ($key -eq 'Escape') { $answer = $false }
+        elseif ($key -in @('y', 't')) { $answer = $true }
+        elseif ($key -eq 'n') { $answer = $false }
+        if ($null -ne $answer) {
+            $echo = if ($answer) { Get-RaText 'TuiYes' } else { Get-RaText 'TuiNo' }
+            Write-RaTuiModel @(, @((New-RaTuiSegment 'ash' ((' ' * $script:RaTuiStatusWidth) + $echo)))) $Mode
+            return [bool]$answer
+        }
+    }
+}
+#endregion Shared/Tui.ps1
 
 #region Features/Proxy.ps1
 # ---------------------------------------------------------------------------
@@ -3219,6 +4051,43 @@ function Install-RaPackage {
     [void](Install-RaVersion -Manifest $m -LocalZip $LocalZip -ZipUrl $null)
     Set-RaActiveVersion $State $m.Version
 }
+
+function Install-RaLatest {
+    <#
+    .SYNOPSIS
+        Installs and activates the newest signed release from GitHub Releases (-Install -Latest).
+    .DESCRIPTION
+        The path of the release installer: one GitHub API request for the latest release, its
+        release-manifest.json and .sig (RSA signature checked with the key pinned in this
+        script, tag = manifest version, asset URLs inside this repository), then the ZIP: its
+        SHA-256 before extraction, every file's SHA-256 after extraction, and a full
+        re-verification before the version folder is moved into place under
+        %LOCALAPPDATA%\RenameAnything. Nothing is written to the game folder. Offline:
+        -ManifestPath (with the .sig next to it) and -PackagePath.
+    .PARAMETER State
+        State object (modified; the caller saves it).
+    .PARAMETER LocalManifestPath
+        Signed release-manifest.json for an offline install, or empty.
+    .PARAMETER LocalZip
+        Release ZIP for an offline install, or empty.
+    .OUTPUTS
+        System.String (the installed version)
+    .EXAMPLE
+        Install-RaLatest -State $state -LocalManifestPath $null -LocalZip $null
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$LocalManifestPath,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$LocalZip
+    )
+    $remote = Get-RaRemoteRelease $LocalManifestPath
+    $m = $remote.Manifest
+    [void](Install-RaVersion -Manifest $m -LocalZip $LocalZip -ZipUrl $remote.ZipUrl)
+    Set-RaActiveVersion $State $m.Version
+    return [string]$m.Version
+}
 #endregion Features/Install.ps1
 
 #region Features/Update.ps1
@@ -3337,6 +4206,7 @@ function Get-RaRemoteRelease {
     $mBytes = Get-RaHttpContent $assets[$script:RaManifestAssetName]
     $sigText = ConvertFrom-RaUtf8 (Get-RaHttpContent $assets[$script:RaSignatureAssetName])
     $m = Assert-RaSignedManifest $mBytes $sigText
+    Write-RaLog (Get-RaText 'ReleaseVerified' @($m.Version))
     if (([string]$rel.tag_name).TrimStart($script:RaReleaseTagPrefix) -ne $m.Version) {
         throw "Release tag $($rel.tag_name) does not match manifest version $($m.Version)."
     }
@@ -3702,9 +4572,231 @@ function Remove-RaOwnShortcut {
 }
 #endregion Features/Shortcut.ps1
 
+#region Features/PlaysetMod.ps1
+# ---------------------------------------------------------------------------
+# Slice: the "CAPIE" switch mod in the player's mod folder
+# (Documents\Paradox Interactive\Hearts of Iron IV\mod). The release bundle carries it under
+# mod/ (mod/capie.mod and mod/capie/...). -Install, -Update and -Rollback copy it from the
+# verified version folder; -Uninstall removes it again. Only files recorded in state.json with
+# their SHA-256 are ever replaced or removed; a file that was there before is backed up first
+# (byte-verified copy) and restored by -Uninstall; a file the player changed is left alone.
+# ---------------------------------------------------------------------------
+
+function Get-RaPlaysetModRoot {
+    <#
+    .SYNOPSIS
+        The game's user mod folder.
+    .DESCRIPTION
+        <Documents>\Paradox Interactive\Hearts of Iron IV\mod, Documents from the adapter.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaPlaysetModRoot
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return (Join-Path ([string](& $script:RaDocumentsPath)) $script:RaGameUserModRelPath)
+}
+
+function Get-RaPlaysetModTarget {
+    <#
+    .SYNOPSIS
+        Maps a bundle path under mod/ to its place in the mod folder.
+    .DESCRIPTION
+        mod/capie.mod -> <mod folder>\capie.mod, mod/capie/x -> <mod folder>\capie\x.
+    .PARAMETER BundlePath
+        Manifest path starting with mod/.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaPlaysetModTarget 'mod/capie.mod'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][string]$BundlePath)
+    $relative = $BundlePath.Substring($script:RaModBundlePrefix.Length) -replace '/', '\'
+    return (Join-Path (Get-RaPlaysetModRoot) $relative)
+}
+
+function Find-RaPlaysetModRecord {
+    <#
+    .SYNOPSIS
+        The state.json record of one mod file, or $null.
+    .DESCRIPTION
+        Records: Path, Sha256 (what we wrote), Backup (our copy of a file that was there before, or $null).
+    .PARAMETER State
+        State object.
+    .PARAMETER Path
+        Target path.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+    .EXAMPLE
+        Find-RaPlaysetModRecord $state $target
+    #>
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State, [Parameter(Mandatory, Position = 1)][string]$Path)
+    return (@($State.ModFiles) | Where-Object { $_ -and $_.Path -ieq $Path } | Select-Object -First 1)
+}
+
+function Write-RaVerifiedFile {
+    <#
+    .SYNOPSIS
+        Writes bytes through a temporary file and verifies the result by SHA-256.
+    .DESCRIPTION
+        The temporary file is moved over the target (replace) and the target hash must equal
+        the expected one, else the call throws.
+    .PARAMETER Source
+        Verified source file (inside the version folder).
+    .PARAMETER Target
+        Destination.
+    .PARAMETER Sha256
+        Expected hash.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Write-RaVerifiedFile -Source $src -Target $dest -Sha256 $hash
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Source,
+        [Parameter(Mandatory, Position = 1)][string]$Target,
+        [Parameter(Mandatory, Position = 2)][string]$Sha256
+    )
+    $parent = Split-Path -Parent $Target
+    if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+    $tmp = "$Target$($script:RaWriteTempSuffix)"
+    & $script:RaCopyFile $Source $tmp
+    & $script:RaCopyFile $tmp $Target
+    Remove-Item -LiteralPath $tmp -Force
+    if ((Get-RaFileSha256 $Target) -ine $Sha256) { throw "Verification failed after writing $Target" }
+}
+
+function Install-RaPlaysetMod {
+    <#
+    .SYNOPSIS
+        Copies the "CAPIE" switch mod of the active version into the player's mod folder.
+    .DESCRIPTION
+        For each mod/ file of the active version's manifest: identical file present -> only
+        recorded; our older file (hash recorded) -> replaced; a file that was there before ->
+        backed up (byte-verified copy next to it) and replaced; every written file is verified
+        by SHA-256. Our files that the new version no longer has are removed (hash-checked).
+        A release without mod/ files changes nothing. No-op in dry-run mode except for plan lines.
+    .PARAMETER State
+        State object (modified; the caller saves it).
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Install-RaPlaysetMod $state
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State)
+    if (-not $State.InstalledVersion) { return }
+    $manifest = Read-RaStoredManifest $State.InstalledVersion
+    if (-not $manifest) { return }
+    $bundle = @($manifest.Files.Keys | Where-Object { ([string]$_).StartsWith($script:RaModBundlePrefix) })
+    if ($bundle.Count -eq 0) {
+        Write-RaLog "Release $($State.InstalledVersion) has no CAPIE switch mod; mod folder unchanged." -NoConsole
+        return
+    }
+    $versionDir = Get-RaVersionDir $State.InstalledVersion
+    $records = @()
+    foreach ($entry in $bundle) {
+        $target = Get-RaPlaysetModTarget $entry
+        $hash = ([string]$manifest.Files[$entry]).ToUpperInvariant()
+        $record = Find-RaPlaysetModRecord $State $target
+        $backup = if ($record) { $record.Backup } else { $null }
+        if ($script:RaDry) {
+            Write-RaLog "[dry-run] would place the CAPIE mod file $target" -Level PLAN
+            continue
+        }
+        if (Test-Path -LiteralPath $target -PathType Container) { throw "A folder is in the way of the CAPIE mod file: $target" }
+        $current = if (Test-Path -LiteralPath $target) { Get-RaFileSha256 $target } else { $null }
+        if ($current -ne $hash) {
+            if ($current -and -not ($record -and $current -ieq $record.Sha256)) {
+                $backup = New-RaBackupPath $target
+                $original = [byte[]](& $script:RaReadAllBytes $target)
+                & $script:RaWriteAllBytes $backup $original
+                if (-not (Test-RaBytesEqual ([byte[]](& $script:RaReadAllBytes $backup)) $original)) { throw "Backup verification failed: $backup" }
+                Write-RaLog "Backup of an existing mod file: $backup"
+            }
+            Write-RaVerifiedFile -Source (Join-Path $versionDir ($entry -replace '/', '\')) -Target $target -Sha256 $hash
+        }
+        $records += [pscustomobject]@{ Path = $target; Sha256 = $hash; Backup = $backup }
+    }
+    if ($script:RaDry) { return }
+    foreach ($old in @($State.ModFiles | Where-Object { $_ })) {
+        if (@($records | Where-Object { $_.Path -ieq $old.Path }).Count -gt 0) { continue }
+        $records += $old   # no longer in the release: kept on record so -Uninstall still handles it
+    }
+    $State.ModFiles = $records
+    Write-RaLog ("CAPIE switch mod installed in {0}: enable 'CAPIE' in your playset." -f (Get-RaPlaysetModRoot))
+}
+
+function Remove-RaPlaysetMod {
+    <#
+    .SYNOPSIS
+        Removes our switch mod files and restores what was there before.
+    .DESCRIPTION
+        A file still carrying our recorded hash is removed through the owned-file quarantine;
+        a changed file is kept and reported. A backup we made is moved back afterwards. Empty
+        folders that held our files are removed, never the mod folder itself.
+    .PARAMETER State
+        State object (modified; the caller saves it).
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Remove-RaPlaysetMod $state
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State)
+    $kept = @()
+    $root = Get-RaPlaysetModRoot
+    foreach ($record in @($State.ModFiles | Where-Object { $_ })) {
+        $path = [string]$record.Path
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            if ((Get-RaFileSha256 $path) -ine $record.Sha256) {
+                Write-RaLog "Mod file changed since installation; left in place: $path" -Level WARN
+                $kept += $record
+                continue
+            }
+            Remove-RaOwnedFile -Path $path -Sha256 $record.Sha256
+        }
+        if ($record.Backup -and (Test-Path -LiteralPath $record.Backup -PathType Leaf)) {
+            if ($script:RaDry) { Write-RaLog "[dry-run] would restore $path from $($record.Backup)" -Level PLAN; continue }
+            $original = [byte[]](& $script:RaReadAllBytes $record.Backup)
+            & $script:RaWriteAllBytes $path $original
+            if (-not (Test-RaBytesEqual ([byte[]](& $script:RaReadAllBytes $path)) $original)) { throw "Restore verification failed: $path" }
+            [IO.File]::Delete($record.Backup)
+            Write-RaLog "Restored the earlier file $path"
+        }
+    }
+    if (-not $script:RaDry) {
+        $folders = @{}
+        foreach ($record in @($State.ModFiles | Where-Object { $_ })) {
+            $folder = Split-Path -Parent ([string]$record.Path)
+            while ($folder -and $folder.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                $folders[$folder] = $true
+                $folder = Split-Path -Parent $folder
+            }
+        }
+        foreach ($folder in @($folders.Keys | Sort-Object { $_.Length } -Descending)) {
+            if ((Test-Path -LiteralPath $folder) -and @(Get-ChildItem -LiteralPath $folder -Force).Count -eq 0) {
+                [IO.Directory]::Delete($folder, $false)
+            }
+        }
+        $State.ModFiles = $kept
+    }
+}
+#endregion Features/PlaysetMod.ps1
+
 #region Features/Uninstall.ps1
 # ---------------------------------------------------------------------------
-# Slice: uninstall (-Uninstall). Keeps bootstrap.log.
+# Slice: uninstall (-Uninstall, -Uninstall -Purge) and disable (-Disable).
 # ---------------------------------------------------------------------------
 
 function Invoke-RaUninstall {
@@ -3713,7 +4805,8 @@ function Invoke-RaUninstall {
         Removes the Steam launch option part, our shortcuts and the installed files.
     .DESCRIPTION
         Steam first: while Steam keeps the launch option pointing at the launcher, no
-        file is removed. Then shortcuts, then the 'current' junction (so nothing can be
+        file is removed. Then the proxy, shortcuts and the "CAPIE" switch mod (earlier files
+        restored), then the 'current' junction (so nothing can be
         deleted through it), then everything under the root folder except bootstrap.log.
     .PARAMETER State
         State object (modified).
@@ -3739,6 +4832,7 @@ function Invoke-RaUninstall {
     }
     Remove-RaProxy $State
     Remove-RaOwnShortcut $State
+    Remove-RaPlaysetMod $State
     if (-not (Test-Path -LiteralPath $script:RaRoot)) { return }
     $log = Get-RaLogPath
     $link = Get-RaCurrentLink
@@ -3759,7 +4853,387 @@ function Invoke-RaUninstall {
     }
     Write-RaLog "Removed files in $($script:RaRoot) (kept $($script:RaLogFileName))"
 }
+
+function Invoke-RaDisable {
+    <#
+    .SYNOPSIS
+        Turns CAPIE off without removing files (-Disable).
+    .DESCRIPTION
+        Removes only our part of the HOI4 Steam launch options (restoring the exact earlier
+        value when nobody changed it since) and our proxy activation marker, if any. The next
+        start from Steam is the clean game. Installed files stay, so -SteamLaunchOption turns
+        CAPIE on again without a download.
+    .PARAMETER State
+        State object (modified; the caller saves it).
+    .PARAMETER SteamRootPath
+        Steam folder or empty when Steam was not found.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Invoke-RaDisable $state $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
+    )
+    if ($SteamRootPath) {
+        if (-not (Remove-RaSteamLaunchOption $State $SteamRootPath)) { throw 'Steam is running; launch option not changed.' }
+    } else {
+        Write-RaLog 'Steam not found; launch options unchanged.' -Level WARN
+    }
+    if ($State.ProxyActivation -eq 'Config') { Set-RaProxyActivation $State 'Flag' }
+}
+
+function Remove-RaSteamBackup {
+    <#
+    .SYNOPSIS
+        Deletes the localconfig.vdf backups this script made in every Steam account.
+    .DESCRIPTION
+        Only files named exactly like New-RaBackupPath names them
+        (localconfig.vdf.renameanything-backup-<yyyyMMdd-HHmmss>[-n]) in userdata\<id>\config
+        are removed; any other file is left alone. Called by -Uninstall -Purge after the launch
+        options were restored.
+    .PARAMETER SteamRootPath
+        Steam folder.
+    .OUTPUTS
+        System.Int32 (number of deleted or, in dry-run mode, planned files)
+    .EXAMPLE
+        Remove-RaSteamBackup $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param([Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$SteamRootPath)
+    $count = 0
+    foreach ($acc in @(Get-RaSteamAccount $SteamRootPath)) {
+        $dir = Split-Path -Parent $acc.ConfigPath
+        if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
+        foreach ($item in @(Get-ChildItem -LiteralPath $dir -File -Force | Where-Object { $_.Name -match $script:RaBackupNamePattern })) {
+            if ($script:RaDry) { Write-RaLog "[dry-run] would delete backup $($item.FullName)" -Level PLAN } else {
+                Remove-Item -LiteralPath $item.FullName -Force
+                Write-RaLog "Deleted backup $($item.FullName)"
+            }
+            $count++
+        }
+    }
+    return $count
+}
+
+function Invoke-RaPurge {
+    <#
+    .SYNOPSIS
+        Removes the last traces after a successful uninstall (-Uninstall -Purge).
+    .DESCRIPTION
+        Deletes our localconfig.vdf backups, then bootstrap.log, then the root folder when it
+        is empty. Must run last: any later log line would create the log again. A root folder
+        that still holds foreign files is kept and reported.
+    .PARAMETER SteamRootPath
+        Steam folder or empty when Steam was not found.
+    .OUTPUTS
+        System.Boolean ($true when nothing of the installation is left)
+    .EXAMPLE
+        Invoke-RaPurge $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$SteamRootPath)
+    if ($SteamRootPath) { [void](Remove-RaSteamBackup $SteamRootPath) }
+    if (-not (Test-Path -LiteralPath $script:RaRoot)) { return $true }
+    $rest = @(Get-ChildItem -LiteralPath $script:RaRoot -Force | Where-Object { $_.FullName -ine (Get-RaLogPath) })
+    if ($rest.Count -gt 0) {
+        Write-RaLog "Kept $($script:RaRoot): it contains files that are not ours ($($rest[0].Name))." -Level WARN
+        return $false
+    }
+    if ($script:RaDry) {
+        Write-RaLog "[dry-run] would delete $(Get-RaLogPath) and $($script:RaRoot)" -Level PLAN
+        return $true
+    }
+    if (Test-Path -LiteralPath (Get-RaLogPath)) { Remove-Item -LiteralPath (Get-RaLogPath) -Force }
+    [IO.Directory]::Delete($script:RaRoot, $false)
+    return $true
+}
 #endregion Features/Uninstall.ps1
+
+#region Features/Tui.ps1
+# ---------------------------------------------------------------------------
+# Slice: the terminal interface (irm | iex without switches on an interactive console).
+# Splash, one menu (install, update, disable, uninstall), the questions each action needs,
+# progress as status lines, and a summary. The actions themselves are the same code paths
+# as the switches (Invoke-RaAction), so the interface adds no second implementation.
+# ---------------------------------------------------------------------------
+
+$script:RaTuiActiveMode = $null   # mode of the running interface (read by the log sink)
+
+function Test-RaUpdateChannel {
+    <#
+    .SYNOPSIS
+        Tests whether this script can install from GitHub Releases.
+    .DESCRIPTION
+        True when the repository and the update signing key are configured (not placeholders).
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        if (Test-RaUpdateChannel) { 'signed releases available' }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    return ($script:RaGitHubRepo -notmatch $script:RaRepoPlaceholderMarker) -and ($script:RaUpdatePublicKeyXml -match $script:RaRsaKeyXmlMarker)
+}
+
+function Write-RaTuiStatus {
+    <#
+    .SYNOPSIS
+        Writes one status line of the running interface.
+    .DESCRIPTION
+        Shortcut for Get-RaTuiStatusModel + Write-RaTuiModel with the active mode.
+    .PARAMETER Word
+        OK, ASK, SKIP, NOTE or FAIL.
+    .PARAMETER Text
+        Message.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Write-RaTuiStatus 'NOTE' 'CAPIE is not installed.'
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][string]$Word, [Parameter(Position = 1)][AllowEmptyString()][string]$Text)
+    Write-RaTuiModel (Get-RaTuiStatusModel -Word $Word -Text $Text -Mode $script:RaTuiActiveMode) $script:RaTuiActiveMode
+}
+
+function Wait-RaTuiSteamClosed {
+    <#
+    .SYNOPSIS
+        Asks the player to close Steam until it is closed or the Steam step is skipped.
+    .DESCRIPTION
+        Enter checks again, Q or Esc skips. The script never closes Steam itself.
+    .OUTPUTS
+        System.Boolean ($true when Steam is closed)
+    .EXAMPLE
+        if (-not (Wait-RaTuiSteamClosed)) { 'skip the Steam step' }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    while (Test-RaSteamRunning) {
+        Write-RaTuiStatus 'ASK' (Get-RaText 'TuiAskSteamClosed')
+        $key = Read-RaTuiKey
+        if ($key -eq $script:RaQuitAnswer -or $key -eq 'Escape') { return $false }
+    }
+    return $true
+}
+
+function Get-RaTuiStatusText {
+    <#
+    .SYNOPSIS
+        One sentence about the current installation for the menu screen.
+    .DESCRIPTION
+        Installed version and whether Steam starts the game with the launcher.
+    .PARAMETER State
+        State object.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaTuiStatusText (Read-RaState)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State)
+    if (-not $State.InstalledVersion) { return (Get-RaText 'TuiStatusNone') }
+    $steam = if (@($State.SteamEntries).Count -gt 0) { Get-RaText 'TuiSteamOn' } else { Get-RaText 'TuiSteamOff' }
+    return (Get-RaText 'TuiStatusInstalled' @($State.InstalledVersion, $steam))
+}
+
+function Get-RaTuiPlan {
+    <#
+    .SYNOPSIS
+        Asks what an action needs and returns the option table for Invoke-RaAction, or $null.
+    .DESCRIPTION
+        Install: the multiplayer note, then whether to add the launcher to Steam (default
+        yes), Steam closed, account choice. Installs into the user folder with the launcher
+        method (nothing in the game folder; the "CAPIE" switch mod goes to the player's mod
+        folder) from the newest signed release when the update
+        channel is configured, else the release pinned in this script.
+        An existing installation keeps its loading method.
+        Update: no question. Disable: confirm (default yes). Uninstall: confirm (default no),
+        then whether to purge the log and Steam backups (default no).
+        $null means cancelled.
+    .PARAMETER Action
+        Install, Update, Disable or Uninstall.
+    .PARAMETER Options
+        Options of this run (DryRun, SteamRoot, Language, PackagePath, ManifestPath carry over).
+    .PARAMETER SteamRootPath
+        Steam folder or empty.
+    .OUTPUTS
+        System.Collections.Hashtable
+    .EXAMPLE
+        $run = Get-RaTuiPlan -Action 'Install' -Options $options -SteamRootPath $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory, Position = 0)][ValidateSet('Install', 'Update', 'Disable', 'Uninstall')][string]$Action,
+        [Parameter(Mandatory, Position = 1)][hashtable]$Options,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
+    )
+    $mode = $script:RaTuiActiveMode
+    $run = $Options.Clone()
+    switch ($Action) {
+        'Install' {
+            $run.Install = $true
+            $run.Latest = (Test-RaUpdateChannel) -and -not $Options.PackagePath
+            if (-not $run.LoadMethod -and -not (Read-RaState).InstalledVersion) { $run.LoadMethod = 'Launcher' }
+            Write-RaTuiStatus 'NOTE' (Get-RaText 'TuiMpNote')
+            $script:RaMpWarningShown = $true
+            $steam = $false
+            if ($SteamRootPath) { $steam = Confirm-RaTui -Prompt (Get-RaText 'TuiAskSteam') -Default $true -Mode $mode }
+            if ($steam -and -not (Wait-RaTuiSteamClosed)) { $steam = $false }
+            if ($steam -and @(Get-RaSteamAccount $SteamRootPath).Count -gt 1 -and -not $run.SteamAccount) {
+                Write-RaTuiStatus 'NOTE' (Format-RaAccountList @(Get-RaSteamAccount $SteamRootPath))
+                $run.SteamAccount = $script:RaAllAccountsSelector
+            }
+            $run.SteamLaunchOption = $steam
+        }
+        'Update' { $run.Update = $true }
+        'Disable' {
+            if (-not (Confirm-RaTui -Prompt (Get-RaText 'TuiAskDisable') -Default $true -Mode $mode)) { return $null }
+            if (-not (Wait-RaTuiSteamClosed)) { return $null }
+            $run.Disable = $true
+        }
+        'Uninstall' {
+            if (-not (Confirm-RaTui -Prompt (Get-RaText 'TuiAskUninstall') -Default $false -Mode $mode)) { return $null }
+            $run.Purge = Confirm-RaTui -Prompt (Get-RaText 'TuiAskPurge') -Default $false -Mode $mode
+            if (-not (Wait-RaTuiSteamClosed)) { return $null }
+            $run.Uninstall = $true
+        }
+    }
+    return $run
+}
+
+function Get-RaTuiSummaryRow {
+    <#
+    .SYNOPSIS
+        Rows of the summary after an action.
+    .DESCRIPTION
+        What is installed now, what Steam does, that the game folder is unchanged in launcher
+        mode, how to switch CAPIE on and off, how to undo, and where the log is.
+    .PARAMETER Action
+        Action that ran.
+    .PARAMETER ExitCode
+        Its exit code.
+    .PARAMETER Purged
+        Whether -Purge removed everything (no log left).
+    .OUTPUTS
+        System.Object[] (two-element arrays)
+    .EXAMPLE
+        Get-RaTuiSummaryRow -Action 'Install' -ExitCode 0 -Purged $false
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory, Position = 0)][string]$Action,
+        [Parameter(Mandatory, Position = 1)][int]$ExitCode,
+        [Parameter(Position = 2)][bool]$Purged = $false
+    )
+    $state = Read-RaState
+    $rows = @()
+    $result = if ($ExitCode -eq $script:RaExitSuccess) { Get-RaText 'TuiDone' } else { Get-RaText 'TuiFailed' @((Get-RaLogPath)) }
+    $rows += , @((Get-RaText 'TuiRowResult'), $result)
+    if ($Action -eq 'Uninstall') {
+        $removed = if ($Purged) { Get-RaText 'TuiRemovedAll' } else { Get-RaText 'TuiRemovedKeptLog' }
+        $rows += , @((Get-RaText 'TuiRowInstalled'), $removed)
+    } else {
+        $installed = Get-RaText 'TuiNone'
+        if ($state.InstalledVersion) { $installed = "CAPIE $($state.InstalledVersion), $(Get-RaVersionDir $state.InstalledVersion)" }
+        $rows += , @((Get-RaText 'TuiRowInstalled'), $installed)
+        $steam = if (@($state.SteamEntries).Count -gt 0) { Get-RaText 'TuiSteamOn' } else { Get-RaText 'TuiSteamOff' }
+        $rows += , @((Get-RaText 'TuiRowSteam'), $steam)
+        if (-not $state.Proxy) { $rows += , @((Get-RaText 'TuiRowGame'), (Get-RaText 'TuiGameUnchanged')) }
+        $modFiles = @($state.ModFiles | Where-Object { $_ })
+        if ($modFiles.Count -gt 0) { $rows += , @((Get-RaText 'TuiRowMod'), (Join-Path (Get-RaPlaysetModRoot) 'capie')) }
+        if ($state.InstalledVersion) { $rows += , @((Get-RaText 'TuiRowSwitch'), (Get-RaText 'TuiSwitchValue')) }
+        if ($state.InstalledVersion) { $rows += , @((Get-RaText 'TuiRowUndo'), (Get-RaText 'TuiUndoValue')) }
+    }
+    if (-not $Purged) { $rows += , @((Get-RaText 'TuiRowLog'), (Get-RaLogPath)) }
+    return , $rows
+}
+
+function Invoke-RaTui {
+    <#
+    .SYNOPSIS
+        Runs the terminal interface and returns the exit code.
+    .DESCRIPTION
+        Splash, current status, menu, the questions of the chosen action, the action itself
+        through Invoke-RaAction (its log lines become status lines), then the summary. While
+        it runs, every answer comes from the interface (-Yes semantics for the shared code);
+        console adapters are restored afterwards, also under irm | iex.
+    .PARAMETER Options
+        Normalized option table.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.Int32
+    .EXAMPLE
+        Invoke-RaTui $options (Get-RaTuiMode $options)
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options, [Parameter(Mandatory, Position = 1)][psobject]$Mode)
+    $savedHost = $script:RaWriteHost
+    $savedSink = $script:RaLogSink
+    $savedYes = $script:RaAssumeYes
+    $script:RaTuiActiveMode = $Mode
+    try {
+        $script:RaLogSink = { param([string]$Level, [string]$Message) Write-RaTuiStatus $script:RaTuiLevelStatus[$Level] $Message }
+        $script:RaWriteHost = {
+            param([string]$Message)
+            if ($Message) { Write-RaTuiModel (Get-RaTuiTextModel -Text $Message -Style 'khaki' -Mode $script:RaTuiActiveMode) $script:RaTuiActiveMode }
+        }
+        [void](Show-RaTuiSplash $Mode)
+        if ($script:RaDry) { Write-RaTuiStatus 'SKIP' (Get-RaText 'DryRunNote') }
+        Write-RaTuiStatus 'NOTE' (Get-RaTuiStatusText (Read-RaState))
+        Write-RaTuiBlank $Mode
+        Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiMenuTitle') -Style 'parchment' -Mode $Mode) $Mode
+        Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiKeys') -Style 'ash' -Mode $Mode) $Mode
+        Write-RaTuiBlank $Mode
+        $action = Select-RaTuiAction $Mode
+        Write-RaTuiBlank $Mode
+        if ($action -eq 'Quit') {
+            Write-RaTuiStatus 'SKIP' (Get-RaText 'TuiCancelled')
+            return $script:RaExitSuccess
+        }
+        $steamRootPath = $null
+        try { $steamRootPath = Get-RaSteamRoot $Options.SteamRoot } catch { Write-RaLog $_.Exception.Message -Level WARN -NoConsole }
+        $script:RaAssumeYes = $true
+        $run = Get-RaTuiPlan -Action $action -Options $Options -SteamRootPath $steamRootPath
+        if ($null -eq $run) {
+            Write-RaTuiStatus 'SKIP' (Get-RaText 'TuiCancelled')
+            return $script:RaExitSuccess
+        }
+        Write-RaTuiBlank $Mode
+        $working = (Get-RaText "Tui$action") + ': ' + (Get-RaText 'TuiWorking')
+        Write-RaTuiModel (Get-RaTuiTextModel -Text $working -Style 'parchment' -Mode $Mode) $Mode
+        $code = $script:RaExitFailure
+        try { $code = [int]@(Invoke-RaAction $run)[-1] } catch {
+            Write-RaLog $_.Exception.Message -Level ERROR
+            $code = $script:RaExitFailure
+        }
+        $purged = [bool]$run.Purge -and $code -eq $script:RaExitSuccess -and -not (Test-Path -LiteralPath $script:RaRoot)
+        Write-RaTuiBlank $Mode
+        Write-RaTuiModel (Get-RaTuiSummaryModel (Get-RaTuiSummaryRow -Action $action -ExitCode $code -Purged $purged) $Mode) $Mode
+        Write-RaTuiBlank $Mode
+        return $code
+    } finally {
+        $script:RaWriteHost = $savedHost
+        $script:RaLogSink = $savedSink
+        $script:RaAssumeYes = $savedYes
+        $script:RaTuiActiveMode = $null
+        $script:RaMpWarningShown = $false
+    }
+}
+#endregion Features/Tui.ps1
 
 #region Main.ps1
 # ---------------------------------------------------------------------------
@@ -3769,7 +5243,7 @@ function Invoke-RaUninstall {
 $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
     'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'Language', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
-    'LoadMethod', 'ProxyActivation'
+    'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain'
 )
 
 function Write-RaDone {
@@ -3795,9 +5269,12 @@ function Initialize-RaRun {
         Applies the options to the runtime switches and prints the banner.
     .DESCRIPTION
         Sets language, root folder (unless a test already set it), dry-run and -Yes,
-        prints title/intro and logs the start line with the switches that were given.
+        prints title/intro (unless -NoBanner: the terminal interface draws its own) and logs
+        the start line with the switches that were given.
     .PARAMETER Options
         Normalized option table (every known key present).
+    .PARAMETER NoBanner
+        Do not print the title and intro lines.
     .OUTPUTS
         None.
     .EXAMPLE
@@ -3805,14 +5282,17 @@ function Initialize-RaRun {
     #>
     [CmdletBinding()]
     [OutputType([void])]
-    param([Parameter(Mandatory, Position = 0)][hashtable]$Options)
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Options, [switch]$NoBanner)
     $script:RaLang = if ($Options.Language) { $Options.Language } else { Get-RaDefaultLanguage }
     if (-not $script:RaRoot) { $script:RaRoot = Join-Path $env:LOCALAPPDATA $script:RaRootDirName }
     $script:RaDry = [bool]$Options.DryRun
     $script:RaAssumeYes = [bool]$Options.Yes
-    Write-RaHost (Get-RaText 'Title') -Color White
-    Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
-    if ($script:RaDry) { Write-RaHost (Get-RaText 'DryRunNote') -Color Cyan }
+    $script:RaMpWarningShown = $false
+    if (-not $NoBanner) {
+        Write-RaHost (Get-RaText 'Title') -Color White
+        Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
+        if ($script:RaDry) { Write-RaHost (Get-RaText 'DryRunNote') -Color Cyan }
+    }
     $given = ($Options.GetEnumerator() | Where-Object { $_.Value } | ForEach-Object { "-$($_.Key)" }) -join ' '
     Write-RaLog ('Start: PS {0}, args: {1}' -f $PSVersionTable.PSVersion, $given) -NoConsole
 }
@@ -3845,19 +5325,19 @@ function Get-RaSetupPlan {
         Steam          = [bool]$Options.SteamLaunchOption
         Shortcut       = [bool]$Options.Shortcut -or [bool]$Options.ShortcutPath
         ShortcutFolder = $null
-        LoadMethod     = if ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) { $Options.LoadMethod } else { 'Proxy' }
+        LoadMethod     = if ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) { $Options.LoadMethod } else { 'Launcher' }
         ProxyActivation = if ($Options.ContainsKey('ProxyActivation') -and $Options.ProxyActivation) { $Options.ProxyActivation } else { 'Flag' }
     }
     if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod) -and $State -and $State.InstalledVersion) {
         $plan.LoadMethod = $State.LoadMethod
     }
     if (-not ($plan.Install -or $plan.Steam -or $plan.Shortcut)) {
-        if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Uninstall.' }
+        if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Disable, -Uninstall.' }
         $plan.Install = Confirm-Ra (Get-RaText 'AskInstall' @($script:RaRoot)) $true
         if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod)) {
-            $defaultLoader = if ($plan.LoadMethod -eq 'Launcher') { '2' } else { '1' }
+            $defaultLoader = if ($plan.LoadMethod -eq 'Proxy') { '2' } else { '1' }
             do { $loader = Read-RaAnswer (Get-RaText 'AskLoadMethod' @($defaultLoader)) } until ($loader -in @('', '1', '2'))
-            if ($loader) { $plan.LoadMethod = if ($loader -eq '2') { 'Launcher' } else { 'Proxy' } }
+            if ($loader) { $plan.LoadMethod = if ($loader -eq '2') { 'Proxy' } else { 'Launcher' } }
         }
         $modeText = if ($plan.LoadMethod -eq 'Proxy') { 'AskModeProxy' } else { 'AskMode' }
         do { $mode = Read-RaAnswer (Get-RaText $modeText) } until (
@@ -3869,7 +5349,7 @@ function Get-RaSetupPlan {
     if ($plan.Shortcut -and $plan.LoadMethod -eq 'Proxy') {
         throw 'Shortcuts use the launcher alternative. Choose -LoadMethod Launcher -Shortcut, or use proxy mode through Steam with -capie.'
     }
-    if ($plan.Steam -or $plan.Shortcut) {
+    if (($plan.Steam -or $plan.Shortcut) -and -not $script:RaMpWarningShown) {
         Write-RaHost ''
         Write-RaHost (Get-RaText 'MpWarning') -Color Yellow
         Write-RaHost ''
@@ -3925,7 +5405,10 @@ function Invoke-RaSetupAction {
         Save-RaState $State
     }
     if ($plan.Install) {
-        Install-RaPackage $State $Options.PackagePath
+        if ($Options.Latest) { [void](Install-RaLatest -State $State -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath) }
+        else { Install-RaPackage $State $Options.PackagePath }
+        Save-RaState $State
+        Install-RaPlaysetMod $State
         Save-RaState $State
     }
     if ($plan.LoadMethod -eq 'Proxy') {
@@ -3968,8 +5451,8 @@ function Invoke-RaAction {
     .SYNOPSIS
         Dispatches to the requested action and returns its exit code.
     .DESCRIPTION
-        Priority: -Uninstall, -RemoveSteamLaunchOption, -CheckUpdate, -Rollback, -Update,
-        then the install/integration flow. Exceptions propagate to Invoke-RaMain.
+        Priority: -Uninstall, -RemoveSteamLaunchOption, -Disable, -CheckUpdate, -Rollback,
+        -Update, then the install/integration flow. Exceptions propagate to Invoke-RaMain.
     .PARAMETER Options
         Normalized option table.
     .OUTPUTS
@@ -3991,7 +5474,17 @@ function Invoke-RaAction {
     if ($Options.Uninstall) {
         Invoke-RaUninstall $state $steamRootPath
         if (-not $script:RaDry -and (Test-Path -LiteralPath (Get-RaStatePath))) { Remove-Item -LiteralPath (Get-RaStatePath) -Force }
+        if ($Options.Purge -and (Invoke-RaPurge $steamRootPath)) {
+            Write-RaHost (Get-RaText 'PurgeDone') -Color Green
+            return $script:RaExitSuccess
+        }
         Write-RaHost (Get-RaText 'UninstallDone' @((Get-RaLogPath))) -Color Green
+        return $script:RaExitSuccess
+    }
+    if ($Options.Disable) {
+        Invoke-RaDisable $state $steamRootPath
+        Save-RaState $state
+        Write-RaHost (Get-RaText 'DisableDone') -Color Green
         return $script:RaExitSuccess
     }
     if ($Options.RemoveSteamLaunchOption) {
@@ -4008,11 +5501,15 @@ function Invoke-RaAction {
     if ($Options.Rollback) {
         Invoke-RaRollback $state
         Save-RaState $state
+        Install-RaPlaysetMod $state
+        Save-RaState $state
         Write-RaDone
         return $script:RaExitSuccess
     }
     if ($Options.Update) {
         if ((Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath)) {
+            Save-RaState $state
+            Install-RaPlaysetMod $state
             Save-RaState $state
             Remove-RaUnusedVersion $state
         }
@@ -4044,6 +5541,16 @@ function Invoke-RaMain {
     $ErrorActionPreference = 'Stop'
     $options = $P.Clone()
     foreach ($k in $script:RaOptionNames) { if (-not $options.ContainsKey($k)) { $options[$k] = $null } }
+    if ($options.Purge -and -not $options.Uninstall) { $options.Purge = $null }
+    if ($options.Latest -and -not ($options.Install -or $options.Update)) { $options.Install = $true }
+    $mode = Get-RaTuiMode $options
+    if ($mode.Tui) {
+        Initialize-RaRun $options -NoBanner
+        try { return (Invoke-RaTui -Options $options -Mode $mode) } catch {
+            Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
+            return $script:RaExitFailure
+        }
+    }
     Initialize-RaRun $options
     try {
         return (Invoke-RaAction $options)
@@ -4059,7 +5566,8 @@ if ($MyInvocation.InvocationName -ne '.') {
         SteamAccount = $SteamAccount; RemoveSteamLaunchOption = $RemoveSteamLaunchOption; Uninstall = $Uninstall
         DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot; Language = $Language
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
-        LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation
+        LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation; Latest = $Latest; Purge = $Purge; Disable = $Disable
+        NoAnimation = $NoAnimation; Plain = $Plain
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

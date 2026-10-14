@@ -255,6 +255,8 @@ function New-TestPackage {
         Manifest version.
     .PARAMETER WithProxy
         Include a proxy asset with distinct bytes for each release.
+    .PARAMETER WithMod
+        Include the "CAPIE" switch mod under mod/ (descriptor text carries the version).
     .OUTPUTS
         System.Collections.Hashtable (Zip, Manifest)
     .EXAMPLE
@@ -266,7 +268,8 @@ function New-TestPackage {
         [Parameter(Mandatory, Position = 0)][string]$Dir,
         [Parameter(Position = 1)][ValidateSet('none', 'filehash', 'extra', 'zipslip', 'missing')][string]$Tamper = 'none',
         [string]$Version = '0.1.0',
-        [switch]$WithProxy
+        [switch]$WithProxy,
+        [switch]$WithMod
     )
     $src = Join-Path $Dir 'pkgsrc'
     New-Item -ItemType Directory -Force -Path (Join-Path $src 'runtime') | Out-Null
@@ -276,6 +279,11 @@ function New-TestPackage {
         'runtime/rename_anything_country.dll' = 'dll-bytes'
     }
     if ($WithProxy) { $files['proxy/version.dll'] = 'proxy-' + $Version }
+    if ($WithMod) {
+        $files['mod/capie.mod'] = "name=`"CAPIE`"`npath=`"mod/capie`"`n"
+        $files['mod/capie/descriptor.mod'] = "name=`"CAPIE`"`nversion=`"$Version`"`n"
+        $files['mod/capie/interface/capie_menu_indicator.gui'] = 'guiTypes = { }'
+    }
     $manifest = [ordered]@{ Version = $Version; ZipName = "RA-$Version-$Tamper.zip"; ZipSha256 = ''; Files = [ordered]@{}; SupportedGameSha256 = @() }
     foreach ($k in $files.Keys) {
         $bytes = $utf8.GetBytes($files[$k])
@@ -339,6 +347,9 @@ function Reset-Env {
     $desk = Join-Path $dir 'Desktop'
     New-Item -ItemType Directory -Force -Path $desk | Out-Null
     $script:RaDesktopPath = [scriptblock]::Create("'$desk'")
+    $docs = Join-Path $dir 'Documents'
+    New-Item -ItemType Directory -Force -Path (Join-Path $docs 'Paradox Interactive\Hearts of Iron IV\mod') | Out-Null
+    $script:RaDocumentsPath = [scriptblock]::Create("'$docs'")
     $script:RaReadHost = { param($p) throw "Unexpected prompt: $p" }
     $script:RaGitHubRepo = $origRepo
     $script:RaUpdatePublicKeyXml = $origKey
@@ -353,6 +364,16 @@ function Reset-Env {
     $script:RaGetRegistryValue = { param($p, $n) throw "no registry in tests: $p\$n" }
     $script:RaGetUiLanguage = $origAdapters.GetUiLanguage
     $script:RaWriteHost = $origAdapters.WriteHost
+    # Terminal interface: a redirected console by default (plain prompts), output captured.
+    $script:RaGetTerminal = { [pscustomobject]@{ Interactive = $false; Vt = $false; Width = 80 } }
+    $script:RaGetEnv = { $null }
+    $script:rawOut = New-Object System.Text.StringBuilder
+    $script:RaWriteRaw = { param($t) [void]$script:rawOut.Append($t) }
+    $script:RaReadKey = { throw 'Unexpected key read' }
+    $script:sleeps = New-Object System.Collections.ArrayList
+    $script:RaSleep = { param($ms) [void]$script:sleeps.Add($ms) }
+    $script:RaLogSink = $null
+    $script:RaMpWarningShown = $false
     $script:requested = New-Object System.Collections.ArrayList
     # Network is always mocked: any unexpected request fails the test.
     $script:fakeWeb = @{}
@@ -810,6 +831,8 @@ function New-SignedRelease {
         Release tag; default v<Version>.
     .PARAMETER AssetHost
         Asset URL prefix (a foreign host must be refused).
+    .PARAMETER WithMod
+        Include the "CAPIE" switch mod in the package.
     .OUTPUTS
         System.Collections.Hashtable (Zip, ManifestPath, Base, ZipName)
     .EXAMPLE
@@ -823,9 +846,10 @@ function New-SignedRelease {
         [Parameter(Mandatory)][string]$KeyPath,
         [string[]]$GameSha = @(),
         [string]$Tag = '',
-        [string]$AssetHost = $fakeGitHubAssetHost
+        [string]$AssetHost = $fakeGitHubAssetHost,
+        [switch]$WithMod
     )
-    $pkg = New-TestPackage (Join-Path $Dir "rel-$Version") -Version $Version
+    $pkg = New-TestPackage (Join-Path $Dir "rel-$Version") -Version $Version -WithMod:$WithMod
     $mPath = Join-Path $Dir "rel-$Version\release-manifest.json"
     [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version $Version -SupportedGameSha256 $GameSha -OutPath $mPath)
     [void](& $signScript -Sign -ManifestPath $mPath -PrivateKeyPath $KeyPath)
@@ -1322,7 +1346,7 @@ Describe 'CAPIE proxy installation and ownership' {
         [void](Reset-Env 'proxy-menu')
         $script:RaAssumeYes = $false
         $script:answers = New-Object System.Collections.Queue
-        foreach ($answer in @('n', '', '2', '3', '4')) { $script:answers.Enqueue($answer) }
+        foreach ($answer in @('n', '2', '2', '3', '4')) { $script:answers.Enqueue($answer) }
         $script:RaReadHost = { $script:answers.Dequeue() }
         $plan = Get-RaSetupPlan @{ Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null }
         $plan.LoadMethod | Should Be 'Proxy'
@@ -1337,7 +1361,7 @@ Describe 'CAPIE proxy installation and ownership' {
         $state.InstalledVersion = '0.1.0'
         $state.LoadMethod = 'Launcher'
         $script:answers = New-Object System.Collections.Queue
-        foreach ($answer in @('n', '1', '4')) { $script:answers.Enqueue($answer) }
+        foreach ($answer in @('n', '2', '4')) { $script:answers.Enqueue($answer) }
         $script:RaReadHost = { $script:answers.Dequeue() }
         $plan = Get-RaSetupPlan -Options @{
             Install = $null; SteamLaunchOption = $null; Shortcut = $null; ShortcutPath = $null
@@ -1361,7 +1385,7 @@ Describe 'CAPIE proxy installation and ownership' {
         Test-RaHasCapieFlag '""" -capie' | Should Be $true
         Test-RaHasCapieFlag '"""" -capie' | Should Be $false
     }
-    It 'default install copies only verified proxy, appends the Steam flag, and uninstall restores original files' {
+    It 'explicit Proxy install copies only verified proxy, appends the Steam flag, and uninstall restores original files' {
         $dir = Reset-Env 'proxy-default'
         $steam = Join-Path $dir 'Steam'
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions" "-debug_mode"')) }
@@ -1371,7 +1395,8 @@ Describe 'CAPIE proxy installation and ownership' {
         $cfgBefore = [IO.File]::ReadAllBytes($cfg)
         $pkg = New-TestPackage $dir -WithProxy
         $script:RaPinnedRelease = $pkg.Manifest
-        (Invoke-RaMain @{ Install = $true; SteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        $proxyOptions = @{ LoadMethod = 'Proxy'; Install = $true; SteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }
+        (Invoke-RaMain $proxyOptions) | Should Be 0
         $state = Read-RaState
         $state.LoadMethod | Should Be 'Proxy'
         $state.Proxy.Path | Should Be (Join-Path $game 'version.dll')
@@ -1390,19 +1415,19 @@ Describe 'CAPIE proxy installation and ownership' {
         Write-Utf8 $path 'foreign-tool'
         $pkg = New-TestPackage $dir -WithProxy
         $script:RaPinnedRelease = $pkg.Manifest
-        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 1
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 1
         [IO.File]::ReadAllText($path) | Should Be 'foreign-tool'
         (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         [IO.File]::ReadAllText($path) | Should Be 'foreign-tool'
     }
-    It 'launcher-only releases require explicit Launcher mode and leave the game folder unchanged' {
+    It 'launcher-only releases refuse explicit Proxy mode; the default Launcher mode leaves the game folder unchanged' {
         $dir = Reset-Env 'proxy-old-release'
         $steam = Join-Path $dir 'Steam'
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
         $pkg = New-TestPackage $dir
         $script:RaPinnedRelease = $pkg.Manifest
-        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 1
-        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 1
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
         (Invoke-RaMain @{ Install = $true; Shortcut = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
         (Read-RaState).LoadMethod | Should Be 'Launcher'
         Test-Path (Join-Path (Get-RaGameDir $steam) 'version.dll') | Should Be $false
@@ -1413,7 +1438,8 @@ Describe 'CAPIE proxy installation and ownership' {
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
         $pkg = New-TestPackage $dir -WithProxy
         $script:RaPinnedRelease = $pkg.Manifest
-        (Invoke-RaMain @{ Install = $true; ProxyActivation = 'Config'; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        $configOptions = @{ LoadMethod = 'Proxy'; Install = $true; ProxyActivation = 'Config'; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }
+        (Invoke-RaMain $configOptions) | Should Be 0
         $path = Join-Path $script:RaRoot 'proxy.enabled'
         [IO.File]::ReadAllText($path) | Should BeExactly "CAPIE_PROXY_ENABLED_V1`n"
         $state = Read-RaState
@@ -1430,7 +1456,8 @@ Describe 'CAPIE proxy installation and ownership' {
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
         $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
         $script:RaPinnedRelease = $p1.Manifest
-        (Invoke-RaMain @{ Install = $true; ProxyActivation = 'Config'; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        $configOptions = @{ LoadMethod = 'Proxy'; Install = $true; ProxyActivation = 'Config'; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }
+        (Invoke-RaMain $configOptions) | Should Be 0
         $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0'
         $script:RaPinnedRelease = $p2.Manifest
         (Invoke-RaMain @{
@@ -1475,7 +1502,7 @@ Describe 'CAPIE proxy installation and ownership' {
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
         $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
         $script:RaPinnedRelease = $p1.Manifest
-        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
         $state = Read-RaState
         $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0' -WithProxy
         [void](Install-RaVersion $p2.Manifest $p2.Zip $null)
@@ -1497,7 +1524,7 @@ Describe 'CAPIE proxy installation and ownership' {
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
         $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
         $script:RaPinnedRelease = $p1.Manifest
-        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
         $state = Read-RaState
         $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0' -WithProxy
         [void](Install-RaVersion $p2.Manifest $p2.Zip $null)
@@ -1513,7 +1540,7 @@ Describe 'CAPIE proxy installation and ownership' {
         New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
         $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
         $script:RaPinnedRelease = $p1.Manifest
-        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
         $state = Read-RaState
         $p2 = New-TestPackage (Join-Path $dir 'v2') -Version '0.2.0' -WithProxy
         [void](Install-RaVersion $p2.Manifest $p2.Zip $null)
@@ -1543,7 +1570,491 @@ Describe 'CAPIE proxy installation and ownership' {
         $pkg = New-TestPackage $dir -WithProxy
         $script:RaPinnedRelease = $pkg.Manifest
         $before = Get-TreeHash $dir
-        (Invoke-RaMain @{ Install = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
         (Get-TreeHash $dir) -join '|' | Should Be ($before -join '|')
+    }
+}
+
+function New-InstallOption {
+    <#
+    .SYNOPSIS
+        Options of a non-interactive launcher-mode install with the Steam launch option.
+    .DESCRIPTION
+        Shared by the release-installer and terminal-interface tests.
+    .PARAMETER Package
+        Result of New-TestPackage.
+    .PARAMETER Steam
+        Fake Steam folder.
+    .OUTPUTS
+        System.Collections.Hashtable
+    .EXAMPLE
+        Invoke-RaMain (New-InstallOption $pkg $steam)
+    #>
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param([Parameter(Mandatory, Position = 0)][hashtable]$Package, [Parameter(Mandatory, Position = 1)][string]$Steam)
+    return @{
+        LoadMethod = 'Launcher'; Install = $true; SteamLaunchOption = $true; Yes = $true
+        PackagePath = $Package.Zip; SteamRoot = $Steam; Language = 'en'
+    }
+}
+function Set-TuiKeyQueue {
+    <#
+    .SYNOPSIS
+        Feeds named keys to the terminal interface (non-interactive test mode).
+    .DESCRIPTION
+        Names: Up, Down, Enter, Escape, or one character. Reading past the queue fails the test.
+    .PARAMETER Keys
+        Keys in order.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Set-TuiKeyQueue 'Down', 'Enter'
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][string[]]$Keys)
+    $script:keyQueue = New-Object System.Collections.Queue
+    foreach ($k in $Keys) { $script:keyQueue.Enqueue($k) }
+    $script:RaReadKey = {
+        if ($script:keyQueue.Count -eq 0) { throw 'No more keys queued' }
+        $k = $script:keyQueue.Dequeue()
+        $named = @{ Up = 'UpArrow'; Down = 'DownArrow'; Enter = 'Enter'; Escape = 'Escape' }
+        if ($named.ContainsKey($k)) { [pscustomobject]@{ Key = $named[$k]; KeyChar = [char]0 } }
+        else { [pscustomobject]@{ Key = 'Other'; KeyChar = [char]$k } }
+    }
+}
+
+function Set-TuiTerminal {
+    <#
+    .SYNOPSIS
+        Makes the terminal adapter report an interactive console.
+    .DESCRIPTION
+        -Vt selects a virtual-terminal host (colour, in-place redraw); -Env sets environment values.
+    .PARAMETER Vt
+        Virtual-terminal host.
+    .PARAMETER Width
+        Console width.
+    .PARAMETER Env
+        Environment values seen by the script.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Set-TuiTerminal -Vt
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([switch]$Vt, [int]$Width = 100, [hashtable]$Env = @{})
+    $script:termVt = [bool]$Vt
+    $script:termWidth = $Width
+    $script:termEnv = $Env
+    $script:RaGetTerminal = { [pscustomobject]@{ Interactive = $true; Vt = $script:termVt; Width = $script:termWidth } }
+    $script:RaGetEnv = { param($n) $script:termEnv[$n] }
+    $script:RaQuiet = $false   # console log lines are part of the interface
+}
+
+function Get-PlainOutput {
+    <#
+    .SYNOPSIS
+        Captured interface output without ANSI sequences.
+    .DESCRIPTION
+        Removes SGR and cursor sequences so assertions read the visible text.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-PlainOutput | Should Match 'Summary'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    return ($script:rawOut.ToString() -replace "$([char]27)\[[0-9;?]*[A-Za-z]", '')
+}
+
+Describe 'Release installer (-Install -Latest) and the way back to the clean game' {
+    It '-Install -Latest: signed manifest and every hash verified, installed into the user folder, game folder untouched' {
+        $dir = Reset-Env 'latest-install'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+        $key = Join-Path $dir 'update.private.xml'
+        $script:RaUpdatePublicKeyXml = (& $signScript -NewKey -PrivateKeyPath $key -KeySize 2048) | Out-String
+        $script:RaGitHubRepo = 'test-owner/test-repo'
+        [void](New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key)
+        $gameBefore = Get-TreeHash (Join-Path $steam 'steamapps')
+        (Invoke-RaMain @{ Install = $true; Latest = $true; LoadMethod = 'Launcher'; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        $script:requested.Count | Should Be 4
+        (Get-TreeHash (Join-Path $steam 'steamapps')) -join '|' | Should Be ($gameBefore -join '|')
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match 'Release 0\.2\.0: signed manifest verified'
+        $log | Should Match 'SHA256 matches the manifest'
+        (Read-RaState).Proxy | Should Be $null
+    }
+    It '-Latest alone means -Install; a tampered ZIP installs nothing' {
+        $dir = Reset-Env 'latest-bad'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $key = Join-Path $dir 'update.private.xml'
+        $script:RaUpdatePublicKeyXml = (& $signScript -NewKey -PrivateKeyPath $key -KeySize 2048) | Out-String
+        $script:RaGitHubRepo = 'test-owner/test-repo'
+        $r = New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key
+        $bad = New-TestPackage (Join-Path $dir 'bad') -Tamper 'filehash' -Version '0.2.0'
+        $script:fakeWeb["$($r.Base)/$($r.ZipName)"] = [IO.File]::ReadAllBytes($bad.Zip)
+        (Invoke-RaMain @{ Latest = $true; LoadMethod = 'Launcher'; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 1
+        Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
+        Test-Path (Get-RaCurrentLink) | Should Be $false
+    }
+    It '-Uninstall -Purge restores the exact state from before the installation' {
+        $dir = Reset-Env 'purge'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        $before = @(Get-TreeHash $dir | Where-Object { $_ -notmatch '\\pkg\\' })
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        @(Get-ChildItem (Join-Path $steam 'userdata\111\config') -Filter '*.renameanything-backup-*').Count | Should Be 1
+        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        Test-Path $script:RaRoot | Should Be $false
+        @(Get-TreeHash $dir | Where-Object { $_ -notmatch '\\pkg\\' }) -join '|' | Should Be ($before -join '|')
+    }
+    It '-Purge deletes only our own localconfig.vdf backups; other files in the Steam folder stay' {
+        $dir = Reset-Env 'purge-foreign'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        $cfgDir = Join-Path $steam 'userdata\111\config'
+        Write-Utf8 (Join-Path $cfgDir 'localconfig.vdf.my-own-backup') 'mine'
+        Write-Utf8 (Join-Path $cfgDir 'localconfig.vdf.renameanything-backup-notadate') 'lookalike'
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        Test-Path (Join-Path $cfgDir 'localconfig.vdf.my-own-backup') | Should Be $true
+        Test-Path (Join-Path $cfgDir 'localconfig.vdf.renameanything-backup-notadate') | Should Be $true
+        @(Get-ChildItem $cfgDir -Force | Where-Object { $_.Name -match $script:RaBackupNamePattern }).Count | Should Be 0
+        Test-Path $script:RaRoot | Should Be $false
+    }
+    It '-Purge keeps our folder when a foreign file appears in it after the uninstall step' {
+        $dir = Reset-Env 'purge-late-foreign'
+        New-Item -ItemType Directory -Force -Path $script:RaRoot | Out-Null
+        Write-Utf8 (Get-RaLogPath) 'log'
+        $notes = Join-Path $script:RaRoot 'notes.txt'
+        Write-Utf8 $notes 'user file'
+        Invoke-RaPurge '' | Should Be $false
+        @(Get-ChildItem $script:RaRoot -Force | ForEach-Object Name | Sort-Object) -join ',' | Should Be 'bootstrap.log,notes.txt'
+        [IO.File]::Delete($notes)
+        Invoke-RaPurge '' | Should Be $true
+        Test-Path $script:RaRoot | Should Be $false
+        Test-Path $dir | Should Be $true
+    }
+    It '-Purge without -Uninstall is ignored; -Uninstall -Purge -DryRun writes nothing' {
+        $dir = Reset-Env 'purge-dry'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-x"')) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        $snapshot = Get-TreeHash $dir
+        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Get-TreeHash $dir) -join '|' | Should Be ($snapshot -join '|')
+        $plainInstall = @{ Purge = $true; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }
+        (Invoke-RaMain $plainInstall) | Should Be 0
+        Test-Path (Get-RaLauncherPath) | Should Be $true
+    }
+    It '-Disable removes only the Steam launch option part; files stay; -SteamLaunchOption turns it on again' {
+        $dir = Reset-Env 'disable'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+        $cfg = Join-Path $steam 'userdata\111\config\localconfig.vdf'
+        $orig = [IO.File]::ReadAllBytes($cfg)
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        $script:RaGetSteamProcess = { @('fake') }
+        (Invoke-RaMain @{ Disable = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 1
+        $script:RaGetSteamProcess = { @() }
+        (Invoke-RaMain @{ Disable = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($cfg)) $orig | Should Be $true
+        Test-Path (Get-RaLauncherPath) | Should Be $true
+        @((Read-RaState).SteamEntries).Count | Should Be 0
+        (Invoke-RaMain @{ SteamLaunchOption = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value | Should Match 'RenameAnythingLauncher\.exe" %command% -debug_mode$'
+    }
+}
+
+Describe 'Terminal interface (irm | iex without switches)' {
+    It 'opens only for an interactive console without action switches, -Yes or -Plain' {
+        [void](Reset-Env 'tui-mode')
+        (Get-RaTuiMode @{}).Tui | Should Be $false
+        Set-TuiTerminal -Vt
+        $m = Get-RaTuiMode @{}
+        $m.Tui | Should Be $true
+        $m.Color | Should Be $true
+        $m.Animate | Should Be $true
+        foreach ($o in @(@{ Install = $true }, @{ Uninstall = $true }, @{ Disable = $true }, @{ Yes = $true }, @{ Plain = $true }, @{ CheckUpdate = $true })) {
+            (Get-RaTuiMode $o).Tui | Should Be $false
+        }
+        (Get-RaTuiMode @{ DryRun = $true; Language = 'pl'; SteamRoot = 'x' }).Tui | Should Be $true
+    }
+    It 'NO_COLOR, TERM=dumb, no VT host turn colour off; RA_NO_ANIMATION, CI, -NoAnimation turn animation off' {
+        [void](Reset-Env 'tui-env')
+        foreach ($env in @(@{ NO_COLOR = '1' }, @{ TERM = 'dumb' })) {
+            Set-TuiTerminal -Vt -Env $env
+            $m = Get-RaTuiMode @{}
+            $m.Color | Should Be $false
+            $m.Animate | Should Be $false
+        }
+        Set-TuiTerminal
+        (Get-RaTuiMode @{}).Color | Should Be $false
+        foreach ($env in @(@{ RA_NO_ANIMATION = '1' }, @{ CI = 'true' })) {
+            Set-TuiTerminal -Vt -Env $env
+            $m = Get-RaTuiMode @{}
+            $m.Color | Should Be $true
+            $m.Animate | Should Be $false
+        }
+        Set-TuiTerminal -Vt -Env @{ RA_NO_ANIMATION = '0' }
+        (Get-RaTuiMode @{}).Animate | Should Be $true
+        Set-TuiTerminal -Vt
+        (Get-RaTuiMode @{ NoAnimation = $true }).Animate | Should Be $false
+        Set-TuiTerminal -Vt -Width 300
+        (Get-RaTuiMode @{}).Width | Should Be 78
+        Set-TuiTerminal -Vt -Width 20
+        (Get-RaTuiMode @{}).Width | Should Be 44
+    }
+    # The mutation test runs a copy outside the repository; there the token file is absent.
+    $tokensPath = Join-Path $here '..\..\docs\design\tokens.json'
+    It 'palette equals docs/design/tokens.json' -Skip:(-not (Test-Path -LiteralPath $tokensPath)) {
+        $tokens = Get-Content -LiteralPath $tokensPath -Raw | ConvertFrom-Json
+        $flat = @{}
+        foreach ($group in $tokens.color.PSObject.Properties) {
+            foreach ($t in $group.Value.PSObject.Properties) { $flat[$t.Name] = $t.Value.'$value' }
+        }
+        foreach ($name in $script:RaTuiPalette.Keys) { $script:RaTuiPalette[$name] | Should Be $flat[$name] }
+        foreach ($style in $script:RaTuiStatusStyles.Values) { $script:RaTuiPalette.Contains($style) | Should Be $true }
+    }
+    It 'map sheet: equal row widths and the flag stands in grid square C3' {
+        $model = Get-RaTuiMapModel
+        $lines = @(foreach ($line in $model) { (@($line) | ForEach-Object { $_.T }) -join '' })
+        @($lines | Select-Object -Skip 1 | ForEach-Object { $_.Length } | Sort-Object -Unique).Count | Should Be 1
+        $flagRow = $lines | Where-Object { $_ -match '##==' }
+        $flagRow | Should Match '^3 '
+        $column = $flagRow.IndexOf('|', 3)
+        $script:RaTuiMapHeader.Substring($column - 2, 5).Trim() | Should Be 'C'
+        @($lines | Where-Object { $_ -match '[^\x20-\x7E]' }).Count | Should Be 0
+    }
+    It 'splash: animated = one frame per character then the full name and a still hold; static = one frame, no ANSI without colour' {
+        [void](Reset-Env 'tui-splash')
+        $animated = [pscustomobject]@{ Tui = $true; Color = $true; Vt = $true; Animate = $true; Width = 78 }
+        $frames = Show-RaTuiSplash $animated
+        $frames | Should Be ($script:RaTuiAnnotationName.Length + 1)
+        $script:sleeps.Count | Should Be ($script:RaTuiAnnotationName.Length + 1)
+        $script:sleeps[-1] | Should Be $script:RaTuiHoldDelayMs
+        (Get-PlainOutput) | Should Match 'C3   Rename Anything<====\]'
+        $script:rawOut.ToString() | Should Match ([regex]::Escape("$([char]27)[38;2;"))
+        [void](Reset-Env 'tui-splash-static')
+        $static = [pscustomobject]@{ Tui = $true; Color = $false; Vt = $true; Animate = $false; Width = 78 }
+        Show-RaTuiSplash $static | Should Be 1
+        $script:sleeps.Count | Should Be 0
+        $script:rawOut.ToString().Contains([string][char]27) | Should Be $false
+        $script:rawOut.ToString() | Should Match "Built on CAPIE \(Cyprian's API Extender\)"
+    }
+    It 'every rendered line fits the panel width, and coloured lines end with a reset' {
+        [void](Reset-Env 'tui-width')
+        foreach ($color in $true, $false) {
+            $mode = [pscustomobject]@{ Tui = $true; Color = $color; Vt = $true; Animate = $false; Width = 44 }
+            foreach ($lang in 'en', 'pl') {
+                $script:RaLang = $lang
+                $script:rawOut.Clear() | Out-Null
+                [void](Show-RaTuiSplash $mode)
+                Write-RaTuiModel (Get-RaTuiMenuModel 2 $mode) $mode
+                Write-RaTuiModel (Get-RaTuiStatusModel 'FAIL' ('x' * 90 + ' ' + (Get-RaText 'TuiMpNote')) $mode) $mode
+                Write-RaTuiModel (Get-RaTuiSummaryModel @(, @('Log', 'C:\Users\Someone\AppData\Local\RenameAnything\bootstrap.log')) $mode) $mode
+                foreach ($line in (Get-PlainOutput).Split("`n")) { $line.Length | Should Not BeGreaterThan 44 }
+                if ($color) {
+                    foreach ($line in $script:rawOut.ToString().TrimEnd("`n").Split("`n")) { $line.EndsWith("$([char]27)[0m") | Should Be $true }
+                }
+            }
+        }
+        $script:RaLang = 'en'
+    }
+    It 'status lines follow the CLI pattern and read without colour' {
+        $mode = [pscustomobject]@{ Tui = $true; Color = $false; Vt = $false; Animate = $false; Width = 60 }
+        $lines = Get-RaTuiStatusModel 'OK' 'CAPIE launcher installed' $mode
+        (Format-RaTuiLine $lines[0] $mode) | Should Be '  OK    CAPIE launcher installed'
+        $wrapped = Get-RaTuiStatusModel 'NOTE' ('word ' * 30) $mode
+        $wrapped.Count | Should BeGreaterThan 1
+        (Format-RaTuiLine $wrapped[1] $mode) | Should Match '^ {8}word'
+        @(Split-RaTuiText 'C:\a\very\long\path\without\spaces' 10) -join '|' | Should Be 'C:\a\very\|long\path\|without\sp|aces'
+    }
+    It 'menu: arrows wrap around, digits select, Enter confirms, Esc and Q quit' {
+        [void](Reset-Env 'tui-menu')
+        $vt = [pscustomobject]@{ Tui = $true; Color = $true; Vt = $true; Animate = $false; Width = 78 }
+        Set-TuiKeyQueue 'Up', 'Enter'
+        Select-RaTuiAction $vt | Should Be 'Quit'
+        Set-TuiKeyQueue 'Down', 'Down', 'Enter'
+        Select-RaTuiAction $vt | Should Be 'Disable'
+        Set-TuiKeyQueue '4', 'Enter'
+        Select-RaTuiAction $vt | Should Be 'Uninstall'
+        Set-TuiKeyQueue 'Escape'
+        Select-RaTuiAction $vt | Should Be 'Quit'
+        Set-TuiKeyQueue 'q'
+        Select-RaTuiAction $vt | Should Be 'Quit'
+        $narrow = [pscustomobject]@{ Tui = $true; Color = $true; Vt = $true; Animate = $false; Width = 44 }
+        $rows = Get-RaTuiMenuModel 0 $narrow
+        @($rows).Count | Should BeGreaterThan $script:RaTuiMenuActions.Count
+        [void]$script:rawOut.Clear()
+        Set-TuiKeyQueue 'Down', 'Enter'
+        Select-RaTuiAction $narrow | Should Be 'Update'
+        $script:rawOut.ToString().Contains("$([char]27)[$(@($rows).Count)A") | Should Be $true
+        $plain = [pscustomobject]@{ Tui = $true; Color = $false; Vt = $false; Animate = $false; Width = 78 }
+        Set-TuiKeyQueue '2'
+        Select-RaTuiAction $plain | Should Be 'Update'
+        (Get-PlainOutput) | Should Match '> 1  Install'
+    }
+    It 'Install through the interface: user folder, Steam launch option after consent, summary; adapters restored' {
+        $dir = Reset-Env 'tui-install'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        $gameBefore = Get-TreeHash (Join-Path $steam 'steamapps')
+        Set-TuiTerminal -Vt -Env @{ RA_NO_ANIMATION = '1' }
+        Set-TuiKeyQueue 'Enter', 'Enter'
+        $hostBefore = $script:RaWriteHost
+        $script:RaAssumeYes = $false
+        (Invoke-RaMain @{ PackagePath = $pkg.Zip; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        $script:keyQueue.Count | Should Be 0
+        $out = Get-PlainOutput
+        $out | Should Match 'NOTE  CAPIE is not installed\.'
+        $out | Should Match 'ASK   Add the CAPIE launcher'
+        $out | Should Match 'OK    Package RA-0\.1\.0-none\.zip: SHA256 matches the manifest\.'
+        $out | Should Match 'Summary'
+        $out | Should Match 'Game folder\s+unchanged'
+        $out | Should Not Match 'WARNING: while the extension'
+        $launch = (Get-RaAppLaunchInfo (Read-RaTextFile (Join-Path $steam 'userdata\111\config\localconfig.vdf')).Text).Value
+        $launch | Should Match 'RenameAnythingLauncher\.exe" %command% -debug_mode$'
+        (Read-RaState).LoadMethod | Should Be 'Launcher'
+        (Get-TreeHash (Join-Path $steam 'steamapps')) -join '|' | Should Be ($gameBefore -join '|')
+        $script:RaWriteHost | Should Be $hostBefore
+        $script:RaLogSink | Should Be $null
+        $script:RaAssumeYes | Should Be $false
+    }
+    It 'Uninstall with purge through the interface (Polish) leaves nothing; Esc and Quit change nothing' {
+        $dir = Reset-Env 'tui-uninstall'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        $before = @(Get-TreeHash $dir | Where-Object { $_ -notmatch '\\pkg\\' })
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        $installed = Get-TreeHash $dir
+        Set-TuiTerminal -Vt -Env @{ NO_COLOR = '1' }
+        Set-TuiKeyQueue 'Escape'
+        (Invoke-RaMain @{ SteamRoot = $steam; Language = 'pl' }) | Should Be 0
+        Set-TuiKeyQueue '4', 'Enter', 'n'
+        (Invoke-RaMain @{ SteamRoot = $steam; Language = 'pl' }) | Should Be 0
+        $noLog = { param($tree) @($tree | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' }
+        (& $noLog (Get-TreeHash $dir)) | Should Be (& $noLog $installed)
+        (Get-PlainOutput) | Should Match 'Anulowano\. Nic nie zmieniono\.'
+        Set-TuiKeyQueue 'Down', 'Down', 'Down', 'Enter', 't', 't'
+        (Invoke-RaMain @{ SteamRoot = $steam; Language = 'pl' }) | Should Be 0
+        (Get-PlainOutput) | Should Match 'Zainstaluj'
+        Test-Path $script:RaRoot | Should Be $false
+        @(Get-TreeHash $dir | Where-Object { $_ -notmatch '\\pkg\\' }) -join '|' | Should Be ($before -join '|')
+    }
+    It 'a failing action shows FAIL and the log path; the exit code is 1' {
+        [void](Reset-Env 'tui-fail')
+        Set-TuiTerminal -Vt
+        Set-TuiKeyQueue 'Down', 'Enter'
+        (Invoke-RaMain @{ SteamRoot = ''; Language = 'en' }) | Should Be 1
+        $out = Get-PlainOutput
+        $out | Should Match 'FAIL  Update channel is not configured'
+        $out | Should Match 'Details in the log'
+        $flat = $out -replace '\s', ''
+        $flat.Contains([string](Get-RaLogPath)) | Should Be $true
+    }
+}
+
+Describe 'Default method and the "CAPIE" switch mod in the player''s mod folder' {
+    It 'without -LoadMethod a fresh install uses the launcher (nothing in the game folder); -Method Proxy is the alias' {
+        $dir = Reset-Env 'default-launcher'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg') -WithProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        $gameBefore = Get-TreeHash (Get-RaGameDir $steam)
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Read-RaState).LoadMethod | Should Be 'Launcher'
+        (Get-TreeHash (Get-RaGameDir $steam)) -join '|' | Should Be ($gameBefore -join '|')
+        $scriptInfo = $ExecutionContext.InvokeCommand.GetCommand($scriptPath, [System.Management.Automation.CommandTypes]::ExternalScript)
+        $param = $scriptInfo.Parameters['LoadMethod']
+        $param.Aliases -contains 'Method' | Should Be $true
+    }
+    It '-Install places the mod from the verified bundle; -Uninstall removes it and leaves the mod folder as before' {
+        $dir = Reset-Env 'mod-install'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg') -WithMod
+        $script:RaPinnedRelease = $pkg.Manifest
+        $modRoot = Get-RaPlaysetModRoot
+        Write-Utf8 (Join-Path $modRoot 'other.mod') 'someone else'
+        $before = Get-TreeHash (Join-Path $dir 'Documents')
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        [IO.File]::ReadAllText((Join-Path $modRoot 'capie\descriptor.mod')) | Should Match 'version="0.1.0"'
+        Test-Path (Join-Path $modRoot 'capie\interface\capie_menu_indicator.gui') | Should Be $true
+        Test-Path (Join-Path $modRoot 'capie.mod') | Should Be $true
+        @((Read-RaState).ModFiles).Count | Should Be 3
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        (Get-TreeHash (Join-Path $dir 'Documents')) -join '|' | Should Be ($before -join '|')
+        Test-Path (Join-Path $modRoot 'capie') | Should Be $false
+        Test-Path $modRoot | Should Be $true
+    }
+    It 'an existing capie.mod is backed up with a byte-verified copy and restored by -Uninstall' {
+        $dir = Reset-Env 'mod-foreign'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg') -WithMod
+        $script:RaPinnedRelease = $pkg.Manifest
+        $existing = Join-Path (Get-RaPlaysetModRoot) 'capie.mod'
+        Write-Utf8 $existing 'name="My own CAPIE build"'
+        $before = Get-TreeHash (Join-Path $dir 'Documents')
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        [IO.File]::ReadAllText($existing) | Should Match 'path="mod/capie"'
+        $record = @((Read-RaState).ModFiles) | Where-Object { $_.Path -eq $existing }
+        [IO.File]::ReadAllText($record.Backup) | Should Be 'name="My own CAPIE build"'
+        (Invoke-RaMain @{ Uninstall = $true; Purge = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        (Get-TreeHash (Join-Path $dir 'Documents')) -join '|' | Should Be ($before -join '|')
+    }
+    It 'a mod file changed by the player after installation is kept; -DryRun writes nothing' {
+        $dir = Reset-Env 'mod-changed'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg') -WithMod
+        $script:RaPinnedRelease = $pkg.Manifest
+        $snapshot = Get-TreeHash $dir
+        (Invoke-RaMain @{ Install = $true; DryRun = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Get-TreeHash $dir) -join '|' | Should Be ($snapshot -join '|')
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        $descriptor = Join-Path (Get-RaPlaysetModRoot) 'capie\descriptor.mod'
+        Write-Utf8 $descriptor 'edited by the player'
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        [IO.File]::ReadAllText($descriptor) | Should Be 'edited by the player'
+        Test-Path (Join-Path (Get-RaPlaysetModRoot) 'capie.mod') | Should Be $false
+    }
+    It '-Update replaces our mod files with the new release; -Rollback brings the old ones back' {
+        $dir = Reset-Env 'mod-update'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $key = Join-Path $dir 'update.private.xml'
+        $script:RaUpdatePublicKeyXml = (& $signScript -NewKey -PrivateKeyPath $key -KeySize 2048) | Out-String
+        $script:RaGitHubRepo = 'test-owner/test-repo'
+        $p1 = New-TestPackage (Join-Path $dir 'v1') -Version '0.1.0' -WithMod
+        $script:RaPinnedRelease = $p1.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip; Language = 'en' }) | Should Be 0
+        $descriptor = Join-Path (Get-RaPlaysetModRoot) 'capie\descriptor.mod'
+        [IO.File]::ReadAllText($descriptor) | Should Match '0\.1\.0'
+        [void](New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key -WithMod)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        [IO.File]::ReadAllText($descriptor) | Should Match '0\.2\.0'
+        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $steam; Language = 'en' }) | Should Be 0
+        [IO.File]::ReadAllText($descriptor) | Should Match '0\.1\.0'
     }
 }

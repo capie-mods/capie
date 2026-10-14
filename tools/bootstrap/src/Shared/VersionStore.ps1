@@ -89,6 +89,7 @@ function Install-RaVersion {
         if ($hash -ne $Manifest.ZipSha256.ToUpperInvariant()) {
             throw "Package SHA256 mismatch: expected $($Manifest.ZipSha256), got $hash. Nothing was installed."
         }
+        Write-RaLog "Package $($Manifest.ZipName): SHA256 matches the manifest."
         New-Item -ItemType Directory -Path $staging | Out-Null
         Expand-RaVerifiedZip -Manifest $Manifest -ZipPath $package.Path -Destination $staging
         if (-not (Test-RaInstalledVersion $Manifest $staging)) { throw 'Staged files failed verification.' }

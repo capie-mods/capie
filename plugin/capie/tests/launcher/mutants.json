@@ -230,5 +230,69 @@
   "replace": "if (runtime_writable(policy)) {",
   "suite": "tests/launcher/launcher_flow_test.cpp",
   "summary": "launcher flow tests:"
+ },
+ {
+  "name": "playset-disabled-loads",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "if (playset.state != PlaysetState::enabled) {",
+  "replace": "if (playset.state == PlaysetState::unknown) {",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "playset-unknown-loads",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "if (playset.state != PlaysetState::enabled) {",
+  "replace": "if (playset.state == PlaysetState::disabled) {",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "playset-unknown-silent",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "            notifier.notify(Notice::playset_unknown, playset.reason);  // fail-open: vanilla, never blocked\n",
+  "replace": "",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "json-trailing-text",
+  "file": "src/launcher/playset_gate.hpp",
+  "find": "if (at_ != text_.size() || repeated) {",
+  "replace": "if (repeated) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "json-duplicate-key",
+  "file": "src/launcher/playset_gate.hpp",
+  "find": "repeated = repeated || found.has_value();",
+  "replace": "repeated = repeated && found.has_value();",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "mod-substring-match",
+  "file": "src/launcher/playset_gate.hpp",
+  "find": "return !descriptor.empty() && normal == detail::normalise_descriptor(descriptor);",
+  "replace": "return !descriptor.empty() && normal.find(\"capie\") != std::string::npos;",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "playset-size-unbounded",
+  "file": "src/launcher/playset_gate.hpp",
+  "find": "std::cmp_greater(size.QuadPart, dlc_load_read_limit)",
+  "replace": "std::cmp_greater(size.QuadPart, dlc_load_read_limit * 4)",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "json-depth-unbounded",
+  "file": "src/launcher/playset_gate.hpp",
+  "find": "if (depth > json_depth_limit || at_ >= text_.size()) {",
+  "replace": "if (at_ >= text_.size()) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
  }
 ]
