@@ -52,6 +52,7 @@ Status values: **Proposed**, **Accepted**, **Amended** (partly changed by a late
 | [0034](0034-repository-split-evidence-and-plan.md) | Split into four repositories; evidence stays in the archived monorepo | Accepted, split not executed | 2026-10-14 |
 | [0035](0035-local-release-script.md) | Releases are built and published locally for now | Accepted | 2026-10-14 |
 | [0036](0036-leader-portrait-and-feature-switches.md) | Leader portrait choice and a host switch for every feature | Accepted, not implemented | 2026-10-14 |
+| [0037](0037-installer-closes-steam-on-request.md) | The installer closes Steam on request (`steam.exe -shutdown`), never by force | Accepted | 2026-10-15 |
 
 ## Writing a new record
 

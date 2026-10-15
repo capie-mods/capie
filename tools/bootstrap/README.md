@@ -78,9 +78,21 @@ opens a small terminal interface instead of the plain questions below:
   pencil writing "Rename Anything" into the margin (one character per frame, under a second;
   the still frame is complete),
 * the current state (installed version, Steam launch option),
-* a menu: Install, Update, Disable, Uninstall, Quit (arrows or 1-5, Enter, Esc),
-* the questions the action needs (multiplayer note; add the launcher to Steam [Y/n];
-  uninstall [y/N] and purge [y/N]; close Steam first),
+* a menu (arrows or 1-5, Enter, Esc):
+  1. **Install or update**: installs CAPIE, or updates to the newest signed release (the
+     current one stays for rollback). When the newest is already active it says so and repairs
+     instead: the "CAPIE" switch mod, and the Steam launch option if you ask for it.
+  2. **Install an older version**: lists the signed releases on GitHub (one request) with CAPIE
+     version, script API level, supported HoI4 version and the start of its `hoi4.exe` SHA-256,
+     date, two or three changes, the marks `installed` / `latest`, and a warning when a release
+     is not for your `hoi4.exe`. Esc goes back to the menu. The chosen release goes through the
+     same verification as the newest one; option 1 returns to the newest.
+  3. **Disable**, 4. **Uninstall**, 5. **Quit**,
+* the questions the action needs (multiplayer note; add the launcher to Steam [Y/n], or
+  set it again [y/N] when it is already there; uninstall [y/N] and purge [y/N]),
+* when Steam is running and the launch option must change: "Close Steam now so the launch
+  option can be changed? [Y/n]" (see "Closing Steam" below), and afterwards "Start Steam
+  again? [Y/n]",
 * progress as status lines in the CLI pattern (`OK`, `ASK`, `SKIP`, `NOTE`, `FAIL`),
 * a summary: what is installed, what Steam does, that the game folder is unchanged, how to
   switch CAPIE on and off with the "CAPIE" mod, how to undo, where the log is.
@@ -106,7 +118,7 @@ restores the state from before the installation.
 If no action switch is given and the console cannot answer questions (input or output
 redirected, for example a CI job or an editor panel), the script prints the list of actions
 and exits with code 2. It writes nothing and does not wait. Pass an action (`-Install`,
-`-Update`, `-Disable`, `-Uninstall`, ...) with `-Yes`, or `-Plain` to force the questions.
+`-Update`, `-Disable`, `-Uninstall`, `-ListVersions`, ...) with `-Yes`, or `-Plain` to force the questions.
 
 All output is English and pure ASCII, so it reads the same in every console code page; the
 script does not change the console encoding of your session. `install.ps1` has no BOM on
@@ -115,7 +127,8 @@ purpose: ASCII needs none, and a BOM at the start of the downloaded text would b
 
 ## Interactive questions
 
-1. Install or update the bundle into `%LOCALAPPDATA%\RenameAnything\<version>`?
+1. Install or update the bundle into `%LOCALAPPDATA%\RenameAnything\<version>`? (the newest
+   signed release once the release channel is configured, else the pinned release)
 2. Loading method: `1` Launcher (default, no game-local DLL, switch mod in the playset), `2` Proxy.
 3. Proxy integration: `1` Steam launch option, `4` install only. Launcher integration
    additionally offers `2` shortcut and `3` both.
@@ -139,7 +152,10 @@ purpose: ASCII needs none, and a BOM at the start of the downloaded text would b
 | `-Shortcut` / `-ShortcutPath <folder>` | create the launcher shortcut; requires `-LoadMethod Launcher` (Desktop by default) |
 | `-RemoveSteamLaunchOption` | remove only our part of the launch options |
 | `-CheckUpdate` | one request to the GitHub Releases API: reports the newest version and whether it supports your `hoi4.exe` |
-| `-Update` | install the newest signed release and switch to it (`-ManifestPath` + `-PackagePath` work offline) |
+| `-Update` | install or update: installs when nothing is installed yet, otherwise installs the newest signed release and switches to it; when that is already active it repairs the switch mod (and with `-SteamLaunchOption` the Steam launch option). `-ManifestPath` + `-PackagePath` work offline |
+| `-ListVersions` | one request to the GitHub Releases API: the signed releases (newest 20) with API level, game version, date, changes and the installed/latest marks |
+| `-Version <x.y.z>` | install that signed release instead of the newest (implies `-Install`; same verification); `-Update` returns to the newest |
+| `-CloseSteam` | with `-Yes`: close a running Steam with `steam.exe -shutdown` (never killed, at most 60 s) before the launch option is changed, and start it again afterwards |
 | `-Rollback` | switch back to the previous version (kept on disk) |
 | `-Uninstall` | remove the launch option part, our shortcuts and `%LOCALAPPDATA%\RenameAnything` (the log is kept) |
 | `-DryRun` (alias `-WhatIf`) | show what would happen, write nothing (not even the log) |
@@ -154,7 +170,7 @@ explicit option to change a saved preference.
 
 **Steam launch options:** `Steam\userdata\<account>\config\localconfig.vdf`, key
 `UserLocalConfigStore/Software/Valve/Steam/apps/394360/LaunchOptions`. Steam must be
-closed; the script waits for you to close it and never closes Steam itself. It makes a
+closed (see "Closing Steam" below). It makes a
 byte-exact backup `localconfig.vdf.renameanything-backup-<timestamp>` and replaces only
 the value bytes. If the key or the `394360` block is missing, it inserts it with
 matching indentation. The written file is compared byte for byte with the expected
@@ -220,6 +236,20 @@ point to our launcher.
 point at `current\`, so an update or rollback never needs Steam to be closed and never
 edits `localconfig.vdf` again.
 
+## Closing Steam
+
+Steam rewrites `localconfig.vdf` when it exits, so the launch option can only be changed while
+Steam is closed ([ADR-0037](../../docs/adr/0037-installer-closes-steam-on-request.md)). When
+Steam is running, the script asks "Steam is running. Close Steam now so the launch option can
+be changed? [Y/n]". Yes runs `steam.exe -shutdown` (Steam's own clean exit; the path comes from
+`HKCU\Software\Valve\Steam` `SteamExe`, else `SteamPath\steam.exe`) and waits up to 60 s
+until `steam.exe` and every `steamwebhelper` are gone, with a progress line every 5 s. Steam is
+never killed: if it is still running after 60 s, you are asked to close it yourself or to skip
+the Steam step (Q). No keeps the old behaviour. After the change, if this run closed Steam, it
+asks "Start Steam again? [Y/n]" and starts the same `steam.exe` without arguments (it does not
+wait for it). With `-Yes` Steam is closed only when `-CloseSteam` is given, and then started
+again without a question; `-DryRun` only prints this plan.
+
 ## Integrity and updates
 
 * `-Install` uses the release manifest **pinned in the script**: the ZIP SHA256 is checked
@@ -233,6 +263,12 @@ edits `localconfig.vdf` again.
   `github.com/<repo>/releases/download/`. The ZIP is then verified exactly as above. The
   previous version stays on disk for `-Rollback`; older ones are pruned. The proxy is
   covered by the same signed manifest and per-file hash validation as the runtime.
+* `-ListVersions`, `-Version` and menu item 2 make one request to
+  `releases?per_page=20` (drafts and releases without a signed manifest are left out) and
+  download the manifest and signature of the chosen release only. The list shows what the
+  release notes say; the manifest fields `capie_api_level`, `game_version` and
+  `changelog_summary` (added by `sign-release-manifest.ps1 -MakeManifest`; older manifests do
+  not have them and show "unknown") are reported once the chosen manifest is verified.
 * After an unsupported game patch the proxy forwards Windows calls and skips CAPIE. Use
   `-CheckUpdate` to see whether a release supporting your `hoi4.exe` exists. Each manifest
   lists the supported `hoi4.exe` SHA256 values.
@@ -276,7 +312,7 @@ source lives in vertical slices under `src/`:
 | `src/Shared/Messages.ps1` | user-facing texts (English only, pure ASCII) |
 | `src/Shared/Logging.ps1`, `Vdf.ps1`, `TextFile.ps1`, `State.ps1`, `Manifest.ps1`, `Steam.ps1`, `VersionStore.ps1` | shared building blocks |
 | `src/Shared/Tui.ps1` | terminal interface: capability detection, palette, map sheet, line models, menu and key reading |
-| `src/Features/Install.ps1`, `Proxy.ps1`, `SteamLaunchOption.ps1`, `Shortcut.ps1`, `Update.ps1`, `Uninstall.ps1`, `Tui.ps1` | one file per user-visible action (Uninstall also holds `-Disable` and `-Purge`) |
+| `src/Features/Install.ps1`, `Proxy.ps1`, `SteamLaunchOption.ps1`, `Shortcut.ps1`, `Update.ps1`, `Versions.ps1`, `Uninstall.ps1`, `Tui.ps1` | one file per user-visible action (Uninstall also holds `-Disable` and `-Purge`) |
 | `src/Main.ps1` | option handling, dispatch, entry point (always last) |
 
 The fragments are plain `.ps1` files with functions, not `.psm1` modules: all slices

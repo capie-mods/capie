@@ -362,13 +362,24 @@ def make_repo(root: Path, key: KeyPair, *, installer_key: bool = True) -> Path:
     return root / "tools/release/release.toml"
 
 
-def manifest_json(zip_path: Path, version: str, game: str) -> str:
+def manifest_json(  # noqa: PLR0913 - mirrors the script's parameters
+    zip_path: Path,
+    version: str,
+    game: str,
+    *,
+    api_level: int = 0,
+    game_version: str = "",
+    summary_b64: str = "",
+) -> str:
     """What ``sign-release-manifest.ps1 -MakeManifest`` writes.
 
     Args:
         zip_path: Release ZIP.
         version: Version.
         game: Supported game hash.
+        api_level: ``-CapieApiLevel`` (0 = field left out).
+        game_version: ``-GameVersion`` (empty = field left out).
+        summary_b64: ``-ChangelogSummaryBase64`` (empty = field left out).
 
     Returns:
         Manifest JSON.
@@ -378,17 +389,22 @@ def manifest_json(zip_path: Path, version: str, game: str) -> str:
             i.filename: hashlib.sha256(archive.read(i)).hexdigest().upper()
             for i in archive.infolist()
         }
-    return json.dumps(
-        {
-            "schema": 1,
-            "version": version,
-            "zipName": zip_path.name,
-            "zipSha256": hashlib.sha256(zip_path.read_bytes()).hexdigest().upper(),
-            "files": files,
-            "supportedGameSha256": [game.upper()],
-        },
-        indent=2,
-    )
+    data: dict[str, object] = {
+        "schema": 1,
+        "version": version,
+        "zipName": zip_path.name,
+        "zipSha256": hashlib.sha256(zip_path.read_bytes()).hexdigest().upper(),
+        "files": files,
+        "supportedGameSha256": [game.upper()],
+    }
+    if api_level > 0:
+        data["capie_api_level"] = api_level
+    if game_version:
+        data["game_version"] = game_version
+    summary = json.loads(base64.b64decode(summary_b64).decode("utf-8")) if summary_b64 else []
+    if summary:
+        data["changelog_summary"] = summary
+    return json.dumps(data, indent=2)
 
 
 def _arg(argv: Sequence[str], name: str) -> str:
@@ -486,7 +502,12 @@ class FakeRunner:
         if "-MakeManifest" in call:
             zip_path = Path(_arg(call, "-ZipPath"))
             text = manifest_json(
-                zip_path, _arg(call, "-Version"), _arg(call, "-SupportedGameSha256")
+                zip_path,
+                _arg(call, "-Version"),
+                _arg(call, "-SupportedGameSha256"),
+                api_level=int(_arg(call, "-CapieApiLevel")),
+                game_version=_arg(call, "-GameVersion"),
+                summary_b64=_arg(call, "-ChangelogSummaryBase64"),
             )
             Path(_arg(call, "-OutPath")).write_text(text, encoding="utf-8")
             return 0, "Wrote manifest"

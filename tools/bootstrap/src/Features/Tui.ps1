@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
 # Slice: the terminal interface (irm | iex without switches on an interactive console).
-# Splash, one menu (install, update, disable, uninstall), the questions each action needs,
+# Splash, one menu (install or update, older version, disable, uninstall), the questions each action needs,
 # progress as status lines, and a summary. The actions themselves are the same code paths
 # as the switches (Invoke-RaAction), so the interface adds no second implementation.
 # ---------------------------------------------------------------------------
@@ -48,9 +48,11 @@ function Write-RaTuiStatus {
 function Wait-RaTuiSteamClosed {
     <#
     .SYNOPSIS
-        Asks the player to close Steam until it is closed or the Steam step is skipped.
+        Makes sure Steam is closed before the Steam step, or reports that the step is skipped.
     .DESCRIPTION
-        Enter checks again, Q or Esc skips. The script never closes Steam itself.
+        When Steam runs, offers to close it (steam.exe -shutdown, default yes; see Stop-RaSteam).
+        When that is declined or Steam does not exit in time, asks the player to close Steam:
+        Enter checks again, Q or Esc skips. Steam is never killed.
     .OUTPUTS
         System.Boolean ($true when Steam is closed)
     .EXAMPLE
@@ -59,12 +61,99 @@ function Wait-RaTuiSteamClosed {
     [CmdletBinding()]
     [OutputType([bool])]
     param()
+    if (-not (Test-RaSteamRunning)) { return $true }
+    if ((Confirm-RaTui -Prompt (Get-RaText 'AskCloseSteam') -Default $true -Mode $script:RaTuiActiveMode) -and (Stop-RaSteam)) {
+        return $true
+    }
     while (Test-RaSteamRunning) {
         Write-RaTuiStatus 'ASK' (Get-RaText 'TuiAskSteamClosed')
         $key = Read-RaTuiKey
         if ($key -eq $script:RaQuitAnswer -or $key -eq 'Escape') { return $false }
     }
     return $true
+}
+
+function Request-RaTuiSteamStep {
+    <#
+    .SYNOPSIS
+        Asks whether the Steam launch option should be set, and prepares Steam for it.
+    .DESCRIPTION
+        Without a Steam entry yet the question defaults to yes; with one (a repair) it
+        defaults to no. A yes needs Steam closed (Wait-RaTuiSteamClosed); with several Steam
+        accounts all of them are changed and listed.
+    .PARAMETER Run
+        Option table of the action (SteamLaunchOption and SteamAccount are set).
+    .PARAMETER SteamRootPath
+        Steam folder or empty (then there is no Steam step).
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Request-RaTuiSteamStep $run $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][hashtable]$Run,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
+    )
+    $mode = $script:RaTuiActiveMode
+    $steam = $false
+    if ($SteamRootPath) {
+        if (@((Read-RaState).SteamEntries).Count -gt 0) {
+            $steam = Confirm-RaTui -Prompt (Get-RaText 'TuiAskSteamRepair') -Default $false -Mode $mode
+        } else {
+            $steam = Confirm-RaTui -Prompt (Get-RaText 'TuiAskSteam') -Default $true -Mode $mode
+        }
+    }
+    if ($steam -and -not (Wait-RaTuiSteamClosed)) { $steam = $false }
+    if ($steam -and @(Get-RaSteamAccount $SteamRootPath).Count -gt 1 -and -not $Run.SteamAccount) {
+        Write-RaTuiStatus 'NOTE' (Format-RaAccountList @(Get-RaSteamAccount $SteamRootPath))
+        $Run.SteamAccount = $script:RaAllAccountsSelector
+    }
+    $Run.SteamLaunchOption = $steam
+}
+
+function Select-RaTuiRelease {
+    <#
+    .SYNOPSIS
+        Lets the player pick a signed release; returns its version, or $null to go back.
+    .DESCRIPTION
+        One GitHub request (Get-RaReleaseRowList). Each row shows version, API level, game
+        version with the start of its hoi4.exe SHA-256, date, the installed/latest marks,
+        up to three changes and a warning when the release is not for the player's hoi4.exe.
+        Esc goes back to the menu; a pick is confirmed (default yes).
+    .PARAMETER SteamRootPath
+        Steam folder or empty (then game support is not shown).
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        $version = Select-RaTuiRelease $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$SteamRootPath)
+    $mode = $script:RaTuiActiveMode
+    Write-RaTuiStatus 'NOTE' (Get-RaText 'TuiOlderLoading')
+    $gameDir = $null
+    if ($SteamRootPath) { try { $gameDir = Get-RaGameDir $SteamRootPath } catch { Write-RaLog $_.Exception.Message -Level WARN -NoConsole } }
+    try { $rows = Get-RaReleaseRowList (Read-RaState) $gameDir } catch {
+        Write-RaTuiStatus 'FAIL' $_.Exception.Message
+        return $null
+    }
+    if ($rows.Count -eq 0) {
+        Write-RaTuiStatus 'NOTE' (Get-RaText 'VersionsNone')
+        return $null
+    }
+    Write-RaTuiBlank $mode
+    Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiOlderTitle') -Style 'parchment' -Mode $mode) $mode
+    Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiOlderKeys') -Style 'ash' -Mode $mode) $mode
+    Write-RaTuiBlank $mode
+    $index = Select-RaTuiIndex @($rows | ForEach-Object { $_.Row }) $mode
+    if ($index -lt 0) { return $null }
+    $version = [string]$rows[$index].Release.Version
+    Write-RaTuiBlank $mode
+    if (-not (Confirm-RaTui -Prompt (Get-RaText 'TuiOlderInstall' @($version)) -Default $true -Mode $mode)) { return $null }
+    return $version
 }
 
 function Get-RaTuiStatusText {
@@ -93,52 +182,56 @@ function Get-RaTuiPlan {
     .SYNOPSIS
         Asks what an action needs and returns the option table for Invoke-RaAction, or $null.
     .DESCRIPTION
-        Install: the multiplayer note, then whether to add the launcher to Steam (default
-        yes), Steam closed, account choice. Installs into the user folder with the launcher
-        method (nothing in the game folder; the "CAPIE" switch mod goes to the player's mod
-        folder) from the newest signed release when the update
-        channel is configured, else the release pinned in this script.
+        Setup (install or update): not installed yet, it installs into the user folder with
+        the launcher method (nothing in the game folder; the "CAPIE" switch mod goes to the
+        player's mod folder) from the newest signed release when the update channel is
+        configured, else the release pinned in this script. Installed, it updates to the
+        newest signed release, or repairs when that is already active. Both show the
+        multiplayer note and ask about the Steam launch option (Request-RaTuiSteamStep).
+        Older: installs the chosen release (-Version) the same way.
         An existing installation keeps its loading method.
-        Update: no question. Disable: confirm (default yes). Uninstall: confirm (default no),
-        then whether to purge the log and Steam backups (default no).
-        $null means cancelled.
+        Disable: confirm (default yes). Uninstall: confirm (default no), then whether to purge
+        the log and Steam backups (default no). $null means cancelled.
     .PARAMETER Action
-        Install, Update, Disable or Uninstall.
+        Setup, Older, Disable or Uninstall.
     .PARAMETER Options
         Options of this run (DryRun, SteamRoot, PackagePath, ManifestPath carry over).
     .PARAMETER SteamRootPath
         Steam folder or empty.
+    .PARAMETER Release
+        With Older: the chosen version.
     .OUTPUTS
         System.Collections.Hashtable
     .EXAMPLE
-        $run = Get-RaTuiPlan -Action 'Install' -Options $options -SteamRootPath $steam
+        $run = Get-RaTuiPlan -Action 'Setup' -Options $options -SteamRootPath $steam
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
-        [Parameter(Mandatory, Position = 0)][ValidateSet('Install', 'Update', 'Disable', 'Uninstall')][string]$Action,
+        [Parameter(Mandatory, Position = 0)][ValidateSet('Setup', 'Older', 'Disable', 'Uninstall')][string]$Action,
         [Parameter(Mandatory, Position = 1)][hashtable]$Options,
-        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$SteamRootPath,
+        [Parameter(Position = 3)][AllowEmptyString()][AllowNull()][string]$Release
     )
     $mode = $script:RaTuiActiveMode
     $run = $Options.Clone()
     switch ($Action) {
-        'Install' {
-            $run.Install = $true
-            $run.Latest = (Test-RaUpdateChannel) -and -not $Options.PackagePath
-            if (-not $run.LoadMethod -and -not (Read-RaState).InstalledVersion) { $run.LoadMethod = 'Launcher' }
+        { $_ -in @('Setup', 'Older') } {
+            $installed = [bool](Read-RaState).InstalledVersion
+            if ($Action -eq 'Older') {
+                $run.Install = $true
+                $run.Version = $Release
+            } elseif ($installed) {
+                $run.Update = $true
+            } else {
+                $run.Install = $true
+                $run.Latest = (Test-RaUpdateChannel) -and -not $Options.PackagePath
+            }
+            if (-not $run.LoadMethod -and -not $installed) { $run.LoadMethod = 'Launcher' }
             Write-RaTuiStatus 'NOTE' (Get-RaText 'TuiMpNote')
             $script:RaMpWarningShown = $true
-            $steam = $false
-            if ($SteamRootPath) { $steam = Confirm-RaTui -Prompt (Get-RaText 'TuiAskSteam') -Default $true -Mode $mode }
-            if ($steam -and -not (Wait-RaTuiSteamClosed)) { $steam = $false }
-            if ($steam -and @(Get-RaSteamAccount $SteamRootPath).Count -gt 1 -and -not $run.SteamAccount) {
-                Write-RaTuiStatus 'NOTE' (Format-RaAccountList @(Get-RaSteamAccount $SteamRootPath))
-                $run.SteamAccount = $script:RaAllAccountsSelector
-            }
-            $run.SteamLaunchOption = $steam
+            Request-RaTuiSteamStep $run $SteamRootPath
         }
-        'Update' { $run.Update = $true }
         'Disable' {
             if (-not (Confirm-RaTui -Prompt (Get-RaText 'TuiAskDisable') -Default $true -Mode $mode)) { return $null }
             if (-not (Wait-RaTuiSteamClosed)) { return $null }
@@ -236,22 +329,31 @@ function Invoke-RaTui {
         [void](Show-RaTuiSplash $Mode)
         if ($script:RaDry) { Write-RaTuiStatus 'SKIP' (Get-RaText 'DryRunNote') }
         Write-RaTuiStatus 'NOTE' (Get-RaTuiStatusText (Read-RaState))
-        Write-RaTuiBlank $Mode
-        Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiMenuTitle') -Style 'parchment' -Mode $Mode) $Mode
-        Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiKeys') -Style 'ash' -Mode $Mode) $Mode
-        Write-RaTuiBlank $Mode
-        $action = Select-RaTuiAction $Mode
-        Write-RaTuiBlank $Mode
+        $steamRootPath = $null
+        try { $steamRootPath = Get-RaSteamRoot $Options.SteamRoot } catch { Write-RaLog $_.Exception.Message -Level WARN -NoConsole }
+        $release = $null
+        while ($true) {
+            Write-RaTuiBlank $Mode
+            Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiMenuTitle') -Style 'parchment' -Mode $Mode) $Mode
+            Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiKeys') -Style 'ash' -Mode $Mode) $Mode
+            Write-RaTuiBlank $Mode
+            $action = Select-RaTuiAction $Mode
+            Write-RaTuiBlank $Mode
+            if ($action -ne 'Older') { break }
+            $release = Select-RaTuiRelease $steamRootPath
+            if ($release) { break }
+        }
         if ($action -eq 'Quit') {
             Write-RaTuiStatus 'SKIP' (Get-RaText 'TuiCancelled')
             return $script:RaExitSuccess
         }
-        $steamRootPath = $null
-        try { $steamRootPath = Get-RaSteamRoot $Options.SteamRoot } catch { Write-RaLog $_.Exception.Message -Level WARN -NoConsole }
         $script:RaAssumeYes = $true
-        $run = Get-RaTuiPlan -Action $action -Options $Options -SteamRootPath $steamRootPath
+        $run = Get-RaTuiPlan -Action $action -Options $Options -SteamRootPath $steamRootPath -Release $release
         if ($null -eq $run) {
             Write-RaTuiStatus 'SKIP' (Get-RaText 'TuiCancelled')
+            if ($script:RaSteamClosedByUs -and (Confirm-RaTui -Prompt (Get-RaText 'AskRestartSteam') -Default $true -Mode $Mode)) {
+                Start-RaSteamAgain
+            }
             return $script:RaExitSuccess
         }
         Write-RaTuiBlank $Mode
@@ -261,6 +363,11 @@ function Invoke-RaTui {
         try { $code = [int]@(Invoke-RaAction $run)[-1] } catch {
             Write-RaLog $_.Exception.Message -Level ERROR
             $code = $script:RaExitFailure
+        }
+        if ($script:RaSteamClosedByUs) {
+            Write-RaTuiBlank $Mode
+            if (Confirm-RaTui -Prompt (Get-RaText 'AskRestartSteam') -Default $true -Mode $Mode) { Start-RaSteamAgain }
+            else { $script:RaSteamClosedByUs = $false }
         }
         $purged = [bool]$run.Purge -and $code -eq $script:RaExitSuccess -and -not (Test-Path -LiteralPath $script:RaRoot)
         Write-RaTuiBlank $Mode

@@ -9,8 +9,8 @@
     installation; the explicit Proxy alternative adds one version.dll there. Saves are
     untouched. See tools/bootstrap/README.md.
 
-    Interactive (no action switches): a terminal interface (menu: install, update, disable,
-    uninstall) when the console is interactive, plain prompts otherwise or with -Plain.
+    Interactive (no action switches): a terminal interface (menu: install or update, install an
+    older version, disable, uninstall) when the console is interactive, plain prompts otherwise or with -Plain.
         irm <release-url>/install.ps1 | iex
     Noninteractive:
         & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
@@ -86,7 +86,21 @@
     Ask the GitHub Releases API for the newest version (one request, on demand only).
 
 .PARAMETER Update
-    Install the newest signed release and switch to it.
+    Install or update: when CAPIE is not installed, install it (the newest signed release when the
+    update channel is configured); otherwise install the newest signed release and switch to it. When
+    it is already the newest, repair instead (switch mod, and the Steam launch option with
+    -SteamLaunchOption).
+
+.PARAMETER ListVersions
+    List the signed releases on GitHub (one request) with API level, game version, date and changes.
+
+.PARAMETER Version
+    Install this signed release (x.y.z) from GitHub instead of the newest; same verification.
+
+.PARAMETER CloseSteam
+    With -Yes: when Steam is running and the launch option must change, close Steam with
+    "steam.exe -shutdown" (never killed), wait up to 60 s, and start Steam again afterwards.
+    Without -Yes the script asks instead.
 
 .PARAMETER Rollback
     Switch back to the previous version kept on disk.
@@ -131,6 +145,9 @@ param(
     [string]$SteamRoot,
     [switch]$CheckUpdate,
     [switch]$Update,
+    [switch]$ListVersions,
+    [string]$Version,
+    [switch]$CloseSteam,
     [switch]$Rollback,
     [string]$ManifestPath
 )

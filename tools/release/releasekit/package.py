@@ -21,6 +21,7 @@ build therefore never matches the pins. The step:
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import re
@@ -29,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
-from releasekit import gitinfo
+from releasekit import changelog, gitinfo
 from releasekit.console import Status
 from releasekit.runner import quote
 from releasekit.signing import (
@@ -430,6 +431,50 @@ def _run_checked(ctx: Context, name: str, argv: Sequence[str]) -> bool:
     return True
 
 
+SUMMARY_LINES = 3
+SUMMARY_LINE_CHARS = 120
+
+
+def changelog_summary(ctx: Context) -> list[str]:
+    """The first change lines of this version's changelog section, for the installer's picker.
+
+    Args:
+        ctx: Run context.
+
+    Returns:
+        Up to three short lines (list markers and Markdown emphasis removed), possibly empty.
+    """
+    path = ctx.config.resolve(ctx.config.github.changelog)
+    body = changelog.section(
+        path.read_text(encoding="utf-8") if path.is_file() else "", ctx.version
+    )
+    lines: list[str] = []
+    for line in (body or "").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith(("- ", "* ")):
+            continue
+        text = re.sub(r"[*_`]", "", stripped[2:]).strip()
+        if len(text) > SUMMARY_LINE_CHARS:
+            text = text[: SUMMARY_LINE_CHARS - 3].rstrip() + "..."
+        lines.append(text)
+        if len(lines) == SUMMARY_LINES:
+            break
+    return lines
+
+
+def summary_argument(ctx: Context) -> str:
+    """``changelog_summary`` for ``sign-release-manifest.ps1`` (Base64 of a JSON array).
+
+    Args:
+        ctx: Run context.
+
+    Returns:
+        The Base64 text.
+    """
+    data = json.dumps(changelog_summary(ctx), ensure_ascii=False).encode("utf-8")
+    return base64.b64encode(data).decode("ascii")
+
+
 def check_manifest(
     ctx: Context, manifest: bytes, zip_name: str, zip_sha: str, entries: Sequence[BundleEntry]
 ) -> bool:
@@ -457,6 +502,12 @@ def check_manifest(
         problems.append("file list or hashes")
     if [str(h).upper() for h in data.get("supportedGameSha256", [])] != [ctx.capie.game_sha256]:
         problems.append("supported game hash")
+    if data.get("capie_api_level") != ctx.capie.api_level:
+        problems.append("capie_api_level")
+    if data.get("game_version") != ctx.capie.game_version:
+        problems.append("game_version")
+    if list(data.get("changelog_summary", [])) != changelog_summary(ctx):
+        problems.append("changelog_summary")
     if problems:
         ctx.reporter.record(
             STEP, Status.FAIL, f"manifest disagrees with the ZIP: {', '.join(problems)}"
@@ -577,6 +628,12 @@ def plan(
                 ctx.version,
                 "-SupportedGameSha256",
                 ctx.capie.game_sha256,
+                "-CapieApiLevel",
+                str(ctx.capie.api_level),
+                "-GameVersion",
+                ctx.capie.game_version,
+                "-ChangelogSummaryBase64",
+                summary_argument(ctx),
                 "-OutPath",
                 str(out / MANIFEST_NAME),
             )
@@ -675,6 +732,12 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
             ctx.version,
             "-SupportedGameSha256",
             ctx.capie.game_sha256,
+            "-CapieApiLevel",
+            str(ctx.capie.api_level),
+            "-GameVersion",
+            ctx.capie.game_version,
+            "-ChangelogSummaryBase64",
+            summary_argument(ctx),
             "-OutPath",
             str(manifest_path),
         ),

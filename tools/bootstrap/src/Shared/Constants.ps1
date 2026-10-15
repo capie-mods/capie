@@ -8,6 +8,13 @@ $script:RaAppId = '394360'                                  # Hearts of Iron IV 
 $script:RaGameExeName = 'hoi4.exe'
 $script:RaParadoxLauncherExeName = 'dowser.exe'             # what Steam's %command% starts
 $script:RaSteamProcessName = 'steam'
+$script:RaSteamHelperProcessName = 'steamwebhelper'          # must be gone too before localconfig.vdf is edited
+$script:RaSteamExeRegistryValue = 'SteamExe'
+$script:RaSteamExeName = 'steam.exe'
+$script:RaSteamShutdownArgument = '-shutdown'                 # Steam's own clean exit; nothing is killed
+$script:RaSteamShutdownTimeoutSeconds = 60
+$script:RaSteamShutdownPollMilliseconds = 1000
+$script:RaSteamProgressEverySeconds = 5
 $script:RaSteamRegistryKey = 'HKCU:\Software\Valve\Steam'
 $script:RaSteamRegistryValue = 'SteamPath'
 $script:RaSteamId64Base = [uint64]76561197960265728         # SteamID64 = base + account id
@@ -81,6 +88,19 @@ $script:RaWrapperPattern = '(?:"[^"]*\\{0}"|(?<!\S)[^\s"]*\\{0})[ \t]*' -f [rege
 
 # --- Update channel -------------------------------------------------------
 $script:RaGitHubLatestReleaseUrlFormat = 'https://api.github.com/repos/{0}/releases/latest'
+# Version picker: one request lists the newest releases; manifests are fetched only for the chosen one.
+$script:RaGitHubReleasesUrlFormat = 'https://api.github.com/repos/{0}/releases?per_page=20'
+$script:RaReleaseSummaryLines = 3
+$script:RaReleaseDateFormat = 'yyyy-MM-dd'
+# Facts in the release notes: the lines of tools/release (build_notes) and hand-written notes
+# ("Hearts of Iron IV 1.19.3.0 (`hoi4.exe` SHA-256 7DC947BE...31D5)"). A shortened hash keeps its start.
+$script:RaNotesGameVersionPattern = 'Hearts of Iron IV (\d+(?:\.\d+){1,3})'
+$script:RaNotesGameShaPattern = 'hoi4\.exe`?\s+SHA-256\s+`?([0-9A-Fa-f]{8,64})'
+$script:RaNotesApiLevelPattern = 'script API level (\d+)'
+$script:RaNotesBulletPattern = '^\s*[-*]\s+(.+)$'
+$script:RaNotesSectionPattern = '^\s*##\s+Supported game build'   # the changelog part ends here
+$script:RaReleaseShaPrefixLength = 8
+$script:RaVersionCorePattern = '^(\d+\.\d+\.\d+).*$'
 $script:RaGitHubDownloadPrefixFormat = 'https://github.com/{0}/releases/download/'
 $script:RaManifestAssetName = 'release-manifest.json'
 $script:RaSignatureAssetName = 'release-manifest.json.sig'
@@ -118,7 +138,7 @@ $script:RaExitUsage = 2                    # no action and no interactive consol
 # Switches that name an action; without any of them an interactive run opens the menu.
 $script:RaActionOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'RemoveSteamLaunchOption', 'Uninstall',
-    'CheckUpdate', 'Update', 'Rollback', 'Disable'
+    'CheckUpdate', 'Update', 'Rollback', 'Disable', 'ListVersions', 'Version'
 )
 
 # --- Terminal interface ---------------------------------------------------
@@ -157,7 +177,7 @@ $script:RaTuiEnvNoAnimation = 'RA_NO_ANIMATION'
 $script:RaTuiEnvCi = 'CI'
 $script:RaTuiEnvTerm = 'TERM'
 $script:RaTuiDumbTerm = 'dumb'
-$script:RaTuiMenuActions = @('Install', 'Update', 'Disable', 'Uninstall', 'Quit')
+$script:RaTuiMenuActions = @('Setup', 'Older', 'Disable', 'Uninstall', 'Quit')
 # The pencil writes this name into the margin of the map sheet, next to the grid square of the flag.
 $script:RaTuiAnnotationName = 'Rename Anything'
 $script:RaTuiAnnotationRef = 'C3'

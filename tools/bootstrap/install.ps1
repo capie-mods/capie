@@ -9,8 +9,8 @@
     installation; the explicit Proxy alternative adds one version.dll there. Saves are
     untouched. See tools/bootstrap/README.md.
 
-    Interactive (no action switches): a terminal interface (menu: install, update, disable,
-    uninstall) when the console is interactive, plain prompts otherwise or with -Plain.
+    Interactive (no action switches): a terminal interface (menu: install or update, install an
+    older version, disable, uninstall) when the console is interactive, plain prompts otherwise or with -Plain.
         irm <release-url>/install.ps1 | iex
     Noninteractive:
         & ([scriptblock]::Create((irm <release-url>/install.ps1))) -Install -SteamLaunchOption -Yes
@@ -86,7 +86,21 @@
     Ask the GitHub Releases API for the newest version (one request, on demand only).
 
 .PARAMETER Update
-    Install the newest signed release and switch to it.
+    Install or update: when CAPIE is not installed, install it (the newest signed release when the
+    update channel is configured); otherwise install the newest signed release and switch to it. When
+    it is already the newest, repair instead (switch mod, and the Steam launch option with
+    -SteamLaunchOption).
+
+.PARAMETER ListVersions
+    List the signed releases on GitHub (one request) with API level, game version, date and changes.
+
+.PARAMETER Version
+    Install this signed release (x.y.z) from GitHub instead of the newest; same verification.
+
+.PARAMETER CloseSteam
+    With -Yes: when Steam is running and the launch option must change, close Steam with
+    "steam.exe -shutdown" (never killed), wait up to 60 s, and start Steam again afterwards.
+    Without -Yes the script asks instead.
 
 .PARAMETER Rollback
     Switch back to the previous version kept on disk.
@@ -131,6 +145,9 @@ param(
     [string]$SteamRoot,
     [switch]$CheckUpdate,
     [switch]$Update,
+    [switch]$ListVersions,
+    [string]$Version,
+    [switch]$CloseSteam,
     [switch]$Rollback,
     [string]$ManifestPath
 )
@@ -190,6 +207,13 @@ $script:RaAppId = '394360'                                  # Hearts of Iron IV 
 $script:RaGameExeName = 'hoi4.exe'
 $script:RaParadoxLauncherExeName = 'dowser.exe'             # what Steam's %command% starts
 $script:RaSteamProcessName = 'steam'
+$script:RaSteamHelperProcessName = 'steamwebhelper'          # must be gone too before localconfig.vdf is edited
+$script:RaSteamExeRegistryValue = 'SteamExe'
+$script:RaSteamExeName = 'steam.exe'
+$script:RaSteamShutdownArgument = '-shutdown'                 # Steam's own clean exit; nothing is killed
+$script:RaSteamShutdownTimeoutSeconds = 60
+$script:RaSteamShutdownPollMilliseconds = 1000
+$script:RaSteamProgressEverySeconds = 5
 $script:RaSteamRegistryKey = 'HKCU:\Software\Valve\Steam'
 $script:RaSteamRegistryValue = 'SteamPath'
 $script:RaSteamId64Base = [uint64]76561197960265728         # SteamID64 = base + account id
@@ -263,6 +287,19 @@ $script:RaWrapperPattern = '(?:"[^"]*\\{0}"|(?<!\S)[^\s"]*\\{0})[ \t]*' -f [rege
 
 # --- Update channel -------------------------------------------------------
 $script:RaGitHubLatestReleaseUrlFormat = 'https://api.github.com/repos/{0}/releases/latest'
+# Version picker: one request lists the newest releases; manifests are fetched only for the chosen one.
+$script:RaGitHubReleasesUrlFormat = 'https://api.github.com/repos/{0}/releases?per_page=20'
+$script:RaReleaseSummaryLines = 3
+$script:RaReleaseDateFormat = 'yyyy-MM-dd'
+# Facts in the release notes: the lines of tools/release (build_notes) and hand-written notes
+# ("Hearts of Iron IV 1.19.3.0 (`hoi4.exe` SHA-256 7DC947BE...31D5)"). A shortened hash keeps its start.
+$script:RaNotesGameVersionPattern = 'Hearts of Iron IV (\d+(?:\.\d+){1,3})'
+$script:RaNotesGameShaPattern = 'hoi4\.exe`?\s+SHA-256\s+`?([0-9A-Fa-f]{8,64})'
+$script:RaNotesApiLevelPattern = 'script API level (\d+)'
+$script:RaNotesBulletPattern = '^\s*[-*]\s+(.+)$'
+$script:RaNotesSectionPattern = '^\s*##\s+Supported game build'   # the changelog part ends here
+$script:RaReleaseShaPrefixLength = 8
+$script:RaVersionCorePattern = '^(\d+\.\d+\.\d+).*$'
 $script:RaGitHubDownloadPrefixFormat = 'https://github.com/{0}/releases/download/'
 $script:RaManifestAssetName = 'release-manifest.json'
 $script:RaSignatureAssetName = 'release-manifest.json.sig'
@@ -300,7 +337,7 @@ $script:RaExitUsage = 2                    # no action and no interactive consol
 # Switches that name an action; without any of them an interactive run opens the menu.
 $script:RaActionOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'RemoveSteamLaunchOption', 'Uninstall',
-    'CheckUpdate', 'Update', 'Rollback', 'Disable'
+    'CheckUpdate', 'Update', 'Rollback', 'Disable', 'ListVersions', 'Version'
 )
 
 # --- Terminal interface ---------------------------------------------------
@@ -339,7 +376,7 @@ $script:RaTuiEnvNoAnimation = 'RA_NO_ANIMATION'
 $script:RaTuiEnvCi = 'CI'
 $script:RaTuiEnvTerm = 'TERM'
 $script:RaTuiDumbTerm = 'dumb'
-$script:RaTuiMenuActions = @('Install', 'Update', 'Disable', 'Uninstall', 'Quit')
+$script:RaTuiMenuActions = @('Setup', 'Older', 'Disable', 'Uninstall', 'Quit')
 # The pencil writes this name into the margin of the map sheet, next to the grid square of the flag.
 $script:RaTuiAnnotationName = 'Rename Anything'
 $script:RaTuiAnnotationRef = 'C3'
@@ -368,6 +405,10 @@ $script:RaAfterWriteHook = $null # tests: simulate a bad write before verificati
 $script:RaBeforeOwnedRemove = $null # tests: simulate a replacement after ownership verification
 $script:RaLogSink = $null       # terminal interface: receives (Level, Message) of console log lines
 $script:RaMpWarningShown = $false # terminal interface already showed the multiplayer note
+$script:RaCloseSteam = $false   # -CloseSteam: with -Yes the script may close and restart Steam
+$script:RaSteamClosedByUs = $false # this run closed Steam (or planned to, in dry-run mode)
+$script:RaSteamRestartExe = $null  # steam.exe to start again after the change
+$script:RaReleaseCache = $null  # releases listed in this run (one GitHub request per run)
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -401,6 +442,13 @@ $script:RaSleep = { param([int]$Milliseconds) Start-Sleep -Milliseconds $Millise
 # --- Processes, registry, clock, desktop ----------------------------------
 # GetSteamProcess() -> array; empty when Steam is not running
 $script:RaGetSteamProcess = { @(Get-Process -Name $script:RaSteamProcessName -ErrorAction SilentlyContinue) }
+# GetSteamHelperProcess() -> array of steamwebhelper processes (they outlive steam.exe briefly)
+$script:RaGetSteamHelperProcess = { @(Get-Process -Name $script:RaSteamHelperProcessName -ErrorAction SilentlyContinue) }
+# StartProcess(FilePath, Arguments) -> nothing; starts a program without waiting (Steam shutdown/start only)
+$script:RaStartProcess = {
+    param([string]$FilePath, [string[]]$Arguments)
+    if (@($Arguments).Count -gt 0) { Start-Process -FilePath $FilePath -ArgumentList $Arguments } else { Start-Process -FilePath $FilePath }
+}
 # GetRegistryValue(Path, Name) -> value or $null
 $script:RaGetRegistryValue = {
     param([string]$Path, [string]$Name)
@@ -587,13 +635,14 @@ $script:RaMessages = @{
         "No action was given and this console cannot answer questions, so nothing was changed.`n",
         "Run it again with one action:`n",
         "  -Install              install CAPIE (add -SteamLaunchOption to start it from Steam)`n",
-        "  -Install -Latest      install the newest signed release from GitHub Releases`n",
-        "  -Update               install a newer signed release; -Rollback returns to the previous one`n",
+        "  -Update               install, or update to the newest signed release (-Rollback goes back)`n",
+        "  -ListVersions         list the signed releases; -Version x.y.z installs one of them`n",
         "  -Disable              remove the CAPIE launcher from the Steam launch options; files stay`n",
         "  -Uninstall [-Purge]   remove CAPIE; -Purge also removes the log and Steam config backups`n",
         "  -CheckUpdate          report the newest release (one request to GitHub)`n",
-        "Add -Yes to run without questions, -DryRun to see the plan first. Interactive console: run with no`n",
-        'switches for the menu, or with -Plain for plain questions.'
+        "Add -Yes to run without questions (-CloseSteam lets it close and restart Steam), -DryRun to see the`n",
+        "plan first. Interactive console: run with no switches for the menu, or with -Plain for plain`n",
+        'questions.'
     ) -join ''
     AskLoadMethod              = @(
         'Loading method: 1 = CAPIE launcher (recommended: no files in the game folder, switched on and off with the ',
@@ -623,10 +672,24 @@ $script:RaMessages = @{
     AskConfirmSteam            = 'Add the selected loading method to the HOI4 Steam launch options? [y/N]'
     AskConfirmShortcut         = 'Create the shortcut? [y/N]'
     SteamRunning               = @(
-        'Steam is running. Close Steam completely (Steam menu > Exit), then press Enter. Type Q to skip the Steam ',
-        'step. This script never closes Steam.'
+        'Steam is still running. Close Steam completely (Steam menu > Exit), then press Enter. Type Q to skip the ',
+        'Steam step.'
     ) -join ''
-    SteamRunningNonInteractive = 'Steam is running. Close it and run the script again. This script never closes Steam.'
+    SteamRunningNonInteractive = @(
+        'Steam is running, so the launch option was not changed. Close Steam and run the script again, or add ',
+        '-CloseSteam to let this script close Steam (steam.exe -shutdown) and start it again afterwards.'
+    ) -join ''
+    AskCloseSteam              = 'Steam is running. Close Steam now so the launch option can be changed? [Y/n]'
+    AskRestartSteam            = 'Start Steam again? [Y/n]'
+    SteamClosing               = 'Asking Steam to exit (steam.exe -shutdown). Nothing is forced.'
+    SteamWaiting               = 'Waiting for Steam to exit: {0} of {1} s.'
+    SteamClosed                = 'Steam has exited.'
+    SteamCloseTimeout          = @(
+        'Steam did not exit within {0} s. Nothing was forced. Close Steam yourself (Steam menu > Exit) or skip ',
+        'the Steam step.'
+    ) -join ''
+    SteamExeMissing            = 'steam.exe was not found in the registry, so this script cannot close Steam.'
+    SteamStarted               = 'Steam is starting.'
     AskAccount                 = 'Several Steam accounts found. Type a number, several numbers separated by commas, or A for all:'
     Done                       = 'Done.'
     DryRunNote                 = 'DRY RUN: nothing will be written.'
@@ -636,6 +699,7 @@ $script:RaMessages = @{
     Failed                     = 'FAILED: {0}'
     UpdateStatus               = 'Installed version: {0}. Latest release: {1}.'
     UpdateAvailable            = 'Version {0} is available. Run with -Update to install it; the current version stays for -Rollback.'
+    AlreadyUpToDate            = 'CAPIE {0} is already up to date. Repairing instead: the CAPIE switch mod and, if chosen, the Steam launch option.'
     UpToDate                   = 'You have the latest version.'
     GameSupportedInstalled     = 'The installed version supports your hoi4.exe build.'
     GameSupportedLatest        = 'The installed version does NOT support your hoi4.exe build. Version {0} does: run with -Update.'
@@ -652,10 +716,10 @@ $script:RaMessages = @{
     ) -join ''
     TuiTagline                 = "Built on CAPIE (Cyprian's API Extender)"
     TuiMenuTitle               = 'What should this setup do?'
-    TuiInstall                 = 'Install'
-    TuiInstallHint             = 'CAPIE launcher in your user folder, started by Steam'
-    TuiUpdate                  = 'Update'
-    TuiUpdateHint              = 'newest signed release; the current one stays for rollback'
+    TuiSetup                   = 'Install or update'
+    TuiSetupHint               = 'installs CAPIE, or updates to the newest signed release (the current one stays for rollback)'
+    TuiOlder                   = 'Install an older version'
+    TuiOlderHint               = 'choose a signed release from GitHub; option 1 returns to the newest'
     TuiDisable                 = 'Disable'
     TuiDisableHint             = 'Steam starts the game without CAPIE; files stay'
     TuiUninstall               = 'Uninstall'
@@ -675,7 +739,27 @@ $script:RaMessages = @{
     TuiAskDisable              = 'Remove the CAPIE launcher from the Steam launch options? Files stay. [Y/n]'
     TuiAskUninstall            = 'Remove CAPIE and restore the Steam launch options you had before? [y/N]'
     TuiAskPurge                = 'Also delete the setup log and the Steam config backups made by this setup? [y/N]'
-    TuiAskSteamClosed          = 'Steam is running. Close it completely (Steam > Exit), then press Enter. Q skips the Steam step.'
+    TuiAskSteamClosed          = 'Steam is still running. Close it completely (Steam > Exit), then press Enter. Q skips the Steam step.'
+    TuiAskSteamRepair          = 'Set the CAPIE launcher in the HOI4 Steam launch options again (repair)? [y/N]'
+    TuiOlderTitle              = 'Which version should be installed?'
+    TuiOlderKeys               = 'Up and Down or 1-9 to choose, Enter to install, Esc to go back.'
+    TuiOlderLoading            = 'Listing signed releases on GitHub (one request).'
+    TuiOlderInstall            = 'Install CAPIE {0}? It replaces the active version, which stays for rollback. [Y/n]'
+    VersionsTitle              = 'Signed CAPIE releases, newest first:'
+    VersionsNone               = 'No signed releases were found on GitHub.'
+    VersionsHint               = 'Install one with -Version x.y.z. -Update returns to the newest.'
+    VersionFacts               = 'API {0} | HoI4 {1} | {2}'
+    VersionUnknown             = 'unknown'
+    VersionMarkInstalled       = 'installed'
+    VersionMarkLatest          = 'latest'
+    VersionMarkPrerelease      = 'pre-release'
+    VersionGameWarning         = '! not for your hoi4.exe ({0}...): the game would start without CAPIE'
+    VersionNotFound            = 'Version {0} is not among the signed releases on GitHub (see -ListVersions).'
+    VersionManifestFacts       = 'Release {0}: CAPIE script API level {1}, made for HoI4 {2}.'
+    VersionUnsupported         = @(
+        'Release {0} does not support your hoi4.exe build ({1}...). It is installed anyway; the launcher starts ',
+        'the game without CAPIE until a matching version is active.'
+    ) -join ''
     TuiWorking                 = 'working'
     TuiSummary                 = 'Summary'
     TuiRowInstalled            = 'Installed'
@@ -1578,10 +1662,14 @@ function ConvertTo-RaManifestJson {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Manifest)
-    return ([pscustomobject]@{
-            schema = $script:RaManifestSchemaVersion; version = $Manifest.Version; zipName = $Manifest.ZipName; zipSha256 = $Manifest.ZipSha256
-            files = [pscustomobject]$Manifest.Files; supportedGameSha256 = @($Manifest.SupportedGameSha256)
-        } | ConvertTo-Json -Depth $script:RaJsonDepth)
+    $data = [ordered]@{
+        schema = $script:RaManifestSchemaVersion; version = $Manifest.Version; zipName = $Manifest.ZipName; zipSha256 = $Manifest.ZipSha256
+        files = [pscustomobject]$Manifest.Files; supportedGameSha256 = @($Manifest.SupportedGameSha256)
+    }
+    if ($Manifest.Contains('ApiLevel') -and $Manifest.ApiLevel) { $data['capie_api_level'] = [int]$Manifest.ApiLevel }
+    if ($Manifest.Contains('GameVersion') -and $Manifest.GameVersion) { $data['game_version'] = [string]$Manifest.GameVersion }
+    if ($Manifest.Contains('ChangelogSummary') -and @($Manifest.ChangelogSummary).Count -gt 0) { $data['changelog_summary'] = @($Manifest.ChangelogSummary) }
+    return ([pscustomobject]$data | ConvertTo-Json -Depth $script:RaJsonDepth)
 }
 
 function ConvertFrom-RaManifestJson {
@@ -1608,6 +1696,10 @@ function ConvertFrom-RaManifestJson {
         Version = [string]$j.version; ZipName = [string]$j.zipName; ZipSha256 = [string]$j.zipSha256
         Files = $files; SupportedGameSha256 = @($j.supportedGameSha256 | ForEach-Object { [string]$_ })
     }
+    # Optional display data (version picker); older manifests do not have it.
+    $m['ApiLevel'] = if ($j.PSObject.Properties['capie_api_level']) { [int]$j.capie_api_level } else { $null }
+    $m['GameVersion'] = if ($j.PSObject.Properties['game_version']) { [string]$j.game_version } else { $null }
+    $m['ChangelogSummary'] = if ($j.PSObject.Properties['changelog_summary']) { @($j.changelog_summary | ForEach-Object { [string]$_ }) } else { @() }
     Test-RaManifest $m
     return $m
 }
@@ -1698,7 +1790,8 @@ function Test-RaSignature {
 
 #region Shared/Steam.ps1
 # ---------------------------------------------------------------------------
-# Steam discovery (read-only): install folder, accounts, game folder, process.
+# Steam discovery (install folder, accounts, game folder, process) and, on request, closing
+# and restarting Steam the official way (steam.exe -shutdown; never killed). ADR-0037.
 # ---------------------------------------------------------------------------
 
 function Get-RaSteamRoot {
@@ -1834,14 +1927,144 @@ function Test-RaSteamRunning {
     return (@(& $script:RaGetSteamProcess).Count -gt 0)
 }
 
+function Test-RaSteamAnyProcess {
+    <#
+    .SYNOPSIS
+        Tests whether steam.exe or one of its steamwebhelper processes still runs.
+    .DESCRIPTION
+        Steam writes localconfig.vdf when it exits; the edit waits until every Steam process
+        is gone.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaSteamAnyProcess
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    return ((@(& $script:RaGetSteamProcess).Count + @(& $script:RaGetSteamHelperProcess).Count) -gt 0)
+}
+
+function Get-RaSteamExe {
+    <#
+    .SYNOPSIS
+        Path of steam.exe from the registry, or $null.
+    .DESCRIPTION
+        HKCU\Software\Valve\Steam\SteamExe first, then SteamPath\steam.exe. Only an existing
+        file is returned.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaSteamExe
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    $candidates = @()
+    foreach ($name in $script:RaSteamExeRegistryValue, $script:RaSteamRegistryValue) {
+        try {
+            $value = [string](& $script:RaGetRegistryValue $script:RaSteamRegistryKey $name)
+            if (-not $value) { continue }
+            $value = $value -replace '/', '\'
+            $candidates += if ($name -eq $script:RaSteamRegistryValue) { Join-Path $value $script:RaSteamExeName } else { $value }
+        } catch { Write-Verbose "Registry value $name unavailable: $($_.Exception.Message)" }
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return [IO.Path]::GetFullPath($candidate) }
+    }
+    return $null
+}
+
+function Stop-RaSteam {
+    <#
+    .SYNOPSIS
+        Asks Steam to exit the official way and waits until it is gone.
+    .DESCRIPTION
+        Runs "steam.exe -shutdown" (Steam's own clean exit) and polls every second, for at most
+        60 s, until steam.exe and steamwebhelper are gone, logging progress every 5 s. Nothing is
+        killed: when Steam stays, the caller falls back to asking the player. Dry-run mode only
+        logs the plan and reports success so the rest of the plan can be shown.
+    .OUTPUTS
+        System.Boolean ($true when Steam is closed)
+    .EXAMPLE
+        if (Stop-RaSteam) { 'edit localconfig.vdf' }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    $exe = Get-RaSteamExe
+    if (-not $exe) {
+        Write-RaLog (Get-RaText 'SteamExeMissing') -Level WARN
+        return $false
+    }
+    if ($script:RaDry) {
+        $plan = ("[dry-run] would run `"{0}`" {1}, wait up to {2} s and offer to start Steam again" -f
+            $exe, $script:RaSteamShutdownArgument, $script:RaSteamShutdownTimeoutSeconds)
+        Write-RaLog $plan -Level PLAN
+        $script:RaSteamClosedByUs = $true
+        $script:RaSteamRestartExe = $exe
+        return $true
+    }
+    Write-RaLog (Get-RaText 'SteamClosing')
+    & $script:RaStartProcess $exe @($script:RaSteamShutdownArgument)
+    for ($waited = 0; $waited -lt $script:RaSteamShutdownTimeoutSeconds; $waited++) {
+        if (-not (Test-RaSteamAnyProcess)) {
+            $script:RaSteamClosedByUs = $true
+            $script:RaSteamRestartExe = $exe
+            Write-RaLog (Get-RaText 'SteamClosed')
+            return $true
+        }
+        if ($waited -gt 0 -and $waited % $script:RaSteamProgressEverySeconds -eq 0) {
+            Write-RaLog (Get-RaText 'SteamWaiting' @($waited, $script:RaSteamShutdownTimeoutSeconds))
+        }
+        & $script:RaSleep $script:RaSteamShutdownPollMilliseconds
+    }
+    if (-not (Test-RaSteamAnyProcess)) {
+        $script:RaSteamClosedByUs = $true
+        $script:RaSteamRestartExe = $exe
+        Write-RaLog (Get-RaText 'SteamClosed')
+        return $true
+    }
+    Write-RaLog (Get-RaText 'SteamCloseTimeout' @($script:RaSteamShutdownTimeoutSeconds)) -Level WARN
+    return $false
+}
+
+function Start-RaSteamAgain {
+    <#
+    .SYNOPSIS
+        Starts Steam again after this run closed it.
+    .DESCRIPTION
+        Same steam.exe, no arguments, no waiting. Does nothing when this run did not close
+        Steam. Dry-run mode only logs the plan.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Start-RaSteamAgain
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param()
+    if (-not $script:RaSteamClosedByUs -or -not $script:RaSteamRestartExe) { return }
+    $exe = $script:RaSteamRestartExe
+    $script:RaSteamClosedByUs = $false
+    if ($script:RaDry) {
+        Write-RaLog "[dry-run] would start `"$exe`"" -Level PLAN
+        return
+    }
+    & $script:RaStartProcess $exe @()
+    Write-RaLog (Get-RaText 'SteamStarted')
+}
+
 function Wait-RaSteamClosed {
     <#
     .SYNOPSIS
-        Waits until the user has closed Steam.
+        Makes sure Steam is closed before localconfig.vdf is edited.
     .DESCRIPTION
-        Returns $true when Steam is not running. With -Yes it returns $false at once
-        (and logs why); interactively it asks again until Steam is closed or the user
-        types Q. It never stops the process itself.
+        Returns $true when Steam is not running. Interactively it first offers to close Steam
+        (steam.exe -shutdown, see Stop-RaSteam; default yes); when that is declined or Steam
+        does not exit in time, it asks the player to close Steam until it is closed or the
+        player types Q. With -Yes it closes Steam only when -CloseSteam was given, and otherwise
+        returns $false at once (and logs why). Steam is never killed.
     .OUTPUTS
         System.Boolean
     .EXAMPLE
@@ -1850,11 +2073,14 @@ function Wait-RaSteamClosed {
     [CmdletBinding()]
     [OutputType([bool])]
     param()
+    if ($script:RaDry -and $script:RaSteamClosedByUs) { return $true }
     if (-not (Test-RaSteamRunning)) { return $true }
     if ($script:RaAssumeYes) {
+        if ($script:RaCloseSteam) { return (Stop-RaSteam) }
         Write-RaLog (Get-RaText 'SteamRunningNonInteractive') -Level WARN
         return $false
     }
+    if ((Confirm-Ra (Get-RaText 'AskCloseSteam') $true) -and (Stop-RaSteam)) { return $true }
     while (Test-RaSteamRunning) {
         $a = Read-RaAnswer (Get-RaText 'SteamRunning')
         if ($a -ieq $script:RaQuitAnswer) { return $false }
@@ -2646,15 +2872,17 @@ function Get-RaTuiAnnotationLine {
 function Get-RaTuiMenuModel {
     <#
     .SYNOPSIS
-        Line models of the action menu.
+        Line models of a selectable list (by default the action menu).
     .DESCRIPTION
-        One row per action: number, name, hint (a long hint wraps under itself). The selected
-        row is marked with ">" (so it reads without colour) and drawn on the olive button
-        background.
+        One row per item: number, name, hint lines (each long hint wraps under itself). The
+        selected row is marked with ">" (so it reads without colour) and drawn on the olive
+        button background.
     .PARAMETER Selected
-        Zero-based index of the selected action.
+        Zero-based index of the selected item.
     .PARAMETER Mode
         Result of Get-RaTuiMode.
+    .PARAMETER Items
+        Items (Name, Hints); default: the action menu (Get-RaTuiMenuItem).
     .OUTPUTS
         System.Object[] (pscustomobject rows: Segments, Background)
     .EXAMPLE
@@ -2662,29 +2890,58 @@ function Get-RaTuiMenuModel {
     #>
     [CmdletBinding()]
     [OutputType([object[]])]
-    param([Parameter(Mandatory, Position = 0)][int]$Selected, [Parameter(Mandatory, Position = 1)][psobject]$Mode)
+    param(
+        [Parameter(Mandatory, Position = 0)][int]$Selected,
+        [Parameter(Mandatory, Position = 1)][psobject]$Mode,
+        [Parameter(Position = 2)][AllowNull()][object[]]$Items = $null
+    )
+    if ($null -eq $Items) { $Items = Get-RaTuiMenuItem }
     $result = @()
     $nameWidth = 0
-    foreach ($action in $script:RaTuiMenuActions) { $nameWidth = [Math]::Max($nameWidth, (Get-RaText "Tui$action").Length) }
-    for ($i = 0; $i -lt $script:RaTuiMenuActions.Count; $i++) {
-        $action = $script:RaTuiMenuActions[$i]
+    foreach ($item in $Items) { $nameWidth = [Math]::Max($nameWidth, ([string]$item.Name).Length) }
+    $numberWidth = ([string]$Items.Count).Length
+    for ($i = 0; $i -lt $Items.Count; $i++) {
+        $item = $Items[$i]
         $on = ($i -eq $Selected)
         $marker = if ($on) { '> ' } else { '  ' }
-        $head = '{0}{1}  {2}  ' -f $marker, ($i + 1), (Get-RaText "Tui$action").PadRight($nameWidth)
+        $head = '{0}{1}  {2}  ' -f $marker, ([string]($i + 1)).PadLeft($numberWidth), ([string]$item.Name).PadRight($nameWidth)
         $hintRoom = [Math]::Max(1, $Mode.Width - $script:RaTuiIndent - $head.Length)
         $nameStyle = if ($on) { 'parchment' } else { 'khaki' }
         $background = if ($on) { $script:RaTuiSelectedBackground } else { $script:RaTuiBackground }
         $first = $true
-        foreach ($hint in (Split-RaTuiText (Get-RaText "Tui$($action)Hint") $hintRoom)) {
-            $lead = if ($first) { $head } else { ' ' * $head.Length }
-            $result += [pscustomobject]@{
-                Segments   = @((New-RaTuiSegment $nameStyle $lead), (New-RaTuiSegment 'ash' $hint))
-                Background = $background
+        foreach ($hintText in @($item.Hints)) {
+            foreach ($hint in (Split-RaTuiText ([string]$hintText) $hintRoom)) {
+                $lead = if ($first) { $head } else { ' ' * $head.Length }
+                $result += [pscustomobject]@{
+                    Segments   = @((New-RaTuiSegment $nameStyle $lead), (New-RaTuiSegment 'ash' $hint))
+                    Background = $background
+                }
+                $first = $false
             }
-            $first = $false
         }
     }
     return , $result
+}
+
+function Get-RaTuiMenuItem {
+    <#
+    .SYNOPSIS
+        Items of the action menu.
+    .DESCRIPTION
+        One item (Name, Hints) per entry of $script:RaTuiMenuActions, texts from Messages.
+    .OUTPUTS
+        System.Object[] (pscustomobject: Name, Hints)
+    .EXAMPLE
+        Get-RaTuiMenuItem
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param()
+    $items = @()
+    foreach ($action in $script:RaTuiMenuActions) {
+        $items += [pscustomobject]@{ Name = (Get-RaText "Tui$action"); Hints = @(Get-RaText "Tui$($action)Hint") }
+    }
+    return , $items
 }
 
 function Get-RaTuiSummaryModel {
@@ -2839,45 +3096,68 @@ function Read-RaTuiKey {
     return ([string]$info.KeyChar).ToLowerInvariant()
 }
 
-function Select-RaTuiAction {
+function Select-RaTuiIndex {
     <#
     .SYNOPSIS
-        Shows the menu and returns the chosen action.
+        Shows a selectable list and returns the index of the chosen item, or -1.
     .DESCRIPTION
-        Up/Down move the selection, digits pick directly, Enter confirms, Esc or Q quits.
-        On a virtual-terminal host the menu is redrawn in place (cursor up); otherwise the
-        menu is printed again below, and a digit confirms at once.
+        Up/Down move the selection, digits 1-9 pick directly, Enter confirms, Esc or Q
+        returns -1. On a virtual-terminal host the list is redrawn in place (cursor up);
+        otherwise it is printed again below, and a digit confirms at once.
+    .PARAMETER Items
+        Items (Name, Hints).
     .PARAMETER Mode
         Result of Get-RaTuiMode.
     .OUTPUTS
-        System.String (Install, Update, Disable, Uninstall or Quit)
+        System.Int32
     .EXAMPLE
-        $action = Select-RaTuiAction $mode
+        $index = Select-RaTuiIndex (Get-RaTuiMenuItem) $mode
     #>
     [CmdletBinding()]
-    [OutputType([string])]
-    param([Parameter(Mandatory, Position = 0)][psobject]$Mode)
+    [OutputType([int])]
+    param([Parameter(Mandatory, Position = 0)][object[]]$Items, [Parameter(Mandatory, Position = 1)][psobject]$Mode)
     $selected = 0
-    $count = $script:RaTuiMenuActions.Count
-    $model = Get-RaTuiMenuModel $selected $Mode
+    $count = $Items.Count
+    $model = Get-RaTuiMenuModel -Selected $selected -Mode $Mode -Items $Items
     Write-RaTuiModel $model $Mode
     while ($true) {
         $key = Read-RaTuiKey
         $before = $selected
         if ($key -eq 'Up') { $selected = ($selected + $count - 1) % $count }
         elseif ($key -eq 'Down') { $selected = ($selected + 1) % $count }
-        elseif ($key -eq 'Enter') { return $script:RaTuiMenuActions[$selected] }
-        elseif ($key -eq 'Escape' -or $key -eq $script:RaQuitAnswer) { return 'Quit' }
+        elseif ($key -eq 'Enter') { return $selected }
+        elseif ($key -eq 'Escape' -or $key -eq $script:RaQuitAnswer) { return -1 }
         elseif ($key -match '^[1-9]$' -and [int]$key -le $count) {
             $selected = [int]$key - 1
-            if (-not $Mode.Vt) { return $script:RaTuiMenuActions[$selected] }
+            if (-not $Mode.Vt) { return $selected }
         }
         if ($selected -ne $before) {
             if ($Mode.Vt) { & $script:RaWriteRaw ('{0}[{1}A' -f [char]27, @($model).Count) } else { Write-RaTuiBlank $Mode }
-            $model = Get-RaTuiMenuModel $selected $Mode
+            $model = Get-RaTuiMenuModel -Selected $selected -Mode $Mode -Items $Items
             Write-RaTuiModel $model $Mode
         }
     }
+}
+
+function Select-RaTuiAction {
+    <#
+    .SYNOPSIS
+        Shows the menu and returns the chosen action.
+    .DESCRIPTION
+        Select-RaTuiIndex over the action menu; Esc or Q means Quit.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.String (Setup, Older, Disable, Uninstall or Quit)
+    .EXAMPLE
+        $action = Select-RaTuiAction $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$Mode)
+    $index = Select-RaTuiIndex (Get-RaTuiMenuItem) $Mode
+    if ($index -lt 0) { return 'Quit' }
+    return $script:RaTuiMenuActions[$index]
 }
 
 function Confirm-RaTui {
@@ -4202,6 +4482,317 @@ function Invoke-RaRollback {
 }
 #endregion Features/Update.ps1
 
+#region Features/Versions.ps1
+# ---------------------------------------------------------------------------
+# Slice: older versions (-ListVersions, -Version, menu "Install an older version").
+# One GitHub request lists the newest releases; only the chosen release's signed manifest
+# is downloaded, and it goes through the same verification as the newest release
+# (signature with the pinned key, tag = manifest version, asset URLs inside this repository,
+# ZIP and per-file SHA-256). The list itself shows what the release notes say; the
+# manifest fields capie_api_level, game_version and changelog_summary are shown once the
+# chosen manifest is verified.
+# ---------------------------------------------------------------------------
+
+function ConvertFrom-RaReleaseNote {
+    <#
+    .SYNOPSIS
+        Reads the facts the release notes state about a release.
+    .DESCRIPTION
+        The notes are written by tools/release (build_notes): the changelog section of the
+        version, then "## Supported game build" with the game version, the hoi4.exe SHA-256
+        and the CAPIE script API level; hand-written notes may shorten the hash
+        ("7DC947BE...31D5"), then only its start is kept. Missing facts are $null; the summary
+        is the first list items before that section, without the item naming the game build.
+    .PARAMETER Body
+        Release notes (Markdown) or empty.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject (GameVersion, GameSha256 (full or start), ApiLevel, Summary)
+    .NOTES
+        Summary items: list markers and Markdown emphasis are removed.
+    .EXAMPLE
+        ConvertFrom-RaReleaseNote $release.body
+    #>
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$Body)
+    $text = [string]$Body
+    $facts = [pscustomobject]@{ GameVersion = $null; GameSha256 = $null; ApiLevel = $null; Summary = @() }
+    $m = [regex]::Match($text, $script:RaNotesGameVersionPattern)
+    if ($m.Success) { $facts.GameVersion = $m.Groups[1].Value }
+    $m = [regex]::Match($text, $script:RaNotesGameShaPattern)
+    if ($m.Success) { $facts.GameSha256 = $m.Groups[1].Value.ToUpperInvariant() }
+    $m = [regex]::Match($text, $script:RaNotesApiLevelPattern)
+    if ($m.Success) { $facts.ApiLevel = [int]$m.Groups[1].Value }
+    $summary = @()
+    foreach ($line in ($text -split "`r?`n")) {
+        if ($line -match $script:RaNotesSectionPattern) { break }
+        $b = [regex]::Match($line, $script:RaNotesBulletPattern)
+        if (-not $b.Success -or $b.Groups[1].Value -match $script:RaNotesGameVersionPattern) { continue }
+        $summary += ($b.Groups[1].Value -replace '[*_`]', '').Trim()
+        if ($summary.Count -ge $script:RaReleaseSummaryLines) { break }
+    }
+    $facts.Summary = $summary
+    return $facts
+}
+
+function Get-RaReleaseList {
+    <#
+    .SYNOPSIS
+        Lists the published releases that carry a signed manifest, newest first.
+    .DESCRIPTION
+        One request to the GitHub Releases API (the newest 20 releases), cached for the rest
+        of this run. Drafts, releases whose tag is not a version, and releases without
+        release-manifest.json and its .sig inside this repository's downloads are left out.
+        Nothing is verified here: the chosen release is verified by Get-RaReleaseManifest.
+    .OUTPUTS
+        System.Object[] (pscustomobject: Version, Tag, Date, Prerelease, Assets, Notes)
+    .EXAMPLE
+        (Get-RaReleaseList)[0]
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param()
+    if ($null -ne $script:RaReleaseCache) { return , @($script:RaReleaseCache) }
+    if ($script:RaGitHubRepo -match $script:RaRepoPlaceholderMarker) {
+        throw 'Update channel is not configured yet (repository placeholder); older versions cannot be listed.'
+    }
+    $api = $script:RaGitHubReleasesUrlFormat -f $script:RaGitHubRepo
+    Write-RaLog "Listing releases from $api (no identifiers are sent)" -NoConsole
+    $data = (ConvertFrom-RaUtf8 (Get-RaHttpContent $api)) | ConvertFrom-Json
+    $list = @()
+    foreach ($rel in @($data)) {
+        if ($null -eq $rel -or [bool]$rel.draft) { continue }
+        $version = ([string]$rel.tag_name).TrimStart($script:RaReleaseTagPrefix)
+        if ($version -notmatch $script:RaVersionPattern) { continue }
+        $assets = @{}
+        foreach ($a in @($rel.assets)) { if ($a) { $assets[[string]$a.name] = [string]$a.browser_download_url } }
+        $signed = $true
+        foreach ($n in $script:RaManifestAssetName, $script:RaSignatureAssetName) {
+            if (-not $assets.ContainsKey($n) -or -not (Test-RaReleaseAssetUrl $assets[$n])) { $signed = $false }
+        }
+        if (-not $signed) { continue }
+        $date = $null
+        foreach ($field in 'published_at', 'created_at') {
+            if (-not $date -and $rel.PSObject.Properties[$field] -and $rel.$field) {
+                try { $date = ([datetime]$rel.$field).ToUniversalTime().ToString($script:RaReleaseDateFormat, [Globalization.CultureInfo]::InvariantCulture) }
+                catch { Write-Verbose "Unreadable date: $($rel.$field)" }
+            }
+        }
+        $list += [pscustomobject]@{
+            Version    = $version
+            Tag        = [string]$rel.tag_name
+            Date       = $date
+            Prerelease = [bool]$rel.prerelease
+            Assets     = $assets
+            Notes      = (ConvertFrom-RaReleaseNote ([string]$rel.body))
+        }
+    }
+    # Newest first by the numeric x.y.z part (GitHub lists by creation date; a fix of an older line may come later).
+    $sorted = @($list | Sort-Object -Property @{ Expression = { [version]($_.Version -replace $script:RaVersionCorePattern, '$1') } } -Descending)
+    $script:RaReleaseCache = $sorted
+    return , $sorted
+}
+
+function Get-RaReleaseManifest {
+    <#
+    .SYNOPSIS
+        Downloads and verifies the signed manifest of one listed release.
+    .DESCRIPTION
+        Two small downloads (release-manifest.json and .sig). The signature must verify with
+        the pinned key, the manifest version must match the tag and the ZIP must be an asset
+        of this repository's releases.
+    .PARAMETER Release
+        One entry of Get-RaReleaseList.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject (Manifest, ZipUrl)
+    .EXAMPLE
+        Get-RaReleaseManifest (Get-RaReleaseList)[1]
+    #>
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$Release)
+    $mBytes = Get-RaHttpContent $Release.Assets[$script:RaManifestAssetName]
+    $sigText = ConvertFrom-RaUtf8 (Get-RaHttpContent $Release.Assets[$script:RaSignatureAssetName])
+    $m = Assert-RaSignedManifest $mBytes $sigText
+    Write-RaLog (Get-RaText 'ReleaseVerified' @($m.Version))
+    if ($Release.Version -ne $m.Version) {
+        throw "Release tag $($Release.Tag) does not match manifest version $($m.Version)."
+    }
+    $zipUrl = if ($Release.Assets.ContainsKey($m.ZipName)) { $Release.Assets[$m.ZipName] } else { $null }
+    if (-not (Test-RaReleaseAssetUrl $zipUrl)) { throw "Release has no valid $($m.ZipName) asset." }
+    return [pscustomobject]@{ Manifest = $m; ZipUrl = $zipUrl }
+}
+
+function Get-RaReleaseRow {
+    <#
+    .SYNOPSIS
+        Display lines of one release for the version list.
+    .DESCRIPTION
+        Name is the version. The first hint line holds API level, supported game version with
+        the start of the hoi4.exe SHA-256, date and the installed/latest marks; then up to
+        three changelog lines; then a warning when the release notes name a hoi4.exe build
+        other than the player's. Unknown facts read "unknown".
+    .PARAMETER Release
+        One entry of Get-RaReleaseList.
+    .PARAMETER InstalledVersion
+        Active version or empty.
+    .PARAMETER LatestVersion
+        Newest listed version.
+    .PARAMETER GameSha
+        SHA-256 of the player's hoi4.exe, or empty.
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject (Name, Hints, Supported)
+    .EXAMPLE
+        Get-RaReleaseRow -Release $release -InstalledVersion '1.5.0' -LatestVersion '1.5.0' -GameSha $sha
+    #>
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$Release,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$InstalledVersion,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$LatestVersion,
+        [Parameter(Position = 3)][AllowEmptyString()][AllowNull()][string]$GameSha
+    )
+    $unknown = Get-RaText 'VersionUnknown'
+    $notes = $Release.Notes
+    $api = if ($null -ne $notes.ApiLevel) { [string]$notes.ApiLevel } else { $unknown }
+    $game = if ($notes.GameVersion) { $notes.GameVersion } else { $unknown }
+    if ($notes.GameSha256) { $game += ' (' + $notes.GameSha256.Substring(0, $script:RaReleaseShaPrefixLength) + ')' }
+    # The notes may give only the start of the hash; a release is for this game when the hash starts with it.
+    $date = if ($Release.Date) { $Release.Date } else { $unknown }
+    $marks = @()
+    if ($InstalledVersion -and $Release.Version -eq $InstalledVersion) { $marks += Get-RaText 'VersionMarkInstalled' }
+    if ($LatestVersion -and $Release.Version -eq $LatestVersion) { $marks += Get-RaText 'VersionMarkLatest' }
+    if ($Release.Prerelease) { $marks += Get-RaText 'VersionMarkPrerelease' }
+    $first = Get-RaText 'VersionFacts' @($api, $game, $date)
+    if ($marks.Count -gt 0) { $first += ' [' + ($marks -join ', ') + ']' }
+    $hints = @($first)
+    foreach ($line in @($notes.Summary)) { if ($line) { $hints += "- $line" } }
+    $supported = $true
+    if ($GameSha -and $notes.GameSha256 -and -not $GameSha.ToUpperInvariant().StartsWith($notes.GameSha256)) {
+        $supported = $false
+        $hints += Get-RaText 'VersionGameWarning' @($GameSha.Substring(0, $script:RaReleaseShaPrefixLength))
+    }
+    return [pscustomobject]@{ Name = $Release.Version; Hints = $hints; Supported = $supported }
+}
+
+function Get-RaReleaseRowList {
+    <#
+    .SYNOPSIS
+        The listed releases with their display rows.
+    .DESCRIPTION
+        Combines Get-RaReleaseList, the installed version and the player's hoi4.exe hash.
+    .PARAMETER State
+        State object (read only).
+    .PARAMETER GameDir
+        Game folder or empty.
+    .OUTPUTS
+        System.Object[] (pscustomobject: Release, Row)
+    .EXAMPLE
+        Get-RaReleaseRowList (Read-RaState) $gameDir
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$GameDir
+    )
+    $releases = Get-RaReleaseList   # returns the array itself (no @() around it)
+    $latest = @($releases | Where-Object { -not $_.Prerelease } | Select-Object -First 1)
+    $latestVersion = if ($latest.Count -gt 0) { $latest[0].Version } elseif ($releases.Count -gt 0) { $releases[0].Version } else { $null }
+    $gameSha = Get-RaGameSha256 $GameDir
+    $rows = @()
+    foreach ($r in $releases) {
+        $row = Get-RaReleaseRow -Release $r -InstalledVersion $State.InstalledVersion -LatestVersion $latestVersion -GameSha $gameSha
+        $rows += [pscustomobject]@{ Release = $r; Row = $row }
+    }
+    return , $rows
+}
+
+function Show-RaReleaseList {
+    <#
+    .SYNOPSIS
+        Prints the signed releases (-ListVersions).
+    .DESCRIPTION
+        Changes nothing on disk except the log. One GitHub request.
+    .PARAMETER State
+        State object (read only).
+    .PARAMETER GameDir
+        Game folder or empty.
+    .OUTPUTS
+        System.Int32 (number of releases listed)
+    .EXAMPLE
+        Show-RaReleaseList (Read-RaState) $gameDir
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$GameDir
+    )
+    $rows = Get-RaReleaseRowList $State $GameDir
+    if ($rows.Count -eq 0) {
+        Write-RaHost (Get-RaText 'VersionsNone')
+        return 0
+    }
+    Write-RaHost (Get-RaText 'VersionsTitle') -Color White
+    foreach ($item in $rows) {
+        $hints = @($item.Row.Hints)
+        Write-RaHost ('  {0,-9} {1}' -f $item.Row.Name, $hints[0])
+        for ($i = 1; $i -lt $hints.Count; $i++) { Write-RaHost ('  {0,-9} {1}' -f '', $hints[$i]) }
+    }
+    Write-RaHost (Get-RaText 'VersionsHint')
+    return $rows.Count
+}
+
+function Install-RaReleaseVersion {
+    <#
+    .SYNOPSIS
+        Installs and activates one listed release (-Version, "Install an older version").
+    .DESCRIPTION
+        Finds the version in Get-RaReleaseList, verifies its signed manifest, reports its
+        manifest facts (or "unknown"), warns when it does not list the player's hoi4.exe
+        build, then installs it like the newest release (ZIP and per-file SHA-256, version
+        folder under %LOCALAPPDATA%\RenameAnything) and switches to it. The version that was
+        active stays as the previous one, and option 1 / -Update returns to the newest.
+    .PARAMETER State
+        State object (modified; the caller saves it).
+    .PARAMETER Version
+        Version to install (x.y.z).
+    .PARAMETER GameDir
+        Game folder or empty.
+    .OUTPUTS
+        System.String (the installed version)
+    .EXAMPLE
+        Install-RaReleaseVersion -State $state -Version '1.4.0' -GameDir $gameDir
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$Version,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$GameDir
+    )
+    $wanted = $Version.TrimStart($script:RaReleaseTagPrefix)
+    $all = Get-RaReleaseList
+    $release = @($all | Where-Object { $_.Version -eq $wanted } | Select-Object -First 1)
+    if ($release.Count -eq 0) { throw (Get-RaText 'VersionNotFound' @($wanted)) }
+    $remote = Get-RaReleaseManifest $release[0]
+    $m = $remote.Manifest
+    $unknown = Get-RaText 'VersionUnknown'
+    $api = if ($m.Contains('ApiLevel') -and $m.ApiLevel) { [string]$m.ApiLevel } else { $unknown }
+    $game = if ($m.Contains('GameVersion') -and $m.GameVersion) { [string]$m.GameVersion } else { $unknown }
+    Write-RaLog (Get-RaText 'VersionManifestFacts' @($m.Version, $api, $game))
+    $gameSha = Get-RaGameSha256 $GameDir
+    if ($gameSha -and @($m.SupportedGameSha256) -notcontains $gameSha) {
+        Write-RaLog (Get-RaText 'VersionUnsupported' @($m.Version, $gameSha.Substring(0, $script:RaReleaseShaPrefixLength))) -Level WARN
+    }
+    [void](Install-RaVersion -Manifest $m -LocalZip $null -ZipUrl $remote.ZipUrl)
+    Set-RaActiveVersion $State $m.Version
+    return [string]$m.Version
+}
+#endregion Features/Versions.ps1
+
 #region Features/Shortcut.ps1
 # ---------------------------------------------------------------------------
 # Slice: game shortcut (.lnk) in a folder the user chooses.
@@ -4840,7 +5431,7 @@ function Invoke-RaPurge {
 #region Features/Tui.ps1
 # ---------------------------------------------------------------------------
 # Slice: the terminal interface (irm | iex without switches on an interactive console).
-# Splash, one menu (install, update, disable, uninstall), the questions each action needs,
+# Splash, one menu (install or update, older version, disable, uninstall), the questions each action needs,
 # progress as status lines, and a summary. The actions themselves are the same code paths
 # as the switches (Invoke-RaAction), so the interface adds no second implementation.
 # ---------------------------------------------------------------------------
@@ -4888,9 +5479,11 @@ function Write-RaTuiStatus {
 function Wait-RaTuiSteamClosed {
     <#
     .SYNOPSIS
-        Asks the player to close Steam until it is closed or the Steam step is skipped.
+        Makes sure Steam is closed before the Steam step, or reports that the step is skipped.
     .DESCRIPTION
-        Enter checks again, Q or Esc skips. The script never closes Steam itself.
+        When Steam runs, offers to close it (steam.exe -shutdown, default yes; see Stop-RaSteam).
+        When that is declined or Steam does not exit in time, asks the player to close Steam:
+        Enter checks again, Q or Esc skips. Steam is never killed.
     .OUTPUTS
         System.Boolean ($true when Steam is closed)
     .EXAMPLE
@@ -4899,12 +5492,99 @@ function Wait-RaTuiSteamClosed {
     [CmdletBinding()]
     [OutputType([bool])]
     param()
+    if (-not (Test-RaSteamRunning)) { return $true }
+    if ((Confirm-RaTui -Prompt (Get-RaText 'AskCloseSteam') -Default $true -Mode $script:RaTuiActiveMode) -and (Stop-RaSteam)) {
+        return $true
+    }
     while (Test-RaSteamRunning) {
         Write-RaTuiStatus 'ASK' (Get-RaText 'TuiAskSteamClosed')
         $key = Read-RaTuiKey
         if ($key -eq $script:RaQuitAnswer -or $key -eq 'Escape') { return $false }
     }
     return $true
+}
+
+function Request-RaTuiSteamStep {
+    <#
+    .SYNOPSIS
+        Asks whether the Steam launch option should be set, and prepares Steam for it.
+    .DESCRIPTION
+        Without a Steam entry yet the question defaults to yes; with one (a repair) it
+        defaults to no. A yes needs Steam closed (Wait-RaTuiSteamClosed); with several Steam
+        accounts all of them are changed and listed.
+    .PARAMETER Run
+        Option table of the action (SteamLaunchOption and SteamAccount are set).
+    .PARAMETER SteamRootPath
+        Steam folder or empty (then there is no Steam step).
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Request-RaTuiSteamStep $run $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][hashtable]$Run,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
+    )
+    $mode = $script:RaTuiActiveMode
+    $steam = $false
+    if ($SteamRootPath) {
+        if (@((Read-RaState).SteamEntries).Count -gt 0) {
+            $steam = Confirm-RaTui -Prompt (Get-RaText 'TuiAskSteamRepair') -Default $false -Mode $mode
+        } else {
+            $steam = Confirm-RaTui -Prompt (Get-RaText 'TuiAskSteam') -Default $true -Mode $mode
+        }
+    }
+    if ($steam -and -not (Wait-RaTuiSteamClosed)) { $steam = $false }
+    if ($steam -and @(Get-RaSteamAccount $SteamRootPath).Count -gt 1 -and -not $Run.SteamAccount) {
+        Write-RaTuiStatus 'NOTE' (Format-RaAccountList @(Get-RaSteamAccount $SteamRootPath))
+        $Run.SteamAccount = $script:RaAllAccountsSelector
+    }
+    $Run.SteamLaunchOption = $steam
+}
+
+function Select-RaTuiRelease {
+    <#
+    .SYNOPSIS
+        Lets the player pick a signed release; returns its version, or $null to go back.
+    .DESCRIPTION
+        One GitHub request (Get-RaReleaseRowList). Each row shows version, API level, game
+        version with the start of its hoi4.exe SHA-256, date, the installed/latest marks,
+        up to three changes and a warning when the release is not for the player's hoi4.exe.
+        Esc goes back to the menu; a pick is confirmed (default yes).
+    .PARAMETER SteamRootPath
+        Steam folder or empty (then game support is not shown).
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        $version = Select-RaTuiRelease $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$SteamRootPath)
+    $mode = $script:RaTuiActiveMode
+    Write-RaTuiStatus 'NOTE' (Get-RaText 'TuiOlderLoading')
+    $gameDir = $null
+    if ($SteamRootPath) { try { $gameDir = Get-RaGameDir $SteamRootPath } catch { Write-RaLog $_.Exception.Message -Level WARN -NoConsole } }
+    try { $rows = Get-RaReleaseRowList (Read-RaState) $gameDir } catch {
+        Write-RaTuiStatus 'FAIL' $_.Exception.Message
+        return $null
+    }
+    if ($rows.Count -eq 0) {
+        Write-RaTuiStatus 'NOTE' (Get-RaText 'VersionsNone')
+        return $null
+    }
+    Write-RaTuiBlank $mode
+    Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiOlderTitle') -Style 'parchment' -Mode $mode) $mode
+    Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiOlderKeys') -Style 'ash' -Mode $mode) $mode
+    Write-RaTuiBlank $mode
+    $index = Select-RaTuiIndex @($rows | ForEach-Object { $_.Row }) $mode
+    if ($index -lt 0) { return $null }
+    $version = [string]$rows[$index].Release.Version
+    Write-RaTuiBlank $mode
+    if (-not (Confirm-RaTui -Prompt (Get-RaText 'TuiOlderInstall' @($version)) -Default $true -Mode $mode)) { return $null }
+    return $version
 }
 
 function Get-RaTuiStatusText {
@@ -4933,52 +5613,56 @@ function Get-RaTuiPlan {
     .SYNOPSIS
         Asks what an action needs and returns the option table for Invoke-RaAction, or $null.
     .DESCRIPTION
-        Install: the multiplayer note, then whether to add the launcher to Steam (default
-        yes), Steam closed, account choice. Installs into the user folder with the launcher
-        method (nothing in the game folder; the "CAPIE" switch mod goes to the player's mod
-        folder) from the newest signed release when the update
-        channel is configured, else the release pinned in this script.
+        Setup (install or update): not installed yet, it installs into the user folder with
+        the launcher method (nothing in the game folder; the "CAPIE" switch mod goes to the
+        player's mod folder) from the newest signed release when the update channel is
+        configured, else the release pinned in this script. Installed, it updates to the
+        newest signed release, or repairs when that is already active. Both show the
+        multiplayer note and ask about the Steam launch option (Request-RaTuiSteamStep).
+        Older: installs the chosen release (-Version) the same way.
         An existing installation keeps its loading method.
-        Update: no question. Disable: confirm (default yes). Uninstall: confirm (default no),
-        then whether to purge the log and Steam backups (default no).
-        $null means cancelled.
+        Disable: confirm (default yes). Uninstall: confirm (default no), then whether to purge
+        the log and Steam backups (default no). $null means cancelled.
     .PARAMETER Action
-        Install, Update, Disable or Uninstall.
+        Setup, Older, Disable or Uninstall.
     .PARAMETER Options
         Options of this run (DryRun, SteamRoot, PackagePath, ManifestPath carry over).
     .PARAMETER SteamRootPath
         Steam folder or empty.
+    .PARAMETER Release
+        With Older: the chosen version.
     .OUTPUTS
         System.Collections.Hashtable
     .EXAMPLE
-        $run = Get-RaTuiPlan -Action 'Install' -Options $options -SteamRootPath $steam
+        $run = Get-RaTuiPlan -Action 'Setup' -Options $options -SteamRootPath $steam
     #>
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
-        [Parameter(Mandatory, Position = 0)][ValidateSet('Install', 'Update', 'Disable', 'Uninstall')][string]$Action,
+        [Parameter(Mandatory, Position = 0)][ValidateSet('Setup', 'Older', 'Disable', 'Uninstall')][string]$Action,
         [Parameter(Mandatory, Position = 1)][hashtable]$Options,
-        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$SteamRootPath,
+        [Parameter(Position = 3)][AllowEmptyString()][AllowNull()][string]$Release
     )
     $mode = $script:RaTuiActiveMode
     $run = $Options.Clone()
     switch ($Action) {
-        'Install' {
-            $run.Install = $true
-            $run.Latest = (Test-RaUpdateChannel) -and -not $Options.PackagePath
-            if (-not $run.LoadMethod -and -not (Read-RaState).InstalledVersion) { $run.LoadMethod = 'Launcher' }
+        { $_ -in @('Setup', 'Older') } {
+            $installed = [bool](Read-RaState).InstalledVersion
+            if ($Action -eq 'Older') {
+                $run.Install = $true
+                $run.Version = $Release
+            } elseif ($installed) {
+                $run.Update = $true
+            } else {
+                $run.Install = $true
+                $run.Latest = (Test-RaUpdateChannel) -and -not $Options.PackagePath
+            }
+            if (-not $run.LoadMethod -and -not $installed) { $run.LoadMethod = 'Launcher' }
             Write-RaTuiStatus 'NOTE' (Get-RaText 'TuiMpNote')
             $script:RaMpWarningShown = $true
-            $steam = $false
-            if ($SteamRootPath) { $steam = Confirm-RaTui -Prompt (Get-RaText 'TuiAskSteam') -Default $true -Mode $mode }
-            if ($steam -and -not (Wait-RaTuiSteamClosed)) { $steam = $false }
-            if ($steam -and @(Get-RaSteamAccount $SteamRootPath).Count -gt 1 -and -not $run.SteamAccount) {
-                Write-RaTuiStatus 'NOTE' (Format-RaAccountList @(Get-RaSteamAccount $SteamRootPath))
-                $run.SteamAccount = $script:RaAllAccountsSelector
-            }
-            $run.SteamLaunchOption = $steam
+            Request-RaTuiSteamStep $run $SteamRootPath
         }
-        'Update' { $run.Update = $true }
         'Disable' {
             if (-not (Confirm-RaTui -Prompt (Get-RaText 'TuiAskDisable') -Default $true -Mode $mode)) { return $null }
             if (-not (Wait-RaTuiSteamClosed)) { return $null }
@@ -5076,22 +5760,31 @@ function Invoke-RaTui {
         [void](Show-RaTuiSplash $Mode)
         if ($script:RaDry) { Write-RaTuiStatus 'SKIP' (Get-RaText 'DryRunNote') }
         Write-RaTuiStatus 'NOTE' (Get-RaTuiStatusText (Read-RaState))
-        Write-RaTuiBlank $Mode
-        Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiMenuTitle') -Style 'parchment' -Mode $Mode) $Mode
-        Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiKeys') -Style 'ash' -Mode $Mode) $Mode
-        Write-RaTuiBlank $Mode
-        $action = Select-RaTuiAction $Mode
-        Write-RaTuiBlank $Mode
+        $steamRootPath = $null
+        try { $steamRootPath = Get-RaSteamRoot $Options.SteamRoot } catch { Write-RaLog $_.Exception.Message -Level WARN -NoConsole }
+        $release = $null
+        while ($true) {
+            Write-RaTuiBlank $Mode
+            Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiMenuTitle') -Style 'parchment' -Mode $Mode) $Mode
+            Write-RaTuiModel (Get-RaTuiTextModel -Text (Get-RaText 'TuiKeys') -Style 'ash' -Mode $Mode) $Mode
+            Write-RaTuiBlank $Mode
+            $action = Select-RaTuiAction $Mode
+            Write-RaTuiBlank $Mode
+            if ($action -ne 'Older') { break }
+            $release = Select-RaTuiRelease $steamRootPath
+            if ($release) { break }
+        }
         if ($action -eq 'Quit') {
             Write-RaTuiStatus 'SKIP' (Get-RaText 'TuiCancelled')
             return $script:RaExitSuccess
         }
-        $steamRootPath = $null
-        try { $steamRootPath = Get-RaSteamRoot $Options.SteamRoot } catch { Write-RaLog $_.Exception.Message -Level WARN -NoConsole }
         $script:RaAssumeYes = $true
-        $run = Get-RaTuiPlan -Action $action -Options $Options -SteamRootPath $steamRootPath
+        $run = Get-RaTuiPlan -Action $action -Options $Options -SteamRootPath $steamRootPath -Release $release
         if ($null -eq $run) {
             Write-RaTuiStatus 'SKIP' (Get-RaText 'TuiCancelled')
+            if ($script:RaSteamClosedByUs -and (Confirm-RaTui -Prompt (Get-RaText 'AskRestartSteam') -Default $true -Mode $Mode)) {
+                Start-RaSteamAgain
+            }
             return $script:RaExitSuccess
         }
         Write-RaTuiBlank $Mode
@@ -5101,6 +5794,11 @@ function Invoke-RaTui {
         try { $code = [int]@(Invoke-RaAction $run)[-1] } catch {
             Write-RaLog $_.Exception.Message -Level ERROR
             $code = $script:RaExitFailure
+        }
+        if ($script:RaSteamClosedByUs) {
+            Write-RaTuiBlank $Mode
+            if (Confirm-RaTui -Prompt (Get-RaText 'AskRestartSteam') -Default $true -Mode $Mode) { Start-RaSteamAgain }
+            else { $script:RaSteamClosedByUs = $false }
         }
         $purged = [bool]$run.Purge -and $code -eq $script:RaExitSuccess -and -not (Test-Path -LiteralPath $script:RaRoot)
         Write-RaTuiBlank $Mode
@@ -5125,7 +5823,8 @@ function Invoke-RaTui {
 $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
     'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
-    'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain'
+    'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain', 'ListVersions', 'Version',
+    'CloseSteam'
 )
 
 function Write-RaDone {
@@ -5168,6 +5867,10 @@ function Initialize-RaRun {
     if (-not $script:RaRoot) { $script:RaRoot = Join-Path $env:LOCALAPPDATA $script:RaRootDirName }
     $script:RaDry = [bool]$Options.DryRun
     $script:RaAssumeYes = [bool]$Options.Yes
+    $script:RaCloseSteam = [bool]$Options.CloseSteam
+    $script:RaSteamClosedByUs = $false
+    $script:RaSteamRestartExe = $null
+    $script:RaReleaseCache = $null
     $script:RaMpWarningShown = $false
     if (-not $NoBanner) {
         Write-RaHost (Get-RaText 'Title') -Color White
@@ -5183,15 +5886,16 @@ function Get-RaSetupPlan {
     .SYNOPSIS
         Decides what the install/integration run does, asking when no switch was given.
     .DESCRIPTION
-        Without -Install/-SteamLaunchOption/-Shortcut the user is asked (install? which
-        start mode?). The multiplayer warning is shown before any Steam or shortcut step,
+        Without -Install/-SteamLaunchOption/-Shortcut the user is asked (install or update?
+        which start mode?); a yes installs the newest signed release when the update channel
+        is configured. The multiplayer warning is shown before any Steam or shortcut step,
         each of which must then be confirmed (-Yes confirms).
     .PARAMETER Options
         Normalized option table.
     .PARAMETER State
         Existing installation preferences, or null for a fresh install.
     .OUTPUTS
-        System.Management.Automation.PSCustomObject (Install, Steam, Shortcut, ShortcutFolder)
+        System.Management.Automation.PSCustomObject (Install, Latest, Steam, Shortcut, ShortcutFolder)
     .EXAMPLE
         $plan = Get-RaSetupPlan $options
     #>
@@ -5203,6 +5907,7 @@ function Get-RaSetupPlan {
     )
     $plan = [pscustomobject]@{
         Install        = [bool]$Options.Install
+        Latest         = [bool]$Options['Latest']
         Steam          = [bool]$Options.SteamLaunchOption
         Shortcut       = [bool]$Options.Shortcut -or [bool]$Options.ShortcutPath
         ShortcutFolder = $null
@@ -5213,8 +5918,11 @@ function Get-RaSetupPlan {
         $plan.LoadMethod = $State.LoadMethod
     }
     if (-not ($plan.Install -or $plan.Steam -or $plan.Shortcut)) {
-        if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Disable, -Uninstall.' }
+        if ($script:RaAssumeYes) {
+            throw 'With -Yes choose at least one of -Install, -Version, -SteamLaunchOption, -Shortcut, -Update, -Disable, -Uninstall.'
+        }
         $plan.Install = Confirm-Ra (Get-RaText 'AskInstall' @($script:RaRoot)) $true
+        if ($plan.Install -and -not $Options['PackagePath'] -and (Test-RaUpdateChannel)) { $plan.Latest = $true }
         if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod)) {
             $defaultLoader = if ($plan.LoadMethod -eq 'Proxy') { '2' } else { '1' }
             do { $loader = Read-RaAnswer (Get-RaText 'AskLoadMethod' @($defaultLoader)) } until ($loader -in @('', '1', '2'))
@@ -5247,6 +5955,45 @@ function Get-RaSetupPlan {
         }
     }
     return $plan
+}
+
+function Invoke-RaSteamStep {
+    <#
+    .SYNOPSIS
+        Sets the Steam launch option; returns $false (and logs why) when that failed.
+    .DESCRIPTION
+        A failed Steam step makes the exit code 1 but does not stop the steps after it.
+    .PARAMETER State
+        State object (saved on success).
+    .PARAMETER SteamRootPath
+        Steam folder; empty throws "Steam not found".
+    .PARAMETER AccountSelector
+        Value of -SteamAccount.
+    .PARAMETER LoadMethod
+        Launcher or Proxy.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        if (-not (Invoke-RaSteamStep -State $state -SteamRootPath $steam)) { 'exit code 1' }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$SteamRootPath,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$AccountSelector,
+        [Parameter(Position = 3)][ValidateSet('Proxy', 'Launcher')][string]$LoadMethod = 'Launcher'
+    )
+    if (-not $SteamRootPath) { throw 'Steam not found.' }
+    try {
+        Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $AccountSelector `
+            -LauncherPath (Get-RaLauncherPath) -LoadMethod $LoadMethod
+        Save-RaState $State
+        return $true
+    } catch {
+        Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
+        return $false
+    }
 }
 
 function Invoke-RaSetupAction {
@@ -5286,7 +6033,8 @@ function Invoke-RaSetupAction {
         Save-RaState $State
     }
     if ($plan.Install) {
-        if ($Options.Latest) { [void](Install-RaLatest -State $State -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath) }
+        if ($Options['Version']) { [void](Install-RaReleaseVersion -State $State -Version $Options['Version'] -GameDir $gameDir) }
+        elseif ($plan.Latest) { [void](Install-RaLatest -State $State -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath) }
         else { Install-RaPackage $State $Options.PackagePath }
         Save-RaState $State
         Install-RaPlaysetMod $State
@@ -5306,15 +6054,8 @@ function Invoke-RaSetupAction {
     }
     $steamStepFailed = $false
     if ($plan.Steam) {
-        if (-not $SteamRootPath) { throw 'Steam not found.' }
-        try {
-            Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount `
-                -LauncherPath $launcher -LoadMethod $plan.LoadMethod
-            Save-RaState $State
-        } catch {
-            $steamStepFailed = $true
-            Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
-        }
+        $steamOk = Invoke-RaSteamStep -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount -LoadMethod $plan.LoadMethod
+        $steamStepFailed = -not $steamOk
     }
     if ($plan.Shortcut) {
         $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
@@ -5332,8 +6073,9 @@ function Invoke-RaAction {
     .SYNOPSIS
         Dispatches to the requested action and returns its exit code.
     .DESCRIPTION
-        Priority: -Uninstall, -RemoveSteamLaunchOption, -Disable, -CheckUpdate, -Rollback,
-        -Update, then the install/integration flow. Exceptions propagate to Invoke-RaMain.
+        Priority: -Uninstall, -Disable, -RemoveSteamLaunchOption, -ListVersions, -CheckUpdate,
+        -Rollback, -Update (an install when nothing is installed yet, else update or repair),
+        then the install/integration flow. Exceptions propagate to Invoke-RaMain.
     .PARAMETER Options
         Normalized option table.
     .OUTPUTS
@@ -5375,6 +6117,10 @@ function Invoke-RaAction {
         Write-RaDone
         return $script:RaExitSuccess
     }
+    if ($Options['ListVersions']) {
+        [void](Show-RaReleaseList -State $state -GameDir (& $gameDir))
+        return $script:RaExitSuccess
+    }
     if ($Options.CheckUpdate) {
         [void](Invoke-RaCheckUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath)
         return $script:RaExitSuccess
@@ -5387,13 +6133,22 @@ function Invoke-RaAction {
         Write-RaDone
         return $script:RaExitSuccess
     }
-    if ($Options.Update) {
-        if ((Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath)) {
-            Save-RaState $state
-            Install-RaPlaysetMod $state
-            Save-RaState $state
-            Remove-RaUnusedVersion $state
+    if ($Options.Update -and -not $state.InstalledVersion) {
+        # Install or update: nothing installed yet, so this is an install.
+        $Options.Install = $true
+        $Options.Latest = [bool]$Options.ManifestPath -or ((Test-RaUpdateChannel) -and -not $Options.PackagePath)
+    } elseif ($Options.Update) {
+        $updated = Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath
+        if ($updated) { Save-RaState $state } else { Write-RaLog (Get-RaText 'AlreadyUpToDate' @($state.InstalledVersion)) }
+        Install-RaPlaysetMod $state
+        Save-RaState $state
+        $steamOk = $true
+        if ($Options.SteamLaunchOption) {
+            $method = if ($state.LoadMethod) { [string]$state.LoadMethod } else { 'Launcher' }
+            $steamOk = Invoke-RaSteamStep -State $state -SteamRootPath $steamRootPath -AccountSelector $Options.SteamAccount -LoadMethod $method
         }
+        if ($updated) { Remove-RaUnusedVersion $state }
+        if (-not $steamOk) { return $script:RaExitFailure }
         Write-RaDone
         return $script:RaExitSuccess
     }
@@ -5426,6 +6181,13 @@ function Invoke-RaMain {
     foreach ($k in $script:RaOptionNames) { if (-not $options.ContainsKey($k)) { $options[$k] = $null } }
     if ($options.Purge -and -not $options.Uninstall) { $options.Purge = $null }
     if ($options.Latest -and -not ($options.Install -or $options.Update)) { $options.Install = $true }
+    if ($options.Version) {
+        if (([string]$options.Version).TrimStart($script:RaReleaseTagPrefix) -notmatch $script:RaVersionPattern) {
+            Write-RaHost (Get-RaText 'Failed' @("-Version needs a version like 1.5.0, not '$($options.Version)'."))
+            return $script:RaExitFailure
+        }
+        $options.Install = $true
+    }
     $mode = Get-RaTuiMode $options
     if (-not $mode.Interactive -and -not (Test-RaActionOption $options) -and -not $options.Yes -and -not $options.Plain) {
         # Redirected or missing console: a question would wait forever. Explain and stop, writing nothing.
@@ -5441,12 +6203,21 @@ function Invoke-RaMain {
         }
     }
     Initialize-RaRun $options
+    $code = $script:RaExitFailure
     try {
-        return (Invoke-RaAction $options)
+        $code = Invoke-RaAction $options
     } catch {
         Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
-        return $script:RaExitFailure
+        $code = $script:RaExitFailure
     }
+    if ($script:RaSteamClosedByUs) {
+        # This run closed Steam: offer to start it again (with -Yes -CloseSteam it just starts).
+        try {
+            if ($script:RaAssumeYes -or (Confirm-Ra (Get-RaText 'AskRestartSteam') $true)) { Start-RaSteamAgain }
+            else { $script:RaSteamClosedByUs = $false }
+        } catch { Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR }
+    }
+    return $code
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
@@ -5456,7 +6227,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
         LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation; Latest = $Latest; Purge = $Purge; Disable = $Disable
-        NoAnimation = $NoAnimation; Plain = $Plain
+        NoAnimation = $NoAnimation; Plain = $Plain; ListVersions = $ListVersions; Version = $Version; CloseSteam = $CloseSteam
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

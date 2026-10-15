@@ -35,6 +35,16 @@
 .PARAMETER SupportedGameSha256
     hoi4.exe SHA-256 values the release supports.
 
+.PARAMETER CapieApiLevel
+    Script API level of the CAPIE release (manifest field capie_api_level), for -MakeManifest.
+
+.PARAMETER GameVersion
+    Supported game version as text, e.g. 1.19.3.0 (manifest field game_version).
+
+.PARAMETER ChangelogSummaryBase64
+    Base64 of a UTF-8 JSON array of short change lines (manifest field changelog_summary). Base64
+    keeps the text intact on any command line.
+
 .PARAMETER OutPath
     Manifest output path for -MakeManifest.
 
@@ -68,6 +78,9 @@ param(
     [string]$ZipPath,
     [string]$Version,
     [string[]]$SupportedGameSha256 = @(),
+    [ValidateRange(0, 1000)][int]$CapieApiLevel = 0,
+    [string]$GameVersion = '',
+    [string]$ChangelogSummaryBase64 = '',
     [string]$OutPath,
     [string]$ManifestPath,
     [ValidateRange(2048, 16384)][int]$KeySize = 3072
@@ -185,6 +198,12 @@ function ConvertTo-SignManifestJson {
         Version string.
     .PARAMETER GameSha256
         Supported hoi4.exe hashes.
+    .PARAMETER ApiLevel
+        CAPIE script API level; 0 leaves capie_api_level out.
+    .PARAMETER GameVersionText
+        Supported game version text; empty leaves game_version out.
+    .PARAMETER Summary
+        Short change lines; none leaves changelog_summary out.
     .OUTPUTS
         System.String
     .EXAMPLE
@@ -195,9 +214,12 @@ function ConvertTo-SignManifestJson {
     param(
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][string]$ReleaseVersion,
-        [AllowEmptyCollection()][string[]]$GameSha256 = @()
+        [AllowEmptyCollection()][string[]]$GameSha256 = @(),
+        [int]$ApiLevel = 0,
+        [AllowEmptyString()][string]$GameVersionText = '',
+        [AllowEmptyCollection()][string[]]$Summary = @()
     )
-    $manifest = [pscustomobject]@{
+    $manifest = [ordered]@{
         schema              = $script:SignManifestSchema
         version             = $ReleaseVersion
         zipName             = [IO.Path]::GetFileName($Path)
@@ -205,7 +227,11 @@ function ConvertTo-SignManifestJson {
         files               = [pscustomobject](Get-SignZipEntryHash -Path $Path)
         supportedGameSha256 = @($GameSha256 | ForEach-Object { $_.ToUpperInvariant() })
     }
-    return ($manifest | ConvertTo-Json -Depth $script:SignJsonDepth)
+    # Optional display data for the installer's version picker (schema 1 stays valid without it).
+    if ($ApiLevel -gt 0) { $manifest['capie_api_level'] = $ApiLevel }
+    if ($GameVersionText) { $manifest['game_version'] = $GameVersionText }
+    if (@($Summary).Count -gt 0) { $manifest['changelog_summary'] = @($Summary) }
+    return ([pscustomobject]$manifest | ConvertTo-Json -Depth $script:SignJsonDepth)
 }
 
 function Write-SignManifestSignature {
@@ -251,7 +277,13 @@ if ($MakeManifest) {
     Assert-SignArgument -Name 'ZipPath' -Value $ZipPath
     Assert-SignArgument -Name 'Version' -Value $Version
     Assert-SignArgument -Name 'OutPath' -Value $OutPath
-    [IO.File]::WriteAllText($OutPath, (ConvertTo-SignManifestJson -Path $ZipPath -ReleaseVersion $Version -GameSha256 $SupportedGameSha256), $script:SignUtf8)
+    $summary = @()
+    if ($ChangelogSummaryBase64) {
+        $summary = @([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ChangelogSummaryBase64)) | ConvertFrom-Json)
+    }
+    $json = ConvertTo-SignManifestJson -Path $ZipPath -ReleaseVersion $Version -GameSha256 $SupportedGameSha256 `
+        -ApiLevel $CapieApiLevel -GameVersionText $GameVersion -Summary $summary
+    [IO.File]::WriteAllText($OutPath, $json, $script:SignUtf8)
     Write-Output "Wrote $OutPath"
     return
 }

@@ -1,5 +1,6 @@
 # ---------------------------------------------------------------------------
-# Steam discovery (read-only): install folder, accounts, game folder, process.
+# Steam discovery (install folder, accounts, game folder, process) and, on request, closing
+# and restarting Steam the official way (steam.exe -shutdown; never killed). ADR-0037.
 # ---------------------------------------------------------------------------
 
 function Get-RaSteamRoot {
@@ -135,14 +136,144 @@ function Test-RaSteamRunning {
     return (@(& $script:RaGetSteamProcess).Count -gt 0)
 }
 
+function Test-RaSteamAnyProcess {
+    <#
+    .SYNOPSIS
+        Tests whether steam.exe or one of its steamwebhelper processes still runs.
+    .DESCRIPTION
+        Steam writes localconfig.vdf when it exits; the edit waits until every Steam process
+        is gone.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaSteamAnyProcess
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    return ((@(& $script:RaGetSteamProcess).Count + @(& $script:RaGetSteamHelperProcess).Count) -gt 0)
+}
+
+function Get-RaSteamExe {
+    <#
+    .SYNOPSIS
+        Path of steam.exe from the registry, or $null.
+    .DESCRIPTION
+        HKCU\Software\Valve\Steam\SteamExe first, then SteamPath\steam.exe. Only an existing
+        file is returned.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaSteamExe
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    $candidates = @()
+    foreach ($name in $script:RaSteamExeRegistryValue, $script:RaSteamRegistryValue) {
+        try {
+            $value = [string](& $script:RaGetRegistryValue $script:RaSteamRegistryKey $name)
+            if (-not $value) { continue }
+            $value = $value -replace '/', '\'
+            $candidates += if ($name -eq $script:RaSteamRegistryValue) { Join-Path $value $script:RaSteamExeName } else { $value }
+        } catch { Write-Verbose "Registry value $name unavailable: $($_.Exception.Message)" }
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return [IO.Path]::GetFullPath($candidate) }
+    }
+    return $null
+}
+
+function Stop-RaSteam {
+    <#
+    .SYNOPSIS
+        Asks Steam to exit the official way and waits until it is gone.
+    .DESCRIPTION
+        Runs "steam.exe -shutdown" (Steam's own clean exit) and polls every second, for at most
+        60 s, until steam.exe and steamwebhelper are gone, logging progress every 5 s. Nothing is
+        killed: when Steam stays, the caller falls back to asking the player. Dry-run mode only
+        logs the plan and reports success so the rest of the plan can be shown.
+    .OUTPUTS
+        System.Boolean ($true when Steam is closed)
+    .EXAMPLE
+        if (Stop-RaSteam) { 'edit localconfig.vdf' }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    $exe = Get-RaSteamExe
+    if (-not $exe) {
+        Write-RaLog (Get-RaText 'SteamExeMissing') -Level WARN
+        return $false
+    }
+    if ($script:RaDry) {
+        $plan = ("[dry-run] would run `"{0}`" {1}, wait up to {2} s and offer to start Steam again" -f
+            $exe, $script:RaSteamShutdownArgument, $script:RaSteamShutdownTimeoutSeconds)
+        Write-RaLog $plan -Level PLAN
+        $script:RaSteamClosedByUs = $true
+        $script:RaSteamRestartExe = $exe
+        return $true
+    }
+    Write-RaLog (Get-RaText 'SteamClosing')
+    & $script:RaStartProcess $exe @($script:RaSteamShutdownArgument)
+    for ($waited = 0; $waited -lt $script:RaSteamShutdownTimeoutSeconds; $waited++) {
+        if (-not (Test-RaSteamAnyProcess)) {
+            $script:RaSteamClosedByUs = $true
+            $script:RaSteamRestartExe = $exe
+            Write-RaLog (Get-RaText 'SteamClosed')
+            return $true
+        }
+        if ($waited -gt 0 -and $waited % $script:RaSteamProgressEverySeconds -eq 0) {
+            Write-RaLog (Get-RaText 'SteamWaiting' @($waited, $script:RaSteamShutdownTimeoutSeconds))
+        }
+        & $script:RaSleep $script:RaSteamShutdownPollMilliseconds
+    }
+    if (-not (Test-RaSteamAnyProcess)) {
+        $script:RaSteamClosedByUs = $true
+        $script:RaSteamRestartExe = $exe
+        Write-RaLog (Get-RaText 'SteamClosed')
+        return $true
+    }
+    Write-RaLog (Get-RaText 'SteamCloseTimeout' @($script:RaSteamShutdownTimeoutSeconds)) -Level WARN
+    return $false
+}
+
+function Start-RaSteamAgain {
+    <#
+    .SYNOPSIS
+        Starts Steam again after this run closed it.
+    .DESCRIPTION
+        Same steam.exe, no arguments, no waiting. Does nothing when this run did not close
+        Steam. Dry-run mode only logs the plan.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Start-RaSteamAgain
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param()
+    if (-not $script:RaSteamClosedByUs -or -not $script:RaSteamRestartExe) { return }
+    $exe = $script:RaSteamRestartExe
+    $script:RaSteamClosedByUs = $false
+    if ($script:RaDry) {
+        Write-RaLog "[dry-run] would start `"$exe`"" -Level PLAN
+        return
+    }
+    & $script:RaStartProcess $exe @()
+    Write-RaLog (Get-RaText 'SteamStarted')
+}
+
 function Wait-RaSteamClosed {
     <#
     .SYNOPSIS
-        Waits until the user has closed Steam.
+        Makes sure Steam is closed before localconfig.vdf is edited.
     .DESCRIPTION
-        Returns $true when Steam is not running. With -Yes it returns $false at once
-        (and logs why); interactively it asks again until Steam is closed or the user
-        types Q. It never stops the process itself.
+        Returns $true when Steam is not running. Interactively it first offers to close Steam
+        (steam.exe -shutdown, see Stop-RaSteam; default yes); when that is declined or Steam
+        does not exit in time, it asks the player to close Steam until it is closed or the
+        player types Q. With -Yes it closes Steam only when -CloseSteam was given, and otherwise
+        returns $false at once (and logs why). Steam is never killed.
     .OUTPUTS
         System.Boolean
     .EXAMPLE
@@ -151,11 +282,14 @@ function Wait-RaSteamClosed {
     [CmdletBinding()]
     [OutputType([bool])]
     param()
+    if ($script:RaDry -and $script:RaSteamClosedByUs) { return $true }
     if (-not (Test-RaSteamRunning)) { return $true }
     if ($script:RaAssumeYes) {
+        if ($script:RaCloseSteam) { return (Stop-RaSteam) }
         Write-RaLog (Get-RaText 'SteamRunningNonInteractive') -Level WARN
         return $false
     }
+    if ((Confirm-Ra (Get-RaText 'AskCloseSteam') $true) -and (Stop-RaSteam)) { return $true }
     while (Test-RaSteamRunning) {
         $a = Read-RaAnswer (Get-RaText 'SteamRunning')
         if ($a -ieq $script:RaQuitAnswer) { return $false }

@@ -36,6 +36,7 @@ $LOld = 'C:\Users\Test User\AppData\Local\RenameAnything\0.0.9\RenameAnythingLau
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $fakeGitHubAssetHost = 'https://github.com/test-owner/test-repo/releases/download'
 $fakeGitHubApiUrl = 'https://api.github.com/repos/test-owner/test-repo/releases/latest'
+$fakeGitHubListUrl = 'https://api.github.com/repos/test-owner/test-repo/releases?per_page=20'
 
 function Assert-RaThrow {
     <#
@@ -343,6 +344,14 @@ function Reset-Env {
     $script:RaAfterWriteHook = $null
     $script:RaBeforeOwnedRemove = $null
     $script:RaGetSteamProcess = { @() }
+    $script:RaGetSteamHelperProcess = { @() }
+    $script:started = New-Object System.Collections.ArrayList
+    $script:RaStartProcess = { param($f, $a) [void]$script:started.Add(('{0}|{1}' -f $f, (@($a) -join ' '))) }
+    $script:RaCloseSteam = $false
+    $script:RaSteamClosedByUs = $false
+    $script:RaSteamRestartExe = $null
+    $script:RaReleaseCache = $null
+    $script:fakeReleases = New-Object System.Collections.ArrayList
     $desk = Join-Path $dir 'Desktop'
     New-Item -ItemType Directory -Force -Path $desk | Out-Null
     $script:RaDesktopPath = [scriptblock]::Create("'$desk'")
@@ -626,12 +635,16 @@ Describe 'Steam process, accounts and end-to-end flows' {
         [void](Reset-Env 'steam-wait')
         $script:RaAssumeYes = $false
         $script:RaGetSteamProcess = { @('fake-steam') }
-        $script:RaReadHost = { 'q' }
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($a in 'n', 'q') { $script:answers.Enqueue($a) }
+        $script:RaReadHost = { $script:answers.Dequeue() }
         Wait-RaSteamClosed | Should Be $false
         $script:steamCalls = 0
         $script:RaGetSteamProcess = { $script:steamCalls++; if ($script:steamCalls -le 2) { @('fake') } else { @() } }
-        $script:RaReadHost = { '' }
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($a in 'n', '') { $script:answers.Enqueue($a) }
         Wait-RaSteamClosed | Should Be $true
+        $script:started.Count | Should Be 0
     }
     It 'multiple accounts: -Yes without selector fails; selector and interactive choice work' {
         $dir = Reset-Env 'accounts'
@@ -843,6 +856,12 @@ function New-SignedRelease {
         Asset URL prefix (a foreign host must be refused).
     .PARAMETER WithMod
         Include the "CAPIE" switch mod in the package.
+    .PARAMETER ApiLevel
+        Manifest field capie_api_level (0 = left out, like older releases).
+    .PARAMETER Notes
+        Release notes body of the listed release.
+    .PARAMETER Date
+        published_at of the listed release.
     .OUTPUTS
         System.Collections.Hashtable (Zip, ManifestPath, Base, ZipName)
     .EXAMPLE
@@ -857,11 +876,22 @@ function New-SignedRelease {
         [string[]]$GameSha = @(),
         [string]$Tag = '',
         [string]$AssetHost = $fakeGitHubAssetHost,
-        [switch]$WithMod
+        [switch]$WithMod,
+        [int]$ApiLevel = 0,
+        [string]$Notes = '',
+        [string]$Date = '2026-10-01T12:00:00Z'
     )
     $pkg = New-TestPackage (Join-Path $Dir "rel-$Version") -Version $Version -WithMod:$WithMod
     $mPath = Join-Path $Dir "rel-$Version\release-manifest.json"
-    [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version $Version -SupportedGameSha256 $GameSha -OutPath $mPath)
+    $extra = @{}
+    if ($ApiLevel -gt 0) {
+        $extra = @{
+            CapieApiLevel          = $ApiLevel
+            GameVersion            = '1.19.3.0'
+            ChangelogSummaryBase64 = [Convert]::ToBase64String($utf8.GetBytes('["First change","Second change"]'))
+        }
+    }
+    [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version $Version -SupportedGameSha256 $GameSha -OutPath $mPath @extra)
     [void](& $signScript -Sign -ManifestPath $mPath -PrivateKeyPath $KeyPath)
     if (-not $Tag) { $Tag = "v$Version" }
     $base = "$AssetHost/$Tag"
@@ -871,8 +901,11 @@ function New-SignedRelease {
         [pscustomobject]@{ name = 'release-manifest.json.sig'; browser_download_url = "$base/release-manifest.json.sig" },
         [pscustomobject]@{ name = $zipName; browser_download_url = "$base/$zipName" }
     )
-    $rel = [pscustomobject]@{ tag_name = $Tag; assets = $assets }
+    $rel = [pscustomobject]@{ tag_name = $Tag; assets = $assets; draft = $false; prerelease = $false; published_at = $Date; body = $Notes }
     $script:fakeWeb[$fakeGitHubApiUrl] = $utf8.GetBytes(($rel | ConvertTo-Json -Depth 5))
+    # Release list (newest first, like the GitHub API).
+    $script:fakeReleases.Insert(0, $rel)
+    $script:fakeWeb[$fakeGitHubListUrl] = $utf8.GetBytes((ConvertTo-Json -InputObject @($script:fakeReleases.ToArray()) -Depth 6))
     $script:fakeWeb["$base/release-manifest.json"] = [IO.File]::ReadAllBytes($mPath)
     $script:fakeWeb["$base/release-manifest.json.sig"] = [IO.File]::ReadAllBytes("$mPath.sig")
     $script:fakeWeb["$base/$zipName"] = [IO.File]::ReadAllBytes($pkg.Zip)
@@ -1940,12 +1973,16 @@ Describe 'Terminal interface (irm | iex without switches)' {
         @($rows).Count | Should BeGreaterThan $script:RaTuiMenuActions.Count
         [void]$script:rawOut.Clear()
         Set-TuiKeyQueue 'Down', 'Enter'
-        Select-RaTuiAction $narrow | Should Be 'Update'
+        Select-RaTuiAction $narrow | Should Be 'Older'
         $script:rawOut.ToString().Contains("$([char]27)[$(@($rows).Count)A") | Should Be $true
         $plain = [pscustomobject]@{ Tui = $true; Color = $false; Vt = $false; Animate = $false; Width = 78 }
         Set-TuiKeyQueue '2'
-        Select-RaTuiAction $plain | Should Be 'Update'
-        (Get-PlainOutput) | Should Match '> 1  Install'
+        Select-RaTuiAction $plain | Should Be 'Older'
+        (Get-PlainOutput) | Should Match '> 1  Install or update'
+        Set-TuiKeyQueue '3'
+        Select-RaTuiAction $plain | Should Be 'Disable'
+        Set-TuiKeyQueue '5'
+        Select-RaTuiAction $plain | Should Be 'Quit'
     }
     It 'Install through the interface: user folder, Steam launch option after consent, summary; adapters restored' {
         $dir = Reset-Env 'tui-install'
@@ -1994,18 +2031,19 @@ Describe 'Terminal interface (irm | iex without switches)' {
         (Get-PlainOutput) | Should Match 'Cancelled\. Nothing was changed\.'
         Set-TuiKeyQueue 'Down', 'Down', 'Down', 'Enter', 'y', 'y'
         (Invoke-RaMain @{ SteamRoot = $steam }) | Should Be 0
-        (Get-PlainOutput) | Should Match 'Uninstall  remove CAPIE'
+        (Get-PlainOutput) | Should Match 'Uninstall\s+remove CAPIE'
         Test-Path $script:RaRoot | Should Be $false
         @(Get-TreeHash $dir | Where-Object { $_ -notmatch '\\pkg\\' }) -join '|' | Should Be ($before -join '|')
     }
     It 'a failing action shows FAIL and the log path; the exit code is 1' {
         [void](Reset-Env 'tui-fail')
-        $script:RaGitHubRepo = 'PLACEHOLDER-OWNER/hoi4-rename-anything'
+        $script:RaPinnedRelease = $null
         Set-TuiTerminal -Vt
-        Set-TuiKeyQueue 'Down', 'Enter'
+        Set-TuiKeyQueue 'Enter'
+        $script:RaGitHubRepo = 'PLACEHOLDER-OWNER/hoi4-rename-anything'
         (Invoke-RaMain @{ SteamRoot = '' }) | Should Be 1
         $out = Get-PlainOutput
-        $out | Should Match 'FAIL  Update channel is not configured'
+        $out | Should Match 'FAIL  '
         $out | Should Match 'Details are in the log'
         $flat = $out -replace '\s', ''
         $flat.Contains([string](Get-RaLogPath)) | Should Be $true
@@ -2113,5 +2151,336 @@ Describe 'Default method and the "CAPIE" switch mod in the player''s mod folder'
         [IO.File]::ReadAllText($descriptor) | Should Match '0\.2\.0'
         (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
         [IO.File]::ReadAllText($descriptor) | Should Match '0\.1\.0'
+    }
+}
+
+function Set-FakeSteamExe {
+    <#
+    .SYNOPSIS
+        Registers a fake steam.exe in the registry adapter and a Steam that exits on -shutdown.
+    .DESCRIPTION
+        steam.exe and steamwebhelper report running until the script has started
+        "steam.exe -shutdown" (recorded in $script:started); -Stubborn keeps them running.
+        Nothing real is ever started or stopped.
+    .PARAMETER Dir
+        Work folder.
+    .PARAMETER Stubborn
+        Steam never exits.
+    .OUTPUTS
+        System.String (path of the fake steam.exe)
+    .EXAMPLE
+        $exe = Set-FakeSteamExe $dir
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][string]$Dir, [switch]$Stubborn)
+    $exe = Join-Path $Dir 'SteamBin\steam.exe'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $exe) | Out-Null
+    Write-Utf8 $exe 'fake'
+    $script:fakeSteamExe = $exe
+    $script:RaGetRegistryValue = { param($path, $n) if ($n -eq 'SteamExe' -and $path) { $script:fakeSteamExe } else { $null } }
+    $script:steamStubborn = [bool]$Stubborn
+    $script:RaGetSteamProcess = {
+        if ($script:steamStubborn -or @($script:started | Where-Object { $_ -match '\|-shutdown$' }).Count -eq 0) { @('fake-steam') } else { @() }
+    }
+    $script:RaGetSteamHelperProcess = $script:RaGetSteamProcess
+    return $exe
+}
+
+function Get-ReleaseNote {
+    <#
+    .SYNOPSIS
+        Release notes in the format of tools/release (build_notes).
+    .DESCRIPTION
+        Changelog bullets, then the fixed "Supported game build" section.
+    .PARAMETER GameSha
+        hoi4.exe SHA-256 named by the notes.
+    .PARAMETER ApiLevel
+        Script API level named by the notes.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-ReleaseNote ('A' * 64) 3
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][string]$GameSha, [Parameter(Position = 1)][int]$ApiLevel = 3)
+    return (@(
+            '- **Added** the first thing', '- Fixed `the` second thing', '- Third thing', '- Fourth thing (not shown)', '',
+            '## Supported game build', '', 'Hearts of Iron IV 1.19.3.0 (Steam, x64),',
+            "``hoi4.exe`` SHA-256 ``$GameSha``.", "CAPIE 1.5.0, script API level $ApiLevel.", '', '## Checksums', '', '- not a change'
+        ) -join "`n")
+}
+
+Describe 'Closing and restarting Steam (steam.exe -shutdown, never killed)' {
+    It 'closes Steam the official way, waits with progress, and starts it again without arguments' {
+        $dir = Reset-Env 'steam-close-ok'
+        $exe = Set-FakeSteamExe $dir
+        Stop-RaSteam | Should Be $true
+        @($script:started) -join ';' | Should Be "$exe|-shutdown"
+        $script:RaSteamClosedByUs | Should Be $true
+        Start-RaSteamAgain
+        @($script:started)[1] | Should Be "$exe|"
+        $script:RaSteamClosedByUs | Should Be $false
+        Start-RaSteamAgain
+        @($script:started).Count | Should Be 2
+    }
+    It 'gives up after 60 s without forcing anything and falls back to asking the player' {
+        $dir = Reset-Env 'steam-close-timeout'
+        [void](Set-FakeSteamExe $dir -Stubborn)
+        Stop-RaSteam | Should Be $false
+        @($script:started).Count | Should Be 1
+        @($script:sleeps).Count | Should Be $script:RaSteamShutdownTimeoutSeconds
+        $script:RaSteamClosedByUs | Should Be $false
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match 'did not exit within 60 s'
+        $log | Should Match 'Waiting for Steam to exit: 5 of 60 s'
+        $script:RaAssumeYes = $false
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($a in 'y', 'q') { $script:answers.Enqueue($a) }
+        $script:RaReadHost = { $script:answers.Dequeue() }
+        Wait-RaSteamClosed | Should Be $false
+        $script:answers.Count | Should Be 0
+    }
+    It 'declined, or -Yes without -CloseSteam: Steam is left alone; -Yes -CloseSteam closes it' {
+        $dir = Reset-Env 'steam-close-decline'
+        [void](Set-FakeSteamExe $dir)
+        $script:RaAssumeYes = $false
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($a in 'n', 'q') { $script:answers.Enqueue($a) }
+        $script:RaReadHost = { $script:answers.Dequeue() }
+        Wait-RaSteamClosed | Should Be $false
+        @($script:started).Count | Should Be 0
+        $script:RaAssumeYes = $true
+        Wait-RaSteamClosed | Should Be $false
+        @($script:started).Count | Should Be 0
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'add -CloseSteam'
+        $script:RaCloseSteam = $true
+        Wait-RaSteamClosed | Should Be $true
+        @($script:started).Count | Should Be 1
+    }
+    It 'a steamwebhelper that stays counts as Steam still running' {
+        $dir = Reset-Env 'steam-close-helper'
+        [void](Set-FakeSteamExe $dir)
+        $script:RaGetSteamHelperProcess = { @('fake-helper') }
+        Stop-RaSteam | Should Be $false
+        $script:RaSteamClosedByUs | Should Be $false
+    }
+    It 'without steam.exe in the registry nothing is started' {
+        [void](Reset-Env 'steam-close-noexe')
+        $script:RaGetSteamProcess = { @('fake-steam') }
+        Stop-RaSteam | Should Be $false
+        @($script:started).Count | Should Be 0
+    }
+    It '-Yes -CloseSteam end to end: closes Steam, writes the launch option, starts Steam again' {
+        $dir = Reset-Env 'steam-close-e2e'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        $exe = Set-FakeSteamExe $dir
+        $options = New-InstallOption $pkg $steam
+        (Invoke-RaMain $options) | Should Be 1
+        @($script:started).Count | Should Be 0
+        $options.CloseSteam = $true
+        (Invoke-RaMain $options) | Should Be 0
+        @($script:started) -join ';' | Should Be "$exe|-shutdown;$exe|"
+        $cfg = Join-Path $steam 'userdata\111\config\localconfig.vdf'
+        (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value | Should Match 'RenameAnythingLauncher\.exe" %command% -debug_mode$'
+    }
+    It 'interactive: yes to closing, no to restarting leaves Steam closed' {
+        $dir = Reset-Env 'steam-close-norestart'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam }) | Should Be 0
+        $exe = Set-FakeSteamExe $dir
+        $script:answers = New-Object System.Collections.Queue
+        foreach ($a in 'y', '', 'n') { $script:answers.Enqueue($a) }
+        $script:RaReadHost = { param($prompt) [void]$script:prompts.Add($prompt); $script:answers.Dequeue() }
+        $script:prompts = New-Object System.Collections.ArrayList
+        (Invoke-RaMain @{ SteamLaunchOption = $true; SteamRoot = $steam }) | Should Be 0
+        $script:answers.Count | Should Be 0
+        @($script:prompts)[1] | Should Be (Get-RaText 'AskCloseSteam')
+        @($script:prompts)[2] | Should Be (Get-RaText 'AskRestartSteam')
+        @($script:started) -join ';' | Should Be "$exe|-shutdown"
+    }
+    It '-DryRun shows the plan (close, wait, restart) and starts nothing' {
+        $dir = Reset-Env 'steam-close-dry'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam }) | Should Be 0
+        [void](Set-FakeSteamExe $dir)
+        $before = Get-TreeHash $steam
+        $script:RaQuiet = $false
+        $script:hostOut = New-Object System.Text.StringBuilder
+        $script:RaWriteHost = { param($m) [void]$script:hostOut.Append("$m`n") }
+        (Invoke-RaMain @{ SteamLaunchOption = $true; Yes = $true; CloseSteam = $true; DryRun = $true; SteamRoot = $steam }) | Should Be 0
+        @($script:started).Count | Should Be 0
+        (Get-TreeHash $steam) -join '|' | Should Be ($before -join '|')
+        $log = $script:hostOut.ToString()
+        $log | Should Match 'would run ".*steam\.exe" -shutdown, wait up to 60 s'
+        $log | Should Match 'would start ".*steam\.exe"'
+    }
+    It 'terminal interface: offers to close Steam, then to start it again' {
+        $dir = Reset-Env 'steam-close-tui'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        $exe = Set-FakeSteamExe $dir
+        Set-TuiTerminal -Vt -Env @{ RA_NO_ANIMATION = '1' }
+        Set-TuiKeyQueue 'Enter', 'Enter', 'Enter', 'Enter'
+        $script:RaAssumeYes = $false
+        (Invoke-RaMain @{ PackagePath = $pkg.Zip; SteamRoot = $steam }) | Should Be 0
+        $script:keyQueue.Count | Should Be 0
+        $out = (Get-PlainOutput) -replace '\s+', ' '
+        $out | Should Match 'ASK Steam is running\. Close Steam now so the launch option can be changed\? \[Y/n\]'
+        $out | Should Match 'ASK Start Steam again\? \[Y/n\]'
+        @($script:started) -join ';' | Should Be "$exe|-shutdown;$exe|"
+    }
+    It 'no message claims that the script never closes Steam' {
+        foreach ($k in $script:RaMessages.Keys) { [string]$script:RaMessages[$k] | Should Not Match 'never closes Steam' }
+    }
+}
+
+Describe 'Install or update (one action)' {
+    It '-Update without an installation installs the newest signed release' {
+        $dir = Reset-Env 'setup-fresh'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $key = Join-Path $dir 'update.private.xml'
+        $script:RaUpdatePublicKeyXml = (& $signScript -NewKey -PrivateKeyPath $key -KeySize 2048) | Out-String
+        $script:RaGitHubRepo = 'test-owner/test-repo'
+        [void](New-SignedRelease -Dir $dir -Version '0.3.0' -KeyPath $key)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        (Read-RaState).InstalledVersion | Should Be '0.3.0'
+        Get-CurrentTargetName | Should Be '0.3.0'
+    }
+    It 'already the newest: says so and repairs the switch mod and, when asked, the Steam launch option' {
+        $e = Initialize-UpdateEnv 'setup-repair'
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.1.0' -KeyPath $e.Key -Tag 'v0.1.0')
+        $cfg = $e.Cfg
+        $written = (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value
+        Write-Utf8 $cfg (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"'))
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'already up to date'
+        (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value | Should Be '-debug_mode'
+        (Invoke-RaMain @{ Update = $true; SteamLaunchOption = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        (Get-RaAppLaunchInfo (Read-RaTextFile $cfg).Text).Value | Should Be $written
+    }
+    It 'terminal interface item 1 updates an installation; nothing installed it installs' {
+        $e = Initialize-UpdateEnv 'setup-tui'
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
+        Set-TuiTerminal -Vt -Env @{ RA_NO_ANIMATION = '1' }
+        Set-TuiKeyQueue '1', 'Enter', 'Enter'
+        $script:RaAssumeYes = $false
+        (Invoke-RaMain @{ SteamRoot = $e.Steam }) | Should Be 0
+        $script:keyQueue.Count | Should Be 0
+        ((Get-PlainOutput) -replace '\s+', ' ') | Should Match 'Set the CAPIE launcher in the HOI4 Steam launch options again \(repair\)\? \[y/N\]'
+        (Read-RaState).InstalledVersion | Should Be '0.2.0'
+        (Read-RaState).PreviousVersion | Should Be '0.1.0'
+    }
+}
+
+Describe 'Older versions (-ListVersions, -Version, menu item 2)' {
+    It 'reads the facts and the first changes from the release notes' {
+        $sha = 'AB' * 32
+        $facts = ConvertFrom-RaReleaseNote (Get-ReleaseNote $sha 4)
+        $facts.GameVersion | Should Be '1.19.3.0'
+        $facts.GameSha256 | Should Be $sha
+        $facts.ApiLevel | Should Be 4
+        @($facts.Summary) -join '|' | Should Be 'Added the first thing|Fixed the second thing|Third thing'
+        $hand = ConvertFrom-RaReleaseNote ("- Supported game build: Hearts of Iron IV 1.19.3.0 (``hoi4.exe`` SHA-256 7DC947BE...31D5).`n- Multiplayer note")
+        $hand.GameVersion | Should Be '1.19.3.0'
+        $hand.GameSha256 | Should Be '7DC947BE'
+        @($hand.Summary) -join '|' | Should Be 'Multiplayer note'
+        $row = Get-RaReleaseRow -Release ([pscustomobject]@{ Version = '1.5.0'; Date = $null; Prerelease = $false; Notes = $hand }) -GameSha ('7DC947BE' + 'A' * 56)
+        $row.Supported | Should Be $true
+        $row = Get-RaReleaseRow -Release ([pscustomobject]@{ Version = '1.5.0'; Date = $null; Prerelease = $false; Notes = $hand }) -GameSha ('B' * 64)
+        $row.Supported | Should Be $false
+        $none = ConvertFrom-RaReleaseNote ''
+        $none.ApiLevel | Should Be $null
+        @($none.Summary).Count | Should Be 0
+    }
+    It '-ListVersions: one request, only signed non-draft releases, marks and a warning for another hoi4.exe' {
+        $e = Initialize-UpdateEnv 'versions-list'
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.1.0' -KeyPath $e.Key -Notes '' -Date '2026-09-01T10:00:00Z')
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -ApiLevel 3 -Notes (Get-ReleaseNote ('CD' * 32) 3))
+        $list = @($script:fakeReleases.ToArray())
+        $list += [pscustomobject]@{ tag_name = 'v0.9.0'; draft = $true; assets = $list[0].assets; body = '' }
+        $list += [pscustomobject]@{ tag_name = 'v0.0.9'; draft = $false; assets = @(); body = '' }
+        $script:fakeWeb[$fakeGitHubListUrl] = $utf8.GetBytes((ConvertTo-Json -InputObject $list -Depth 6))
+        $script:RaWriteHost = { param($m) [void]$script:hostOut.Append("$m`n") }
+        $script:hostOut = New-Object System.Text.StringBuilder
+        $script:requested.Clear()
+        (Invoke-RaMain @{ ListVersions = $true; SteamRoot = $e.Steam }) | Should Be 0
+        $out = $script:hostOut.ToString()
+        $out | Should Match '0\.2\.0\s+API 3 \| HoI4 1\.19\.3\.0 \(CDCDCDCD\) \| 2026-10-01 \[latest\]'
+        $out | Should Match '- Added the first thing'
+        $out | Should Match '! not for your hoi4\.exe'
+        $out | Should Match '0\.1\.0\s+API unknown \| HoI4 unknown \| 2026-09-01 \[installed\]'
+        $out | Should Not Match '0\.9\.0'
+        $out | Should Not Match '0\.0\.9'
+        @($script:requested) -join ';' | Should Be $fakeGitHubListUrl
+        [void](Get-RaReleaseList)
+        @($script:requested).Count | Should Be 1
+    }
+    It '-Version installs that release through the verified path; -Update returns to the newest' {
+        $e = Initialize-UpdateEnv 'versions-install'
+        $r1 = New-SignedRelease -Dir $e.Dir -Version '0.1.5' -KeyPath $e.Key
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -ApiLevel 3)
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        $script:requested.Clear()
+        (Invoke-RaMain @{ Version = '0.1.5'; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.1.5'
+        (Read-RaState).PreviousVersion | Should Be '0.2.0'
+        $expected = @($fakeGitHubListUrl, "$($r1.Base)/release-manifest.json", "$($r1.Base)/release-manifest.json.sig", "$($r1.Base)/$($r1.ZipName)")
+        @($script:requested) -join ';' | Should Be ($expected -join ';')
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        (Invoke-RaMain @{ Version = '9.9.9'; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
+        (Invoke-RaMain @{ Version = 'latest'; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
+        Get-CurrentTargetName | Should Be '0.2.0'
+    }
+    It 'a release with a bad signature is refused and nothing changes' {
+        $e = Initialize-UpdateEnv 'versions-badsig'
+        $r1 = New-SignedRelease -Dir $e.Dir -Version '0.1.5' -KeyPath $e.Key
+        $other = Join-Path $e.Dir 'other.private.xml'
+        [void](& $signScript -NewKey -PrivateKeyPath $other -KeySize 2048)
+        [void](& $signScript -Sign -ManifestPath $r1.ManifestPath -PrivateKeyPath $other)
+        $script:fakeWeb["$($r1.Base)/release-manifest.json.sig"] = [IO.File]::ReadAllBytes("$($r1.ManifestPath).sig")
+        $before = Get-TreeHash $script:RaRoot | Where-Object { $_ -notmatch 'bootstrap\.log=' }
+        (Invoke-RaMain @{ Version = '0.1.5'; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
+        @(Get-TreeHash $script:RaRoot | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' | Should Be (@($before) -join '|')
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'signature is INVALID'
+        $script:RaReleaseCache = $null
+        [void](New-SignedRelease -Dir (Join-Path $e.Dir 'retag') -Version '0.1.6' -KeyPath $e.Key -Tag 'v0.1.7')
+        (Invoke-RaMain @{ Version = '0.1.7'; Yes = $true; SteamRoot = $e.Steam }) | Should Be 1
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'Release tag v0\.1\.7 does not match manifest version 0\.1\.6'
+        @(Get-TreeHash $script:RaRoot | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' | Should Be (@($before) -join '|')
+    }
+    It 'terminal interface: Esc goes back to the menu; a pick installs the older release' {
+        $e = Initialize-UpdateEnv 'versions-tui'
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.1.5' -KeyPath $e.Key)
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -ApiLevel 3)
+        Set-TuiTerminal -Vt -Env @{ RA_NO_ANIMATION = '1' }
+        Set-TuiKeyQueue '2', 'Enter', 'Escape', 'Escape'
+        $script:RaAssumeYes = $false
+        (Invoke-RaMain @{ SteamRoot = $e.Steam }) | Should Be 0
+        $out = Get-PlainOutput
+        $out | Should Match 'Which version should be installed\?'
+        $out | Should Match 'Cancelled\. Nothing was changed\.'
+        Get-CurrentTargetName | Should Be '0.1.0'
+        [void]$script:rawOut.Clear()
+        Set-TuiKeyQueue '2', 'Enter', 'Down', 'Enter', 'Enter', 'n'
+        (Invoke-RaMain @{ SteamRoot = $e.Steam }) | Should Be 0
+        $script:keyQueue.Count | Should Be 0
+        Get-CurrentTargetName | Should Be '0.1.5'
+        (Get-PlainOutput) | Should Match 'Install CAPIE 0\.1\.5\?'
     }
 }

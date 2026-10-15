@@ -182,10 +182,14 @@ function ConvertTo-RaManifestJson {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Manifest)
-    return ([pscustomobject]@{
-            schema = $script:RaManifestSchemaVersion; version = $Manifest.Version; zipName = $Manifest.ZipName; zipSha256 = $Manifest.ZipSha256
-            files = [pscustomobject]$Manifest.Files; supportedGameSha256 = @($Manifest.SupportedGameSha256)
-        } | ConvertTo-Json -Depth $script:RaJsonDepth)
+    $data = [ordered]@{
+        schema = $script:RaManifestSchemaVersion; version = $Manifest.Version; zipName = $Manifest.ZipName; zipSha256 = $Manifest.ZipSha256
+        files = [pscustomobject]$Manifest.Files; supportedGameSha256 = @($Manifest.SupportedGameSha256)
+    }
+    if ($Manifest.Contains('ApiLevel') -and $Manifest.ApiLevel) { $data['capie_api_level'] = [int]$Manifest.ApiLevel }
+    if ($Manifest.Contains('GameVersion') -and $Manifest.GameVersion) { $data['game_version'] = [string]$Manifest.GameVersion }
+    if ($Manifest.Contains('ChangelogSummary') -and @($Manifest.ChangelogSummary).Count -gt 0) { $data['changelog_summary'] = @($Manifest.ChangelogSummary) }
+    return ([pscustomobject]$data | ConvertTo-Json -Depth $script:RaJsonDepth)
 }
 
 function ConvertFrom-RaManifestJson {
@@ -212,6 +216,10 @@ function ConvertFrom-RaManifestJson {
         Version = [string]$j.version; ZipName = [string]$j.zipName; ZipSha256 = [string]$j.zipSha256
         Files = $files; SupportedGameSha256 = @($j.supportedGameSha256 | ForEach-Object { [string]$_ })
     }
+    # Optional display data (version picker); older manifests do not have it.
+    $m['ApiLevel'] = if ($j.PSObject.Properties['capie_api_level']) { [int]$j.capie_api_level } else { $null }
+    $m['GameVersion'] = if ($j.PSObject.Properties['game_version']) { [string]$j.game_version } else { $null }
+    $m['ChangelogSummary'] = if ($j.PSObject.Properties['changelog_summary']) { @($j.changelog_summary | ForEach-Object { [string]$_ }) } else { @() }
     Test-RaManifest $m
     return $m
 }

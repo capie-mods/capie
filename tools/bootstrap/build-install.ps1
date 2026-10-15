@@ -66,6 +66,7 @@ $script:BuildFragments = @(
     'Features/SteamLaunchOption.ps1',
     'Features/Install.ps1',
     'Features/Update.ps1',
+    'Features/Versions.ps1',
     'Features/Shortcut.ps1',
     'Features/PlaysetMod.ps1',
     'Features/Uninstall.ps1',

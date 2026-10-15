@@ -5,7 +5,8 @@
 $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
     'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
-    'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain'
+    'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain', 'ListVersions', 'Version',
+    'CloseSteam'
 )
 
 function Write-RaDone {
@@ -48,6 +49,10 @@ function Initialize-RaRun {
     if (-not $script:RaRoot) { $script:RaRoot = Join-Path $env:LOCALAPPDATA $script:RaRootDirName }
     $script:RaDry = [bool]$Options.DryRun
     $script:RaAssumeYes = [bool]$Options.Yes
+    $script:RaCloseSteam = [bool]$Options.CloseSteam
+    $script:RaSteamClosedByUs = $false
+    $script:RaSteamRestartExe = $null
+    $script:RaReleaseCache = $null
     $script:RaMpWarningShown = $false
     if (-not $NoBanner) {
         Write-RaHost (Get-RaText 'Title') -Color White
@@ -63,15 +68,16 @@ function Get-RaSetupPlan {
     .SYNOPSIS
         Decides what the install/integration run does, asking when no switch was given.
     .DESCRIPTION
-        Without -Install/-SteamLaunchOption/-Shortcut the user is asked (install? which
-        start mode?). The multiplayer warning is shown before any Steam or shortcut step,
+        Without -Install/-SteamLaunchOption/-Shortcut the user is asked (install or update?
+        which start mode?); a yes installs the newest signed release when the update channel
+        is configured. The multiplayer warning is shown before any Steam or shortcut step,
         each of which must then be confirmed (-Yes confirms).
     .PARAMETER Options
         Normalized option table.
     .PARAMETER State
         Existing installation preferences, or null for a fresh install.
     .OUTPUTS
-        System.Management.Automation.PSCustomObject (Install, Steam, Shortcut, ShortcutFolder)
+        System.Management.Automation.PSCustomObject (Install, Latest, Steam, Shortcut, ShortcutFolder)
     .EXAMPLE
         $plan = Get-RaSetupPlan $options
     #>
@@ -83,6 +89,7 @@ function Get-RaSetupPlan {
     )
     $plan = [pscustomobject]@{
         Install        = [bool]$Options.Install
+        Latest         = [bool]$Options['Latest']
         Steam          = [bool]$Options.SteamLaunchOption
         Shortcut       = [bool]$Options.Shortcut -or [bool]$Options.ShortcutPath
         ShortcutFolder = $null
@@ -93,8 +100,11 @@ function Get-RaSetupPlan {
         $plan.LoadMethod = $State.LoadMethod
     }
     if (-not ($plan.Install -or $plan.Steam -or $plan.Shortcut)) {
-        if ($script:RaAssumeYes) { throw 'With -Yes choose at least one of -Install, -SteamLaunchOption, -Shortcut, -Update, -Disable, -Uninstall.' }
+        if ($script:RaAssumeYes) {
+            throw 'With -Yes choose at least one of -Install, -Version, -SteamLaunchOption, -Shortcut, -Update, -Disable, -Uninstall.'
+        }
         $plan.Install = Confirm-Ra (Get-RaText 'AskInstall' @($script:RaRoot)) $true
+        if ($plan.Install -and -not $Options['PackagePath'] -and (Test-RaUpdateChannel)) { $plan.Latest = $true }
         if (-not ($Options.ContainsKey('LoadMethod') -and $Options.LoadMethod)) {
             $defaultLoader = if ($plan.LoadMethod -eq 'Proxy') { '2' } else { '1' }
             do { $loader = Read-RaAnswer (Get-RaText 'AskLoadMethod' @($defaultLoader)) } until ($loader -in @('', '1', '2'))
@@ -127,6 +137,45 @@ function Get-RaSetupPlan {
         }
     }
     return $plan
+}
+
+function Invoke-RaSteamStep {
+    <#
+    .SYNOPSIS
+        Sets the Steam launch option; returns $false (and logs why) when that failed.
+    .DESCRIPTION
+        A failed Steam step makes the exit code 1 but does not stop the steps after it.
+    .PARAMETER State
+        State object (saved on success).
+    .PARAMETER SteamRootPath
+        Steam folder; empty throws "Steam not found".
+    .PARAMETER AccountSelector
+        Value of -SteamAccount.
+    .PARAMETER LoadMethod
+        Launcher or Proxy.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        if (-not (Invoke-RaSteamStep -State $state -SteamRootPath $steam)) { 'exit code 1' }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$SteamRootPath,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$AccountSelector,
+        [Parameter(Position = 3)][ValidateSet('Proxy', 'Launcher')][string]$LoadMethod = 'Launcher'
+    )
+    if (-not $SteamRootPath) { throw 'Steam not found.' }
+    try {
+        Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $AccountSelector `
+            -LauncherPath (Get-RaLauncherPath) -LoadMethod $LoadMethod
+        Save-RaState $State
+        return $true
+    } catch {
+        Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
+        return $false
+    }
 }
 
 function Invoke-RaSetupAction {
@@ -166,7 +215,8 @@ function Invoke-RaSetupAction {
         Save-RaState $State
     }
     if ($plan.Install) {
-        if ($Options.Latest) { [void](Install-RaLatest -State $State -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath) }
+        if ($Options['Version']) { [void](Install-RaReleaseVersion -State $State -Version $Options['Version'] -GameDir $gameDir) }
+        elseif ($plan.Latest) { [void](Install-RaLatest -State $State -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath) }
         else { Install-RaPackage $State $Options.PackagePath }
         Save-RaState $State
         Install-RaPlaysetMod $State
@@ -186,15 +236,8 @@ function Invoke-RaSetupAction {
     }
     $steamStepFailed = $false
     if ($plan.Steam) {
-        if (-not $SteamRootPath) { throw 'Steam not found.' }
-        try {
-            Set-RaSteamLaunchOption -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount `
-                -LauncherPath $launcher -LoadMethod $plan.LoadMethod
-            Save-RaState $State
-        } catch {
-            $steamStepFailed = $true
-            Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
-        }
+        $steamOk = Invoke-RaSteamStep -State $State -SteamRootPath $SteamRootPath -AccountSelector $Options.SteamAccount -LoadMethod $plan.LoadMethod
+        $steamStepFailed = -not $steamOk
     }
     if ($plan.Shortcut) {
         $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
@@ -212,8 +255,9 @@ function Invoke-RaAction {
     .SYNOPSIS
         Dispatches to the requested action and returns its exit code.
     .DESCRIPTION
-        Priority: -Uninstall, -RemoveSteamLaunchOption, -Disable, -CheckUpdate, -Rollback,
-        -Update, then the install/integration flow. Exceptions propagate to Invoke-RaMain.
+        Priority: -Uninstall, -Disable, -RemoveSteamLaunchOption, -ListVersions, -CheckUpdate,
+        -Rollback, -Update (an install when nothing is installed yet, else update or repair),
+        then the install/integration flow. Exceptions propagate to Invoke-RaMain.
     .PARAMETER Options
         Normalized option table.
     .OUTPUTS
@@ -255,6 +299,10 @@ function Invoke-RaAction {
         Write-RaDone
         return $script:RaExitSuccess
     }
+    if ($Options['ListVersions']) {
+        [void](Show-RaReleaseList -State $state -GameDir (& $gameDir))
+        return $script:RaExitSuccess
+    }
     if ($Options.CheckUpdate) {
         [void](Invoke-RaCheckUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath)
         return $script:RaExitSuccess
@@ -267,13 +315,22 @@ function Invoke-RaAction {
         Write-RaDone
         return $script:RaExitSuccess
     }
-    if ($Options.Update) {
-        if ((Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath)) {
-            Save-RaState $state
-            Install-RaPlaysetMod $state
-            Save-RaState $state
-            Remove-RaUnusedVersion $state
+    if ($Options.Update -and -not $state.InstalledVersion) {
+        # Install or update: nothing installed yet, so this is an install.
+        $Options.Install = $true
+        $Options.Latest = [bool]$Options.ManifestPath -or ((Test-RaUpdateChannel) -and -not $Options.PackagePath)
+    } elseif ($Options.Update) {
+        $updated = Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath
+        if ($updated) { Save-RaState $state } else { Write-RaLog (Get-RaText 'AlreadyUpToDate' @($state.InstalledVersion)) }
+        Install-RaPlaysetMod $state
+        Save-RaState $state
+        $steamOk = $true
+        if ($Options.SteamLaunchOption) {
+            $method = if ($state.LoadMethod) { [string]$state.LoadMethod } else { 'Launcher' }
+            $steamOk = Invoke-RaSteamStep -State $state -SteamRootPath $steamRootPath -AccountSelector $Options.SteamAccount -LoadMethod $method
         }
+        if ($updated) { Remove-RaUnusedVersion $state }
+        if (-not $steamOk) { return $script:RaExitFailure }
         Write-RaDone
         return $script:RaExitSuccess
     }
@@ -306,6 +363,13 @@ function Invoke-RaMain {
     foreach ($k in $script:RaOptionNames) { if (-not $options.ContainsKey($k)) { $options[$k] = $null } }
     if ($options.Purge -and -not $options.Uninstall) { $options.Purge = $null }
     if ($options.Latest -and -not ($options.Install -or $options.Update)) { $options.Install = $true }
+    if ($options.Version) {
+        if (([string]$options.Version).TrimStart($script:RaReleaseTagPrefix) -notmatch $script:RaVersionPattern) {
+            Write-RaHost (Get-RaText 'Failed' @("-Version needs a version like 1.5.0, not '$($options.Version)'."))
+            return $script:RaExitFailure
+        }
+        $options.Install = $true
+    }
     $mode = Get-RaTuiMode $options
     if (-not $mode.Interactive -and -not (Test-RaActionOption $options) -and -not $options.Yes -and -not $options.Plain) {
         # Redirected or missing console: a question would wait forever. Explain and stop, writing nothing.
@@ -321,12 +385,21 @@ function Invoke-RaMain {
         }
     }
     Initialize-RaRun $options
+    $code = $script:RaExitFailure
     try {
-        return (Invoke-RaAction $options)
+        $code = Invoke-RaAction $options
     } catch {
         Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR
-        return $script:RaExitFailure
+        $code = $script:RaExitFailure
     }
+    if ($script:RaSteamClosedByUs) {
+        # This run closed Steam: offer to start it again (with -Yes -CloseSteam it just starts).
+        try {
+            if ($script:RaAssumeYes -or (Confirm-Ra (Get-RaText 'AskRestartSteam') $true)) { Start-RaSteamAgain }
+            else { $script:RaSteamClosedByUs = $false }
+        } catch { Write-RaLog (Get-RaText 'Failed' @($_.Exception.Message)) -Level ERROR }
+    }
+    return $code
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
@@ -336,7 +409,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         DryRun = $DryRun; Yes = $Yes; PackagePath = $PackagePath; SteamRoot = $SteamRoot
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
         LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation; Latest = $Latest; Purge = $Purge; Disable = $Disable
-        NoAnimation = $NoAnimation; Plain = $Plain
+        NoAnimation = $NoAnimation; Plain = $Plain; ListVersions = $ListVersions; Version = $Version; CloseSteam = $CloseSteam
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

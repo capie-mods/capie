@@ -19,6 +19,10 @@ $script:RaAfterWriteHook = $null # tests: simulate a bad write before verificati
 $script:RaBeforeOwnedRemove = $null # tests: simulate a replacement after ownership verification
 $script:RaLogSink = $null       # terminal interface: receives (Level, Message) of console log lines
 $script:RaMpWarningShown = $false # terminal interface already showed the multiplayer note
+$script:RaCloseSteam = $false   # -CloseSteam: with -Yes the script may close and restart Steam
+$script:RaSteamClosedByUs = $false # this run closed Steam (or planned to, in dry-run mode)
+$script:RaSteamRestartExe = $null  # steam.exe to start again after the change
+$script:RaReleaseCache = $null  # releases listed in this run (one GitHub request per run)
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -52,6 +56,13 @@ $script:RaSleep = { param([int]$Milliseconds) Start-Sleep -Milliseconds $Millise
 # --- Processes, registry, clock, desktop ----------------------------------
 # GetSteamProcess() -> array; empty when Steam is not running
 $script:RaGetSteamProcess = { @(Get-Process -Name $script:RaSteamProcessName -ErrorAction SilentlyContinue) }
+# GetSteamHelperProcess() -> array of steamwebhelper processes (they outlive steam.exe briefly)
+$script:RaGetSteamHelperProcess = { @(Get-Process -Name $script:RaSteamHelperProcessName -ErrorAction SilentlyContinue) }
+# StartProcess(FilePath, Arguments) -> nothing; starts a program without waiting (Steam shutdown/start only)
+$script:RaStartProcess = {
+    param([string]$FilePath, [string[]]$Arguments)
+    if (@($Arguments).Count -gt 0) { Start-Process -FilePath $FilePath -ArgumentList $Arguments } else { Start-Process -FilePath $FilePath }
+}
 # GetRegistryValue(Path, Name) -> value or $null
 $script:RaGetRegistryValue = {
     param([string]$Path, [string]$Name)

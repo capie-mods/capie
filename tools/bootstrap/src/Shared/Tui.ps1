@@ -353,15 +353,17 @@ function Get-RaTuiAnnotationLine {
 function Get-RaTuiMenuModel {
     <#
     .SYNOPSIS
-        Line models of the action menu.
+        Line models of a selectable list (by default the action menu).
     .DESCRIPTION
-        One row per action: number, name, hint (a long hint wraps under itself). The selected
-        row is marked with ">" (so it reads without colour) and drawn on the olive button
-        background.
+        One row per item: number, name, hint lines (each long hint wraps under itself). The
+        selected row is marked with ">" (so it reads without colour) and drawn on the olive
+        button background.
     .PARAMETER Selected
-        Zero-based index of the selected action.
+        Zero-based index of the selected item.
     .PARAMETER Mode
         Result of Get-RaTuiMode.
+    .PARAMETER Items
+        Items (Name, Hints); default: the action menu (Get-RaTuiMenuItem).
     .OUTPUTS
         System.Object[] (pscustomobject rows: Segments, Background)
     .EXAMPLE
@@ -369,29 +371,58 @@ function Get-RaTuiMenuModel {
     #>
     [CmdletBinding()]
     [OutputType([object[]])]
-    param([Parameter(Mandatory, Position = 0)][int]$Selected, [Parameter(Mandatory, Position = 1)][psobject]$Mode)
+    param(
+        [Parameter(Mandatory, Position = 0)][int]$Selected,
+        [Parameter(Mandatory, Position = 1)][psobject]$Mode,
+        [Parameter(Position = 2)][AllowNull()][object[]]$Items = $null
+    )
+    if ($null -eq $Items) { $Items = Get-RaTuiMenuItem }
     $result = @()
     $nameWidth = 0
-    foreach ($action in $script:RaTuiMenuActions) { $nameWidth = [Math]::Max($nameWidth, (Get-RaText "Tui$action").Length) }
-    for ($i = 0; $i -lt $script:RaTuiMenuActions.Count; $i++) {
-        $action = $script:RaTuiMenuActions[$i]
+    foreach ($item in $Items) { $nameWidth = [Math]::Max($nameWidth, ([string]$item.Name).Length) }
+    $numberWidth = ([string]$Items.Count).Length
+    for ($i = 0; $i -lt $Items.Count; $i++) {
+        $item = $Items[$i]
         $on = ($i -eq $Selected)
         $marker = if ($on) { '> ' } else { '  ' }
-        $head = '{0}{1}  {2}  ' -f $marker, ($i + 1), (Get-RaText "Tui$action").PadRight($nameWidth)
+        $head = '{0}{1}  {2}  ' -f $marker, ([string]($i + 1)).PadLeft($numberWidth), ([string]$item.Name).PadRight($nameWidth)
         $hintRoom = [Math]::Max(1, $Mode.Width - $script:RaTuiIndent - $head.Length)
         $nameStyle = if ($on) { 'parchment' } else { 'khaki' }
         $background = if ($on) { $script:RaTuiSelectedBackground } else { $script:RaTuiBackground }
         $first = $true
-        foreach ($hint in (Split-RaTuiText (Get-RaText "Tui$($action)Hint") $hintRoom)) {
-            $lead = if ($first) { $head } else { ' ' * $head.Length }
-            $result += [pscustomobject]@{
-                Segments   = @((New-RaTuiSegment $nameStyle $lead), (New-RaTuiSegment 'ash' $hint))
-                Background = $background
+        foreach ($hintText in @($item.Hints)) {
+            foreach ($hint in (Split-RaTuiText ([string]$hintText) $hintRoom)) {
+                $lead = if ($first) { $head } else { ' ' * $head.Length }
+                $result += [pscustomobject]@{
+                    Segments   = @((New-RaTuiSegment $nameStyle $lead), (New-RaTuiSegment 'ash' $hint))
+                    Background = $background
+                }
+                $first = $false
             }
-            $first = $false
         }
     }
     return , $result
+}
+
+function Get-RaTuiMenuItem {
+    <#
+    .SYNOPSIS
+        Items of the action menu.
+    .DESCRIPTION
+        One item (Name, Hints) per entry of $script:RaTuiMenuActions, texts from Messages.
+    .OUTPUTS
+        System.Object[] (pscustomobject: Name, Hints)
+    .EXAMPLE
+        Get-RaTuiMenuItem
+    #>
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param()
+    $items = @()
+    foreach ($action in $script:RaTuiMenuActions) {
+        $items += [pscustomobject]@{ Name = (Get-RaText "Tui$action"); Hints = @(Get-RaText "Tui$($action)Hint") }
+    }
+    return , $items
 }
 
 function Get-RaTuiSummaryModel {
@@ -546,45 +577,68 @@ function Read-RaTuiKey {
     return ([string]$info.KeyChar).ToLowerInvariant()
 }
 
-function Select-RaTuiAction {
+function Select-RaTuiIndex {
     <#
     .SYNOPSIS
-        Shows the menu and returns the chosen action.
+        Shows a selectable list and returns the index of the chosen item, or -1.
     .DESCRIPTION
-        Up/Down move the selection, digits pick directly, Enter confirms, Esc or Q quits.
-        On a virtual-terminal host the menu is redrawn in place (cursor up); otherwise the
-        menu is printed again below, and a digit confirms at once.
+        Up/Down move the selection, digits 1-9 pick directly, Enter confirms, Esc or Q
+        returns -1. On a virtual-terminal host the list is redrawn in place (cursor up);
+        otherwise it is printed again below, and a digit confirms at once.
+    .PARAMETER Items
+        Items (Name, Hints).
     .PARAMETER Mode
         Result of Get-RaTuiMode.
     .OUTPUTS
-        System.String (Install, Update, Disable, Uninstall or Quit)
+        System.Int32
     .EXAMPLE
-        $action = Select-RaTuiAction $mode
+        $index = Select-RaTuiIndex (Get-RaTuiMenuItem) $mode
     #>
     [CmdletBinding()]
-    [OutputType([string])]
-    param([Parameter(Mandatory, Position = 0)][psobject]$Mode)
+    [OutputType([int])]
+    param([Parameter(Mandatory, Position = 0)][object[]]$Items, [Parameter(Mandatory, Position = 1)][psobject]$Mode)
     $selected = 0
-    $count = $script:RaTuiMenuActions.Count
-    $model = Get-RaTuiMenuModel $selected $Mode
+    $count = $Items.Count
+    $model = Get-RaTuiMenuModel -Selected $selected -Mode $Mode -Items $Items
     Write-RaTuiModel $model $Mode
     while ($true) {
         $key = Read-RaTuiKey
         $before = $selected
         if ($key -eq 'Up') { $selected = ($selected + $count - 1) % $count }
         elseif ($key -eq 'Down') { $selected = ($selected + 1) % $count }
-        elseif ($key -eq 'Enter') { return $script:RaTuiMenuActions[$selected] }
-        elseif ($key -eq 'Escape' -or $key -eq $script:RaQuitAnswer) { return 'Quit' }
+        elseif ($key -eq 'Enter') { return $selected }
+        elseif ($key -eq 'Escape' -or $key -eq $script:RaQuitAnswer) { return -1 }
         elseif ($key -match '^[1-9]$' -and [int]$key -le $count) {
             $selected = [int]$key - 1
-            if (-not $Mode.Vt) { return $script:RaTuiMenuActions[$selected] }
+            if (-not $Mode.Vt) { return $selected }
         }
         if ($selected -ne $before) {
             if ($Mode.Vt) { & $script:RaWriteRaw ('{0}[{1}A' -f [char]27, @($model).Count) } else { Write-RaTuiBlank $Mode }
-            $model = Get-RaTuiMenuModel $selected $Mode
+            $model = Get-RaTuiMenuModel -Selected $selected -Mode $Mode -Items $Items
             Write-RaTuiModel $model $Mode
         }
     }
+}
+
+function Select-RaTuiAction {
+    <#
+    .SYNOPSIS
+        Shows the menu and returns the chosen action.
+    .DESCRIPTION
+        Select-RaTuiIndex over the action menu; Esc or Q means Quit.
+    .PARAMETER Mode
+        Result of Get-RaTuiMode.
+    .OUTPUTS
+        System.String (Setup, Older, Disable, Uninstall or Quit)
+    .EXAMPLE
+        $action = Select-RaTuiAction $mode
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$Mode)
+    $index = Select-RaTuiIndex (Get-RaTuiMenuItem) $Mode
+    if ($index -lt 0) { return 'Quit' }
+    return $script:RaTuiMenuActions[$index]
 }
 
 function Confirm-RaTui {
