@@ -105,9 +105,12 @@ there:
 | `-debug_mode` | `"…\RenameAnythingLauncher.exe" %command% -debug_mode` |
 | `"C:\other.exe" %command% -x` | `"C:\other.exe" "…\RenameAnythingLauncher.exe" %command% -x` (with a warning) |
 
-Steam must be closed while the script edits its settings file (`localconfig.vdf`). The script
-waits for you to close it and never closes Steam itself. It makes a byte-exact backup first,
-checks the result, and restores the backup on any difference.
+Steam must be closed while the script edits its settings file (`localconfig.vdf`). If Steam is
+running, the script asks whether it may close it. Yes runs `steam.exe -shutdown`, Steam's own
+clean exit, and waits up to 60 seconds; Steam is never killed. Afterwards it asks whether to start
+Steam again. No, or a Steam that does not exit in time, means you close Steam yourself or skip the
+Steam step. With `-Yes` the script closes Steam only when you add `-CloseSteam`. It makes a
+byte-exact backup first, checks the result, and restores the backup on any difference.
 
 To undo it by hand: Steam, Library, Hearts of Iron IV, Properties, General, Launch Options.
 Delete the quoted `…\RenameAnythingLauncher.exe` part.
@@ -132,9 +135,13 @@ CAPIE and the launcher never check for updates in the background.
 
 ```powershell
 .\install.ps1 -CheckUpdate   # one request: newest version, and whether it supports your hoi4.exe
-.\install.ps1 -Update        # install the newest signed release and switch to it
+.\install.ps1 -Update        # install, or update to the newest signed release (repairs if already newest)
+.\install.ps1 -ListVersions  # one request: the signed releases with API level, game version and changes
+.\install.ps1 -Version 1.4.0 # install an older signed release; -Update returns to the newest
 .\install.ps1 -Rollback      # switch back to the previous version, kept on disk
 ```
+
+In the menu of `irm | iex` these are "Install or update" (1) and "Install an older version" (2).
 
 `-Update` accepts a release only if its manifest is signed with the key pinned in the script,
 its tag matches the manifest, and every downloaded file matches the SHA-256 in the manifest.
