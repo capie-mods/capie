@@ -3,11 +3,11 @@
 # ---------------------------------------------------------------------------
 
 # GitHub "owner/repo". Release downloads and the (on-demand only) update check derive from it.
-$script:RaGitHubRepo = 'PLACEHOLDER-OWNER/hoi4-rename-anything'
+$script:RaGitHubRepo = 'capie-mods/capie'
 
 # RSA public key (XML, >= 2048 bit) that signs release-manifest.json of every later release.
 # Placeholder until the maintainer generates the key (tools/bootstrap/sign-release-manifest.ps1).
-$script:RaUpdatePublicKeyXml = 'TO-BE-GENERATED'
+$script:RaUpdatePublicKeyXml = '<RSAKeyValue><Modulus>21/rZrMx9hLPYwh/QMiCnXaOUebJdj+aLFxd/vpqfcDsrczFXN6j8JA/9Iuch3Nc5aFr/KRMhtlGsPqf6ov/IseZUd//Q5snHolFyZ9QI78/k8lEGZ4rkojPZoqg8SQh5DdNYA0UHL3D/uI6HL26ZwfV7v3oAlcTUXFdW1quGvtxFlDNDFCvqHMl+Hc7BpOwQQXG4ChS08UHSYsTaBr0U7nFC734w4wqgae3ahZJBFDmubfkPiPZd7x+NExEihOLbwrzHc1NegtSEBlOcOWxwBlLXp49JitQttrJyA+2/fuWFACMqynMsSWtUnOslslULb0vcAbJDV9RtdS4qLZsAZVfJjbuk0+kfqN7ztOl2biXKCu7OlzvP4t9hfA5DCoqyP3PGqZTA8nFqXkIU5USKRg75cwQ/j7YczH2SBQpNghivWghCQMUVUgheL1ETk6BZCY+oJy1RIEuWkb2W002RsmmX/4R69YdCDAazCEX6sTWqALFboMLGd+5AMQRu6ZV</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>'
 
 # Pinned release manifest. The ZIP hash is checked BEFORE extraction and every
 # extracted file is checked against its own pinned hash; any mismatch, missing or

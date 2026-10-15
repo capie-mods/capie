@@ -6,15 +6,16 @@ vermilion and brass overprint turned by -7 degrees. Colours come from docs/desig
 The stamp is cut out on a transparent background so it sits on the menu art like the vanilla
 DLC medals, which share its 50 px slot.
 
-Two frames side by side (100 x 50, uncompressed 32-bit RGBA DDS like vanilla interface sprites):
-  1. the mark in colour: CAPIE is part of this playset (the frame the menu shows);
-  2. the mark in ash greys with an empty caution-orange box (like an unticked DLC): "not loaded".
+One 50 x 50 image (uncompressed 32-bit RGBA DDS like vanilla interface sprites): the mark in
+colour. It means only "the CAPIE switch is on in this playset". The main menu is built before
+CAPIE loads and localises and draws it once, so the mark cannot show a live status; Rename
+Anything's editors show the CAPIE version in game.
 Rendered at 4x and reduced with Lanczos. No gradients, glow or shadows.
 
 Usage:
     python plugin/capie/toggle-mod/make_menu_icon.py            # writes the DDS
     python plugin/capie/toggle-mod/make_menu_icon.py --check    # exit 1 if it differs
-    python plugin/capie/toggle-mod/make_menu_icon.py --preview out.png  # 4x preview, both frames
+    python plugin/capie/toggle-mod/make_menu_icon.py --preview out.png  # 4x preview
 """
 
 from __future__ import annotations
@@ -34,7 +35,6 @@ TOKENS = REPO / "docs" / "design" / "tokens.json"
 OUTPUT = HERE / "capie" / "gfx" / "interface" / "capie_menu_mark.dds"
 
 FRAME = 50  # final frame edge in pixels (the DLC medal slot)
-FRAMES = 2
 SCALE = 4  # supersampling factor
 VIEWBOX = 500.0  # source viewBox of the mark
 STAMP_HEIGHT = 48.0  # final stamp height in pixels, inside the 50 px frame
@@ -42,10 +42,6 @@ PERF_RADIUS = 12.5
 PERF_STEP_X = 33.5
 PERF_STEP_Y = 32.8
 OVERPRINT_ANGLE = -7.0
-NOT_LOADED_ALPHA = 150  # the greyed frame is drawn less opaque than the active one
-BOX_EDGE = 13  # empty state box of the second frame, final pixels
-BOX_MARGIN = 1
-BOX_STROKE = 2
 
 
 def load_colors() -> dict[str, tuple[int, int, int]]:
@@ -135,48 +131,16 @@ def draw_mark(canvas: Image.Image, left: float, palette: dict[str, tuple[int, in
     canvas.alpha_composite(layer)
 
 
-def grey(palette: dict[str, tuple[int, int, int]]) -> dict[str, tuple[int, int, int]]:
-    """The "not loaded" palette: every mark colour mapped to an ash or steel tone.
-
-    Returns:
-        The palette for the second frame.
-    """
-    return {
-        **palette,
-        "parchment": palette["ash"],
-        "olive": palette["steel-shadow"],
-        "khaki": palette["steel-bevel"],
-        "vermilion": palette["steel-bevel"],
-        "brass": palette["steel-bevel"],
-    }
-
-
 def draw(palette: dict[str, tuple[int, int, int]]) -> Image.Image:
-    """Draws both frames.
+    """Draws the mark.
 
     Returns:
-        The 100 x 50 RGBA sprite strip.
+        The 50 x 50 RGBA image.
     """
     colors = {**palette, "olive": palette["olive-button"]}
-    big = Image.new("RGBA", (FRAME * FRAMES * SCALE, FRAME * SCALE), (0, 0, 0, 0))
+    big = Image.new("RGBA", (FRAME * SCALE, FRAME * SCALE), (0, 0, 0, 0))
     draw_mark(big, 0, colors)
-    second = Image.new("RGBA", big.size, (0, 0, 0, 0))
-    draw_mark(second, FRAME * SCALE, grey(colors))
-    alpha = second.getchannel("A").point(lambda value: value * NOT_LOADED_ALPHA // 255)
-    second.putalpha(alpha)
-    big.alpha_composite(second)
-    # "Not loaded": an empty box like the unticked vanilla DLC box, in caution orange.
-    box = ImageDraw.Draw(big)
-    edge = BOX_EDGE * SCALE
-    left = FRAME * SCALE + (FRAME - BOX_EDGE - BOX_MARGIN) * SCALE
-    top = (FRAME - BOX_EDGE - BOX_MARGIN) * SCALE
-    box.rectangle(
-        (left, top, left + edge, top + edge),
-        fill=(*palette["field-ink"], 255),
-        outline=(*palette["caution-orange"], 255),
-        width=BOX_STROKE * SCALE,
-    )
-    return big.resize((FRAME * FRAMES, FRAME), Image.Resampling.LANCZOS)
+    return big.resize((FRAME, FRAME), Image.Resampling.LANCZOS)
 
 
 def encode(image: Image.Image) -> bytes:
@@ -200,7 +164,7 @@ def main() -> int:
     parser.add_argument(
         "--check", action="store_true", help="exit 1 when the DDS differs from a fresh render"
     )
-    parser.add_argument("--preview", type=Path, help="also write a 4x PNG preview of both frames")
+    parser.add_argument("--preview", type=Path, help="also write a 4x PNG preview")
     args = parser.parse_args()
     image = draw(load_colors())
     data = encode(image)

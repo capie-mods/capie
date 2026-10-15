@@ -2,7 +2,6 @@
  # Fallback shown while CAPIE is not loaded. Same key and text as the CAPIE script SDK,
  # so the two never disagree; CAPIE replaces it with its version while it runs.
  CAPIE_STATUS:0 "§OCAPIE missing§!"
- CAPIE_API:0 "0"
- CAPIE_BUILD:0 "-"
- # Tooltip of the CAPIE mark in the main menu. The three CAPIE_* keys are answered by CAPIE while it runs.
- CAPIE_MENU_MARK_TT:0 "CAPIE: $CAPIE_STATUS$\nAPI level $CAPIE_API$, build $CAPIE_BUILD$\n\n§LIf it says CAPIE missing: start the game through the CAPIE launcher and keep the CAPIE mod enabled in your playset. CAPIE loads about 20 seconds after this menu appears, and only on supported game versions.§!"
+ # Tooltip of the CAPIE mark in the main menu: static text. The menu localises it once, when the
+ # window is built (before CAPIE loads), and substitutes no $...$ references.
+ CAPIE_MENU_MARK_TT:0 "CAPIE switch is on\n\n§LCAPIE loads about 20 seconds after this menu appears, when the game was started through the CAPIE launcher on a supported game version. To see whether it is running, open a Rename Anything editor in a game: it shows the CAPIE version.§!"

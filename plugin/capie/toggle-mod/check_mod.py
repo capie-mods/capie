@@ -71,13 +71,13 @@ MENU_TOOLTIP = "CAPIE_MENU_MARK_TT"
 MENU_GFX = "capie_menu.gfx"
 MENU_TEXTURE = "gfx/interface/capie_menu_mark.dds"
 MENU_FRAME_EDGE = 50  # one frame, the size of a vanilla DLC medal slot
-MENU_FRAMES = 2
+MENU_FRAMES = 1
 DDS_MAGIC = b"DDS "
 DDS_HEIGHT_OFFSET = 12
 DDS_WIDTH_OFFSET = 16
 DDS_BITCOUNT_OFFSET = 88
 DDS_RGBA_BITS = 32
-FALLBACK_KEYS = ("CAPIE_STATUS", "CAPIE_API", "CAPIE_BUILD")
+FALLBACK_KEYS = ("CAPIE_STATUS",)
 BLOCK_BEGIN = "# CAPIE BEGIN"
 BLOCK_END = "# CAPIE END"
 # SHA-256 of interface/frontendmainview.gui of HOI4 1.19.3 (17 757 bytes). A game patch that
@@ -283,7 +283,7 @@ def check_menu_sprite(checks: Checks) -> None:
     checks.check(".gfx braces are balanced", ok=balanced(gfx))
     checks.check(f".gfx defines {MENU_SPRITE}", ok=f'name = "{MENU_SPRITE}"' in gfx)
     checks.check(f".gfx points at {MENU_TEXTURE}", ok=f'texturefile = "{MENU_TEXTURE}"' in gfx)
-    checks.check(".gfx declares two frames", ok=f"noOfFrames = {MENU_FRAMES}" in gfx)
+    checks.check(".gfx declares no animation frames (one image)", ok="noOfFrames" not in gfx)
     data = (MOD / MENU_TEXTURE).read_bytes()
     checks.check("sprite is a DDS file", ok=data.startswith(DDS_MAGIC))
     if len(data) > DDS_BITCOUNT_OFFSET + 4:
@@ -329,7 +329,7 @@ def check_indicator(checks: Checks, game: Path) -> None:
     checks.check("CAPIE block braces are balanced", ok=bool(block) and balanced(block))
     checks.check(f'block names "{MENU_ELEMENT}"', ok=f'name = "{MENU_ELEMENT}"' in block)
     checks.check(f"block uses {MENU_SPRITE}", ok=f'spriteType = "{MENU_SPRITE}"' in block)
-    checks.check("block shows frame 1 (CAPIE in this playset)", ok="frame = 1" in block)
+    checks.check("block has no frame selection (one image)", ok="frame =" not in block)
     checks.check(f"block tooltip is {MENU_TOOLTIP}", ok=f'pdx_tooltip = "{MENU_TOOLTIP}"' in block)
     at = text.find(BLOCK_BEGIN)
     checks.check(
@@ -355,8 +355,8 @@ def check_indicator(checks: Checks, game: Path) -> None:
             )
         tooltip = localisation_value(ours, MENU_TOOLTIP) or ""
         checks.check(
-            f"{language}: {MENU_TOOLTIP} names status, API level and build",
-            ok=all(f"${key}$" in tooltip for key in FALLBACK_KEYS),
+            f"{language}: {MENU_TOOLTIP} is static text (the menu substitutes no $...$)",
+            ok=bool(tooltip) and "$" not in tooltip,
         )
     vanilla = game / "interface" / MENU_FILE
     if vanilla.is_file():

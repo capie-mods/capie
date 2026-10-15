@@ -222,12 +222,11 @@ guiTypes = {
 			position = { x= 20 y = 20 }
 		}
 		# CAPIE BEGIN: the only change to the vanilla file (plugin/capie/toggle-mod/check_mod.py checks this).
-		# The CAPIE mark under the game logo, above the DLC column. Its tooltip names the status;
-		# a tooltip is localised when it opens, so it can follow CAPIE loading later (to confirm in game).
+		# The CAPIE mark under the game logo, above the DLC column. It means only that the CAPIE
+		# switch is on: the menu is built and localised before CAPIE loads, so it shows no live status.
 		iconType = {
 			name = "capie_menu_mark"
 			spriteType = "GFX_capie_menu_mark"
-			frame = 1
 			position = { x = 6 y = 214 }
 			pdx_tooltip = "CAPIE_MENU_MARK_TT"
 		}

@@ -1,1 +1,3 @@
 tools/bootstrap/install.ps1 text eol=lf
+# Byte-exact copy of the vanilla HOI4 file plus one marked block (check_mod.py compares bytes): never convert line endings.
+plugin/capie/toggle-mod/capie/interface/frontendmainview.gui -text
