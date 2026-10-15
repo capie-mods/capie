@@ -4,7 +4,7 @@
 
 CAPIE (Cyprian's API Extender) is a small native library for Hearts of Iron IV. It lets mods read what the player types into the game's own text field, and it draws custom country names, faction names and flags that are stored in the save. HOI4 script cannot do either on its own. Rename Anything is the first mod built on CAPIE.
 
-This item is the switch. It has no game content: just the switch and, once it is ready, one status line in the bottom right corner of the main menu.
+This item is the switch. It has no game content: just the switch and, once it is ready, one status line under the game logo in the main menu.
 [list]
 [*]In your playset and enabled: the CAPIE launcher loads CAPIE into the game.
 [*]Disabled, or not in the playset: the game starts without CAPIE.
@@ -20,6 +20,7 @@ The status line does not show in the game yet. When it does, it will read:
 [*][i]CAPIE 1.5[/i]: CAPIE is running.
 [*][i]CAPIE missing[/i], in orange: the switch is on but CAPIE is not loaded. Either the game was not started through the CAPIE launcher, your game version is not supported, or the menu has not finished loading. CAPIE loads about 20 seconds after the main menu appears.
 [/list]
+The line comes with a copy of the game's main menu file. If another mod in your playset changes that file too, only one of the two versions is used: the line may not show, and CAPIE works the same.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-requirements.png[/img]
 [h2]Requirements[/h2]

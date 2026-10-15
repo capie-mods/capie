@@ -71,17 +71,18 @@ inline constexpr wchar_t dlc_load_relative[] = L"Paradox Interactive\\Hearts of 
 /**
  * @brief Descriptor path of the local "CAPIE" switch mod as it appears in dlc_load.json.
  *
- * The switch mod ships in `plugin/capie/toggle-mod/`. A local install registers it as
- * `mod/capie.mod`; this is the identity used until the mod is published on the Workshop.
+ * The switch mod ships in `plugin/capie/toggle-mod/`. A local install (the bootstrap, or a
+ * development copy) registers it as `mod/capie.mod`.
  */
 inline constexpr char capie_mod_descriptor[] = "mod/capie.mod";
 /**
- * @brief Steam Workshop ID of the "CAPIE" switch mod (decimal), empty until it is published.
+ * @brief Steam Workshop ID of the "CAPIE" switch mod (decimal).
  *
- * Fill this in after the first Workshop upload: `mod/ugc_<ID>.mod` then matches as well. No
- * other file has to change (see `ModIdentity` and playset_gate.hpp).
+ * The Paradox Launcher lists a subscribed Workshop item in dlc_load.json as
+ * `mod/ugc_<ID>.mod` (the descriptor it writes into the user mod folder), so a subscriber's
+ * playset entry is `mod/ugc_3819929471.mod`. The local descriptor above matches as well.
  */
-inline constexpr char capie_mod_workshop_id[] = "";
+inline constexpr char capie_mod_workshop_id[] = "3819929471";
 
 /// @brief Log size that triggers rotation at launcher start.
 inline constexpr std::size_t log_rotate_bytes = std::size_t{1} << 20U;

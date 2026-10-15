@@ -500,6 +500,17 @@ void playset_rules(const std::wstring& dir) {
     check(
         cl::capie_mod_identity().descriptors.size() == 1 && cl::capie_mod_identity().descriptors[0] == "mod/capie.mod",
         "production identity: local descriptor");
+    const auto production = cl::capie_mod_identity();
+    check(production.workshop_id == "3819929471", "production identity: Workshop ID of the CAPIE switch mod");
+    // Paradox Launcher form of a subscribed Workshop item, next to other Workshop mods.
+    check(state(R"({"enabled_mods":["mod/ugc_3274762952.mod","mod/ugc_3819929471.mod"],"disabled_dlcs":[]})",
+                production) == PlaysetState::enabled,
+          "production identity: subscribed Workshop item enabled");
+    check(state(R"({"enabled_mods":["mod/capie.mod"],"disabled_dlcs":[]})", production) == PlaysetState::enabled,
+          "production identity: local copy enabled");
+    check(state(R"({"enabled_mods":["mod/ugc_3274762952.mod","mod/ugc_381992947.mod"],"disabled_dlcs":[]})",
+                production) == PlaysetState::disabled,
+          "production identity: other Workshop items and a shorter ID do not match");
     // File access.
     const auto file = dir + L"\\dlc_load.json";
     write_file(file, real);

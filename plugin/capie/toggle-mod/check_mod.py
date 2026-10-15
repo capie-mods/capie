@@ -14,6 +14,7 @@ Exit code 0 when every check passes.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import struct
 import sys
@@ -62,7 +63,14 @@ UTF8_BOM = b"\xef\xbb\xbf"
 GAMEPLAY_FOLDERS = ("common", "events", "history", "map", "gfx", "music", "sound", "portraits")
 """Folders that would carry gameplay content; the switch mod has none of them."""
 
-MENU_WINDOW = "frontend_alpha_stamp"
+MENU_FILE = "frontendmainview.gui"
+MENU_WINDOW = "mainmenu_panel_upperleft"  # created by name by hoi4.exe (frontendmainview.cpp)
+MENU_ELEMENT = "capie_menu_status"
+BLOCK_BEGIN = "# CAPIE BEGIN"
+BLOCK_END = "# CAPIE END"
+# SHA-256 of interface/frontendmainview.gui of HOI4 1.19.3 (17 757 bytes). A game patch that
+# changes the file makes the check fail: re-create the override from the new file.
+VANILLA_MENU_SHA256 = "17E5F3CDE42D170B9E4AC40BB2312CD2D505767920B6E995C5C58B48C38EFD1B"
 """Front-end window name the engine looks up for the main-menu stamp."""
 
 STATUS_KEY = "CAPIE_STATUS"
@@ -203,8 +211,56 @@ def check_thumbnail(checks: Checks) -> None:
         sys.path.pop(0)
 
 
+def strip_capie_block(text: str) -> tuple[str, str]:
+    """Splits the menu override into the vanilla text and the CAPIE block.
+
+    Returns:
+        (text without the lines from CAPIE BEGIN to CAPIE END, the block itself); the block
+        is empty when the markers are missing or not in order.
+    """
+    lines = text.splitlines(keepends=True)
+    begin = [i for i, line in enumerate(lines) if line.strip().startswith(BLOCK_BEGIN)]
+    end = [i for i, line in enumerate(lines) if line.strip() == BLOCK_END]
+    if len(begin) != 1 or len(end) != 1 or end[0] < begin[0]:
+        return text, ""
+    return "".join(lines[: begin[0]] + lines[end[0] + 1 :]), "".join(lines[begin[0] : end[0] + 1])
+
+
+def window_of(text: str, position: int) -> str:
+    """Names the containerWindowType that encloses a position (by brace depth).
+
+    Returns:
+        The window name, or an empty string.
+    """
+    depth = 0
+    stack: list[tuple[int, str]] = []
+    pending = ""
+    for match in re.finditer(
+        r'#[^\n]*|"[^"]*"|\{|\}|containerWindowType|name\s*=\s*"([^"]*)"', text
+    ):
+        if match.start() >= position:
+            break
+        lexeme = match.group(0)
+        if lexeme.startswith("#"):
+            continue
+        if lexeme == "containerWindowType":
+            pending = "window"
+        elif lexeme == "{":
+            depth += 1
+            if pending == "window":
+                stack.append((depth, ""))
+                pending = ""
+        elif lexeme == "}":
+            while stack and stack[-1][0] >= depth:
+                stack.pop()
+            depth -= 1
+        elif match.group(1) is not None and stack and stack[-1][0] == depth and not stack[-1][1]:
+            stack[-1] = (depth, match.group(1))
+    return stack[-1][1] if stack else ""
+
+
 def check_indicator(checks: Checks, game: Path) -> None:
-    """Main-menu indicator file and its localisation fallback.
+    """Main-menu indicator (minimal override of the vanilla menu file) and its fallback text.
 
     Args:
         checks: Result collector.
@@ -212,31 +268,39 @@ def check_indicator(checks: Checks, game: Path) -> None:
     """
     gui_files = sorted((MOD / "interface").glob("*.gui"))
     checks.check(
-        "one indicator .gui file", ok=[f.name for f in gui_files] == ["capie_menu_indicator.gui"]
+        "the only .gui file is the menu override", ok=[f.name for f in gui_files] == [MENU_FILE]
     )
-    gui = (MOD / "interface" / "capie_menu_indicator.gui").read_text(encoding="utf-8")
-    checks.check("indicator .gui braces are balanced", ok=balanced(gui))
+    raw = (MOD / "interface" / MENU_FILE).read_bytes()
+    text = raw.decode("utf-8")
+    stripped, block = strip_capie_block(text)
+    checks.check("override has one CAPIE BEGIN/END block", ok=bool(block))
+    stripped_hash = hashlib.sha256(stripped.encode("utf-8")).hexdigest().upper()
     checks.check(
-        f"indicator defines the engine window {MENU_WINDOW}", ok=f'name = "{MENU_WINDOW}"' in gui
+        "override minus the CAPIE block is the pinned vanilla 1.19.3 file",
+        ok=stripped_hash == VANILLA_MENU_SHA256,
     )
-    checks.check(f"indicator shows {STATUS_KEY}", ok=f'text = "{STATUS_KEY}"' in gui)
-    font = re.search(r'font = "([^"]+)"', gui)
+    checks.check("override braces are balanced", ok=balanced(text))
+    checks.check("CAPIE block braces are balanced", ok=bool(block) and balanced(block))
+    checks.check(f'block names "{MENU_ELEMENT}"', ok=f'name = "{MENU_ELEMENT}"' in block)
+    checks.check(f"block shows {STATUS_KEY}", ok=f'text = "{STATUS_KEY}"' in block)
+    font = re.search(r'font = "([^"]+)"', block)
     checks.check(
         "indicator font has Polish glyphs",
         ok=font is not None and font.group(1) in POLISH_GLYPH_FONTS,
     )
+    at = text.find(BLOCK_BEGIN)
     checks.check(
-        "indicator has named elements",
-        ok=re.search(r"^\s*name\s*=", gui, flags=re.MULTILINE) is not None,
+        f"block sits inside {MENU_WINDOW}, a window the game creates",
+        ok=at >= 0 and window_of(text, at) == MENU_WINDOW,
     )
     for language in LANGUAGES:
         ours = MOD / "localisation" / language / f"capie_switch_l_{language}.yml"
         sdk = SDK_LOCALISATION / language / f"capie_sdk_v1_l_{language}.yml"
-        raw = ours.read_bytes()
+        loc = ours.read_bytes()
         checks.check(
-            f"{language}: localisation has the UTF-8 BOM HOI4 needs", ok=raw.startswith(UTF8_BOM)
+            f"{language}: localisation has the UTF-8 BOM HOI4 needs", ok=loc.startswith(UTF8_BOM)
         )
-        header = raw.removeprefix(UTF8_BOM).decode("utf-8").splitlines()[0]
+        header = loc.removeprefix(UTF8_BOM).decode("utf-8").splitlines()[0]
         checks.check(f"{language}: header l_{language}:", ok=header == f"l_{language}:")
         value = localisation_value(ours, STATUS_KEY)
         checks.check(f"{language}: {STATUS_KEY} fallback present", ok=value is not None)
@@ -244,13 +308,24 @@ def check_indicator(checks: Checks, game: Path) -> None:
             f"{language}: fallback equals the SDK text",
             ok=value == localisation_value(sdk, STATUS_KEY),
         )
-    vanilla = game / "interface"
-    if vanilla.is_dir():
-        clashes = [f.name for f in gui_files if (vanilla / f.name).exists()]
-        checks.check(f"no vanilla interface file is overridden ({clashes})", ok=not clashes)
-        main_menu = (vanilla / "frontendmainview.gui").read_text(encoding="utf-8", errors="replace")
-        active = [line for line in main_menu.splitlines() if MENU_WINDOW in line.split("#", 1)[0]]
-        checks.check(f"vanilla does not define {MENU_WINDOW} (it is commented out)", ok=not active)
+    vanilla = game / "interface" / MENU_FILE
+    if vanilla.is_file():
+        current = vanilla.read_bytes()
+        checks.check(
+            "installed game still has the pinned vanilla menu file (else re-create the override)",
+            ok=hashlib.sha256(current).hexdigest().upper() == VANILLA_MENU_SHA256,
+        )
+        checks.check(
+            "override minus the block equals the installed vanilla file byte for byte",
+            ok=stripped.encode("utf-8") == current,
+        )
+        exe = game / "hoi4.exe"
+        if exe.is_file():
+            names = exe.read_bytes()
+            checks.check(
+                f"hoi4.exe looks up the window {MENU_WINDOW} by name",
+                ok=MENU_WINDOW.encode("ascii") + b"\x00" in names,
+            )
     else:
         print(f"SKIP vanilla comparison: {vanilla} not found")
 

@@ -392,10 +392,11 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
                       of_role(result.lines, L"injector").empty() && result.notices == 1,
                   "corrupted dlc_load.json: vanilla game, one notice");
         }
-        {  // The Workshop identity is enough on its own.
+        {  // The production identity: a subscribed Workshop item, as the Paradox Launcher lists it.
             auto fixture = make_fixture(base, L"playset-workshop", fake);
-            fixture.policy.capie_mod = {.workshop_id = "3500000001", .descriptors = {}};
-            write_file(fixture.policy.dlc_load, R"({"enabled_mods":["mod/ugc_3500000001.mod"],"disabled_dlcs":[]})");
+            fixture.policy.capie_mod = cl::capie_mod_identity();
+            write_file(fixture.policy.dlc_load,
+                       R"({"enabled_mods":["mod/ugc_820260968.mod","mod/ugc_3819929471.mod"],"disabled_dlcs":[]})");
             expect_loaded_once(run(fixture, L"dowser.exe", L""), true, "Workshop CAPIE mod enabled: loaded");
         }
         {
