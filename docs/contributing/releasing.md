@@ -1,6 +1,6 @@
 # Releasing
 
-There has been no release yet. This page is the checklist for the first one and the ones after
+The first release was CAPIE 1.5.0 (2026-10-15). This page is the checklist for every release, the first one and the ones after
 it. It follows the distribution decisions: [ADR-0002](../adr/0002-distribution-model.md),
 [ADR-0007](../adr/0007-antivirus-scan-before-release.md),
 [ADR-0017](../adr/0017-versions-json.md), [ADR-0030](../adr/0030-installation-paths-and-playset-switch.md)
@@ -45,7 +45,12 @@ by the maintainer, ADR-0018), or build in CI and use the script only for the rem
    supported `hoi4.exe` hashes.
 5. **Scan.** Scan the final artifacts with Windows Defender locally, then upload them to
    VirusTotal. An upload makes the file public, so it needs the maintainer's consent for each
-   release. Put the VirusTotal links in the release notes.
+   release. Put the VirusTotal links in the release notes. Every release, also report each
+   remaining detection as a false positive to its vendor and record it in the status table of
+   [antivirus false positives](antivirus-false-positives.md): new hashes are flagged again even
+   when the previous build was cleared. In the release notes, explain in a few sentences why
+   ML engines flag the files (DLL loading into the game, new unsigned files) and that the
+   reports have been sent.
 6. **Release notes.** What changed; which game build is supported; which features are switched
    off on which build ([ADR-0023](../adr/0023-display-only-features-switch-off-alone.md)); the
    VirusTotal links; how to get past the SmartScreen warning for unsigned files; the
