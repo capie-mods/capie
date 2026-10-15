@@ -71,7 +71,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 The one-liner does the same in a single step:
 
 ```powershell title="One line (convenient, less safe)"
-irm https://raw.githubusercontent.com/OWNER/hoi4-rename-anything/TAG/tools/bootstrap/install.ps1 | iex
+irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex
 ```
 
 !!! warning "What `irm | iex` means"

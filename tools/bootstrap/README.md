@@ -51,7 +51,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 One line (convenient, less safe):
 
 ```powershell
-irm https://raw.githubusercontent.com/OWNER/hoi4-rename-anything/TAG/tools/bootstrap/install.ps1 | iex
+irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex
 ```
 
 **Security trade-off of `irm | iex`:** whatever the URL serves at that moment runs

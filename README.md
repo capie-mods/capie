@@ -97,7 +97,7 @@ Country flag layer (API level 6): any flag the game has, with the name kept.
 You only need CAPIE if a mod you play asks for it. The first release will install it in one of two
 ways:
 
-- one PowerShell line (`irm ... | iex`) with a small terminal interface, or
+- one PowerShell line (`irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex`) with a small terminal interface, or
 - an installer from GitHub Releases.
 
 Both are in preparation. Until the first release the installer refuses to run on purpose; its
