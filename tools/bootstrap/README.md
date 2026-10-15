@@ -35,6 +35,8 @@ a launcher-only package refuses `-LoadMethod Proxy`.
   or ask for `-CheckUpdate` / `-Update`. It sends no identifiers and no telemetry.
 * Log: `%LOCALAPPDATA%\RenameAnything\bootstrap.log`.
 
+Websites: [Rename Anything](https://capie-mods.github.io/rename-anything/) and [CAPIE](https://capie-mods.github.io/capie/).
+
 ## Run it
 
 Recommended: download, read, then run.

@@ -2,6 +2,8 @@
 
 Start with the [README](../README.md) for what the project is and what works today.
 
+Websites: [Rename Anything](https://capie-mods.github.io/rename-anything/) and [CAPIE](https://capie-mods.github.io/capie/).
+
 ## Players
 
 The player guides live on the two documentation sites, whose sources are in `sites/`:

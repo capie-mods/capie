@@ -17,6 +17,8 @@ reviewed stage-2 DLLs, build with `build_proxy.ps1`, then read
 still available. The proxy uses `current/runtime/` and needs the exact `-capie` argument or the
 explicit bootstrap config marker; it starts no injection helper process.
 
+Websites: [Rename Anything](https://capie-mods.github.io/rename-anything/) and [CAPIE](https://capie-mods.github.io/capie/).
+
 ## Country leader portrait layer, API level 7 (CAPIE 1.5, developer build)
 
 `CONTRACT.md` section 18, design and review in [monorepo archive: docs/evidence/session-20261014/portrait-layer/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261014/portrait-layer).

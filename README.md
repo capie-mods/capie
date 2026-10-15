@@ -24,6 +24,8 @@ The first mod built on it is [Rename Anything](https://github.com/capie-mods/ren
 > development builds. Multiplayer has never been tested with two players, and we make no claim
 > that it works.
 
+Websites: [Rename Anything](https://capie-mods.github.io/rename-anything/) and [CAPIE](https://capie-mods.github.io/capie/).
+
 ## What it is
 
 Two Windows DLLs, `capie_core.dll` and `capie_editor.dll`, that run inside `hoi4.exe` while you
