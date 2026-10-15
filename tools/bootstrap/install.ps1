@@ -219,6 +219,10 @@ $script:RaProxyFlag = '-capie'
 # "CAPIE" switch mod: bundle prefix and the game's user mod folder (relative to Documents).
 $script:RaModBundlePrefix = 'mod/'
 $script:RaGameUserModRelPath = 'Paradox Interactive\Hearts of Iron IV\mod'
+# Descriptor the Paradox Launcher writes for a subscription to the CAPIE switch mod on the Workshop.
+# HOI4 skips a Workshop mod when a local descriptor has the same name, so with a subscription the
+# local copy is not installed (the local copy is also named differently: "CAPIE (local copy)").
+$script:RaWorkshopModDescriptor = 'ugc_3819929471.mod'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'
@@ -642,6 +646,10 @@ $script:RaMessages = @{
     DisableDone                = 'Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
     PurgeDone                  = 'Uninstalled. No files of this setup are left, and the Steam launch options are as they were before.'
     ReleaseVerified            = 'Release {0}: signed manifest verified.'
+    WorkshopModPresent         = @(
+        'The CAPIE mod from the Workshop is subscribed ({0}), so no local copy is installed. Keep only one: ',
+        'with two mods of the same name the game skips the Workshop one.'
+    ) -join ''
     TuiTagline                 = "Built on CAPIE (Cyprian's API Extender)"
     TuiMenuTitle               = 'What should this setup do?'
     TuiInstall                 = 'Install'
@@ -4548,7 +4556,10 @@ function Install-RaPlaysetMod {
         recorded; our older file (hash recorded) -> replaced; a file that was there before ->
         backed up (byte-verified copy next to it) and replaced; every written file is verified
         by SHA-256. Our files that the new version no longer has are removed (hash-checked).
-        A release without mod/ files changes nothing. No-op in dry-run mode except for plan lines.
+        A release without mod/ files changes nothing. With a Workshop subscription to the switch
+        mod (ugc_<id>.mod in the mod folder) no local copy is installed and an earlier one is
+        removed, because HOI4 skips a Workshop mod that has a local twin with the same name.
+        No-op in dry-run mode except for plan lines.
     .PARAMETER State
         State object (modified; the caller saves it).
     .OUTPUTS
@@ -4565,6 +4576,12 @@ function Install-RaPlaysetMod {
     $bundle = @($manifest.Files.Keys | Where-Object { ([string]$_).StartsWith($script:RaModBundlePrefix) })
     if ($bundle.Count -eq 0) {
         Write-RaLog "Release $($State.InstalledVersion) has no CAPIE switch mod; mod folder unchanged." -NoConsole
+        return
+    }
+    $workshop = Join-Path (Get-RaPlaysetModRoot) $script:RaWorkshopModDescriptor
+    if (Test-Path -LiteralPath $workshop -PathType Leaf) {
+        Write-RaLog (Get-RaText 'WorkshopModPresent' @($script:RaWorkshopModDescriptor)) -Level WARN
+        Remove-RaPlaysetMod $State
         return
     }
     $versionDir = Get-RaVersionDir $State.InstalledVersion

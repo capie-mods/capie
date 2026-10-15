@@ -13,7 +13,13 @@ from typing import TYPE_CHECKING, override
 
 from fakes import BINARIES, COMMIT, GAME_SHA, FakePrompter, FakeRunner, Harness, KeyPair, make_repo
 from releasekit import workshop
-from releasekit.package import BundleEntry, entry_problems, switch_mod_descriptor, write_zip
+from releasekit.package import (
+    BundleEntry,
+    entry_problems,
+    local_inner_descriptor,
+    switch_mod_descriptor,
+    write_zip,
+)
 from releasekit.vdf import parse_vdf, render_vdf, vdf_published_id
 from releasekit.workshop import is_excluded, workshop_descriptor
 
@@ -84,8 +90,12 @@ def test_descriptor_rewrites() -> None:
     """capie.mod gains path; the Workshop copy loses path and gains remote_file_id."""
     original = 'version="1.0.0"\r\nname="CAPIE"\r\npath="C:/x"\r\nremote_file_id="1"\r\n'
     assert (
-        switch_mod_descriptor(original, "mod/capie").decode()
-        == 'version="1.0.0"\nname="CAPIE"\npath="mod/capie"\n'
+        switch_mod_descriptor(original, "mod/capie", "CAPIE (local copy)").decode()
+        == 'version="1.0.0"\nname="CAPIE (local copy)"\npath="mod/capie"\n'
+    )
+    assert (
+        local_inner_descriptor(original, "CAPIE (local copy)").decode()
+        == 'version="1.0.0"\nname="CAPIE (local copy)"\n'
     )
     assert workshop_descriptor(original, 0) == 'version="1.0.0"\nname="CAPIE"\n'
     assert (

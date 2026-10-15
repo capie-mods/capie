@@ -157,6 +157,9 @@ source_dir = "plugin/capie/toggle-mod/capie"
 zip_dir = "mod/capie"
 descriptor_zip_path = "mod/capie.mod"
 descriptor_path_value = "mod/capie"
+# The local copy is named differently from the Workshop item ("CAPIE"): HOI4 does not load a
+# subscribed Workshop mod while a local descriptor with the same name exists.
+descriptor_name = "CAPIE (local copy)"
 
 [signing]
 sign_script = "tools/bootstrap/sign-release-manifest.ps1"

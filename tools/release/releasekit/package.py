@@ -152,25 +152,60 @@ def write_zip(path: Path, entries: Sequence[BundleEntry]) -> None:
             archive.writestr(info, entry.data)
 
 
-def switch_mod_descriptor(descriptor: str, path_value: str) -> bytes:
+def local_descriptor_lines(descriptor: str, name: str) -> list[str]:
+    """Lines of ``descriptor.mod`` for the local copy: own name, no ``path`` or Workshop ID.
+
+    HOI4 does not load a subscribed Workshop mod while a local descriptor with the same ``name``
+    exists, so the local copy is named differently from the Workshop item.
+
+    Args:
+        descriptor: Text of the switch mod's ``descriptor.mod``.
+        name: Name of the local copy.
+
+    Returns:
+        The lines, without line endings.
+    """
+    lines = []
+    for line in descriptor.removeprefix("\ufeff").replace("\r\n", "\n").split("\n"):
+        stripped = line.strip()
+        if stripped.startswith(("path=", "path =", "remote_file_id")):
+            continue
+        lines.append(f'name="{name}"' if stripped.startswith(("name=", "name =")) else line)
+    return lines
+
+
+def switch_mod_descriptor(descriptor: str, path_value: str, name: str) -> bytes:
     """Build the local registration file (``capie.mod``) from ``descriptor.mod``.
 
-    The Workshop descriptor has no ``path``; the copy in the user's mod folder needs one.
+    The Workshop descriptor has no ``path``; the copy in the user's mod folder needs one, and
+    its own name (see ``local_descriptor_lines``).
 
     Args:
         descriptor: Text of the switch mod's ``descriptor.mod``.
         path_value: ``path`` value (``mod/capie``).
+        name: Name of the local copy.
 
     Returns:
         UTF-8 bytes with LF line endings.
     """
-    lines = [
-        line
-        for line in descriptor.removeprefix("﻿").replace("\r\n", "\n").split("\n")
-        if not line.strip().startswith(("path=", "path =", "remote_file_id"))
-    ]
-    text = "\n".join(lines).rstrip("\n") + f'\npath="{path_value}"\n'
+    text = (
+        "\n".join(local_descriptor_lines(descriptor, name)).rstrip("\n")
+        + f'\npath="{path_value}"\n'
+    )
     return text.encode("utf-8")
+
+
+def local_inner_descriptor(descriptor: str, name: str) -> bytes:
+    """The ``descriptor.mod`` inside the local copy's folder, with the local name.
+
+    Args:
+        descriptor: Text of the switch mod's ``descriptor.mod``.
+        name: Name of the local copy.
+
+    Returns:
+        UTF-8 bytes with LF line endings.
+    """
+    return ("\n".join(local_descriptor_lines(descriptor, name)).rstrip("\n") + "\n").encode("utf-8")
 
 
 def collect_entries(ctx: Context) -> tuple[list[BundleEntry], list[str]]:
@@ -198,7 +233,9 @@ def collect_entries(ctx: Context) -> tuple[list[BundleEntry], list[str]]:
             BundleEntry(
                 switch.descriptor_zip_path,
                 switch_mod_descriptor(
-                    descriptor.read_text(encoding="utf-8"), switch.descriptor_path_value
+                    descriptor.read_text(encoding="utf-8"),
+                    switch.descriptor_path_value,
+                    switch.descriptor_name,
                 ),
             )
         )
@@ -207,11 +244,10 @@ def collect_entries(ctx: Context) -> tuple[list[BundleEntry], list[str]]:
     prefix = PurePosixPath(switch.source_dir)
     for tracked in gitinfo.tracked_files(ctx.runner, config.root, switch.source_dir):
         relative = PurePosixPath(tracked).relative_to(prefix)
-        entries.append(
-            BundleEntry(
-                f"{switch.zip_dir}/{relative.as_posix()}", (config.root / tracked).read_bytes()
-            )
-        )
+        data = (config.root / tracked).read_bytes()
+        if relative.as_posix() == "descriptor.mod":
+            data = local_inner_descriptor(data.decode("utf-8"), switch.descriptor_name)
+        entries.append(BundleEntry(f"{switch.zip_dir}/{relative.as_posix()}", data))
     return entries, missing
 
 

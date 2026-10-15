@@ -17,6 +17,13 @@ a launcher-only package refuses `-LoadMethod Proxy`.
   Proxy mode needs write access to the game folder; the script does not elevate itself.
 * Proxy mode adds only `version.dll` to the game directory. It never overwrites another
   tool's DLL. Workshop content and saves are untouched.
+* Keep only one copy of each mod with the same name. HOI4 does not load a subscribed Workshop
+  mod while a local mod with the same `name` exists, and the Paradox Launcher takes that name
+  from `descriptor.mod` inside the mod's folder (it rewrites the `.mod` files in the mod folder
+  at every start). The local switch mod is therefore named "CAPIE (local copy)", and when the
+  Workshop item is subscribed (`mod\ugc_3819929471.mod` exists) the script installs no local
+  copy at all and removes an earlier one. Do the same with your own local copies of Rename
+  Anything or other Workshop mods.
 * The "CAPIE" switch mod goes to `Documents\Paradox Interactive\Hearts of Iron IV\mod`
   (`capie.mod` and `capie\`), copied from the verified bundle (`mod/` in the release ZIP).
   Every file is recorded with its SHA-256 in `state.json`. A file that was there before is

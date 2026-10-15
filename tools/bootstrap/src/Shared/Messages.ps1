@@ -71,6 +71,10 @@ $script:RaMessages = @{
     DisableDone                = 'Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
     PurgeDone                  = 'Uninstalled. No files of this setup are left, and the Steam launch options are as they were before.'
     ReleaseVerified            = 'Release {0}: signed manifest verified.'
+    WorkshopModPresent         = @(
+        'The CAPIE mod from the Workshop is subscribed ({0}), so no local copy is installed. Keep only one: ',
+        'with two mods of the same name the game skips the Workshop one.'
+    ) -join ''
     TuiTagline                 = "Built on CAPIE (Cyprian's API Extender)"
     TuiMenuTitle               = 'What should this setup do?'
     TuiInstall                 = 'Install'

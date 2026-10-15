@@ -280,7 +280,7 @@ function New-TestPackage {
     }
     if ($WithProxy) { $files['proxy/version.dll'] = 'proxy-' + $Version }
     if ($WithMod) {
-        $files['mod/capie.mod'] = "name=`"CAPIE`"`npath=`"mod/capie`"`n"
+        $files['mod/capie.mod'] = "name=`"CAPIE (local copy)`"`npath=`"mod/capie`"`n"
         $files['mod/capie/descriptor.mod'] = "name=`"CAPIE`"`nversion=`"$Version`"`n"
         $files['mod/capie/interface/frontendmainview.gui'] = 'guiTypes = { }'
     }
@@ -423,7 +423,7 @@ Describe 'Script hygiene' {
         $source = [IO.File]::ReadAllText($scriptPath)
         $used = @([regex]::Matches($source, "Get-RaText '([A-Za-z]+)'") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
         @($used | Where-Object { -not $script:RaMessages.ContainsKey($_) }) -join ',' | Should Be ''
-        $source.Contains('l_polish') -or $source.Contains('Get-UICulture') | Should Be $false
+        $source.Contains('Get-UICulture') -or $script:RaMessages.ContainsKey('pl') | Should Be $false
         Assert-RaThrow { Get-RaText 'NoSuchKey' } 'Unknown message key'
     }
     It 'has no BOM, because a BOM in the downloaded text would break irm | iex' {
@@ -449,10 +449,13 @@ Describe 'Script hygiene' {
         $out | Should Match 'DRY RUN'
         (Get-TreeHash $dir) -join '|' | Should Be ($before -join '|')
     }
-    It 'has a single placeholder release URL constant and refuses an unpinned manifest' {
-        $origRepo | Should Match 'PLACEHOLDER'
-        $origKey | Should Be 'TO-BE-GENERATED'
-        Assert-RaThrow { Test-RaManifest $origPinned } 'not configured'
+    It 'has one release repository and signing key, and refuses a manifest without a pinned ZIP hash' {
+        $origRepo | Should Match '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'
+        ($origRepo -match 'PLACEHOLDER') -or ($origKey -match '<RSAKeyValue>') | Should Be $true
+        $unpinned = [ordered]@{}
+        foreach ($k in $origPinned.Keys) { $unpinned[$k] = $origPinned[$k] }
+        $unpinned.ZipSha256 = 'TO-BE-PINNED-AT-RELEASE'
+        Assert-RaThrow { Test-RaManifest $unpinned } 'not configured'
     }
 }
 
@@ -1033,7 +1036,7 @@ Describe 'Updates (mocked GitHub API, signed manifest, current junction, rollbac
         [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
         $script:RaUpdatePublicKeyXml = 'TO-BE-GENERATED'
         Assert-RaThrow { Get-RaRemoteRelease $null } 'signing key is not configured'
-        $script:RaGitHubRepo = $origRepo
+        $script:RaGitHubRepo = 'PLACEHOLDER-OWNER/hoi4-rename-anything'
         $script:requested.Clear()
         Assert-RaThrow { Get-RaRemoteRelease $null } 'not configured'
         $script:requested.Count | Should Be 0
@@ -1364,6 +1367,7 @@ Describe 'Extracted functions' {
     }
     It 'Get-RaPackageZip refuses to guess a download URL while the repository is a placeholder' {
         [void](Reset-Env 'pkg-url')
+        $script:RaGitHubRepo = 'PLACEHOLDER-OWNER/hoi4-rename-anything'
         $m = [ordered]@{ Version = '1.0.0'; ZipName = 'a.zip' }
         Assert-RaThrow { Get-RaPackageZip -Manifest $m -LocalZip '' -ZipUrl '' } 'placeholder'
         $script:requested.Count | Should Be 0
@@ -1996,6 +2000,7 @@ Describe 'Terminal interface (irm | iex without switches)' {
     }
     It 'a failing action shows FAIL and the log path; the exit code is 1' {
         [void](Reset-Env 'tui-fail')
+        $script:RaGitHubRepo = 'PLACEHOLDER-OWNER/hoi4-rename-anything'
         Set-TuiTerminal -Vt
         Set-TuiKeyQueue 'Down', 'Enter'
         (Invoke-RaMain @{ SteamRoot = '' }) | Should Be 1
@@ -2021,6 +2026,24 @@ Describe 'Default method and the "CAPIE" switch mod in the player''s mod folder'
         $scriptInfo = $ExecutionContext.InvokeCommand.GetCommand($scriptPath, [System.Management.Automation.CommandTypes]::ExternalScript)
         $param = $scriptInfo.Parameters['LoadMethod']
         $param.Aliases -contains 'Method' | Should Be $true
+    }
+    It 'a Workshop subscription to the switch mod: no local copy, an earlier local copy is removed' {
+        $dir = Reset-Env 'mod-workshop'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg') -WithMod
+        $script:RaPinnedRelease = $pkg.Manifest
+        $modRoot = Get-RaPlaysetModRoot
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        Test-Path (Join-Path $modRoot 'capie.mod') | Should Be $true
+        $workshop = Join-Path $modRoot $script:RaWorkshopModDescriptor
+        Write-Utf8 $workshop "name=`"CAPIE`"`nremote_file_id=`"3819929471`"`n"
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        Test-Path (Join-Path $modRoot 'capie.mod') | Should Be $false
+        Test-Path (Join-Path $modRoot 'capie') | Should Be $false
+        Test-Path $workshop | Should Be $true
+        @((Read-RaState).ModFiles).Count | Should Be 0
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'Workshop is subscribed'
     }
     It '-Install places the mod from the verified bundle; -Uninstall removes it and leaves the mod folder as before' {
         $dir = Reset-Env 'mod-install'

@@ -73,6 +73,7 @@ $script:Mutations = [ordered]@{
     'mod-no-backup'              = @(, @('            if ($current -and -not ($record -and $current -ieq $record.Sha256)) {', '            if ($false) {'))
     'mod-remove-changed'         = @(, @('            if ((Get-RaFileSha256 $path) -ine $record.Sha256) {', '            if ($false) {'))
     'default-proxy'              = @(, @("`$Options.LoadMethod } else { 'Launcher' }", "`$Options.LoadMethod } else { 'Proxy' }"))
+    'workshop-twin-installed'    = @(, @('    if (Test-Path -LiteralPath $workshop -PathType Leaf) {', '    if ($false) {'))
     'no-tty-waits'               = @(
         , @('    if (-not $mode.Interactive -and -not (Test-RaActionOption $options)', '    if ($false -and -not (Test-RaActionOption $options)')
     )

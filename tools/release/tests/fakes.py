@@ -216,6 +216,7 @@ source_dir = "plugin/capie/toggle-mod/capie"
 zip_dir = "mod/capie"
 descriptor_zip_path = "mod/capie.mod"
 descriptor_path_value = "mod/capie"
+descriptor_name = "CAPIE (local copy)"
 
 [signing]
 sign_script = "tools/bootstrap/sign-release-manifest.ps1"

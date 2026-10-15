@@ -69,6 +69,7 @@ class SwitchModConfig:
     zip_dir: str
     descriptor_zip_path: str
     descriptor_path_value: str
+    descriptor_name: str
 
 
 @dataclass(frozen=True)
@@ -451,6 +452,7 @@ def parse_config(data: Mapping[str, object], path: Path) -> ReleaseConfig:
                 zip_dir=_string(switch, "zip_dir"),
                 descriptor_zip_path=_string(switch, "descriptor_zip_path"),
                 descriptor_path_value=_string(switch, "descriptor_path_value"),
+                descriptor_name=_string(switch, "descriptor_name"),
             ),
         ),
         signing=SigningConfig(

@@ -108,7 +108,10 @@ function Install-RaPlaysetMod {
         recorded; our older file (hash recorded) -> replaced; a file that was there before ->
         backed up (byte-verified copy next to it) and replaced; every written file is verified
         by SHA-256. Our files that the new version no longer has are removed (hash-checked).
-        A release without mod/ files changes nothing. No-op in dry-run mode except for plan lines.
+        A release without mod/ files changes nothing. With a Workshop subscription to the switch
+        mod (ugc_<id>.mod in the mod folder) no local copy is installed and an earlier one is
+        removed, because HOI4 skips a Workshop mod that has a local twin with the same name.
+        No-op in dry-run mode except for plan lines.
     .PARAMETER State
         State object (modified; the caller saves it).
     .OUTPUTS
@@ -125,6 +128,12 @@ function Install-RaPlaysetMod {
     $bundle = @($manifest.Files.Keys | Where-Object { ([string]$_).StartsWith($script:RaModBundlePrefix) })
     if ($bundle.Count -eq 0) {
         Write-RaLog "Release $($State.InstalledVersion) has no CAPIE switch mod; mod folder unchanged." -NoConsole
+        return
+    }
+    $workshop = Join-Path (Get-RaPlaysetModRoot) $script:RaWorkshopModDescriptor
+    if (Test-Path -LiteralPath $workshop -PathType Leaf) {
+        Write-RaLog (Get-RaText 'WorkshopModPresent' @($script:RaWorkshopModDescriptor)) -Level WARN
+        Remove-RaPlaysetMod $State
         return
     }
     $versionDir = Get-RaVersionDir $State.InstalledVersion

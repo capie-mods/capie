@@ -37,6 +37,10 @@ $script:RaProxyFlag = '-capie'
 # "CAPIE" switch mod: bundle prefix and the game's user mod folder (relative to Documents).
 $script:RaModBundlePrefix = 'mod/'
 $script:RaGameUserModRelPath = 'Paradox Interactive\Hearts of Iron IV\mod'
+# Descriptor the Paradox Launcher writes for a subscription to the CAPIE switch mod on the Workshop.
+# HOI4 skips a Workshop mod when a local descriptor has the same name, so with a subscription the
+# local copy is not installed (the local copy is also named differently: "CAPIE (local copy)").
+$script:RaWorkshopModDescriptor = 'ugc_3819929471.mod'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'

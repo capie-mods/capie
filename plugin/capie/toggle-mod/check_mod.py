@@ -30,6 +30,11 @@ MOD = HERE / "capie"
 """Content folder of the switch mod (uploaded to the Workshop)."""
 
 LOCAL_DESCRIPTOR = HERE / "capie.mod"
+RELEASE_TOML = REPO / "tools" / "release" / "release.toml"
+TEST_SESSION = REPO / "tools" / "test-session.ps1"
+WORKSHOP_NAME = "CAPIE"
+LOCAL_NAME = "CAPIE (local copy)"
+WORKSHOP_ID = "3819929471"
 """Local registration file that points the launcher at ``mod/capie``."""
 
 LAUNCHER_CONFIG = REPO / "plugin" / "capie" / "src" / "launcher" / "config.hpp"
@@ -178,7 +183,6 @@ def check_descriptors(checks: Checks) -> None:
     inner = descriptor_fields((MOD / "descriptor.mod").read_text(encoding="utf-8"))
     outer = descriptor_fields(LOCAL_DESCRIPTOR.read_text(encoding="utf-8"))
     for name, fields in (("descriptor.mod", inner), ("capie.mod", outer)):
-        checks.check(f"{name}: name is CAPIE", ok=fields.get("name") == "CAPIE")
         checks.check(
             f"{name}: supported_version 1.19.*", ok=fields.get("supported_version") == "1.19.*"
         )
@@ -191,6 +195,36 @@ def check_descriptors(checks: Checks) -> None:
         )
     checks.check("descriptor.mod has no path (the Workshop adds it)", ok="path" not in inner)
     checks.check("capie.mod points at mod/capie", ok=outer.get("path") == "mod/capie")
+    checks.check(
+        "descriptor.mod (Workshop item) is named CAPIE", ok=inner.get("name") == WORKSHOP_NAME
+    )
+    checks.check(
+        "capie.mod (local copy) has its own name",
+        ok=outer.get("name") == LOCAL_NAME,
+    )
+    checks.check(
+        "local copy name differs from the Workshop name (HOI4 skips a Workshop twin)",
+        ok=outer.get("name") != inner.get("name"),
+    )
+    release = RELEASE_TOML.read_text(encoding="utf-8")
+    named = re.search(r'^descriptor_name\s*=\s*"([^"]+)"', release, flags=re.MULTILINE)
+    checks.check(
+        "release.toml names the bundled local copy like capie.mod",
+        ok=named is not None and named.group(1) == LOCAL_NAME,
+    )
+    session = TEST_SESSION.read_text(encoding="utf-8")
+    dev = re.search(r"\$script:TsCapieModName = '([^']+)'", session)
+    checks.check(
+        "test-session.ps1 names its CAPIE descriptor differently from the Workshop item",
+        ok=dev is not None and dev.group(1) not in {WORKSHOP_NAME, LOCAL_NAME},
+    )
+    workshop = re.search(
+        r'capie_mod_workshop_id\[\] = "(\d+)"', LAUNCHER_CONFIG.read_text(encoding="utf-8")
+    )
+    checks.check(
+        "launcher knows the Workshop ID of the switch mod",
+        ok=workshop is not None and workshop.group(1) == WORKSHOP_ID,
+    )
     config = LAUNCHER_CONFIG.read_text(encoding="utf-8")
     match = re.search(r'capie_mod_descriptor\[\] = "([^"]+)"', config)
     checks.check(
