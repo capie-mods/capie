@@ -98,7 +98,7 @@ slow = true
 # --- Step 2: build ----------------------------------------------------------------
 [build]
 # Reviewed CAPIE binaries: the launcher and the proxy compile in these hashes.
-capie_output = "plugin/build/capie"
+capie_output = "plugin/build/capie-v15-dev"
 reviewed_hashes = "plugin/capie/deploy/DEPLOYMENT.md"
 reviewed_files = ["capie_core.dll", "capie_editor.dll", "capie_injector.exe"]
 
