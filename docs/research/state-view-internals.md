@@ -71,9 +71,9 @@ With the explicit state-view parent, `orientation = upper_left` and local positi
 
 ## Reproduction and raw evidence
 
-- [Targeted decompilation](../evidence/session-20261011/state-view-targeted-decompile.txt), including original Ghidra warnings and analyst aliases.
-- [Raw Capstone](../evidence/session-20261011/state-view-capstone.txt), including constructor, scope setters/accessors, state-context rebuild, root-window creation, and string xrefs.
-- [Function request list](../evidence/session-20261011/state-view-functions.txt).
-- [Read-only Ghidra logs](../evidence/session-20261011/state-view-ghidra.log), recording the existing project and discarded changes.
+- [Targeted decompilation](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/state-view-targeted-decompile.txt), including original Ghidra warnings and analyst aliases.
+- [Raw Capstone](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/state-view-capstone.txt), including constructor, scope setters/accessors, state-context rebuild, root-window creation, and string xrefs.
+- [Function request list](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/state-view-functions.txt).
+- [Read-only Ghidra logs](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/state-view-ghidra.log), recording the existing project and discarded changes.
 
 Use `probes/ghidra/Decomp.java` with the saved function list against the same exact-hash project, `-process hoi4.exe -noanalysis -readOnly`. No binary patch or live-game observation was used for these findings.

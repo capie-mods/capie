@@ -7,7 +7,7 @@
 
 The monorepo is being split into `capie`, `capie-script-sdk`, `capie-design` and
 `rename-anything` under the `capie-mods` GitHub organization
-([plan](../evidence/session-20261014/repo-split/plan.txt)). The evidence archive in
+([plan](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261014/repo-split/plan.txt)). The evidence archive in
 `docs/evidence` contains about 2000 absolute paths with the maintainer's Windows account name.
 Its files are referenced by SHA-256 in reports, so rewriting them would break those references.
 The organization is on GitHub Free, where branch protection and rulesets do not apply to

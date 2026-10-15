@@ -2,7 +2,7 @@
 
 - Status: Accepted. Not implemented; needs a multiplayer test with a second client.
 - Date: 2026-10-14
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "2026-10-14 —
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "2026-10-14 —
   rozpoznawanie hosta", first bullet
 
 ## Context
@@ -11,7 +11,7 @@ The "host renames every country" option of the lobby rule
 ([ADR-0029](0029-game-rules-event-and-restore.md)) needs to know who the host is. The game has
 no script trigger for it ([ADR-0013](0013-rename-permissions.md)), and CAPIE 1.3 sends no
 `capie_host` record because the static candidate for a host flag could not be confirmed without
-a runtime test ([CONTRACT.md](../../plugin/capie/CONTRACT.md), section 16). Workarounds based on
+a runtime test ([CONTRACT.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT.md), section 16). Workarounds based on
 trust, such as a vote or a "take the host role" button, were on the table.
 
 ## Decision

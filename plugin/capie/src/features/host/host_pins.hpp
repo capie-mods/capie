@@ -2,7 +2,7 @@
  * @file host_pins.hpp
  * @brief Pins of the host probe (`host_probe.hpp`), checked once at editor start in the debug flavor.
  *
- * Source: docs/evidence/session-20261014/host-detect/report.txt, section 3. One correction:
+ * Source: monorepo archive: docs/evidence/session-20261014/host-detect/report.txt, section 3. One correction:
  * `GetMachineId` (B54190, `8B81A4000000C3`) is not unique in `.text` (a second copy at E56DDE),
  * so its signature starts one padding byte earlier (B5418F, `CC8B81A4000000C3`, unique).
  * None of the pinned ranges overlaps a DIR64 relocation (checked on the 1.19.3.0 file).

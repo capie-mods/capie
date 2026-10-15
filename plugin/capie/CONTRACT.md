@@ -493,12 +493,12 @@ A `capie_host = 1` record ("the sender is the host of the session") was requeste
 the scenario" and at about 35 other places), but its meaning in a running game, and in single
 player, is not established without a runtime test. Following the fail-closed rule, no record is
 sent rather than a possibly wrong one. A script must keep treating "host" as unknown in
-multiplayer. See `docs/evidence/session-20261014/capie-v13/report.txt`.
+multiplayer. See [monorepo archive: docs/evidence/session-20261014/capie-v13/report.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261014/capie-v13/report.txt).
 
 ## 17. Country flag layer (API level 6, CAPIE 1.4)
 
 Decision record: `docs/adr/0032-custom-flag-layer.md`. Design and review:
-`docs/evidence/session-20261014/flag-layer/` (design.txt, review.txt K1 to K9).
+[monorepo archive: docs/evidence/session-20261014/flag-layer/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261014/flag-layer) (design.txt, review.txt K1 to K9).
 
 ### 17.1 What it is
 
@@ -637,7 +637,7 @@ snapshot) and `reset_nation_flag <TAG>` removes it, through `eval_effect`, in si
 ## 18. Country leader portrait layer (API level 7, CAPIE 1.5)
 
 Decision record: `docs/adr/0036-leader-portrait-and-feature-switches.md` (with its amendment:
-U1, U2). Design and review: `docs/evidence/session-20261014/portrait-layer/` (design.txt,
+U1, U2). Design and review: [monorepo archive: docs/evidence/session-20261014/portrait-layer/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261014/portrait-layer) (design.txt,
 review.txt).
 
 ### 18.1 What it is

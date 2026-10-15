@@ -10,7 +10,7 @@ build (`build.ps1 -Console`, output `plugin/build/capie-console-dev`, for CAPIE 
 `plugin/build/capie-v12-dev`). Since CAPIE 1.2 (API level 4) the two name commands write the
 country name layer of `CONTRACT.md` section 14 instead of an RN1 cosmetic tag. Release builds do not
 contain it. Nothing here has run in the game yet; section 8 lists the open checks. The
-evidence is in `docs/evidence/session-20261011/claude-console/` (`re-evidence.md`,
+evidence is in [monorepo archive: docs/evidence/session-20261011/claude-console/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261011/claude-console) (`re-evidence.md`,
 `design.md`).
 
 ## 1. Versions

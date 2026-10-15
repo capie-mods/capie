@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-11
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Decyzje do architektury CAPIE" items 8 and 9
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Decyzje do architektury CAPIE" items 8 and 9
 
 ## Context
 

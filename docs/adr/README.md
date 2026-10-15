@@ -5,9 +5,9 @@ and its date. Records are not edited after the fact except for their status line
 mind gets a new record that supersedes or amends the old one.
 
 The original decision logs (in Polish) are kept unchanged in
-[`../evidence/decision-log/`](../evidence/decision-log/). Code comments that cite "decision 6" or
+[[monorepo archive: docs/evidence/decision-log](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/decision-log)](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/decision-log). Code comments that cite "decision 6" or
 "decision 10(a)" refer to the numbering of those logs; [API-DECISIONS.md](../API-DECISIONS.md) and
-[DISTRIBUTION-DECISIONS.md](../DISTRIBUTION-DECISIONS.md) map each old number to its record.
+[DISTRIBUTION-DECISIONS.md](https://github.com/capie-mods/capie/blob/main/docs/DISTRIBUTION-DECISIONS.md) map each old number to its record.
 
 Status values: **Proposed**, **Accepted**, **Amended** (partly changed by a later record),
 **Superseded** (replaced by a later record).

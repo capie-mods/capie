@@ -42,5 +42,5 @@ editing changes a logged snapshot. Focus, Enter/save, target transport and a
 final in-place user flow remain unimplemented and unverified by this observer.
 
 Static proof and remaining boundaries:
-`docs/evidence/session-20261011/day2-native-editor-contract.txt` and
+[monorepo archive: docs/evidence/session-20261011/day2-native-editor-contract.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-native-editor-contract.txt) and
 `day2-native-editor-decompile.txt`. No UI automation is included here.

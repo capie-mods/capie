@@ -8,7 +8,7 @@ and players, its status, its safety rules and screenshots, read the
 CAPIE started as the native part of the HOI4 mod "Rename Anything". Stage 2 rebuilt it from the
 accepted binaries `rename_anything_country.dll` (country capability 18841A6D…) and the generated
 caption-refresh bridge rev7 (3864532C…), with the same behaviour; see
-`docs/evidence/session-20261011/claude-stage2/report.txt`. It supports one game build:
+[monorepo archive: docs/evidence/session-20261011/claude-stage2/report.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/claude-stage2/report.txt). It supports one game build:
 `hoi4.exe` 1.19.3.0, SHA-256 `7DC947BE…A031D5`.
 
 For development, CAPIE loads by default through the opt-in `version.dll` proxy. Prepare the
@@ -19,7 +19,7 @@ explicit bootstrap config marker; it starts no injection helper process.
 
 ## Country leader portrait layer, API level 7 (CAPIE 1.5, developer build)
 
-`CONTRACT.md` section 18, design and review in `docs/evidence/session-20261014/portrait-layer/`.
+`CONTRACT.md` section 18, design and review in [monorepo archive: docs/evidence/session-20261014/portrait-layer/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261014/portrait-layer).
 Built into `plugin/build/capie-v15-dev`.
 
 - `capie_core.dll` adds one hook: `ResolvePortrait` (139DF20), the function every GUI portrait
@@ -46,7 +46,7 @@ Built into `plugin/build/capie-v15-dev`.
 
 `features/host/host_probe.hpp` (read-only chain: application, session, backend, human list) and
 `features/host/host_pins.hpp` (5 signatures, 11 instruction pins, 1 RIP pin, 2 vtable slot pins),
-design in `docs/evidence/session-20261014/host-detect/report.txt`. Only the debug flavor of
+design in [monorepo archive: docs/evidence/session-20261014/host-detect/report.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261014/host-detect/report.txt). Only the debug flavor of
 `capie_editor.dll` checks the pins at start (`CAPIE_HOST probe on` or `off; pin <id>`) and logs one
 line per grammar Apply: `CAPIE_HOST probe would_be_host=yes|no|unreadable mode server backend
 machine humans own_entry own_is_host my_len host_len names=equal|different|unreadable record=none`.
@@ -55,7 +55,7 @@ No player names in the log, no `capie_host` record; the release flavor has no pr
 
 ## Country flag layer, API level 6 (CAPIE 1.4, developer build)
 
-`CONTRACT.md` section 17, design and review in `docs/evidence/session-20261014/flag-layer/`.
+`CONTRACT.md` section 17, design and review in [monorepo archive: docs/evidence/session-20261014/flag-layer/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261014/flag-layer).
 Built into `plugin/build/capie-v14-dev`.
 
 - `capie_core.dll` adds 3 hooks on the flag atlas path: `UpdateFlagAtlas` (123FE20) forces a
@@ -115,7 +115,7 @@ flag and colour stay the game's. On screen: layer > current cosmetic tag > base 
 .\plugin\capie\build.ps1 -MinHookDir 'C:\path\to\minhook' -OutputDirectory 'plugin\build\capie-v12-dev' -Console
 ```
 
-Evidence and design: `docs/evidence/session-20261013/custom-name-layer/`.
+Evidence and design: [monorepo archive: docs/evidence/session-20261013/custom-name-layer/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261013/custom-name-layer).
 
 ## Public contract, API level 2 (CAPIE 1.1)
 

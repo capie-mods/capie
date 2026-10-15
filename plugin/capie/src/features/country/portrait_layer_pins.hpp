@@ -2,7 +2,7 @@
  * @file portrait_layer_pins.hpp
  * @brief Code-byte pins of the leader portrait layer (`capie_core.dll`), checked before its hook goes live.
  *
- * Evidence: docs/evidence/session-20261014/portrait-layer/design.txt and review.txt. Pinned:
+ * Evidence: monorepo archive: docs/evidence/session-20261014/portrait-layer/design.txt and review.txt. Pinned:
  * - the hooked `ResolvePortrait` (139DF20) and its only caller B44490 (call at B44520, the
  *   character as the fifth argument, the caller's buffer, size 0 = small);
  * - inside 139DF20 the character argument and its id at +0xC;

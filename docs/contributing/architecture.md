@@ -25,7 +25,7 @@ SHA-256 `7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5`.
 | `docs/design/` | Design system and design tokens shared by every surface | Markdown, JSON |
 
 <figure markdown="span">
-  ![Three layers: mod scripts on top, CAPIE in the middle, the unmodified game at the bottom.](../assets/readme/architecture.svg)
+  ![Three layers: mod scripts on top, CAPIE in the middle, the unmodified game at the bottom.](https://github.com/capie-mods/capie-design/blob/main/docs/assets/readme/architecture.svg)
 </figure>
 
 The mod works without CAPIE for states, cities and characters. CAPIE adds what script cannot do:
@@ -80,7 +80,7 @@ closes that gap:
 
 Rename Anything's own editors use frozen private names (`rn_ip_*` models, `rn_native(b)_*`
 records). Other mods use the public grammar `capie_v1_ed__<mod>__<editor>` of
-[CONTRACT.md](../../plugin/capie/CONTRACT.md); the subject and faction editors of Rename Anything
+[CONTRACT.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT.md); the subject and faction editors of Rename Anything
 already use it.
 
 ## Country names: the name layer
@@ -153,7 +153,7 @@ composes everything.
 
 The release variant installs only the hooks it needs and writes no typed text or key logs; the
 debug variant adds diagnostics ([ADR-0021](../adr/0021-two-dlls-and-release-variant.md)). Details:
-[plugin/capie/README.md](../../plugin/capie/README.md).
+[plugin/capie/README.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/README.md).
 
 ## Multiplayer
 

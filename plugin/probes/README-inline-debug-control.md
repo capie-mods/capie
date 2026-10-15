@@ -69,4 +69,4 @@ Offline checks cover those branches only. No HOI4/controller runtime request has
 been accepted. Proposed build: Windows x64 C++20 `/MT /W4 /WX`, link `bcrypt.lib`.
 No build script, active native source, fixture, mod/config or accepted output is
 changed by this source candidate. Report:
-`docs/evidence/session-20261011/day2-inline-debug-control-review.txt`.
+[monorepo archive: docs/evidence/session-20261011/day2-inline-debug-control-review.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-inline-debug-control-review.txt).

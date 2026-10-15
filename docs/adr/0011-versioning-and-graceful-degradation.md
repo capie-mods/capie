@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-11
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), first list items 5 and 8
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), first list items 5 and 8
 
 ## Context
 
@@ -18,6 +18,6 @@ versions and may send data CAPIE does not expect.
 ## Consequences
 
 - Mods require a minimum API level (`capie_min_api`), never a release. The API level only goes up
-  and a level is never reused ([CONTRACT.md](../../plugin/capie/CONTRACT.md), section 1).
+  and a level is never reused ([CONTRACT.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT.md), section 1).
 - Malformed input is rejected and nothing changes (the SDK error codes in section 10 of the
   contract).

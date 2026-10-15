@@ -3,7 +3,7 @@
 - Status: Accepted. The developer build passed a joint single-player test on 2026-10-13; the
   commands are not in release builds yet.
 - Date: 2026-10-13
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Komendy konsoli CAPIE (2026-10-13)"
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Komendy konsoli CAPIE (2026-10-13)"
 
 ## Context
 
@@ -19,7 +19,7 @@ added to `plugin/capie/CONTRACT.md`.
 
 ## Consequences
 
-- The contract lives for now in [CONTRACT-console.md](../../plugin/capie/CONTRACT-console.md) and
+- The contract lives for now in [CONTRACT-console.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT-console.md) and
   will be merged into `CONTRACT.md`.
 - Since API level 4 the two name commands write the country name layer
   ([ADR-0028](0028-custom-name-layer.md)) instead of a cosmetic tag.

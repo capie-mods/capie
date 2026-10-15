@@ -2,7 +2,7 @@
 
 - Status: Accepted. Steps 1 and 2 are done; step 3 is in progress.
 - Date: 2026-10-11
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Kolejność prac do
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Kolejność prac do
   pierwszego wydania" and "Repozytoria (utworzone 2026-10-11)"
 
 ## Context

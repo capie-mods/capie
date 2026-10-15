@@ -5,7 +5,7 @@
   the playset switch the way CAPIE is switched on and keeps the proxy as the alternative if
   players find installation hard.
 - Date: 2026-10-12
-- Source: [distribution decision log](../evidence/decision-log/DISTRIBUTION-DECISIONS.md), decision 10 and its update
+- Source: [distribution decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/DISTRIBUTION-DECISIONS.md), decision 10 and its update
 
 ## Context
 

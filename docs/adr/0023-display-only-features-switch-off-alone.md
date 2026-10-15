@@ -2,7 +2,7 @@
 
 - Status: Accepted. Amends [ADR-0016](0016-game-updates-signature-scan.md).
 - Date: 2026-10-12
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Decyzje roadmapy funkcji CAPIE" item 2
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Decyzje roadmapy funkcji CAPIE" item 2
 
 ## Context
 
@@ -20,5 +20,5 @@ features that change game state and to the text transport.
 
 - The country name layer of CAPIE 1.2 uses this exception: its pins are checked separately from
   the localisation hooks, and when they fail the layer is off and Rename Anything refuses country
-  renames ([CONTRACT.md](../../plugin/capie/CONTRACT.md), section 14.4).
+  renames ([CONTRACT.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT.md), section 14.4).
 - Release notes must say which feature was switched off.

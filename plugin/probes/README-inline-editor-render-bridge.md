@@ -38,6 +38,6 @@ transport checks still pass. Menu/world-load without rebind remains unresolved.
 The existing 64px-border background on a 36px leader root is a separate GUI
 hypothesis and is not changed here. Multiplayer remains deferred.
 
-Native evidence and limits: `docs/evidence/session-20261011/day2-inline-editor-render-refresh-contract.txt`
+Native evidence and limits: [monorepo archive: docs/evidence/session-20261011/day2-inline-editor-render-refresh-contract.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-inline-editor-render-refresh-contract.txt)
 and `day2-inline-editor-render-refresh-raw.txt`. No visual result is promised by
 the offline source/byte checks.

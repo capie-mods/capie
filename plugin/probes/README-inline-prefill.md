@@ -2,7 +2,7 @@
 
 This is a **built, unactivated QA prototype**, separate from the country DLL,
 editor observer and command bridge. The prior static proof is
-[day2-native-inline-lifecycle-contract.txt](../../docs/evidence/session-20261011/day2-native-inline-lifecycle-contract.txt).
+[day2-native-inline-lifecycle-contract.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-native-inline-lifecycle-contract.txt).
 
 It supports only the unloaded probes/rn_in_place_ui manifest:
 

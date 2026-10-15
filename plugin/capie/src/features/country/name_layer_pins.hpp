@@ -8,7 +8,7 @@
  * is pinned here: 7 unique signatures, 12 instruction pins (offsets in the game's own
  * instructions) and 6 RIP/rel32 target pins (API level 5 added the faction name accessor
  * D8BB80, the string copy 11E010 and the faction member layout). Evidence:
- * `docs/evidence/session-20261013/custom-name-layer/report.txt`, section 1.
+ * monorepo archive: `docs/evidence/session-20261013/custom-name-layer/report.txt`, section 1.
  *
  * All-or-nothing for the layer only: one failed pin turns the layer off (its three hooks are
  * not installed) and is logged; the three localisation hooks and RN1 names keep working. This

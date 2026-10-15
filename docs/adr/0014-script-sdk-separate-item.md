@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-11
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Decyzje do architektury CAPIE" item 3
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Decyzje do architektury CAPIE" item 3
 
 ## Context
 
@@ -17,5 +17,5 @@ as a dependency, and lives in its own repository (`capie-script-sdk`) in the Git
 ## Consequences
 
 - Until the repository split it lives in `sdk/capie-script-sdk/`
-  ([README](../../sdk/capie-script-sdk/README.md)).
+  ([README](https://github.com/capie-mods/capie-script-sdk/blob/main/README.md)).
 - Rename Anything does not depend on the SDK for now ([ADR-0027](0027-subjects-without-sdk-dependency.md)).

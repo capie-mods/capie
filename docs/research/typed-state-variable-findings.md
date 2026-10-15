@@ -51,9 +51,9 @@ Generate this from the existing state-ID inventory, clear/reset the numeric ID b
 
 ## Evidence and next validation
 
-- [Targeted decompilation](../evidence/session-20261011/typed-state-variable-decompile.txt): state resolver, literal encoding, variable evaluation, comparison, existence, assignment, and expression parser.
-- [Raw Capstone](../evidence/session-20261011/typed-state-variable-capstone.txt): tagged state encoding, signed comparisons, special-name handling, and aligned parser excerpts.
-- [Function list](../evidence/session-20261011/typed-state-variable-functions.txt) and [read-only Ghidra logs](../evidence/session-20261011/typed-state-variable-ghidra.log).
+- [Targeted decompilation](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/typed-state-variable-decompile.txt): state resolver, literal encoding, variable evaluation, comparison, existence, assignment, and expression parser.
+- [Raw Capstone](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/typed-state-variable-capstone.txt): tagged state encoding, signed comparisons, special-name handling, and aligned parser excerpts.
+- [Function list](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/typed-state-variable-functions.txt) and [read-only Ghidra logs](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/typed-state-variable-ghidra.log).
 
 Next validation: select Danzig through the States list and the state-panel shortcut, verify the selected state's name and VP list, select a state from another numeric bucket, then a state without VPs. Confirm deselection clears both reference and numeric lookup state. Do not claim the candidate Cities fix passed until these paths are observed in the game.
 
@@ -61,13 +61,13 @@ Next validation: select Danzig through the States list and the state-panel short
 
 Commit `cc9791d` implemented the literal dispatch above for all 1081 vanilla states,
 including 126 without VPs, while retaining the typed state for ownership and scope
-access. [Static mappings and negative fixtures](../evidence/session-20261011/city-state-literal-mapping-checks.json)
+access. [Static mappings and negative fixtures](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/city-state-literal-mapping-checks.json)
 passed; the old `THIS.id` converter was removed.
 
 Independent fresh POL 1936/PL QA then selected Gdańsk (85), renamed VP 362 to
 "Nowy Gdańsk", and observed the actual map label and native province panel. The
 map helper also selected Gdynia (807) and showed its three VPs, exercising another
-numeric bucket. [City evidence](../evidence/qa-20261011-day2/05-city-apply-map-nowy-gdansk.jpg),
-[helper list](../evidence/qa-20261011-day2/07-map-helper-cities-gdynia.jpg).
+numeric bucket. [City evidence](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/qa-20261011-day2/05-city-apply-map-nowy-gdansk.jpg),
+[helper list](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/qa-20261011-day2/07-map-helper-cities-gdynia.jpg).
 Evidence commit: `4f4c5ad`. This verifies the repaired selection and Apply paths;
 zero-VP UI, complete guard coverage and final save/load remain separate checks.

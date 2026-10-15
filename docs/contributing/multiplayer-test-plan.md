@@ -1,6 +1,6 @@
 # Multiplayer test plan
 
-Plan for a multiplayer test of Rename Anything, based on reading the installation files and static analysis of the pinned `hoi4.exe` 1.19.3.0. Investigation date: 2026-10-11. Original notes (Polish): [../evidence/research/mp-test-plan.md](../evidence/research/mp-test-plan.md).
+Plan for a multiplayer test of Rename Anything, based on reading the installation files and static analysis of the pinned `hoi4.exe` 1.19.3.0. Investigation date: 2026-10-11. Original notes (Polish): [monorepo archive: docs/evidence/research/mp-test-plan.md](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/research/mp-test-plan.md).
 
 **Multiplayer has not been tested.** No second instance was started, and no user configuration or game file was changed. Rename Anything makes no claim of multiplayer compatibility. This plan is not evidence that multiplayer works.
 

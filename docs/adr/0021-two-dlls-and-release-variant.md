@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-12
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Decyzje etapu 2 (2026-10-12)"
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Decyzje etapu 2 (2026-10-12)"
 
 ## Context
 

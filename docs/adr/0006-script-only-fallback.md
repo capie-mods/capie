@@ -2,8 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-10-11
-- Source: [distribution decision log](../evidence/decision-log/DISTRIBUTION-DECISIONS.md), decision 5;
-  [API decision log](../evidence/decision-log/API-DECISIONS.md), first list, item 3
+- Source: [distribution decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/DISTRIBUTION-DECISIONS.md), decision 5;
+  [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), first list, item 3
 
 ## Context
 

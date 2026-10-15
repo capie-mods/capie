@@ -15,8 +15,8 @@ image base `0x140000000`, and function names are analyst labels, not recovered s
 | [workshop-native-code.md](workshop-native-code.md) | Steam Workshop and native DLLs: policy, precedents, risks |
 
 Each document says what was observed statically, what was observed in the game, and what is still
-open. Raw evidence (decompilations, logs, screenshots) is in [`../evidence/`](../evidence/README.md).
+open. Raw evidence (decompilations, logs, screenshots) is in [[monorepo archive: docs/evidence](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence)](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/README.md).
 
 The first research stage (prior art, script reconnaissance, two probe mods) and a review of an
 unrelated globe-rendering mod are archived in Polish under
-[`../evidence/research/`](../evidence/research/).
+[[monorepo archive: docs/evidence/research](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/research)](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/research).

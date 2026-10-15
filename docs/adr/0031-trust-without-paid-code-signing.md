@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-14
-- Source: [distribution decision log](../evidence/decision-log/DISTRIBUTION-DECISIONS.md),
+- Source: [distribution decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/DISTRIBUTION-DECISIONS.md),
   "2026-10-14 — podpis plików"
 
 ## Context

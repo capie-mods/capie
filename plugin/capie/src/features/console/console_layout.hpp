@@ -2,7 +2,7 @@
  * @file console_layout.hpp
  * @brief Byte layouts of the game's console objects (HOI4 1.19.3.0, SHA 7DC947BE...).
  *
- * Every offset is proven by one instruction in `docs/evidence/session-20261011/
+ * Every offset is proven by one instruction in monorepo archive: `docs/evidence/session-20261011/
  * claude-console/re-evidence.md` (sections 1 to 3; `raw/console_audit.txt` checks them):
  *
  *     console (singleton at image + 0x35E1A80)

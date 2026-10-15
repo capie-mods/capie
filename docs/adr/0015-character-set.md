@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-11, refined 2026-10-12 and 2026-10-13
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Decyzje do architektury
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Decyzje do architektury
   CAPIE" item 5; "Decyzje roadmapy funkcji CAPIE" item 3; "2026-10-13 — podmioty i stary edytor"
   third bullet
 
@@ -23,7 +23,7 @@ letters. Players of other languages want accents, umlauts and Cyrillic.
 
 ## Consequences
 
-- The public alphabet (codes 1..264) is in [CONTRACT.md](../../plugin/capie/CONTRACT.md),
+- The public alphabet (codes 1..264) is in [CONTRACT.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT.md),
   section 7. Rename Anything uses its private 84-code alphabet until it moves onto the public
-  contract ([MIGRATION.md](../../sdk/capie-script-sdk/MIGRATION.md)).
+  contract ([MIGRATION.md](https://github.com/capie-mods/capie-script-sdk/blob/main/MIGRATION.md)).
 - Typing and drawing extended Latin letters still needs an in-game test (contract section 13).

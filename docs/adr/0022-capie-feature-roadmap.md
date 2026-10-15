@@ -3,9 +3,9 @@
 - Status: Accepted. v1.1 is implemented; the portrait work planned for v1.2 has not started, and
   v1.2 shipped the country name layer first ([ADR-0028](0028-custom-name-layer.md)).
 - Date: 2026-10-12
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Decyzje roadmapy funkcji
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Decyzje roadmapy funkcji
   CAPIE (2026-10-12, po api-gap-analysis.md)" items 1, 4 and 5
-- Background: API gap analysis in `docs/evidence/session-20261011/claude-api-gaps/`
+- Background: API gap analysis in [monorepo archive: docs/evidence/session-20261011/claude-api-gaps/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261011/claude-api-gaps)
 
 ## Context
 
@@ -29,4 +29,4 @@ Display-only features got their own rule on the same day: [ADR-0023](0023-displa
 
 ## Consequences
 
-- The alternatives page of the CAPIE site exists ([alternatives](../../sites/capie/docs/alternatives.md)).
+- The alternatives page of the CAPIE site exists ([alternatives](https://github.com/capie-mods/capie/blob/main/sites/capie/docs/alternatives.md)).

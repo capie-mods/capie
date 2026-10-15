@@ -36,7 +36,7 @@ clears scalar readiness/pending state, resets its observed epoch and advances
 generation before the next visible tick. No widget pointer is cached. The
 verified native callers include both fresh construction and destroy/rebind;
 the 52-byte B86320 prefix has one match in the pinned EXE. Evidence is in
-`docs/evidence/session-20261011/day2-inline-bind-raw-*` and
+[monorepo archive: docs/evidence/session-20261011/day2-inline-bind-raw-*](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261011) and
 `day2-inline-bind-lifecycle-proposal.txt`.
 
 **World load without a rebind remains unproved.** A saved script epoch is not a
@@ -139,4 +139,4 @@ eight fingerprints uniquely at their exact RVAs in the pinned EXE.
 DLL SHA256 `ED5F9B243F26E2FF5C105021DB2D9A4F5EC5BF2A613B0ED79DD9088EE9170ED5`;
 injector `657A68B091DFCBA5BAA3A1E3CDEFB3BF262754953F3DB6DE1C71C73830A3586E`.
 Not yet injected; build is not runtime acceptance. Metadata is retained in
-`docs/evidence/session-20261011/day2-inline-leader-lifecycle-build-review.json`.
+[monorepo archive: docs/evidence/session-20261011/day2-inline-leader-lifecycle-build-review.json](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-inline-leader-lifecycle-build-review.json).

@@ -2,7 +2,7 @@
 
 The distribution decisions are recorded as [architecture decision records](adr/README.md). The
 original log is archived unchanged (in Polish) in
-[evidence/decision-log/DISTRIBUTION-DECISIONS.md](evidence/decision-log/DISTRIBUTION-DECISIONS.md).
+[monorepo archive: docs/evidence/decision-log/DISTRIBUTION-DECISIONS.md](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/DISTRIBUTION-DECISIONS.md).
 
 | Original number | Record |
 |---|---|

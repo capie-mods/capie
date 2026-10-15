@@ -2,7 +2,7 @@
 
 - Status: Accepted, implemented in stage 2
 - Date: 2026-10-11
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Etap 2 — wymagania jakości kodu C++"
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Etap 2 — wymagania jakości kodu C++"
 
 ## Context
 
@@ -26,6 +26,6 @@ passes, then an independent review and a full in-game test follow.
 
 ## Consequences
 
-- The result is `plugin/capie/` ([README](../../plugin/capie/README.md)). Stage 2 passed review,
+- The result is `plugin/capie/` ([README](https://github.com/capie-mods/capie/blob/main/plugin/capie/README.md)). Stage 2 passed review,
   clang-tidy and clang-format with zero findings, and the in-game test in release and debug
   variants ([in-game test record](../contributing/in-game-test-record.md)).

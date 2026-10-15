@@ -1,6 +1,6 @@
 """Proves the CAPIE status localisation contract (R5-MINOR-2) offline, without the game.
 
-1. Applies docs/evidence/.../gen-py-capie-status.patch to a temporary copy of tools/gen.py (from HEAD)
+1. Applies monorepo archive: docs/evidence/.../gen-py-capie-status.patch to a temporary copy of tools/gen.py (from HEAD)
    and reads the four localisation entries with ast (no generator run, no game files).
 2. Models the engine: every key lookup is first offered to the country DLL (the hooks sit on the
    lookup functions), then the yml value is used and $KEY$ references are expanded recursively.

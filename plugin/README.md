@@ -107,7 +107,7 @@ longer need it. Nothing in the game installation needs repairing.
 For a guarded observation run, with Python and Frida installed:
 
 ```powershell
-python plugin/tools/observe.py --pid 12345 --seconds 120 --out docs/evidence/observe.log
+python plugin/tools/observe.py --pid 12345 --seconds 120 --out observe.log
 ```
 
 The host verifies the exact image hash before it attaches, and `verify.js` refuses moved or

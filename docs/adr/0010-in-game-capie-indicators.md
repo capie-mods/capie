@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-11
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), first list items 1, 3
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), first list items 1, 3
   and 7; "Decyzje do architektury CAPIE" item 4
 
 ## Context
@@ -21,6 +21,6 @@ sees features silently not working, and a save played without CAPIE shows origin
 
 ## Consequences
 
-- The look and wording are specified in [DESIGN-SYSTEM.md](../design/DESIGN-SYSTEM.md)
+- The look and wording are specified in [DESIGN-SYSTEM.md](https://github.com/capie-mods/capie-design/blob/main/docs/design/DESIGN-SYSTEM.md)
   ("CAPIE missing indicator in a campaign" and "main-menu indicator"). Both are planned.
 - The status localisation keys (`CAPIE_STATUS` and related) are part of the script contract.

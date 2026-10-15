@@ -1,6 +1,6 @@
 # Steam Workshop and native code
 
-Research on whether Steam Workshop can distribute a native DLL for a HOI4 mod, what the current platform rules say, and how comparable projects install native components. Applies to HOI4 1.19.3.0 and the Rename Anything native component. Research date: 2026-10-11 (Europe/Warsaw). Original notes (Polish): [../evidence/research/workshop-native-research.md](../evidence/research/workshop-native-research.md).
+Research on whether Steam Workshop can distribute a native DLL for a HOI4 mod, what the current platform rules say, and how comparable projects install native components. Applies to HOI4 1.19.3.0 and the Rename Anything native component. Research date: 2026-10-11 (Europe/Warsaw). Original notes (Polish): [monorepo archive: docs/evidence/research/workshop-native-research.md](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/research/workshop-native-research.md).
 
 All browsing used gstack `/browse` in a headless browser. No upload took place, no third-party library was installed, and the game was not touched. The sections below keep findings from sources separate from the conclusions drawn for Rename Anything.
 

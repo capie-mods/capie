@@ -71,6 +71,6 @@ Menu/load, czas wywołania na UI thread oraz reentrancy natywnych observerów
 pozostają do testów. Enter ma osobny etap; ten wariant go nie zmienia.
 
 Primary dowody ABI i granic:
-`docs/evidence/session-20261011/day2-native-focus-selection-proposal.txt`
+[monorepo archive: docs/evidence/session-20261011/day2-native-focus-selection-proposal.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-native-focus-selection-proposal.txt)
 oraz `day2-native-focus-selection-raw.txt`. Końcowe hashe i wyniki offline:
-`docs/evidence/session-20261011/day2-inline-editor-focus-candidate.json`.
+[monorepo archive: docs/evidence/session-20261011/day2-inline-editor-focus-candidate.json](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-inline-editor-focus-candidate.json).

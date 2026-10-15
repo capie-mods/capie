@@ -3,7 +3,7 @@
 - Status: Accepted. Amended by [ADR-0023](0023-display-only-features-switch-off-alone.md) for
   features that only change what is displayed.
 - Date: 2026-10-11
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "Decyzje do architektury CAPIE" item 10
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "Decyzje do architektury CAPIE" item 10
 
 ## Context
 

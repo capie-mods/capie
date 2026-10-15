@@ -3,11 +3,11 @@
 - Status: Accepted. The design and its independent review exist; implementation was approved on
   2026-10-14 and has not landed yet.
 - Date: 2026-10-14
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "2026-10-14 —
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "2026-10-14 —
   uprawnienia, frakcje, eventy, flagi", fourth bullet; "2026-10-14 — flagi"; "2026-10-14 —
   rozpoznawanie hosta", second bullet
-- Design: [design.txt](../evidence/session-20261014/flag-layer/design.txt), independent review:
-  [review.txt](../evidence/session-20261014/flag-layer/review.txt)
+- Design: [design.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261014/flag-layer/design.txt), independent review:
+  [review.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261014/flag-layer/review.txt)
 
 ## Context
 

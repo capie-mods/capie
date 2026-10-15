@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-13
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "2026-10-13 — podmioty i
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "2026-10-13 — podmioty i
   stary edytor na CAPIE", first and second bullets
 
 ## Context

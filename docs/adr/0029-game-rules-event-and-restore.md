@@ -2,7 +2,7 @@
 
 - Status: Accepted. Script implemented; not yet tested in the game.
 - Date: 2026-10-14
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), "2026-10-14 —
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), "2026-10-14 —
   uprawnienia, frakcje, eventy, flagi", first three bullets
 
 ## Context
@@ -32,7 +32,7 @@ renamed country should also be noticed by other players if they want that.
 - The game has no host trigger. In single player the player is the host; in multiplayer the host
   needs a record from CAPIE (`capie_host`). It was requested for API level 5, and CAPIE 1.3 does
   not send it, because what marks the host could not be established without a runtime test
-  ([CONTRACT.md](../../plugin/capie/CONTRACT.md), section 16). How the host will be recognised is
+  ([CONTRACT.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT.md), section 16). How the host will be recognised is
   decided in [ADR-0033](0033-host-recognition.md). Until then option 2 works in single player only.
 - The old name in the event title needs a CAPIE record of the displayed name (`capie_pf1_*`).
   Without it the title falls back to the previous player-given name or to a title without the old

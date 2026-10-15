@@ -57,4 +57,4 @@ and all32 slots in five lines for runtime validation. Its commit effect only
 logs, so observer and initial bridge tests cannot rename an object. Do not
 mistake compilation or static proofs for a passing
 transport test. See `day2-native-command-contract.txt`, decompile and assembly in
-`docs/evidence/session-20261011` for native ABI/ownership proof and its boundaries.
+[monorepo archive: docs/evidence/session-20261011](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261011) for native ABI/ownership proof and its boundaries.

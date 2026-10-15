@@ -75,8 +75,8 @@ TB z false predicate/focus/readiness pokazuje odrzucony warunek. Brak obu
 rekordów nie dowodzi problemu SDL/OS. Logger nie zalicza Enter→Apply, rename,
 target safety, menu/load, multiplayer ani działania native focus/select-all.
 
-Kontrakt/propozycja: `docs/evidence/session-20261011/day2-enter-producer-logger-proposal.txt`.
+Kontrakt/propozycja: [monorepo archive: docs/evidence/session-20261011/day2-enter-producer-logger-proposal.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-enter-producer-logger-proposal.txt).
 Wyniki, hashe i granice:
-`docs/evidence/session-20261011/day2-inline-editor-key-logger-candidate.json`.
+[monorepo archive: docs/evidence/session-20261011/day2-inline-editor-key-logger-candidate.json](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-inline-editor-key-logger-candidate.json).
 Zachowany compiler ASM forward:
-`docs/evidence/session-20261011/day2-inline-editor-key-logger-forward-asm.txt`.
+[monorepo archive: docs/evidence/session-20261011/day2-inline-editor-key-logger-forward-asm.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-inline-editor-key-logger-forward-asm.txt).

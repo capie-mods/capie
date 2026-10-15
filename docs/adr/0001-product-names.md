@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-11
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), section "Nazewnictwo (2026-10-11)"
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), section "Nazewnictwo (2026-10-11)"
 
 ## Context
 
@@ -28,4 +28,4 @@ keys. One name for both would tie the library to a single mod.
 - Until the rename stage, current builds carry legacy file names, and documents that mention
   them say so.
 - The design system treats the two as one family with two names
-  ([DESIGN-SYSTEM.md](../design/DESIGN-SYSTEM.md), "Two names, one system").
+  ([DESIGN-SYSTEM.md](https://github.com/capie-mods/capie-design/blob/main/docs/design/DESIGN-SYSTEM.md), "Two names, one system").

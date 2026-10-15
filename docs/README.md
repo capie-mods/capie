@@ -6,23 +6,23 @@ Start with the [README](../README.md) for what the project is and what works tod
 
 The player guides live on the two documentation sites, whose sources are in `sites/`:
 
-- Rename Anything: [overview](../sites/rename-anything/docs/index.md),
-  [how to use](../sites/rename-anything/docs/how-to-use.md),
-  [install](../sites/rename-anything/docs/install.md),
-  [known issues](../sites/rename-anything/docs/known-issues.md),
-  [FAQ](../sites/rename-anything/docs/faq.md). Polish:
-  [po polsku](../sites/rename-anything/docs/pl/index.md).
-- CAPIE: [overview](../sites/capie/docs/index.md), [safety](../sites/capie/docs/safety.md),
-  [install](../sites/capie/docs/install.md), [multiplayer](../sites/capie/docs/multiplayer.md),
-  [FAQ](../sites/capie/docs/faq.md).
+- Rename Anything: [overview](https://github.com/capie-mods/rename-anything/blob/main/sites/rename-anything/docs/index.md),
+  [how to use](https://github.com/capie-mods/rename-anything/blob/main/sites/rename-anything/docs/how-to-use.md),
+  [install](https://github.com/capie-mods/rename-anything/blob/main/sites/rename-anything/docs/install.md),
+  [known issues](https://github.com/capie-mods/rename-anything/blob/main/sites/rename-anything/docs/known-issues.md),
+  [FAQ](https://github.com/capie-mods/rename-anything/blob/main/sites/rename-anything/docs/faq.md). Polish:
+  [po polsku](https://github.com/capie-mods/rename-anything/blob/main/sites/rename-anything/docs/pl/index.md).
+- CAPIE: [overview](https://github.com/capie-mods/capie/blob/main/sites/capie/docs/index.md), [safety](https://github.com/capie-mods/capie/blob/main/sites/capie/docs/safety.md),
+  [install](https://github.com/capie-mods/capie/blob/main/sites/capie/docs/install.md), [multiplayer](https://github.com/capie-mods/capie/blob/main/sites/capie/docs/multiplayer.md),
+  [FAQ](https://github.com/capie-mods/capie/blob/main/sites/capie/docs/faq.md).
 
 ## Modders
 
-- [CAPIE script contract](../plugin/capie/CONTRACT.md): the versioned contract (API level 7) and
-  [the console part](../plugin/capie/CONTRACT-console.md).
-- [CAPIE script SDK](../sdk/capie-script-sdk/README.md), with demo mods in
+- [CAPIE script contract](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT.md): the versioned contract (API level 7) and
+  [the console part](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT-console.md).
+- [CAPIE script SDK](https://github.com/capie-mods/capie-script-sdk/blob/main/README.md), with demo mods in
   `sdk/capie-script-sdk/examples/`.
-- The modder guide on the CAPIE site: [for modders](../sites/capie/docs/modders/index.md).
+- The modder guide on the CAPIE site: [for modders](https://github.com/capie-mods/capie/blob/main/sites/capie/docs/modders/index.md).
 
 ## Contributors
 
@@ -36,16 +36,16 @@ The player guides live on the two documentation sites, whose sources are in `sit
 - [Release script](contributing/release-script.md): local build, GitHub release, VirusTotal and
   Steam Workshop upload with `tools/release/release.py`.
 - [Proxy loader](contributing/proxy-loader.md) and [multiplayer test plan](contributing/multiplayer-test-plan.md).
-- [CAPIE native code](../plugin/capie/README.md), [installer](../tools/bootstrap/README.md),
-  [deployment notes](../plugin/capie/deploy/DEPLOYMENT.md).
-- [Design system](design/DESIGN-SYSTEM.md) and its [tokens](design/tokens.json): the colours,
+- [CAPIE native code](https://github.com/capie-mods/capie/blob/main/plugin/capie/README.md), [installer](https://github.com/capie-mods/capie/blob/main/tools/bootstrap/README.md),
+  [deployment notes](https://github.com/capie-mods/capie/blob/main/plugin/capie/deploy/DEPLOYMENT.md).
+- [Design system](https://github.com/capie-mods/capie-design/blob/main/docs/design/DESIGN-SYSTEM.md) and its [tokens](design/tokens.json): the colours,
   type and rules shared by the game UI, diagrams, sites, launcher and CLI.
 
 ## Decisions and research
 
 - [Architecture decision records](adr/README.md). The old numbered decision lists map to them in
-  [API-DECISIONS.md](API-DECISIONS.md) and [DISTRIBUTION-DECISIONS.md](DISTRIBUTION-DECISIONS.md).
+  [API-DECISIONS.md](API-DECISIONS.md) and [DISTRIBUTION-DECISIONS.md](https://github.com/capie-mods/capie/blob/main/docs/DISTRIBUTION-DECISIONS.md).
 - [Research](research/README.md): how HOI4 1.19.3.0 handles names, worked out by reverse
   engineering, and a study of native DLLs on the Steam Workshop (policy, precedents, risks).
-- [Evidence archive](evidence/README.md): raw logs, screenshots, run notes and the original
+- [Evidence archive](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/README.md): raw logs, screenshots, run notes and the original
   session notes behind the documents above.

@@ -96,6 +96,6 @@ budżetów i statusów; poniższe wymaga osobnego źródła, review i procesu QA
    forwarding, race-safe ring i brak side effects na target/buffer/Apply.
 
 Wynik i finalne hashe:
-`docs/evidence/session-20261011/day2-inline-editor-key-logger-v2-candidate.json`.
+[monorepo archive: docs/evidence/session-20261011/day2-inline-editor-key-logger-v2-candidate.json](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-inline-editor-key-logger-v2-candidate.json).
 Actual MSVC forwarding ASM:
-`docs/evidence/session-20261011/day2-inline-editor-key-logger-v2-forward-asm.txt`.
+[monorepo archive: docs/evidence/session-20261011/day2-inline-editor-key-logger-v2-forward-asm.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-inline-editor-key-logger-v2-forward-asm.txt).

@@ -3,7 +3,7 @@
 - Status: Accepted. Extended by [ADR-0030](0030-installation-paths-and-playset-switch.md)
   (terminal UI and a GitHub Releases installer).
 - Date: 2026-10-11
-- Source: [distribution decision log](../evidence/decision-log/DISTRIBUTION-DECISIONS.md), decision 8
+- Source: [distribution decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/DISTRIBUTION-DECISIONS.md), decision 8
 
 ## Context
 
@@ -22,7 +22,7 @@ It also has an uninstall mode that reverts what it did.
 
 ## Consequences
 
-- The bootstrap lives in `tools/bootstrap/` ([README](../../tools/bootstrap/README.md)). It refuses
+- The bootstrap lives in `tools/bootstrap/` ([README](https://github.com/capie-mods/capie/blob/main/tools/bootstrap/README.md)). It refuses
   to install until a real release exists, because the release URL, ZIP hash and signing key are
   placeholders.
 - Its output follows the CLI pattern of the design system (`OK`, `ASK`, `SKIP`, `NOTE`, `FAIL`).

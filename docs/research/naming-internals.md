@@ -1,6 +1,6 @@
 # HOI4 naming internals
 
-Reverse-engineering reference for `hoi4.exe` 1.19.3.0 (Windows x64): how the game stores, localises, saves and refreshes country, character and state names, and how the edit box and the command queue work. Investigation date: 2026-10-11. Original notes (Polish): [../evidence/research/naming-internals.md](../evidence/research/naming-internals.md).
+Reverse-engineering reference for `hoi4.exe` 1.19.3.0 (Windows x64): how the game stores, localises, saves and refreshes country, character and state names, and how the edit box and the command queue work. Investigation date: 2026-10-11. Original notes (Polish): [monorepo archive: docs/evidence/research/naming-internals.md](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/research/naming-internals.md).
 
 ## 0. Build, method and conventions
 
@@ -17,7 +17,7 @@ Method:
 - A Python toolkit (pefile, capstone, numpy) provided function boundaries from `.pdata`, MSVC RTTI (18 956 types, class names and vtables resolved through the Complete Object Locator), RIP-relative xrefs, E8/E9 calls, source file paths from assertions, and the lexer token table (10 761 id-to-string pairs).
 - Ghidra 12.1.4 headless: import without auto-analysis, then decompilation of selected functions.
 - Signatures: bytes from the start of the function, with wildcards on RIP-relative disp32 and on call/jmp/jcc rel32. A script checked each one as the only match in `.text` at the expected RVA. Full list: [naming-signatures.json](naming-signatures.json).
-- Observation script for Frida (only `Interceptor.attach` and memory reads): [plugin/tools/verify.js](../../plugin/tools/verify.js).
+- Observation script for Frida (only `Interceptor.attach` and memory reads): [plugin/tools/verify.js](https://github.com/capie-mods/capie/blob/main/plugin/tools/verify.js).
 
 Evidence tags:
 
@@ -76,7 +76,7 @@ Globals (CONFIRMED-STATIC, RIP-relative reads in the listed functions):
 
 The only readers of `0x35BA038` are functions in the range 0x239A1C0..0x23A24E6 (module `clausewitz\pdx_localize`, 65 xrefs).
 
-Correction to the first Ghidra reading (2026-10-11): `LookupKeyN` and `LookupKeyZ` compute the hash and tail-jump to `PdxLoc_FindByHash` (N: `0x239EE6A`, Z: `0x239ED88`). Ghidra placed the body of the tail-jump target into the pseudocode of both wrappers. Their own instructions do not contain an inlined search. `KeyExists` makes an ordinary call to `FindByHash`. The wrapper `0x2244840` passes the first pointer of a string_view pair to `KeyExists`. Deciding evidence: [raw Capstone for N/Z/Exists/FindByHash and the consumer](../evidence/session-20261011/localization-abi-capstone.txt).
+Correction to the first Ghidra reading (2026-10-11): `LookupKeyN` and `LookupKeyZ` compute the hash and tail-jump to `PdxLoc_FindByHash` (N: `0x239EE6A`, Z: `0x239ED88`). Ghidra placed the body of the tail-jump target into the pseudocode of both wrappers. Their own instructions do not contain an inlined search. `KeyExists` makes an ordinary call to `FindByHash`. The wrapper `0x2244840` passes the first pointer of a string_view pair to `KeyExists`. Deciding evidence: [raw Capstone for N/Z/Exists/FindByHash and the consumer](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/localization-abi-capstone.txt).
 
 ### 1.3 Structures (CONFIRMED-STATIC, from decompiling 0x239ED90, 0x239C290, 0x239E120, 0x239BA30)
 
@@ -153,9 +153,9 @@ Note: `PdxLoc_FindByHash` is a leaf with no prologue (`movsxd rax,[rcx+0x2C]; mo
  [GER.GetName] -> CountryText_GetProperty (0x1A8E6B0) returns c+0x10 etc.
 ```
 
-Loading uses a separate path, `CCountry::Read` (`0x705CE0`). The `cosmetic_tag` token goes into `c+0x1488` without a direct call to the setter or to `UpdateNames` in that case. [Fresh decompilation](../evidence/session-20261011/country-save-decompile.txt).
+Loading uses a separate path, `CCountry::Read` (`0x705CE0`). The `cosmetic_tag` token goes into `c+0x1488` without a direct call to the setter or to `UpdateNames` in that case. [Fresh decompilation](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/country-save-decompile.txt).
 
-The full load cycle with the DLL active works live. After a full restart (PID42732) the map, diplomacy and tooltip kept `qaąęłż` without a new Apply, and the panel kept `testowy`. [Map](../evidence/qa-20261011/16-pl-load-country-map.jpg), [fields](../evidence/qa-20261011/17-pl-load-country-fields.jpg), [diplomacy and tooltip](../evidence/qa-20261011/18-pl-load-diplomacy-tooltip.jpg). The exact order of the functions that refresh the cache after reading has not been traced.
+The full load cycle with the DLL active works live. After a full restart (PID42732) the map, diplomacy and tooltip kept `qaąęłż` without a new Apply, and the panel kept `testowy`. [Map](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/qa-20261011/16-pl-load-country-map.jpg), [fields](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/qa-20261011/17-pl-load-country-fields.jpg), [diplomacy and tooltip](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/qa-20261011/18-pl-load-diplomacy-tooltip.jpg). The exact order of the functions that refresh the cache after reading has not been traced.
 
 ### 2.2 `CCountry` fields (RTTI `.?AVCCountry@@`, vtable 0x27E7360)
 
@@ -290,7 +290,7 @@ void CCountry_SetCosmeticTag(CCountry* c, const std::string* tag) {   // 0x71126
 | CCharacter | `0xFA6520` / `0xFA50B0` | `name` (0x1B) | `+0x48` | key or literal text | CONFIRMED-STATIC |
 | CCountry | `0x7191B0` / `0x705CE0` (case 0x372F) | `cosmetic_tag` (0x372F) | `+0x1488` | any string | CONFIRMED-STATIC |
 
-A second Ghidra decompilation (2026-10-11) confirms that `0x7191B0` writes through `Writer_WriteString(writer,0x372F,country+0x1488,0)` and that case `0x372F` of `0x705CE0` reads into the same field. The setter `0x711260` passes the full std::string size to the assignment, and these functions show no length limit on the cosmetic tag. Limits of the generic reader/writer were not established in this pass. Evidence: [country-save-decompile.txt](../evidence/session-20261011/country-save-decompile.txt).
+A second Ghidra decompilation (2026-10-11) confirms that `0x7191B0` writes through `Writer_WriteString(writer,0x372F,country+0x1488,0)` and that case `0x372F` of `0x705CE0` reads into the same field. The setter `0x711260` passes the full std::string size to the assignment, and these functions show no length limit on the cosmetic tag. Limits of the generic reader/writer were not established in this pass. Evidence: [country-save-decompile.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/country-save-decompile.txt).
 
 After reading `cosmetic_tag`, the game refreshes the flag and calls `IngameIface_OnCountryNameChanged` [CONFIRMED-STATIC]. **The reader case does not call `UpdateNames` directly.** An earlier analysis found 16 callers of `UpdateNames` (including country initialisation). A later bounded scan of direct E8 calls found 12 call sites in 11 `.pdata` function ranges; it does not cover tail jumps or indirect calls. That `UpdateNames` runs for every country after load: HYPOTHESIS.
 
@@ -332,7 +332,7 @@ Conclusion: literal names survive save/load natively for states (`name`), charac
 
 The earlier candidate `0x22BC600`, used for the vanilla `state_name`, looks up an instantTextboxType, not a CEditBox. The list at +0x11E0 and the null object at +0x1E0 confirm this; the earlier analyst alias was not evidence of the type. The correct lookup 0x22BAD40 returns the null object at +0x1D8, consistent with the CNullEditBox constructor 0x2378440.
 
-Reading UTF-32 from `CEditBox+0x80+0x30` and the correct lookup now have a static contract. A separate log-only observer checks the model name, the vtables and memory readability; it does not cache the widget. Actual typing and live reading are still pending. See the [trial contract](../evidence/session-20261011/day2-native-editor-contract.txt).
+Reading UTF-32 from `CEditBox+0x80+0x30` and the correct lookup now have a static contract. A separate log-only observer checks the model name, the vtables and memory readability; it does not cache the widget. Actual typing and live reading are still pending. See the [trial contract](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-native-editor-contract.txt).
 
 ### 6.3 Network commands
 
@@ -358,7 +358,7 @@ The native country cache exposes the name, the definite form and the adjective. 
 
 ## 7. Recommended hook points
 
-The order follows the robustness-to-effort ranking from an earlier pass. All 42 signatures were rechecked as unique in `.text` of the pinned build ([naming-signatures.json](naming-signatures.json), [scan result](../evidence/session-20261011/signature-verification.json)). The implemented component uses the three localisation wrappers, not recommendation #1 in the table below. The three entry points and the hook installation are confirmed live; the other addresses remain static only.
+The order follows the robustness-to-effort ranking from an earlier pass. All 42 signatures were rechecked as unique in `.text` of the pinned build ([naming-signatures.json](naming-signatures.json), [scan result](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/signature-verification.json)). The implemented component uses the three localisation wrappers, not recommendation #1 in the table below. The three entry points and the hook installation are confirmed live; the other addresses remain static only.
 
 | # | Function (RVA) | Use | Signature | Confidence |
 |---|---|---|---|---|
@@ -394,15 +394,15 @@ Live verification: `python plugin/tools/observe.py --pid PID --seconds 120 --out
 
 `rn_sel_state = PREV` stores a typed State reference, not a plain number. Evaluator `0x543EE0` encodes it as `state_id | 0xFFFFFFFFC0000000`, while the number parser `0x546530` encodes the literal 85 as `8500000`. `CCheckVariable` (`0x3D0BB0`) compares the raw signed values, so the reference to Gdańsk (state 85) satisfies neither `> 0` nor `= 85`. `THIS.id` is not a confirmed converter to a plain number. [Analysis and raw evidence](typed-state-variable-findings.md).
 
-Commit `cc9791d` keeps the typed reference for `var:` and arrays. Inside its scope, it matches `state = ID` and writes a separate literal to `ROOT.rn_sel_state_id`. The same dispatch loads VPs for all 1081 states, including the 126 without VPs. [Mappings and negative checker fixtures](../evidence/session-20261011/city-state-literal-mapping-checks.json) confirm, among others, 85->362, 10->3544/402 and state 72 without VPs; they are static evidence.
+Commit `cc9791d` keeps the typed reference for `var:` and arrays. Inside its scope, it matches `state = ID` and writes a separate literal to `ROOT.rn_sel_state_id`. The same dispatch loads VPs for all 1081 states, including the 126 without VPs. [Mappings and negative checker fixtures](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/city-state-literal-mapping-checks.json) confirm, among others, 85->362, 10->3544/402 and state 72 without VPs; they are static evidence.
 
-Runtime behaviour of the city and its save is a separate matter. In `4f4c5ad` "Nowy Gdańsk" was observed for VP 362, and `bd96572` records a PASS for a full restart and load of the custom save without renaming again. [Map after restart](../evidence/qa-20261011-day2/17-city-map-after-full-restart-load.jpg), [log comparison after load](../evidence/qa-20261011-day2/run33252-after-load-log-comparison.json). This does not cover all states, nor the zero-VP UI live.
+Runtime behaviour of the city and its save is a separate matter. In `4f4c5ad` "Nowy Gdańsk" was observed for VP 362, and `bd96572` records a PASS for a full restart and load of the custom save without renaming again. [Map after restart](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/qa-20261011-day2/17-city-map-after-full-restart-load.jpg), [log comparison after load](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/qa-20261011-day2/run33252-after-load-log-comparison.json). This does not cover all states, nor the zero-VP UI live.
 
 ### 9.2 Character: correct decoder, limited scripted GUI bridge
 
-The blank header was not caused by an empty target: the save contained identical `rn_display_target^0` and `rn_tchar^0` and the custom character `0x20000E8B`. [Diagnostic save inspection](../evidence/session-20261011/day2-blank-header-save-inspection.json).
+The blank header was not caused by an empty target: the save contained identical `rn_display_target^0` and `rn_tchar^0` and the custom character `0x20000E8B`. [Diagnostic save inspection](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-blank-header-save-inspection.json).
 
-Decoder `0x5443F0` correctly recognises the Character tag `0x20000000`, and `0x53A400` writes the reference to `scope+0x50`. The problem is a separate bridge in the scripted GUI updater `0xB8AD20`, used with `change_scope = yes`. It rebuilds the child scope through `0x535E00` -> `CCharacter+0xA8` (`CUnitLeader*`) -> `0x53B8E0`. It does not copy the Character reference directly, so a civilian character without a UnitLeader loses it at this step. [Independent review and result limits](../evidence/session-20261011/day2-character-scope-review.txt), [decoder and bridge](../evidence/session-20261011/day2-character-bridge-decompile.txt), [list updater](../evidence/session-20261011/day2-character-row-updater-decompile.txt).
+Decoder `0x5443F0` correctly recognises the Character tag `0x20000000`, and `0x53A400` writes the reference to `scope+0x50`. The problem is a separate bridge in the scripted GUI updater `0xB8AD20`, used with `change_scope = yes`. It rebuilds the child scope through `0x535E00` -> `CCharacter+0xA8` (`CUnitLeader*`) -> `0x53B8E0`. It does not copy the Character reference directly, so a civilian character without a UnitLeader loses it at this step. [Independent review and result limits](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-character-scope-review.txt), [decoder and bridge](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-character-bridge-decompile.txt), [list updater](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/day2-character-row-updater-decompile.txt).
 
 Vanilla supports reading a name through a typed variable:
 

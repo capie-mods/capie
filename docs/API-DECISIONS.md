@@ -3,7 +3,7 @@
 The API and architecture decisions are recorded as [architecture decision records](adr/README.md).
 This page stays because code comments cite decisions by their number in the original log, which
 is archived unchanged (in Polish) in
-[evidence/decision-log/API-DECISIONS.md](evidence/decision-log/API-DECISIONS.md).
+[monorepo archive: docs/evidence/decision-log/API-DECISIONS.md](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md).
 
 | Original section and number | Record |
 |---|---|

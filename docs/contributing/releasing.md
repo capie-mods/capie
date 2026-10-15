@@ -38,7 +38,7 @@ by the maintainer, ADR-0018), or build in CI and use the script only for the rem
 3. **Pin the binaries.** Update the hashes the launcher and the proxy compile in, and the
    bootstrap release configuration (`tools/bootstrap/src/Shared/Configuration.ps1`, then
    `build-install.ps1`). The replacements needed for the first CAPIE release are listed in
-   [plugin/capie/deploy/DEPLOYMENT.md](../../plugin/capie/deploy/DEPLOYMENT.md).
+   [plugin/capie/deploy/DEPLOYMENT.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/deploy/DEPLOYMENT.md).
 4. **Manifest and signature.** Make and sign the manifest offline with
    `tools/bootstrap/sign-release-manifest.ps1` (`-MakeManifest`, `-Sign`). The private key never
    enters the repository. The manifest lists every file of the ZIP with its SHA-256 and the
@@ -55,7 +55,7 @@ by the maintainer, ADR-0018), or build in CI and use the script only for the rem
    `description_file` in `tools/release/release.toml`).
 8. **Documentation.** Fill in `OWNER` and `TAG` in the install commands, set `site_url` in both
    `zensical.toml` files, and enable the Pages workflow from `deploy-pages.yml.example`
-   ([sites/README.md](../../sites/README.md)).
+   ([sites/README.md](https://github.com/capie-mods/capie-design/blob/main/sites/README.md)).
 
 ## Signing
 

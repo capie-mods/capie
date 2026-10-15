@@ -4,7 +4,7 @@
   again by [ADR-0030](0030-installation-paths-and-playset-switch.md); the requirements below
   still apply to every launch mode.
 - Date: 2026-10-11
-- Source: [distribution decision log](../evidence/decision-log/DISTRIBUTION-DECISIONS.md), decisions 2 and 9
+- Source: [distribution decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/DISTRIBUTION-DECISIONS.md), decisions 2 and 9
 
 ## Context
 

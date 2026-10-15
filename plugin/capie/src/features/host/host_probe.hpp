@@ -2,7 +2,7 @@
  * @file host_probe.hpp
  * @brief Read-only host detection probe (debug flavor of `capie_editor.dll`: log only, no record).
  *
- * Design and static evidence: docs/evidence/session-20261014/host-detect/report.txt. Stage 1 of
+ * Design and static evidence: monorepo archive: docs/evidence/session-20261014/host-detect/report.txt. Stage 1 of
  * the rollout (report section 5, step 0): the debug flavor logs one `CAPIE_HOST` line per grammar
  * Apply; no `capie_host` record is sent and the release flavor does not contain the probe. The
  * record waits for the two-client test (report sections 5 and 7).

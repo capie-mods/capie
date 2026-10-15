@@ -2,9 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-10-11 (direction), 2026-10-11 (variant chosen)
-- Source: [API decision log](../evidence/decision-log/API-DECISIONS.md), first list item 1 and
+- Source: [API decision log](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/decision-log/API-DECISIONS.md), first list item 1 and
   "Decyzje do architektury CAPIE" item 1
-- Background: [architecture research](../evidence/session-20261011/claude-api/)
+- Background: [architecture research](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence/session-20261011/claude-api)
 
 ## Context
 
@@ -26,7 +26,7 @@ it.
 ## Consequences
 
 - A mod written against the contract parses and runs the same way with or without CAPIE; only
-  the branch it takes differs. See [CONTRACT.md](../../plugin/capie/CONTRACT.md).
+  the branch it takes differs. See [CONTRACT.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/CONTRACT.md).
 - Every mod that uses CAPIE ships the indicator snippet of [ADR-0010](0010-in-game-capie-indicators.md).
 - Since API level 4 the country name is no longer carried by the cosmetic tag
   ([ADR-0028](0028-custom-name-layer.md)).

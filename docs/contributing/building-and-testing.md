@@ -56,7 +56,7 @@ uv run pytest
 `tools/check_constant_docstrings.py` requires a docstring under every module-level `UPPER_CASE`
 constant and `Args:` and `Returns:` sections in every function docstring, which ruff does not
 check on its own. `uv run pytest` runs `tools/tests/` and `sdk/capie-script-sdk/tests/`.
-Excluded paths (the archived `docs/evidence/`, pinned tools under `probes/`) are listed with their
+Excluded paths (the archived [monorepo archive: docs/evidence/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence), pinned tools under `probes/`) are listed with their
 reasons in `pyproject.toml`.
 
 ## PowerShell lint
@@ -93,7 +93,7 @@ pwsh -File .\plugin\capie\launcher_mutation_check.ps1
 ```
 
 More detail, including the binary layout and the debug variant, is in
-[plugin/capie/README.md](../../plugin/capie/README.md). The proxy's test limits are in
+[plugin/capie/README.md](https://github.com/capie-mods/capie/blob/main/plugin/capie/README.md). The proxy's test limits are in
 [proxy loader](proxy-loader.md).
 
 ## Script SDK
@@ -112,7 +112,7 @@ Invoke-Pester -Script .\tools\bootstrap\install.Tests.ps1
 .\tools\bootstrap\mutation-test.ps1 -WorkRoot $env:TEMP\ra-mutation -PowerShellExe pwsh
 ```
 
-See [tools/bootstrap/README.md](../../tools/bootstrap/README.md).
+See [tools/bootstrap/README.md](https://github.com/capie-mods/capie/blob/main/tools/bootstrap/README.md).
 
 ## Documentation sites
 
@@ -125,7 +125,7 @@ uv run zensical build -f sites/rename-anything/zensical.toml --clean --strict
 ```
 
 `--strict` fails the build on any warning, such as a broken link. See
-[sites/README.md](../../sites/README.md).
+[sites/README.md](https://github.com/capie-mods/capie-design/blob/main/sites/README.md).
 
 ## Testing in the game
 
