@@ -204,6 +204,18 @@ guiTypes = {
 			max_slots_vertical = 1
 			format = "RIGHT"
 		}
+		# CAPIE BEGIN: the only change to the vanilla file (plugin/capie/toggle-mod/check_mod.py checks this).
+		# The CAPIE mark beside the bottom row of the DLC column, anchored to the lower left corner
+		# like the column itself, so it shows at every resolution. It means only that the CAPIE
+		# switch is on: the menu is built and localised before CAPIE loads, so it shows no live status.
+		iconType = {
+			name = "capie_menu_mark"
+			spriteType = "GFX_capie_menu_mark"
+			position = { x = 130 y = -52 }
+			Orientation = lower_left
+			pdx_tooltip = "CAPIE_MENU_MARK_TT"
+		}
+		# CAPIE END
 	}
 	
 	### MAIN MENU PANEL (upperleft)
@@ -221,16 +233,6 @@ guiTypes = {
 			spriteType = "GFX_frontend_game_logo"
 			position = { x= 20 y = 20 }
 		}
-		# CAPIE BEGIN: the only change to the vanilla file (plugin/capie/toggle-mod/check_mod.py checks this).
-		# The CAPIE mark under the game logo, above the DLC column. It means only that the CAPIE
-		# switch is on: the menu is built and localised before CAPIE loads, so it shows no live status.
-		iconType = {
-			name = "capie_menu_mark"
-			spriteType = "GFX_capie_menu_mark"
-			position = { x = 6 y = 214 }
-			pdx_tooltip = "CAPIE_MENU_MARK_TT"
-		}
-		# CAPIE END
 		
 	}
 

@@ -6,7 +6,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- The main-menu status line is now the CAPIE mark under the game logo, above the DLC column. It
+- The main-menu status line is now the CAPIE mark in the bottom left corner, beside the last DLC icon and anchored to the
+  same corner as the DLC column, so it shows at every resolution. It
   means only that the CAPIE switch is on: the menu is built and localised before CAPIE loads, so
   it cannot show a live status (Rename Anything's editors show the CAPIE version in game). Its
   tooltip is static text. It comes from a minimal copy of the vanilla

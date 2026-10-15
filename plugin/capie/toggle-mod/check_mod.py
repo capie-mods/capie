@@ -64,7 +64,7 @@ GAMEPLAY_FOLDERS = ("common", "events", "history", "map", "music", "sound", "por
 """Folders that would carry gameplay content; the switch mod has none of them."""
 
 MENU_FILE = "frontendmainview.gui"
-MENU_WINDOW = "mainmenu_panel_upperleft"  # created by name by hoi4.exe (frontendmainview.cpp)
+MENU_WINDOW = "mainmenu_dlc_ownership"  # created by name by hoi4.exe; shown at every resolution
 MENU_ELEMENT = "capie_menu_mark"
 MENU_SPRITE = "GFX_capie_menu_mark"
 MENU_TOOLTIP = "CAPIE_MENU_MARK_TT"
@@ -330,6 +330,10 @@ def check_indicator(checks: Checks, game: Path) -> None:
     checks.check(f'block names "{MENU_ELEMENT}"', ok=f'name = "{MENU_ELEMENT}"' in block)
     checks.check(f"block uses {MENU_SPRITE}", ok=f'spriteType = "{MENU_SPRITE}"' in block)
     checks.check("block has no frame selection (one image)", ok="frame =" not in block)
+    checks.check(
+        "block is anchored to the lower left corner, like the DLC column",
+        ok="Orientation = lower_left" in block,
+    )
     checks.check(f"block tooltip is {MENU_TOOLTIP}", ok=f'pdx_tooltip = "{MENU_TOOLTIP}"' in block)
     at = text.find(BLOCK_BEGIN)
     checks.check(
