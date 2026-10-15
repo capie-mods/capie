@@ -1,0 +1,8 @@
+spriteTypes = {
+	# CAPIE switch mod: the main-menu mark. Frame 1 = CAPIE in this playset (shown), frame 2 = not loaded.
+	spriteType = {
+		name = "GFX_capie_menu_mark"
+		texturefile = "gfx/interface/capie_menu_mark.dds"
+		noOfFrames = 2
+	}
+}

@@ -222,18 +222,14 @@ guiTypes = {
 			position = { x= 20 y = 20 }
 		}
 		# CAPIE BEGIN: the only change to the vanilla file (plugin/capie/toggle-mod/check_mod.py checks this).
-		# One status line under the game logo. CAPIE answers CAPIE_STATUS while it runs ("CAPIE 1.5");
-		# without CAPIE the localisation fallback of this mod shows ("CAPIE missing", orange).
-		instantTextBoxType = {
-			name = "capie_menu_status"
-			position = { x = 24 y = 199 }
-			textureFile = ""
-			font = "Arial12"
-			borderSize = { x = 0 y = 0 }
-			text = "CAPIE_STATUS"
-			format = left
-			maxWidth = 224
-			maxHeight = 14
+		# The CAPIE mark under the game logo, above the DLC column. Its tooltip names the status;
+		# a tooltip is localised when it opens, so it can follow CAPIE loading later (to confirm in game).
+		iconType = {
+			name = "capie_menu_mark"
+			spriteType = "GFX_capie_menu_mark"
+			frame = 1
+			position = { x = 6 y = 214 }
+			pdx_tooltip = "CAPIE_MENU_MARK_TT"
 		}
 		# CAPIE END
 		

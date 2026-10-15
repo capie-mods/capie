@@ -60,12 +60,24 @@ PNG_HEADER_BYTES = 24
 UTF8_BOM = b"\xef\xbb\xbf"
 """Byte order mark HOI4 needs at the start of localisation files."""
 
-GAMEPLAY_FOLDERS = ("common", "events", "history", "map", "gfx", "music", "sound", "portraits")
+GAMEPLAY_FOLDERS = ("common", "events", "history", "map", "music", "sound", "portraits")
 """Folders that would carry gameplay content; the switch mod has none of them."""
 
 MENU_FILE = "frontendmainview.gui"
 MENU_WINDOW = "mainmenu_panel_upperleft"  # created by name by hoi4.exe (frontendmainview.cpp)
-MENU_ELEMENT = "capie_menu_status"
+MENU_ELEMENT = "capie_menu_mark"
+MENU_SPRITE = "GFX_capie_menu_mark"
+MENU_TOOLTIP = "CAPIE_MENU_MARK_TT"
+MENU_GFX = "capie_menu.gfx"
+MENU_TEXTURE = "gfx/interface/capie_menu_mark.dds"
+MENU_FRAME_EDGE = 50  # one frame, the size of a vanilla DLC medal slot
+MENU_FRAMES = 2
+DDS_MAGIC = b"DDS "
+DDS_HEIGHT_OFFSET = 12
+DDS_WIDTH_OFFSET = 16
+DDS_BITCOUNT_OFFSET = 88
+DDS_RGBA_BITS = 32
+FALLBACK_KEYS = ("CAPIE_STATUS", "CAPIE_API", "CAPIE_BUILD")
 BLOCK_BEGIN = "# CAPIE BEGIN"
 BLOCK_END = "# CAPIE END"
 # SHA-256 of interface/frontendmainview.gui of HOI4 1.19.3 (17 757 bytes). A game patch that
@@ -259,6 +271,40 @@ def window_of(text: str, position: int) -> str:
     return stack[-1][1] if stack else ""
 
 
+def check_menu_sprite(checks: Checks) -> None:
+    """The 2-frame sprite of the menu mark: .gfx definition, DDS format and freshness.
+
+    Args:
+        checks: Result collector.
+    """
+    gfx_files = sorted((MOD / "interface").glob("*.gfx"))
+    checks.check("one .gfx file", ok=[f.name for f in gfx_files] == [MENU_GFX])
+    gfx = (MOD / "interface" / MENU_GFX).read_text(encoding="utf-8")
+    checks.check(".gfx braces are balanced", ok=balanced(gfx))
+    checks.check(f".gfx defines {MENU_SPRITE}", ok=f'name = "{MENU_SPRITE}"' in gfx)
+    checks.check(f".gfx points at {MENU_TEXTURE}", ok=f'texturefile = "{MENU_TEXTURE}"' in gfx)
+    checks.check(".gfx declares two frames", ok=f"noOfFrames = {MENU_FRAMES}" in gfx)
+    data = (MOD / MENU_TEXTURE).read_bytes()
+    checks.check("sprite is a DDS file", ok=data.startswith(DDS_MAGIC))
+    if len(data) > DDS_BITCOUNT_OFFSET + 4:
+        height = int.from_bytes(data[DDS_HEIGHT_OFFSET : DDS_HEIGHT_OFFSET + 4], "little")
+        width = int.from_bytes(data[DDS_WIDTH_OFFSET : DDS_WIDTH_OFFSET + 4], "little")
+        bits = int.from_bytes(data[DDS_BITCOUNT_OFFSET : DDS_BITCOUNT_OFFSET + 4], "little")
+        checks.check(
+            "sprite is two 50 x 50 frames side by side",
+            ok=(width, height) == (MENU_FRAME_EDGE * MENU_FRAMES, MENU_FRAME_EDGE),
+        )
+        checks.check("sprite is uncompressed 32-bit RGBA", ok=bits == DDS_RGBA_BITS)
+    sys.path.insert(0, str(HERE))
+    try:
+        import make_menu_icon  # noqa: PLC0415 - local generator next to this file
+
+        fresh = make_menu_icon.encode(make_menu_icon.draw(make_menu_icon.load_colors()))
+        checks.check("sprite matches make_menu_icon.py and tokens.json", ok=fresh == data)
+    finally:
+        sys.path.pop(0)
+
+
 def check_indicator(checks: Checks, game: Path) -> None:
     """Main-menu indicator (minimal override of the vanilla menu file) and its fallback text.
 
@@ -282,17 +328,15 @@ def check_indicator(checks: Checks, game: Path) -> None:
     checks.check("override braces are balanced", ok=balanced(text))
     checks.check("CAPIE block braces are balanced", ok=bool(block) and balanced(block))
     checks.check(f'block names "{MENU_ELEMENT}"', ok=f'name = "{MENU_ELEMENT}"' in block)
-    checks.check(f"block shows {STATUS_KEY}", ok=f'text = "{STATUS_KEY}"' in block)
-    font = re.search(r'font = "([^"]+)"', block)
-    checks.check(
-        "indicator font has Polish glyphs",
-        ok=font is not None and font.group(1) in POLISH_GLYPH_FONTS,
-    )
+    checks.check(f"block uses {MENU_SPRITE}", ok=f'spriteType = "{MENU_SPRITE}"' in block)
+    checks.check("block shows frame 1 (CAPIE in this playset)", ok="frame = 1" in block)
+    checks.check(f"block tooltip is {MENU_TOOLTIP}", ok=f'pdx_tooltip = "{MENU_TOOLTIP}"' in block)
     at = text.find(BLOCK_BEGIN)
     checks.check(
         f"block sits inside {MENU_WINDOW}, a window the game creates",
         ok=at >= 0 and window_of(text, at) == MENU_WINDOW,
     )
+    check_menu_sprite(checks)
     for language in LANGUAGES:
         ours = MOD / "localisation" / language / f"capie_switch_l_{language}.yml"
         sdk = SDK_LOCALISATION / language / f"capie_sdk_v1_l_{language}.yml"
@@ -302,11 +346,17 @@ def check_indicator(checks: Checks, game: Path) -> None:
         )
         header = loc.removeprefix(UTF8_BOM).decode("utf-8").splitlines()[0]
         checks.check(f"{language}: header l_{language}:", ok=header == f"l_{language}:")
-        value = localisation_value(ours, STATUS_KEY)
-        checks.check(f"{language}: {STATUS_KEY} fallback present", ok=value is not None)
+        for key in FALLBACK_KEYS:
+            value = localisation_value(ours, key)
+            checks.check(f"{language}: {key} fallback present", ok=value is not None)
+            checks.check(
+                f"{language}: {key} fallback equals the SDK text",
+                ok=value == localisation_value(sdk, key),
+            )
+        tooltip = localisation_value(ours, MENU_TOOLTIP) or ""
         checks.check(
-            f"{language}: fallback equals the SDK text",
-            ok=value == localisation_value(sdk, STATUS_KEY),
+            f"{language}: {MENU_TOOLTIP} names status, API level and build",
+            ok=all(f"${key}$" in tooltip for key in FALLBACK_KEYS),
         )
     vanilla = game / "interface" / MENU_FILE
     if vanilla.is_file():
@@ -340,7 +390,7 @@ def check_content(checks: Checks) -> None:
         checks.check(
             f"no {folder}/ folder (switch mod carries no gameplay)", ok=not (MOD / folder).exists()
         )
-    allowed = {"descriptor.mod", "thumbnail.png", "interface", "localisation"}
+    allowed = {"descriptor.mod", "thumbnail.png", "interface", "localisation", "gfx"}
     checks.check(
         "mod folder holds only the expected entries", ok={p.name for p in MOD.iterdir()} == allowed
     )

@@ -2,3 +2,7 @@
  # Tekst zastępczy, gdy CAPIE nie jest załadowane. Ten sam klucz i tekst co w CAPIE script SDK;
  # gdy CAPIE działa, podaje tu swoją wersję.
  CAPIE_STATUS:0 "§OBrak CAPIE§!"
+ CAPIE_API:0 "0"
+ CAPIE_BUILD:0 "-"
+ # Podpowiedź znaku CAPIE w menu głównym. Na trzy klucze CAPIE_* odpowiada CAPIE, gdy działa.
+ CAPIE_MENU_MARK_TT:0 "CAPIE: $CAPIE_STATUS$\nPoziom API $CAPIE_API$, wydanie $CAPIE_BUILD$\n\n§LJeśli widać Brak CAPIE: uruchom grę przez launcher CAPIE i zostaw mod CAPIE włączony w zestawie. CAPIE ładuje się około 20 sekund po pojawieniu się tego menu i tylko w obsługiwanych wersjach gry.§!"

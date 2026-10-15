@@ -282,7 +282,7 @@ function New-TestPackage {
     if ($WithMod) {
         $files['mod/capie.mod'] = "name=`"CAPIE`"`npath=`"mod/capie`"`n"
         $files['mod/capie/descriptor.mod'] = "name=`"CAPIE`"`nversion=`"$Version`"`n"
-        $files['mod/capie/interface/capie_menu_indicator.gui'] = 'guiTypes = { }'
+        $files['mod/capie/interface/frontendmainview.gui'] = 'guiTypes = { }'
     }
     $manifest = [ordered]@{ Version = $Version; ZipName = "RA-$Version-$Tamper.zip"; ZipSha256 = ''; Files = [ordered]@{}; SupportedGameSha256 = @() }
     foreach ($k in $files.Keys) {
@@ -2033,7 +2033,7 @@ Describe 'Default method and the "CAPIE" switch mod in the player''s mod folder'
         $before = Get-TreeHash (Join-Path $dir 'Documents')
         (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
         [IO.File]::ReadAllText((Join-Path $modRoot 'capie\descriptor.mod')) | Should Match 'version="0.1.0"'
-        Test-Path (Join-Path $modRoot 'capie\interface\capie_menu_indicator.gui') | Should Be $true
+        Test-Path (Join-Path $modRoot 'capie\interface\frontendmainview.gui') | Should Be $true
         Test-Path (Join-Path $modRoot 'capie.mod') | Should Be $true
         @((Read-RaState).ModFiles).Count | Should Be 3
         (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
