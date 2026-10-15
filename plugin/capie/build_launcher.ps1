@@ -4,8 +4,9 @@
 
 .DESCRIPTION
     Output: plugin/build/capie-launcher/ (the accepted plugin/build/launcher-candidate is not touched).
-      1. Every input binary (plugin/build/capie/capie_core.dll, capie_editor.dll,
-         capie_injector.exe) must match the SHA-256 recorded in plugin/capie/deploy/DEPLOYMENT.md.
+      1. Every input binary (the CAPIE 1.5 release build plugin/build/capie-v15-dev/capie_core.dll,
+         capie_editor.dll, capie_injector.exe; never debug/ or a console build) must match the
+         SHA-256 recorded in plugin/capie/deploy/DEPLOYMENT.md.
       2. The inputs are copied into runtime\ and launcher_manifest.generated.hpp is written from
          the copies (name, lower-case SHA-256, DLL or EXE).
       3. The launcher (/SUBSYSTEM:WINDOWS, asInvoker), fake_process.exe and both test suites are
@@ -54,14 +55,14 @@ $script:AsInvokerPattern = 'level="asInvoker"'
 $script:CliTimeoutMilliseconds = 60000
 # Reviewed CAPIE stage-2 release binaries (plugin/capie/deploy/DEPLOYMENT.md). Order = BundleManifest order.
 $script:BundleInputs = @(
-    @{ source = 'plugin/build/capie/capie_core.dll'; name = 'capie_core.dll'; dll = $true
-        sha = 'D95B510D71F78AC5F5AB83C2EE38A803E6B5D6B651B7EBB4AD281820EB93BE00'
+    @{ source = 'plugin/build/capie-v15-dev/capie_core.dll'; name = 'capie_core.dll'; dll = $true
+        sha = '7A1C946F8A15F6120A0232453E3013B9F854EC2A6B526D0AB9C86F19959D0DE1'
     },
-    @{ source = 'plugin/build/capie/capie_editor.dll'; name = 'capie_editor.dll'; dll = $true
-        sha = '742D655E2DC92AF036C09FB6F4E808039040D9F696D8908E6D4FAED02C433CCA'
+    @{ source = 'plugin/build/capie-v15-dev/capie_editor.dll'; name = 'capie_editor.dll'; dll = $true
+        sha = '0DAD2732552305F43E1E87FB6E10E6A5B473E683EA27F1E82D0EBD9B8934D656'
     },
-    @{ source = 'plugin/build/capie/capie_injector.exe'; name = 'capie_injector.exe'; dll = $false
-        sha = '3370A9855FFCD21480A764257627E9197D57C767C3EFEFDF5601153B47EEE64D'
+    @{ source = 'plugin/build/capie-v15-dev/capie_injector.exe'; name = 'capie_injector.exe'; dll = $false
+        sha = 'EB5E9FF5F9B944B55CA5EB4B343D18D507584284FB60F5F119A8BE8843484C25'
     }
 )
 # The accepted launcher candidate stays the reference; the build proves it did not change it.
@@ -186,7 +187,7 @@ foreach ($entry in $script:BundleInputs) {
     Copy-Item -LiteralPath (Join-Path $repoDir $entry.source) -Destination $target -Force
     if ((Get-Sha256 $target) -ne $entry.sha) { throw "Bundle copy mismatch: $($entry.name)" }
 }
-Copy-Item -LiteralPath (Join-Path $repoDir 'plugin/build/capie/LICENSE.MinHook.txt') -Destination (Join-Path $outputDir 'LICENSE.MinHook.txt') -Force
+Copy-Item -LiteralPath (Join-Path $repoDir 'plugin/build/capie-v15-dev/LICENSE.MinHook.txt') -Destination (Join-Path $outputDir 'LICENSE.MinHook.txt') -Force
 [IO.File]::WriteAllText((Join-Path $outputDir 'launcher_manifest.generated.hpp'), (New-LauncherManifestHeader -RuntimeDirectory $runtimeDir),
     [Text.UTF8Encoding]::new($false))
 [void](Import-NbVisualStudioEnvironment -VisualStudioDir $VisualStudioDir)

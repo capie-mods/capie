@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds CAPIE 1.4 (capie_core.dll, capie_editor.dll, capie_injector.exe, capie_debug_control.exe) and runs every offline test.
+    Builds CAPIE 1.5 (capie_core.dll, capie_editor.dll, capie_injector.exe, capie_debug_control.exe) and runs every offline test.
 
 .DESCRIPTION
     Output: -OutputDirectory (default plugin/build/capie/, release flavor) and its debug/

@@ -21,7 +21,24 @@ in-game test of the CAPIE build, these replacements are needed. SHA-256 values m
 taken from the reviewed build; MSVC output is not bit-reproducible across rebuilds (PE
 timestamps), so the values below are those of the stage-2 build only.
 
-Stage-2 release build after the clang-tidy pass (`plugin/build/capie/`):
+## CAPIE 1.5 release pinned in the launcher (2026-10-15)
+
+Review `docs/evidence/session-20261015/capie-15-review/review.txt` (W1): the launcher bundles
+exactly these three release files of `plugin/build/capie-v15-dev/` (top level only; never
+`debug/` or `capie-v15-console-dev/`). They are not rebuilt before the in-game test (W2), because
+MSVC output is not bit-reproducible. `plugin/capie/build_launcher.ps1` (`$BundleInputs`) checks
+them against this table:
+
+| File | SHA-256 |
+| --- | --- |
+| capie_core.dll | 7A1C946F8A15F6120A0232453E3013B9F854EC2A6B526D0AB9C86F19959D0DE1 |
+| capie_editor.dll | 0DAD2732552305F43E1E87FB6E10E6A5B473E683EA27F1E82D0EBD9B8934D656 |
+| capie_injector.exe | EB5E9FF5F9B944B55CA5EB4B343D18D507584284FB60F5F119A8BE8843484C25 |
+
+The proxy (`build_proxy.ps1`, `src/proxy`) is not switched: its compiled pins stay on the
+stage-2 (1.0) hashes below until the proxy is rebuilt from these files.
+
+Stage-2 release build after the clang-tidy pass (`plugin/build/capie/`; still pinned by the proxy):
 
 | File | SHA-256 |
 | --- | --- |
@@ -32,7 +49,7 @@ Stage-2 release build after the clang-tidy pass (`plugin/build/capie/`):
 ## 1. `plugin/launcher/build.ps1` (`$inputs`, four entries)
 
 Superseded for the wrapper-mode launcher: `plugin/capie/build_launcher.ps1` pins the three
-release hashes above, copies them to `plugin/build/capie-launcher/runtime/` and generates
+CAPIE 1.5 release hashes above, copies them to `plugin/build/capie-launcher/runtime/` and generates
 `launcher_manifest.generated.hpp` (three entries: core, editor, injector). The accepted
 `plugin/launcher/` stays unchanged as the reference; the four-entry edit below only applies
 if that old candidate were ever rebuilt with CAPIE binaries.
