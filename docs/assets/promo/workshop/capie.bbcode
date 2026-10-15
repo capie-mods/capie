@@ -4,7 +4,7 @@
 
 CAPIE (Cyprian's API Extender) is a small native library for Hearts of Iron IV. It lets mods read what the player types into the game's own text field, and it draws custom country names, faction names and flags that are stored in the save. HOI4 script cannot do either on its own. Rename Anything is the first mod built on CAPIE.
 
-This item is the switch. It has no game content: just the switch and, once it is ready, the CAPIE mark next to the DLC icons in the main menu.
+This item is the switch. It has no game content: just the switch and the CAPIE mark next to the DLC icons in the main menu.
 [list]
 [*]In your playset and enabled: the CAPIE launcher loads CAPIE into the game.
 [*]Disabled, or not in the playset: the game starts without CAPIE.
@@ -14,7 +14,7 @@ Load order does not matter. Keep only one mod called CAPIE: with a local copy of
 [b]Pre-release.[/b] Current version: CAPIE 1.5 (script API level 7), tested in single player on HOI4 1.19.3.0 with development builds.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-status-line.png[/img]
-[h2]The CAPIE mark in the main menu (in preparation)[/h2]
+[h2]The CAPIE mark in the main menu[/h2]
 The mark sits in the bottom left corner, next to the last DLC icon. It means one thing: the CAPIE switch is on in this playset. It cannot show whether CAPIE is running, because the game builds the main menu before CAPIE loads (about 20 seconds after the menu appears). To check that CAPIE runs, open a Rename Anything editor in a game: it shows the CAPIE version.
 The mark comes with a copy of the game's main menu file. If another mod in your playset changes that file too, only one of the two versions is used: the mark may not show, and CAPIE works the same.
 
@@ -27,7 +27,15 @@ The mark comes with a copy of the game's main menu file. If another mod in your 
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-installing.png[/img]
 [h2]Installing[/h2]
-The installer is in preparation. It will be one PowerShell line ([i]irm ... | iex[/i]) or an installer from GitHub Releases, both published with the first release. It installs the launcher, and later it can switch CAPIE off or uninstall it.
+CAPIE installs with a small setup tool. Close Steam, or let the tool close it for you, and pick one of two ways:
+[list]
+[*][b]One PowerShell line.[/b] Open PowerShell and paste:
+[code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
+A menu opens: choose [i]Install or update[/i].
+[*][b]Download from GitHub.[/b] Get the ZIP, install.ps1 and the two release-manifest files from [url=https://github.com/capie-mods/capie/releases/latest]the latest release[/url] into one folder, then in PowerShell in that folder run:
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.5.0-win64.zip[/code]
+[/list]
+Both ways check the signed release manifest and every file's SHA-256, install into your user folder (never the game folder) and add the CAPIE launcher to the HOI4 launch options in Steam. The same tool updates, installs an older version, switches CAPIE off or uninstalls it.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-how-it-works.png[/img]
 [h2]How it works[/h2]

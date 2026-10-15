@@ -4,7 +4,7 @@
 
 CAPIE (Cyprian's API Extender) to mała natywna biblioteka do Hearts of Iron IV. Pozwala modom odczytać, co gracz wpisał w pole tekstowe gry, i wyświetla własne nazwy państw, nazwy frakcji i flagi zapisane w zapisie gry. Sam skrypt HOI4 nie potrafi ani jednego, ani drugiego. Rename Anything jest pierwszym modem zbudowanym na CAPIE.
 
-Ten przedmiot to przełącznik. Nie ma treści gry: tylko przełącznik i, gdy będzie gotowy, znak CAPIE obok ikon DLC w menu głównym.
+Ten przedmiot to przełącznik. Nie ma treści gry: tylko przełącznik i znak CAPIE obok ikon DLC w menu głównym.
 [list]
 [*]Włączony w zestawie modów: launcher CAPIE ładuje CAPIE do gry.
 [*]Wyłączony albo spoza zestawu: gra startuje bez CAPIE.
@@ -14,7 +14,7 @@ Kolejność ładowania nie ma znaczenia. Trzymaj tylko jeden mod o nazwie CAPIE:
 [b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.5 (poziom API skryptów 7), sprawdzona w grze jednoosobowej na HOI4 1.19.3.0, na wersjach rozwojowych.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-status-line-pl.png[/img]
-[h2]Znak CAPIE w menu głównym (w przygotowaniu)[/h2]
+[h2]Znak CAPIE w menu głównym[/h2]
 Znak stoi w lewym dolnym rogu, obok ostatniej ikony DLC. Oznacza jedno: przełącznik CAPIE jest włączony w tym zestawie. Nie pokazuje, czy CAPIE działa, bo gra buduje menu główne, zanim CAPIE się załaduje (około 20 sekund po pojawieniu się menu). Czy CAPIE działa, sprawdzisz w grze: edytor Rename Anything pokazuje wersję CAPIE.
 Znak pochodzi z kopii pliku menu głównego gry. Jeśli inny mod w zestawie też zmienia ten plik, gra użyje tylko jednej z dwóch wersji: znak może się nie pokazać, a CAPIE działa tak samo.
 
@@ -27,7 +27,15 @@ Znak pochodzi z kopii pliku menu głównego gry. Jeśli inny mod w zestawie też
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-installing-pl.png[/img]
 [h2]Instalacja[/h2]
-Instalator jest w przygotowaniu. Będzie to jedna linia w PowerShell ([i]irm ... | iex[/i]) albo instalator z GitHub Releases, oba razem z pierwszym wydaniem. Instaluje launcher, a później potrafi wyłączyć albo odinstalować CAPIE.
+CAPIE instaluje się małym narzędziem. Zamknij Steam albo pozwól, żeby narzędzie zrobiło to za Ciebie, i wybierz jeden z dwóch sposobów:
+[list]
+[*][b]Jedna linia w PowerShell.[/b] Otwórz PowerShell i wklej:
+[code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
+Otworzy się menu: wybierz [i]Install or update[/i].
+[*][b]Pobranie z GitHuba.[/b] Pobierz ZIP, install.ps1 i dwa pliki release-manifest z [url=https://github.com/capie-mods/capie/releases/latest]najnowszego wydania[/url] do jednego folderu, a potem w PowerShell w tym folderze uruchom:
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.5.0-win64.zip[/code]
+[/list]
+Oba sposoby sprawdzają podpisany manifest wydania i SHA-256 każdego pliku, instalują do folderu użytkownika (nigdy do folderu gry) i dodają launcher CAPIE do opcji uruchamiania HOI4 w Steamie. To samo narzędzie aktualizuje, instaluje starszą wersję, wyłącza CAPIE albo je odinstalowuje.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-how-it-works-pl.png[/img]
 [h2]Jak to działa[/h2]
