@@ -8,7 +8,7 @@ site_name = "CAPIE"
 site_description = "CAPIE (Cyprian's API Extender): a native library that extends what Hearts of Iron IV mods can do."
 site_author = "Cyprian Gburek"
 # Placeholder until the GitHub organisation exists; change before the first deployment.
-site_url = "https://example.invalid/capie/"
+site_url = "https://capie-mods.github.io/capie/"
 docs_dir = "docs"
 site_dir = "site"
 copyright = "CAPIE is pre-release software. Hearts of Iron IV is a trademark of Paradox Interactive; this project is not affiliated with or endorsed by Paradox Interactive."
