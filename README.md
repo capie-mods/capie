@@ -55,14 +55,42 @@ branch of your `if`. Scripts check `temp_var:capie_cap`, the API level, and comp
 The name, flag and portrait layers are separate from cosmetic tags, so changing one leaves the
 others alone. A portrait from a DLC the player does not own falls back to the game's portrait.
 
-<img src="docs/assets/promo/capie/readme/name-layers.jpg" alt="Left: a country labelled Skbidi Kingdom on the map. Right: a faction labelled The Rizzlers in the faction map mode." width="880">
-
-<img src="docs/assets/promo/capie/readme/flag-layer.jpg" alt="Left: a flag picker listing the game's flags by letter. Right: the Politics panel of the renamed country Skbidi Kingdom showing its new flag." width="880">
-
 If you would rather not write the records yourself, the
 [CAPIE Script SDK](https://github.com/capie-mods/capie-script-sdk) wraps the contract in ready-made
 scripted effects for reading, checking and storing text, and comes with a small demo mod. It will
 be its own Workshop item.
+
+## In the game
+
+What CAPIE does, as Rename Anything uses it (developer builds, HOI4 1.19.3.0, single player). The silly names are ours.
+
+Text fields (API level 1 and 2): the game's own text field, with the typed text passed to the mod's Apply command.
+
+<p>
+  <img src="docs/assets/promo/capie/readme/tiles/field-leader.jpg" alt="A leader name in the game's own text field in the Politics panel." width="436">
+  <img src="docs/assets/promo/capie/readme/tiles/field-subject.jpg" alt="A two-field editor: name Province of Rizzia and adjective Rizzian, in the game's own text fields." width="436">
+</p>
+
+Country name layer (API level 4): a custom name and adjective the game draws everywhere.
+
+<p>
+  <img src="docs/assets/promo/capie/readme/tiles/country-edit.jpg" alt="A country editor with the name Skbidi Kingdom and the adjective Skibidish typed in." width="436">
+  <img src="docs/assets/promo/capie/readme/tiles/country-map.jpg" alt="The map labelled Skbidi Kingdom, drawn from the country name layer." width="436">
+</p>
+
+Faction name layer (API level 5), stored on the faction leader.
+
+<p>
+  <img src="docs/assets/promo/capie/readme/tiles/faction-dialog.jpg" alt="The diplomatic action Rename faction and its dialog." width="436">
+  <img src="docs/assets/promo/capie/readme/tiles/faction-map.jpg" alt="The faction map mode with the faction The Rizzlers, drawn from the faction name layer." width="436">
+</p>
+
+Country flag layer (API level 6): any flag the game has, with the name kept.
+
+<p>
+  <img src="docs/assets/promo/capie/readme/tiles/flag-picker.jpg" alt="A flag picker listing the game's flags by letter." width="436">
+  <img src="docs/assets/promo/capie/readme/tiles/flag-result.jpg" alt="The Politics panel with the chosen flag in the top left corner, drawn from the flag layer." width="436">
+</p>
 
 ## For players
 

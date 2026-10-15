@@ -1,11 +1,12 @@
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/banner.jpg[/img]
 [h1]CAPIE[/h1]
 [b]Made with AI.[/b] I built this mod with the help of AI tools (Claude Code and Codex), and I say so openly. If you would rather not play mods made with AI, do not download it.
-CAPIE (Cyprian's API Extender) is a small native library that gives Hearts of Iron IV mods a few abilities the script language does not have: reading what the player types into the game's own text field, and custom country, faction and flag layers stored in the save. Rename Anything is the first mod built on CAPIE.
 
-This item is the switch. It has no game content, only the switch and one status line in the bottom right corner of the main menu (in preparation).
+CAPIE (Cyprian's API Extender) is a small native library for Hearts of Iron IV. It lets mods read what the player types into the game's own text field, and it draws custom country names, faction names and flags that are stored in the save. HOI4 script cannot do either on its own. Rename Anything is the first mod built on CAPIE.
+
+This item is the switch. It has no game content: just the switch and, once it is ready, one status line in the bottom right corner of the main menu.
 [list]
-[*]Enabled in your playset: the CAPIE launcher loads CAPIE into the game.
+[*]In your playset and enabled: the CAPIE launcher loads CAPIE into the game.
 [*]Disabled, or not in the playset: the game starts without CAPIE.
 [/list]
 Load order does not matter.
@@ -14,10 +15,10 @@ Load order does not matter.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-status-line.png[/img]
 [h2]The status line in the main menu (in preparation)[/h2]
-The status line does not show in the game yet. When it does:
+The status line does not show in the game yet. When it does, it will read:
 [list]
 [*][i]CAPIE 1.5[/i]: CAPIE is running.
-[*][i]CAPIE missing[/i] in orange: the switch is on but CAPIE is not loaded. The game was not started through the CAPIE launcher, your game version is not supported, or the menu has not finished loading. CAPIE loads about 20 seconds after the main menu appears.
+[*][i]CAPIE missing[/i], in orange: the switch is on but CAPIE is not loaded. Either the game was not started through the CAPIE launcher, your game version is not supported, or the menu has not finished loading. CAPIE loads about 20 seconds after the main menu appears.
 [/list]
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-requirements.png[/img]
@@ -29,27 +30,26 @@ The status line does not show in the game yet. When it does:
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-installing.png[/img]
 [h2]Installing[/h2]
-The installer is in preparation. It will come as one PowerShell line ([i]irm ... | iex[/i]) and as an installer on GitHub Releases, published together with the first release. It installs the launcher and can switch CAPIE off or uninstall it later.
+The installer is in preparation. It will be one PowerShell line ([i]irm ... | iex[/i]) or an installer from GitHub Releases, both published with the first release. It installs the launcher, and later it can switch CAPIE off or uninstall it.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-how-it-works.png[/img]
 [h2]How it works[/h2]
-When you press Play, the Paradox Launcher writes your playset to dlc_load.json in Documents\Paradox Interactive\Hearts of Iron IV. The CAPIE launcher reads that file after the game has started. If this item is listed, CAPIE is loaded once the game reaches the main menu. If the file cannot be read, the game runs without CAPIE and a short notice says so. The game is never held up.
+When you press Play, the Paradox Launcher writes your playset to dlc_load.json in Documents\Paradox Interactive\Hearts of Iron IV. The CAPIE launcher reads that file after the game has started. If this item is on the list, CAPIE loads once the game reaches the main menu. If the file cannot be read, the game runs without CAPIE and a short notice says so. The game never waits for CAPIE.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-safety.png[/img]
 [h2]Safety and limits[/h2]
 [list]
 [*]Game files stay unchanged. The launcher adds nothing to the game folder.
-[*]No network connections.
+[*]CAPIE opens no network connections.
 [*]CAPIE checks the SHA-256 of hoi4.exe and every place it hooks. On any other game build it does not start, and the game runs without it.
 [*]Multiplayer has not been tested with two players. Disable this item before you play multiplayer.
-[*]Whether the game counts this item for the checksum or for achievements has not been checked.
-[*]Some antivirus programs may warn about CAPIE, because it loads itself into the game process. Every release will be scanned on VirusTotal and the results linked from the release notes.
+[*]Nobody has checked yet whether the game counts this item for the checksum or for achievements.
+[*]Some antivirus programs may warn about CAPIE, because it loads itself into the game process. Every release will be scanned on VirusTotal, with the results linked from the release notes.
 [/list]
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-clean-game.png[/img]
 [h2]Back to the clean game[/h2]
-Disable this item in the playset: the next start is without CAPIE. To remove CAPIE completely, run the installer and choose Uninstall. Saves and other mods are not touched.
-
+Disable this item in the playset and the next start is without CAPIE. To remove CAPIE completely, run the installer and choose Uninstall. Your saves and other mods are not touched.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-links.png[/img]
 [h2]Source and links[/h2]
