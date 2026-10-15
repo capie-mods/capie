@@ -113,8 +113,8 @@
 param(
     [switch]$Install,
     [switch]$Latest,
-    [Alias('Method')][ValidateSet('Proxy', 'Launcher')][string]$LoadMethod,
-    [ValidateSet('Flag', 'Config')][string]$ProxyActivation,
+    [Alias('Method')][ValidateSet('', 'Proxy', 'Launcher')][string]$LoadMethod,
+    [ValidateSet('', 'Flag', 'Config')][string]$ProxyActivation,
     [switch]$Shortcut,
     [string]$ShortcutPath,
     [switch]$SteamLaunchOption,
