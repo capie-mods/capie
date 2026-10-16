@@ -43,7 +43,7 @@ jobs:
           path: _design
           sparse-checkout: sites/shared
       - run: cp -r _design/sites/shared sites/shared
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.13"
       - run: uv sync --locked --only-group docs
