@@ -202,6 +202,15 @@ int main(int argc,char**argv){
     for enabled_pair in (False, True):
         playset.write_text(json.dumps({"enabled_mods": ["mod/capie.mod"] if enabled_pair else []}))
         subprocess.run(pair_args, env=pair_env, check=True, capture_output=True)  # noqa: S603
+    # A read-only disabled playset must remain byte-for-byte and metadata unchanged.
+    playset.write_text(json.dumps({"enabled_mods": []}))
+    playset.chmod(0o400)
+    before = (playset.read_bytes(), playset.stat().st_mtime_ns, playset.stat().st_mode)
+    subprocess.run(pair_args, env=pair_env, check=True, capture_output=True)  # noqa: S603
+    after = (playset.read_bytes(), playset.stat().st_mtime_ns, playset.stat().st_mode)
+    if before != after:
+        message = "Paired child changed protected disabled playset"
+        raise RuntimeError(message)
     malformed_pair = [*pair_args[:11], "--"]
     result = subprocess.run(malformed_pair, env=pair_env, check=False, capture_output=True)  # noqa: S603
     if result.returncode != configuration_error:

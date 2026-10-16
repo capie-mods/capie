@@ -49,3 +49,21 @@ remain to be checked. No game hooks were activated by this checkpoint work, no
 campaign was edited and no release was published. A permanent OS failure during
 patch rollback remains an explicit catastrophic-failure limitation (POISONED),
 not a successful fail-closed result.
+
+## Follow-up checkpoint: bootstrap compatibility and observation
+
+The bootstrap now accepts the main-image index permutation used by HOI4's
+macOS 10.14 deployment target. It pins the three bundled dependencies, handles
+bounded FAT32/FAT64 x86 slices and rejects unknown non-system loaded images.
+Modern and legacy owned bootstrap fixtures pass, including dependency corruption.
+
+A forward-only GUI recorder and a selectable observe runtime mode are implemented.
+The runtime report uses a separate private raw JSONL writer. Standalone refusal
+and report-permission tests pass. Observation of a real own GUI and its owner
+thread is still pending; the observe path has not run in HOI4.
+
+The developer bundle builder defaults to an inert bootstrap. An enabled profile
+requires matching lifecycle evidence, a source-closure fingerprint including
+headers and build scripts, exact dependency identities and post-build Mach-O checks.
+The inert bundle was built successfully. The ready bundle and in-game activation
+remain unchecked. This is still a development checkpoint, not a supported release.

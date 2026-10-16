@@ -4,6 +4,7 @@
  */
 #include "../bootstrap/macos_bootstrap_api.h"
 #include "../core/macos_hook_prefixes.h"
+#include "../core/macos_gui_probe.hpp"
 #include "../core/macos_activation_checks.hpp"
 #include "macos_country.hpp"
 #include "macos_editor.hpp"
@@ -31,7 +32,12 @@ const Memory memory{};
 native::image::Image image{};
 Country* country_runtime = nullptr; // Process lifetime: residual dispatch must never outlive this object.
 editor::Tick tick_original = nullptr;
-std::atomic<unsigned> status{0}; // 0 inert, 1 awaiting initialized GUI, 2 active, 3 refused.
+std::atomic<unsigned> status{0}; // 0 inert, 1 awaiting GUI, 2 active, 3 refused, 4 observe-only.
+native::gui_probe::Recorder<32768> gui_recorder{};
+core::platform::Lock probe_lock{};
+core::platform::Lock report_lock{};
+int report_file = -1;
+std::size_t exported_events = 0;
 std::atomic_flag initializing = ATOMIC_FLAG_INIT;
 
 unsigned index_of(const char* id) noexcept {
@@ -55,6 +61,79 @@ void restore_forwarding() noexcept {
         static_cast<void>(capie_macos_bootstrap_set_dispatch(i, nullptr));
 }
 std::uint32_t capabilities() noexcept { return country_runtime ? country_runtime->capabilities() : 0; }
+
+void open_report() noexcept {
+    const char* path = std::getenv("CAPIE_RUNTIME_REPORT_DIR");
+    if (!path || path[0] != '/') return;
+    const int folder = open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (folder < 0) return;
+    struct stat info{};
+    if (fstat(folder, &info) == 0 && info.st_uid == geteuid() && (info.st_mode & 0077) == 0) {
+        char name[64]{};
+        std::snprintf(name, sizeof(name), "capie-runtime-%ld.jsonl", static_cast<long>(getpid()));
+        report_file = openat(folder, name,
+            O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+    }
+    close(folder);
+}
+void json_line(const char* data, std::size_t size) noexcept {
+    core::platform::lock(&report_lock);
+    if (report_file >= 0) {
+        while (size != 0) {
+            const auto written = ::write(report_file, data, size);
+            if (written < 0 && errno == EINTR) continue;
+            if (written <= 0) break;
+            data += written;
+            size -= static_cast<std::size_t>(written);
+        }
+    }
+    core::platform::unlock(&report_lock);
+}
+void report_state(const char* stage) noexcept {
+    char line[256]{};
+    const auto bootstrap = capie_macos_bootstrap_state ? capie_macos_bootstrap_state() : 0;
+    const int size = std::snprintf(line, sizeof(line),
+        "{\"stage\":\"%s\",\"runtime_state\":%u,\"bootstrap_state\":%u,\"thread\":%lu,\"main\":%s}\n",
+        stage, status.load(), bootstrap, core::platform::thread_id(), pthread_main_np() ? "true" : "false");
+    if (size > 0) json_line(line, core::logging::stored_bytes(size, sizeof(line)));
+}
+void export_events() noexcept {
+    core::platform::lock(&probe_lock);
+    native::gui_probe::Event event{};
+    while (gui_recorder.read(exported_events, event)) {
+        const auto& s = event.snapshot;
+        char line[512]{};
+        const int size = std::snprintf(line, sizeof(line),
+            "{\"call\":%zu,\"kind\":%u,\"phase\":%u,\"thread\":%lu,\"main\":%s,"
+            "\"window\":%llu,\"model\":%llu,\"root\":%llu,\"context\":%llu,"
+            "\"model_vtable\":%llu,\"root_vtable\":%llu,\"complete\":%s,\"context_matches\":%s}\n",
+            event.call, static_cast<unsigned>(event.kind), static_cast<unsigned>(event.phase), event.thread.id,
+            event.thread.main ? "true" : "false", static_cast<unsigned long long>(s.window),
+            static_cast<unsigned long long>(s.model), static_cast<unsigned long long>(s.root),
+            static_cast<unsigned long long>(s.context), static_cast<unsigned long long>(s.model_vtable),
+            static_cast<unsigned long long>(s.root_vtable), s.complete ? "true" : "false",
+            s.context_matches ? "true" : "false");
+        if (size > 0) json_line(line, core::logging::stored_bytes(size, sizeof(line)));
+        ++exported_events;
+    }
+    core::platform::unlock(&probe_lock);
+}
+void observe_tick(void* window, char force) noexcept {
+    if (!editor::window_may_be_own(window)) { tick_original(window, force); return; }
+    gui_recorder.tick(memory, reinterpret_cast<core::uptr>(window), force,
+                     {core::platform::thread_id(), pthread_main_np() != 0}, tick_original);
+    export_events();
+}
+void observe_dispatch(void* context, void* selector) noexcept {
+    const auto forward = original<editor::Dispatch>("window_dispatch");
+    void* window = nullptr;
+    if (!core::member(context, core::off::context_window, window) || !editor::window_may_be_own(window)) {
+        forward(context, selector); return;
+    }
+    gui_recorder.dispatch(memory, reinterpret_cast<core::uptr>(context), selector,
+                         {core::platform::thread_id(), pthread_main_np() != 0}, forward);
+    export_events();
+}
 
 bool load_image() noexcept {
     std::uint32_t index = 0;
@@ -164,6 +243,7 @@ void awaiting_gui(void* window, char force) noexcept {
         tick_original(window, force);
     } else {
         status.store(2, std::memory_order_release);
+        report_state("features-active");
         editor::macos::tick(window, force);
     }
     initializing.clear(std::memory_order_release);
@@ -172,17 +252,32 @@ void awaiting_gui(void* window, char force) noexcept {
 void initialize() noexcept {
     // shortcut: first-Tick owner/lifetime admission remains experimental until in-game validation.
     const char* experimental = std::getenv("CAPIE_EXPERIMENTAL_RUNTIME");
-    if (!experimental || std::strcmp(experimental, "1") != 0) return;
+    const char* mode = std::getenv("CAPIE_RUNTIME_MODE");
+    const bool observing = mode && std::strcmp(mode, "observe") == 0;
+    if (!observing && (!experimental || std::strcmp(experimental, "1") != 0)) return;
+    open_report();
+    report_state("runtime-loaded");
     if (!capie_macos_bootstrap_state || !capie_macos_bootstrap_trampoline ||
         !capie_macos_bootstrap_set_dispatch || !capie_macos_bootstrap_image_base || !capie_macos_bootstrap_slide ||
-        capie_macos_bootstrap_state() != CAPIE_BOOTSTRAP_FORWARDING) return;
+        capie_macos_bootstrap_state() != CAPIE_BOOTSTRAP_FORWARDING) {
+        report_state("bootstrap-not-forwarding"); return;
+    }
     try {
-        if (!load_image() || !native::activation::allocator_matches(memory, capie_macos_bootstrap_image_base()) || !bind_country()) {
-            status.store(3); return;
+        if (!load_image() || !native::activation::allocator_matches(memory, capie_macos_bootstrap_image_base())) {
+            status.store(3); report_state("image-or-allocator-refused"); return;
         }
         tick_original = original<editor::Tick>("window_tick");
         if (!tick_original) { status.store(3); return; }
+        engine::image_base = capie_macos_bootstrap_image_base();
+        if (observing) {
+            if (publish("window_tick", observe_tick) && publish("window_dispatch", observe_dispatch)) status.store(4);
+            else { restore_forwarding(); status.store(3); }
+            report_state("observe-only");
+            return;
+        }
+        if (!bind_country()) { status.store(3); report_state("country-config-refused"); return; }
         status.store(1, std::memory_order_release);
+        report_state("awaiting-gui");
         if (!publish("window_tick", awaiting_gui)) status.store(3);
     } catch (...) { status.store(3); }
 }

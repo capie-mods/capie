@@ -1,0 +1,533 @@
+{
+  "host": "macOS27.0.1 build26A434 dyld27062",
+  "images": [
+    {
+      "path": "/Users/cyprian/Library/Application Support/Steam/steamapps/common/Hearts of Iron IV/hoi4.app/Contents/MacOS/hoi4",
+      "sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+      "x86_64_sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+      "flags": "0x818085",
+      "dependencies": [
+        {
+          "command": "0xc",
+          "name": "@executable_path/../../../libsteam_api.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "@executable_path/../../../libPDXSDK.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/ForceFeedback.framework/Versions/A/ForceFeedback"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/AudioUnit.framework/Versions/A/AudioUnit"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/AudioToolbox.framework/Versions/A/AudioToolbox"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreAudio.framework/Versions/A/CoreAudio"
+        },
+        {
+          "command": "0x80000018",
+          "name": "/System/Library/Frameworks/Metal.framework/Versions/A/Metal"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/GLUT.framework/Versions/A/GLUT"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libiconv.2.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "@executable_path/../../../libtbb.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libc++.1.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libSystem.B.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libobjc.A.dylib"
+        }
+      ],
+      "special_sections": [
+        {
+          "name": "__mod_init_func",
+          "va": "0x1032a2b78",
+          "size": 45768,
+          "flags": "0x9"
+        }
+      ],
+      "special_commands": [],
+      "minos": "0xa0e00",
+      "export_count": 45052,
+      "resolver_exports": []
+    },
+    {
+      "path": "/Users/cyprian/Library/Application Support/Steam/steamapps/common/Hearts of Iron IV/libsteam_api.dylib",
+      "sha256": "dd19abd471149617d5b85e390d707806f689b96ee67e014f32769b4cf18e2a1c",
+      "x86_64_sha256": "284b2a0101637efb0a9836b8d19da0219e4f1dd60b0bf35883a68869db97f4e6",
+      "flags": "0x110085",
+      "dependencies": [
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libc++.1.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libSystem.B.dylib"
+        }
+      ],
+      "special_sections": [],
+      "special_commands": [],
+      "minos": "0xa0700",
+      "export_count": 966,
+      "resolver_exports": []
+    },
+    {
+      "path": "/Users/cyprian/Library/Application Support/Steam/steamapps/common/Hearts of Iron IV/libPDXSDK.dylib",
+      "sha256": "63b84999312aa029e9aeb3f8288d09b2297b78c3c2bb6822a1e5541dbe046f31",
+      "x86_64_sha256": "24afe10ec52ce48cc204e287278392c0d736a571cf09f17b4c301ffa1fbac5b0",
+      "flags": "0x118085",
+      "dependencies": [
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libcompression.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libiconv.2.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libcurl.4.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libc++.1.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libSystem.B.dylib"
+        }
+      ],
+      "special_sections": [
+        {
+          "name": "__mod_init_func",
+          "va": "0x1b09668",
+          "size": 72,
+          "flags": "0x9"
+        }
+      ],
+      "special_commands": [],
+      "minos": "0xa0c00",
+      "export_count": 3006,
+      "resolver_exports": []
+    },
+    {
+      "path": "/Users/cyprian/Library/Application Support/Steam/steamapps/common/Hearts of Iron IV/libtbb.dylib",
+      "sha256": "65a10dc5463a0fa78519785634abe0c06f83ddaa528b8bf95a103577a3c8804a",
+      "x86_64_sha256": "65a10dc5463a0fa78519785634abe0c06f83ddaa528b8bf95a103577a3c8804a",
+      "flags": "0x118085",
+      "dependencies": [
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libSystem.B.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libc++.1.dylib"
+        }
+      ],
+      "special_sections": [
+        {
+          "name": "__mod_init_func",
+          "va": "0x5e480",
+          "size": 40,
+          "flags": "0x9"
+        }
+      ],
+      "special_commands": [],
+      "minos": "0xa0b00",
+      "export_count": 303,
+      "resolver_exports": []
+    },
+    {
+      "path": "/Users/cyprian/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS/gameoverlayrenderer.dylib",
+      "sha256": "c8a2b06c1daf1bc03dc1d521c967eb95e93a46660aa320979288e42df3b4db10",
+      "x86_64_sha256": "7f5c191e414fae41c60be80b49ee3a567b1887a9547ebe6a282d50cbe3310491",
+      "flags": "0x110085",
+      "dependencies": [
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreMedia.framework/Versions/A/CoreMedia"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/IOSurface.framework/Versions/A/IOSurface"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/Metal.framework/Versions/A/Metal"
+        },
+        {
+          "command": "0x80000018",
+          "name": "/System/Library/Frameworks/ReplayKit.framework/Versions/A/ReplayKit"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libc++.1.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libSystem.B.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics"
+        },
+        {
+          "command": "0xc",
+          "name": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libobjc.A.dylib"
+        }
+      ],
+      "special_sections": [
+        {
+          "name": "__mod_init_func",
+          "va": "0x27098",
+          "size": 112,
+          "flags": "0x9"
+        },
+        {
+          "name": "__interpose",
+          "va": "0x29788",
+          "size": 240,
+          "flags": "0x0"
+        }
+      ],
+      "special_commands": [],
+      "minos": "0xb0000",
+      "export_count": 4,
+      "resolver_exports": []
+    },
+    {
+      "path": "/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-runtime-refusal-mj3cfitt/build/capie_runtime.dylib",
+      "sha256": "69e895b59f9b81981e70a8534b53294011df3d83f7f03aa119da7a8882701f3d",
+      "x86_64_sha256": "69e895b59f9b81981e70a8534b53294011df3d83f7f03aa119da7a8882701f3d",
+      "flags": "0x910085",
+      "dependencies": [
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libc++.1.dylib"
+        },
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libSystem.B.dylib"
+        }
+      ],
+      "special_sections": [
+        {
+          "name": "__init_offsets",
+          "va": "0x1ee4c",
+          "size": 44,
+          "flags": "0x16"
+        }
+      ],
+      "special_commands": [],
+      "minos": "0x1b0000",
+      "export_count": 1,
+      "resolver_exports": []
+    },
+    {
+      "path": "/tmp/capie-bootstrap-enabled-refusal.dylib",
+      "sha256": "7da66a17e0f238b4d2299059afbda7392f78cda475015ebc9f4fafe2ae82181c",
+      "x86_64_sha256": "7da66a17e0f238b4d2299059afbda7392f78cda475015ebc9f4fafe2ae82181c",
+      "flags": "0x118085",
+      "dependencies": [
+        {
+          "command": "0xc",
+          "name": "/usr/lib/libSystem.B.dylib"
+        }
+      ],
+      "special_sections": [
+        {
+          "name": "__init_offsets",
+          "va": "0x404c",
+          "size": 4,
+          "flags": "0x16"
+        }
+      ],
+      "special_commands": [],
+      "minos": "0x1b0000",
+      "export_count": 211,
+      "resolver_exports": []
+    }
+  ],
+  "overlay_interpose_bindings": [
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029850",
+      "pointer",
+      "0",
+      "OpenGL",
+      "_CGLChoosePixelFormat"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029790",
+      "pointer",
+      "0",
+      "OpenGL",
+      "_CGLFlushDrawable"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x000297A0",
+      "pointer",
+      "0",
+      "OpenGL",
+      "_glSwapAPPLE"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029830",
+      "pointer",
+      "0",
+      "ApplicationServices",
+      "_HideCursor"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029820",
+      "pointer",
+      "0",
+      "ApplicationServices",
+      "_InitCursor"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029840",
+      "pointer",
+      "0",
+      "ApplicationServices",
+      "_ShowCursor"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029860",
+      "pointer",
+      "0",
+      "CoreFoundation",
+      "_CFRunLoopRun"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029870",
+      "pointer",
+      "0",
+      "CoreFoundation",
+      "_CFRunLoopRunInMode"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x000297B0",
+      "pointer",
+      "0",
+      "CoreGraphics",
+      "_CGAssociateMouseAndMouseCursorPosition"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x000297C0",
+      "pointer",
+      "0",
+      "CoreGraphics",
+      "_CGCursorIsVisible"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x000297D0",
+      "pointer",
+      "0",
+      "CoreGraphics",
+      "_CGDisplayHideCursor"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029810",
+      "pointer",
+      "0",
+      "CoreGraphics",
+      "_CGDisplayMoveCursorToPoint"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x000297E0",
+      "pointer",
+      "0",
+      "CoreGraphics",
+      "_CGDisplayShowCursor"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x00029800",
+      "pointer",
+      "0",
+      "CoreGraphics",
+      "_CGGetLastMouseDelta"
+    ],
+    [
+      "__DATA",
+      "__interpose",
+      "0x000297F0",
+      "pointer",
+      "0",
+      "CoreGraphics",
+      "_CGWarpMouseCursorPosition"
+    ]
+  ],
+  "bootstrap_imports": [
+    "_CC_SHA256_Final",
+    "_CC_SHA256_Init",
+    "_CC_SHA256_Update",
+    "__NSGetEnviron",
+    "____chkstk_darwin",
+    "___bzero",
+    "___stack_chk_fail",
+    "___stack_chk_guard",
+    "__dyld_get_image_header",
+    "__dyld_get_image_name",
+    "__dyld_get_image_vmaddr_slide",
+    "__dyld_image_count",
+    "_close",
+    "_dladdr",
+    "_fstat$INODE64",
+    "_getenv",
+    "_getpagesize",
+    "_mach_port_deallocate",
+    "_mach_task_self_",
+    "_mach_vm_protect",
+    "_mach_vm_read_overwrite",
+    "_mach_vm_region",
+    "_mach_vm_write",
+    "_memcmp",
+    "_memcpy",
+    "_mmap",
+    "_mprotect",
+    "_munmap",
+    "_open",
+    "_strcmp",
+    "_strncmp",
+    "_sys_icache_invalidate"
+  ],
+  "overlay_interpose_bootstrap_import_overlap": [],
+  "host_dyld_sha256": "be8904b70f95adeb9d244308ca470f939bb89bd32a9b1b05e3f65ac92579e226",
+  "legacy_owned_identity": {
+    "main_minos": "10.14",
+    "index0": "MH_EXECUTE",
+    "index1": "inserted identity dylib",
+    "index2": "libSystem",
+    "mutations": false
+  },
+  "audit_method": "Read-only Mach-O load commands/sections, iterative export-trie ULEB terminal flags (STUB_AND_RESOLVER 0x10), llvm-objdump --bind, nm -u. Universal files: x86_64 slice; hashes record whole file and selected slice."
+}

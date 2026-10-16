@@ -1,0 +1,48 @@
+{
+  "sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "scope": "Static caller order and identity only; not proof of operating-system thread or universal lifetime.",
+  "pins": [
+    {
+      "id": "manager_tick_loop",
+      "va": "0x100b43f79",
+      "file_offset": 11812729,
+      "hex": "488b43204a8b3ce8e89a00000049ffc54d39ec",
+      "notes": "manager list+0x20, Tick direct call, iterator advance"
+    },
+    {
+      "id": "manager_after_loop",
+      "va": "0x100b43f8e",
+      "file_offset": 11812750,
+      "hex": "4889dfe8ea040000",
+      "notes": "manager processing follows Tick iteration"
+    },
+    {
+      "id": "manager_vtable_tick",
+      "va": "0x103326920",
+      "file_offset": 53635360,
+      "hex": "003fb40001000000",
+      "notes": "CScriptedWindowManager vtable slot8 ->100b43f00"
+    },
+    {
+      "id": "tick_context_update",
+      "va": "0x100b443cb",
+      "file_offset": 11813835,
+      "hex": "4881c3100100004889dfe8a6290000",
+      "notes": "window+110 synchronous context update"
+    },
+    {
+      "id": "left_click_dispatch",
+      "va": "0x100b480f0",
+      "file_offset": 11829488,
+      "hex": "488d75a04889dfe8e4360000",
+      "notes": "stack selector, receiver, direct Dispatch call"
+    },
+    {
+      "id": "right_click_dispatch",
+      "va": "0x100b481a4",
+      "file_offset": 11829668,
+      "hex": "488d75d84889dfe830360000",
+      "notes": "stack selector, receiver, direct Dispatch call"
+    }
+  ]
+}

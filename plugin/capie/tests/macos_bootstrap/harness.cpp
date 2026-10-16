@@ -2,6 +2,8 @@
 #include "../../src/bootstrap/macos_bootstrap.cpp"
 #include "fixture_identity.h"
 __attribute__((constructor)) static void fixture_init() {
+    if (const char* unknown = std::getenv("CAPIE_FIXTURE_UNKNOWN_DEPENDENCY"))
+        if (!dlopen(unknown, RTLD_NOW | RTLD_LOCAL)) return;
     if (!policy_matches()) return;
     uint32_t index = 0;
     if (!image::executable_index(_dyld_image_count(), _dyld_get_image_header, index)) return;

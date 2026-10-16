@@ -7,6 +7,7 @@ import json
 import os
 import struct
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -63,12 +64,116 @@ def validate_binary(binary: Path) -> int:
     return initializers
 
 
-def main() -> None:
-    """Check all stubs, ABI forwarding, publication and pre-mutation refusals.
+def build_dependencies(source: Path, output: Path) -> list[Path]:
+    """Build three inert universal dependencies.
+
+    Returns:
+        Canonical paths to the three owned FAT carriers.
+    """
+    paths = [output / f"dependency{i}.dylib" for i in range(3)]
+    for path in paths:
+        run(
+            [
+                "/usr/bin/xcrun",
+                "clang",
+                "-arch",
+                "x86_64",
+                "-arch",
+                "arm64",
+                "-dynamiclib",
+                str(source / "dependency.c"),
+                "-o",
+                str(path),
+            ]
+        )
+    return paths
+
+
+def dependency_policy(paths: list[Path]) -> str:
+    """Encode immutable full-carrier dependency identities.
+
+    Returns:
+        C policy declarations for all three dependencies.
+    """
+    result = "#define CAPIE_BOOTSTRAP_DEPENDENCY_COUNT 3\n"
+    result += "static constexpr const char* capie_bootstrap_dependency_paths[]={"
+    result += ",".join(json.dumps(str(path)) for path in paths) + "};\n"
+    result += "static constexpr const char* capie_bootstrap_dependency_hashes[]={"
+    result += (
+        ",".join(json.dumps(hashlib.sha256(path.read_bytes()).hexdigest()) for path in paths)
+        + "};\n"
+    )
+    return result
+
+
+def negative_dependency(child: Path, dependency: Path, env: dict[str, str]) -> str:
+    """Check rejection of a changed full universal carrier.
+
+    Returns:
+        Successful refusal fixture output.
+    """
+    original = dependency.read_bytes()
+    try:
+        dependency.write_bytes(original + b"wrong carrier hash")
+        return run([str(child)], env=dict(env, EXPECT_REFUSAL="1"))
+    finally:
+        dependency.write_bytes(original)
+
+
+def fat_bounds(source: Path, output: Path, compiler: list[str]) -> str:
+    """Run the ten bounded parser checks without code mutation.
+
+    Returns:
+        Successful parser test output.
+    """
+    binary = output / "fat_bounds"
+    run([*compiler, f"-I{output}", str(source / "fat_bounds.cpp"), "-o", str(binary)])
+    return run([str(binary)])
+
+
+def linkage(binary: Path) -> str:
+    """Reject unexpected C++ runtime linkage.
+
+    Returns:
+        Dependency listing.
 
     Raises:
-        RuntimeError: A bootstrap binary violates its dependency or initializer contract.
+        RuntimeError: The bootstrap links libc++.
     """
+    result = run(["/usr/bin/otool", "-L", str(binary)])
+    if "libc++" in result:
+        message = "Unexpected libc++ dependency"
+        raise RuntimeError(message)
+    return result
+
+
+def unknown_dependency(source: Path, output: Path, child: Path, env: dict[str, str]) -> str:
+    """Add an unlisted owned startup image without changing the inserted list.
+
+    Returns:
+        Successful refusal fixture output.
+    """
+    library = output / "unknown.dylib"
+    run(
+        [
+            "/usr/bin/xcrun",
+            "clang",
+            "-arch",
+            "x86_64",
+            "-dynamiclib",
+            str(source / "dependency.c"),
+            "-o",
+            str(library),
+        ]
+    )
+    return run(
+        [str(child)],
+        env=dict(env, EXPECT_REFUSAL="1", CAPIE_FIXTURE_UNKNOWN_DEPENDENCY=str(library)),
+    )
+
+
+def main() -> None:
+    """Check all stubs, ABI forwarding, publication and pre-mutation refusals."""
     source = Path(__file__).resolve().parent
     output = Path(tempfile.mkdtemp(prefix="capie-bootstrap-15-")).resolve()
     child, later, bootstrap = [
@@ -86,13 +191,27 @@ def main() -> None:
         "-fno-rtti",
         "-Wno-deprecated-declarations",
     ]
-    run([*compiler, str(source / "child.cpp"), str(source / "targets.s"), "-o", str(child)])
+    dependencies = build_dependencies(source, output)
+    deployment = ["-mmacosx-version-min=10.14"] if "--legacy" in sys.argv[1:] else []
+    run(
+        [
+            *compiler,
+            *deployment,
+            str(source / "child.cpp"),
+            str(source / "targets.s"),
+            *[f"-Wl,-needed_library,{path}" for path in dependencies],
+            "-o",
+            str(child),
+        ]
+    )
     run(
         [
             "/usr/bin/xcrun",
             "clang",
             "-arch",
             "x86_64",
+            "-arch",
+            "arm64",
             "-dynamiclib",
             str(source / "later.c"),
             "-o",
@@ -131,6 +250,7 @@ def main() -> None:
     policy += json.dumps(str(bootstrap)) + "," + json.dumps(str(later)) + "};\n"
     policy += 'static constexpr const char* capie_bootstrap_inserted_hashes[]={"","'
     policy += hashlib.sha256(later.read_bytes()).hexdigest() + '"};\n'
+    policy += dependency_policy(dependencies)
     (output / "macos_bootstrap_policy.h").write_text(policy)
     run(
         [
@@ -183,14 +303,14 @@ def main() -> None:
             str(bootstrap),
         ]
     )
+    results["wrong_dependency_hash"] = negative_dependency(child, dependencies[0], env)
+    results["fat_bounds"] = fat_bounds(source, output, compiler)
+    results["unknown_loaded_dependency"] = unknown_dependency(source, output, child, env)
     # Alter only owned fixture data. The executable still runs, its pinned SHA changes.
     with child.open("ab") as stream:
         stream.write(b"fixture hash mismatch")
     results["wrong_main_hash"] = run([str(child)], env=dict(env, EXPECT_REFUSAL="1"))
-    dependencies = run(["/usr/bin/otool", "-L", str(bootstrap)])
-    if "libc++" in dependencies:
-        message = "Unexpected libc++ dependency"
-        raise RuntimeError(message)
+    dependencies = linkage(bootstrap)
     # Compile the actual bootstrap (no fixture substitutions), check exactly one ctor.
     production = output / "production.dylib"
     run(

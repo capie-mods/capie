@@ -2,6 +2,7 @@
 
 # Only explicit local compilers and owned fixtures execute; no game is launched.
 # ruff: noqa: S603
+import json
 import os
 import subprocess
 import tempfile
@@ -9,7 +10,11 @@ from pathlib import Path
 
 
 def main() -> None:
-    """Require safe runtime loading without a bootstrap and refusal of false identity."""
+    """Require safe startup and a private, bounded refusal report.
+
+    Raises:
+        SystemExit: If refusal or report permissions differ from the contract.
+    """
     root = Path(__file__).resolve().parents[1]
     output = Path(tempfile.mkdtemp(prefix="capie-runtime-refusal-"))
     build = output / "build"
@@ -59,10 +64,29 @@ def main() -> None:
     )
     environment["DYLD_INSERT_LIBRARIES"] = str(bootstrap)
     environment["CAPIE_EXPERIMENTAL_RUNTIME"] = "1"
+    reports = output / "reports"
+    reports.mkdir(mode=0o700)
+    environment["CAPIE_RUNTIME_REPORT_DIR"] = str(reports)
     subprocess.run(
         [str(fixture), str(build / "capie_runtime.dylib"), "3"], env=environment, check=True
     )
-    print(f"PASS: absent bootstrap inert; false identity refused. Artifacts: {output}")
+    records = list(reports.glob("capie-runtime-*.jsonl"))
+    if len(records) != 1 or records[0].stat().st_mode & 0o777 != 0o600:  # noqa: PLR2004 -- private output mode
+        message = "expected one private runtime report"
+        raise SystemExit(message)
+    events = [json.loads(line) for line in records[0].read_text().splitlines()]
+    if [event["stage"] for event in events] != ["runtime-loaded", "image-or-allocator-refused"]:
+        message = "runtime refusal did not report the exact failed gate"
+        raise SystemExit(message)
+    environment.pop("CAPIE_EXPERIMENTAL_RUNTIME")
+    environment["CAPIE_RUNTIME_MODE"] = "observe"
+    subprocess.run(
+        [str(fixture), str(build / "capie_runtime.dylib"), "3"], env=environment, check=True
+    )
+    print(
+        "PASS: inert startup, private refusal report, observe-mode foreign refusal. "
+        f"Artifacts: {output}"
+    )
 
 
 if __name__ == "__main__":

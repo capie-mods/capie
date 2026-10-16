@@ -70,6 +70,7 @@ with tempfile.TemporaryDirectory(prefix="capie-native-parent-") as directory:
         str(destination),
     ]
     environment = dict(os.environ, CAPIE_PARENT_REPORT=str(report), SteamAppId="394360")
+    source_before = (source.read_bytes(), source.stat().st_mtime_ns)
     subprocess.run(args, env=environment, check=True)
     observed = json.loads(report.read_text())
     expected = {
@@ -103,6 +104,9 @@ with tempfile.TemporaryDirectory(prefix="capie-native-parent-") as directory:
         "--",
     ]:
         message = "Native parent did not preserve paired runtime configuration"
+        raise RuntimeError(message)
+    if (source.read_bytes(), source.stat().st_mtime_ns) != source_before:
+        message = "Native legacy/paired staging changed source launcher settings"
         raise RuntimeError(message)
     for index, malformed in enumerate(
         [

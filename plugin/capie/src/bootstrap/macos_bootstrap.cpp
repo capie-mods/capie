@@ -144,6 +144,73 @@ struct File {
 }
 
 #if CAPIE_BOOTSTRAP_POLICY_READY
+/** Select a bounded x86_64 slice after hashing the complete universal carrier. */
+std::span<const unsigned char> x86_slice(std::span<const unsigned char> file) noexcept {
+    const auto big = [&file](size_t at, unsigned width) {
+        uint64_t value = 0;
+        for (unsigned i = 0; i < width; ++i) value = (value << 8) | file[at + i];
+        return value;
+    };
+    if (file.size() < sizeof(mach_header_64)) return {};
+    const uint64_t magic = big(0, 4);
+    if (magic != 0xcafebabe && magic != 0xcafebabf) return file;
+    const uint64_t count = big(4, 4);
+    const size_t stride = magic == 0xcafebabf ? 32 : 20;
+    if (!count || count > 64 || count > (file.size() - 8) / stride) return {};
+    const size_t table_end = 8 + static_cast<size_t>(count) * stride;
+    std::span<const unsigned char> selected;
+    for (size_t i = 0; i < count; ++i) {
+        const size_t at = 8 + i * stride;
+        const unsigned width = stride == 32 ? 8 : 4;
+        const uint64_t offset = big(at + 8, width), size = big(at + 8 + width, width);
+        if (offset < table_end || offset > file.size() || size < sizeof(mach_header_64) ||
+            size > file.size() - offset) return {};
+        if (big(at, 4) != CPU_TYPE_X86_64) continue;
+        if (!selected.empty()) return {};
+        selected = file.subspan(static_cast<size_t>(offset), static_cast<size_t>(size));
+    }
+    return selected;
+}
+
+/** File carrier identity plus the matching loaded x86 header; no image-index assumptions. */
+bool loaded_file_matches(uint32_t index, const char* expected_hash) noexcept {
+    File file(_dyld_get_image_name(index));
+    if (!file.bytes || !image::sha256_matches({file.bytes, file.size}, expected_hash)) return false;
+    const auto slice = x86_slice({file.bytes, file.size});
+    if (slice.size() < sizeof(mach_header_64)) return false;
+    mach_header_64 header{};
+    std::memcpy(&header, slice.data(), sizeof(header));
+    const size_t length = sizeof(header) + header.sizeofcmds;
+    std::array<unsigned char, 131072> loaded{};
+    return header.magic == MH_MAGIC_64 && header.cputype == CPU_TYPE_X86_64 &&
+        header.filetype == MH_DYLIB && length <= slice.size() && length <= loaded.size() &&
+        capie::core::macos::ProcessMemory{}.read(
+            reinterpret_cast<uintptr_t>(_dyld_get_image_header(index)), loaded.data(), length) &&
+        std::memcmp(slice.data(), loaded.data(), length) == 0;
+}
+
+/** The production closure must include all three known bundled game dependencies. */
+bool dependencies_match(uint32_t image_count) noexcept {
+    constexpr size_t count = CAPIE_BOOTSTRAP_DEPENDENCY_COUNT;
+    static_assert(sizeof(capie_bootstrap_dependency_paths) / sizeof(capie_bootstrap_dependency_paths[0]) >= count);
+    static_assert(sizeof(capie_bootstrap_dependency_hashes) / sizeof(capie_bootstrap_dependency_hashes[0]) >= count);
+#ifndef CAPIE_BOOTSTRAP_FIXTURE_PREFIXES
+    if (count != 3) return false;
+#endif
+    if (count > 3) return false;
+    for (size_t i = 0; i < count; ++i) {
+        for (size_t prior = 0; prior < i; ++prior)
+            if (!std::strcmp(capie_bootstrap_dependency_paths[i], capie_bootstrap_dependency_paths[prior])) return false;
+        uint32_t found = 0, selected = 0;
+        for (uint32_t j = 0; j < image_count; ++j) {
+            const char* name = _dyld_get_image_name(j);
+            if (name && !std::strcmp(name, capie_bootstrap_dependency_paths[i])) { ++found; selected = j; }
+        }
+        if (found != 1 || !loaded_file_matches(selected, capie_bootstrap_dependency_hashes[i])) return false;
+    }
+    return true;
+}
+
 /** Exact inserted order and immutable allowlist; unknown DYLD overrides refuse. */
 bool policy_matches() noexcept {
     const char* inserted = std::getenv("DYLD_INSERT_LIBRARIES");
@@ -153,26 +220,41 @@ bool policy_matches() noexcept {
     for (char** p = environment; p && *p; ++p)
         if (!std::strncmp(*p, "DYLD_", 5) && std::strncmp(*p, "DYLD_INSERT_LIBRARIES=", sizeof("DYLD_INSERT_LIBRARIES=") - 1)) return false;
     Dl_info self{};
-    if (!dladdr(reinterpret_cast<void*>(capie_macos_bootstrap_state), &self) ||
-        self.dli_fbase != _dyld_get_image_header(0)) return false;
+    if (!dladdr(reinterpret_cast<void*>(capie_macos_bootstrap_state), &self)) return false;
     const size_t count = sizeof(capie_bootstrap_inserted_paths) / sizeof(capie_bootstrap_inserted_paths[0]);
     static_assert(sizeof(capie_bootstrap_inserted_hashes) / sizeof(capie_bootstrap_inserted_hashes[0]) == count);
-    if (!count || count > 8 || _dyld_image_count() < count) return false;
-    for (size_t i = 0; i < count; ++i) {
-        const char* name = _dyld_get_image_name(static_cast<uint32_t>(i));
+    const uint32_t image_count = _dyld_image_count();
+    uint32_t executable = 0;
+    if (!count || count > 8 || image_count < count ||
+        !image::executable_index(image_count, _dyld_get_image_header, executable)) return false;
+    uint32_t image_index = 0;
+    for (size_t i = 0; i < count; ++i, ++image_index) {
+        // dyld permutes the main to index zero for x86 executables targeting < macOS 12.
+        // Skip only that unique executable; an unexpected dylib must still fail order checks.
+        if (image_index == executable) ++image_index;
+        if (image_index >= image_count) return false;
+        const auto* loaded_header = _dyld_get_image_header(image_index);
+        if (!loaded_header || loaded_header->filetype != MH_DYLIB ||
+            (!i && self.dli_fbase != loaded_header)) return false;
+        const char* name = _dyld_get_image_name(image_index);
         if (!name || std::strcmp(name, capie_bootstrap_inserted_paths[i])) return false;
         if (!i) continue; // Self hash would be circular; launcher verifies the bootstrap artifact.
-        File file(name);
-        if (!file.bytes || !image::sha256_matches({file.bytes, file.size}, capie_bootstrap_inserted_hashes[i])) return false;
-        mach_header_64 header{};
-        std::memcpy(&header, file.bytes, sizeof(header));
-        const size_t length = sizeof(header) + header.sizeofcmds;
-        std::array<unsigned char, 131072> loaded{};
-        if (header.magic != MH_MAGIC_64 || header.filetype != MH_DYLIB || length > file.size || length > loaded.size() ||
-            !capie::core::macos::ProcessMemory{}.read(reinterpret_cast<uintptr_t>(_dyld_get_image_header(static_cast<uint32_t>(i))), loaded.data(), length) ||
-            std::memcmp(file.bytes, loaded.data(), length)) return false;
+        if (!loaded_file_matches(image_index, capie_bootstrap_inserted_hashes[i])) return false;
     }
-    return true;
+    if (!dependencies_match(image_count)) return false;
+    // The only non-system startup images are main, the exact inserted list and the three dependencies.
+    for (uint32_t j = 0; j < image_count; ++j) {
+        if (j == executable) continue;
+        const char* name = _dyld_get_image_name(j);
+        if (!name) return false;
+        if (!std::strncmp(name, "/usr/lib/", 9) || !std::strncmp(name, "/System/Library/", 16)) continue;
+        bool known = false;
+        for (const char* path : capie_bootstrap_inserted_paths) known |= !std::strcmp(path, name);
+        for (size_t i = 0; i < CAPIE_BOOTSTRAP_DEPENDENCY_COUNT; ++i)
+            known |= !std::strcmp(capie_bootstrap_dependency_paths[i], name);
+        if (!known) return false;
+    }
+    return _dyld_image_count() == image_count;
 }
 #endif
 

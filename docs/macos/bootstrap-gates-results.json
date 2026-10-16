@@ -1,14 +1,17 @@
 {
-  "output": "/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-bootstrap-15-6xrvv_hv",
+  "output": "/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-bootstrap-15-cv9_7tj8",
   "cases": {
     "forward_arm_restore": "later_initializer_state_ok\nall15_forward_armed_restored_abi_ok\n",
     "wrong_order": "later_initializer_state_ok\nrefused_originals_ok\n",
     "unknown_insert": "later_initializer_state_ok\nrefused_originals_ok\n",
     "unknown_override": "later_initializer_state_ok\nrefused_originals_ok\n",
     "last_prefix_mismatch": "later_initializer_state_ok\nrefused_originals_ok\n",
+    "wrong_dependency_hash": "later_initializer_state_ok\nrefused_originals_ok\n",
+    "fat_bounds": "fat_bounds_checks=10\n",
+    "unknown_loaded_dependency": "later_initializer_state_ok\nrefused_originals_ok\n",
     "wrong_main_hash": "later_initializer_state_ok\nrefused_originals_ok\n",
     "production_initializer_count": "1",
     "production_foreign_refusal": "refused_originals_ok\n"
   },
-  "dependencies": "/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-bootstrap-15-6xrvv_hv/bootstrap.dylib:\n\t/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-bootstrap-15-6xrvv_hv/bootstrap.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+  "dependencies": "/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-bootstrap-15-cv9_7tj8/bootstrap.dylib:\n\t/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-bootstrap-15-cv9_7tj8/bootstrap.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
 }

@@ -280,3 +280,60 @@ cannot establish absence. Artifact manifest trust, update/uninstall ownership,
 complete concurrency handling and the native Steam→dowser end-to-end test remain
 required before claiming a supported installer. The earlier successful real-playset
 UI observation used a recorder with directly started Paradox, not this native parent.
+
+## Optional bootstrap/runtime pair
+
+The native parent accepts an optional trailing configuration triple:
+
+```sh
+capie-parent GAME_DIR CHILD BOOTSTRAP BOOTSTRAP_SHA256 NEW_STAGE_DIR \
+  --capie-runtime RUNTIME RUNTIME_SHA256
+```
+
+The Python development staging/parent tools accept the same trailing option.
+The generated child configuration places it **before** the configuration delimiter:
+
+```text
+child [launcher game arguments] --capie-dev-child GAME GAME_CWD DLC_LOAD \
+  BOOTSTRAP BOOTSTRAP_SHA256 --capie-runtime RUNTIME RUNTIME_SHA256 \
+  -- [original game arguments]
+```
+
+A genuine game argument named `--capie-runtime` after that delimiter is preserved.
+Without the option, the existing single-library mode remains unchanged. All supported
+alternative executable modes receive the same pair and retain their own game arguments.
+Both library paths must be absolute and distinct; staging validates lowercase SHA-256
+syntax. The child hashes the exact pinned game and both library files before admitting
+injection. It also refuses a pair whose paths resolve to the same device/inode.
+
+In paired mode, the child constructs `DYLD_INSERT_LIBRARIES` in this order:
+
+1. Configured bootstrap.
+2. Retained foreign/Steam entries, deduplicated in their existing order.
+3. Configured runtime.
+
+The child removes both configured paths and their resolvable symlink/hard-link aliases
+before rebuilding the list. Relative inherited aliases resolve against the game working
+directory. A disabled, missing, invalid or oversized playset, or any artifact mismatch,
+removes **both** owned libraries and launches without the pair. Foreign entries are
+preserved, not trusted: bootstrap admission must independently verify the allowed loaded
+image closure. An unknown foreign library is not made safe by appearing in this list.
+
+The file reads, alias checks and hashes are snapshots. They do not prevent concurrent
+replacement before `exec`/dyld loading. This interface alone supplies no immutable bundle,
+loaded-image integrity proof, startup quiescence proof or API-level guarantee. The parent
+stages paths/hashes; it does not validate the bootstrap/runtime implementation. Actual
+paired loading into HOI4 has not been tested by this launcher fixture suite.
+
+Offline checks cover pair ordering and hash policy, malformed/truncated pair configuration,
+preservation of a genuine game `--capie-runtime` argument, removal of both owned aliases
+when disabled or when the game hash mismatches, and native paired staging. A separate
+case uses a read-only disabled playset and checks its bytes, mtime and mode remain unchanged.
+The native parent process fixture also checks that legacy and paired staging leave the
+source launcher settings bytes and mtime unchanged. These checks execute only owned
+recorders/fake dowser binaries; they never start HOI4 or Paradox.
+
+Review scope: this paired-path review was performed by its author and is a self-review,
+not an independent review. No new blocker was found in delimiter bounds, pair removal,
+ordering, game argument forwarding or staging source preservation. The snapshot limitation
+above remains explicit; a separate reviewer is still needed before production activation.

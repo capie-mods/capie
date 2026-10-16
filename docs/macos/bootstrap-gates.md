@@ -8,9 +8,11 @@ and refuses activation. Windows sources are unchanged.
 ## Contract and ordering
 
 The configured initializer verifies exact inserted-library order and paths, rejects
-all other `DYLD_*` overrides, requires its own image at dyld index zero, hashes each
+all other `DYLD_*` overrides, requires its own image as the first non-main image, hashes each
 allowed later inserted dylib and compares its loaded header/load commands to that
-file. It finds the unique `MH_EXECUTE` image (which is not necessarily image zero).
+file. Three bundled game dependencies are also required by exact canonical loaded path,
+full-file SHA and loaded x86 header. Unknown non-system loaded images refuse.
+It finds the unique `MH_EXECUTE` image and skips only that entry while checking inserted order. This handles dyld's legacy x86 index permutation for the actual HOI4 minimum macOS 10.14; no unexpected dylib is skipped.
 It checks the exact HOI4 file SHA, slid loaded header identity, all **240 static
 profile checks**, and four supplemental allocator/stub byte checks. It then
 preflights **all 15** complete relocation-free hook prefixes and RX source/destination
@@ -52,6 +54,13 @@ static constexpr const char* capie_bootstrap_inserted_paths[] = {
 };
 static constexpr const char* capie_bootstrap_inserted_hashes[] = {
     "", "<64 lowercase hex SHA-256 of runtime.dylib>"
+};
+#define CAPIE_BOOTSTRAP_DEPENDENCY_COUNT 3
+static constexpr const char* capie_bootstrap_dependency_paths[] = {
+    "/absolute/libsteam_api.dylib", "/absolute/libPDXSDK.dylib", "/absolute/libtbb.dylib"
+};
+static constexpr const char* capie_bootstrap_dependency_hashes[] = {
+    "<whole-file SHA>", "<whole-file SHA>", "<whole-file SHA>"
 };
 ```
 
@@ -110,3 +119,29 @@ Synthetic backend tests cover write/protection failures and poisoned rollback
 separately. This fixture does not inject kernel failures, establish game callback ABI,
 prove every game target is unreachable before the initializer, or test feature behavior.
 No game process was started, stopped or patched by this test.
+
+## Legacy dyld index regression
+
+`python3 plugin/capie/tests/macos_bootstrap/run.py --legacy` compiles the owned
+main with `-mmacosx-version-min=10.14`, matching HOI4. Before the fix this test
+failed with exit 20 in the later initializer because bootstrap refused itself
+at image index one. After the fix, all scenarios pass for both modern and legacy
+main binaries. Evidence: `bootstrap-gates-legacy-results.json`; modern results
+remain in `bootstrap-gates-results.json`. No game execution was involved.
+
+## Universal carriers and loaded closure
+
+Hashes cover the entire file, including every universal slice. Header comparison
+selects exactly one bounded x86_64 slice in FAT32 or FAT64; malformed tables,
+out-of-range/overflowing slices and duplicate x86 slices refuse. Production requires
+exactly three distinct configured dependency paths; each must match exactly one
+loaded image. Only the unique executable, configured inserted/dependency paths and
+Apple `/usr/lib/` or `/System/Library/` paths may remain in the startup snapshot.
+The snapshot count must remain stable across the check. Protected Apple system paths
+are the explicitly trusted platform boundary, not a generic allowlist for third-party
+libraries. These checks happen before any patching.
+
+The owned tests now load a universal later dylib and three universal dependency
+carriers. Both modern and legacy variants pass all positive/refusal scenarios;
+changed dependency carrier and unlisted loaded dylib refuse, and ten FAT32/FAT64
+bounds cases pass. This tests the actual production policy/parser paths.
