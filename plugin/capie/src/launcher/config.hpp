@@ -22,6 +22,7 @@
  */
 #pragma once
 #include "../core/game_build.hpp"
+#include "mod_identity.hpp"
 
 #include <windows.h>
 
@@ -67,22 +68,6 @@ inline constexpr wchar_t remembered_game_file[] = L"hoi4.path";
 inline constexpr wchar_t game_log_relative[] = L"Paradox Interactive\\Hearts of Iron IV\\logs\\game.log";
 /// @brief Playset file the Paradox Launcher writes before the game starts, relative to Documents.
 inline constexpr wchar_t dlc_load_relative[] = L"Paradox Interactive\\Hearts of Iron IV\\dlc_load.json";
-
-/**
- * @brief Descriptor path of the local "CAPIE" switch mod as it appears in dlc_load.json.
- *
- * The switch mod ships in `plugin/capie/toggle-mod/`. A local install (the bootstrap, or a
- * development copy) registers it as `mod/capie.mod`.
- */
-inline constexpr char capie_mod_descriptor[] = "mod/capie.mod";
-/**
- * @brief Steam Workshop ID of the "CAPIE" switch mod (decimal).
- *
- * The Paradox Launcher lists a subscribed Workshop item in dlc_load.json as
- * `mod/ugc_<ID>.mod` (the descriptor it writes into the user mod folder), so a subscriber's
- * playset entry is `mod/ugc_3819929471.mod`. The local descriptor above matches as well.
- */
-inline constexpr char capie_mod_workshop_id[] = "3819929471";
 
 /// @brief Log size that triggers rotation at launcher start.
 inline constexpr std::size_t log_rotate_bytes = std::size_t{1} << 20U;

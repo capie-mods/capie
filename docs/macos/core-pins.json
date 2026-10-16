@@ -1,0 +1,3256 @@
+{
+  "schema": 1,
+  "target_sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "scope": "Every one of 56 entries in core/signature_table.hpp, with independent macOS evidence",
+  "runtime_ready": false,
+  "warning": "Fixed-RVA exact-build identity evidence. Nonunique snippets must not be scanned alone. No hook/trampoline/ABI approval. Runtime-initialized tokens require a readable-virtual DWORD checker, not file-bytes comparison.",
+  "coverage": [
+    {
+      "id": "country.lookup_n",
+      "windows_table": "country_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x288da90",
+      "hex": "554889e549b825232284e49cf2cb488b0d33ead400488b0185f60f8e8900000048bab30100000001000083fe04724a4189f14183e1fc662e0f1f840000000000440fb6174d31c24c0fafd2440fb647014d31d04c0fafc2440fb657024d31c24c0fafd2440fb64703",
+      "length": 104,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x10288da90",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10288da91",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10288da94",
+          "bytes": "49b825232284e49cf2cb",
+          "instruction": "movabs\tr8, -0x340d631b7bdddcdb"
+        },
+        {
+          "va": "0x10288da9e",
+          "bytes": "488b0d33ead400",
+          "instruction": "mov\trcx, qword ptr [rip + 0xd4ea33] ## 0x1035dc4d8 <dyld_stub_binder+0x1035dc4d8>"
+        },
+        {
+          "va": "0x10288daa5",
+          "bytes": "488b01",
+          "instruction": "mov\trax, qword ptr [rcx]"
+        },
+        {
+          "va": "0x10288daa8",
+          "bytes": "85f6",
+          "instruction": "test\tesi, esi"
+        },
+        {
+          "va": "0x10288daaa",
+          "bytes": "0f8e89000000",
+          "instruction": "jle\t0x10288db39 <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x6e29>"
+        },
+        {
+          "va": "0x10288dab0",
+          "bytes": "48bab301000000010000",
+          "instruction": "movabs\trdx, 0x100000001b3"
+        },
+        {
+          "va": "0x10288daba",
+          "bytes": "83fe04",
+          "instruction": "cmp\tesi, 0x4"
+        },
+        {
+          "va": "0x10288dabd",
+          "bytes": "724a",
+          "instruction": "jb\t0x10288db09 <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x6df9>"
+        },
+        {
+          "va": "0x10288dabf",
+          "bytes": "4189f1",
+          "instruction": "mov\tr9d, esi"
+        },
+        {
+          "va": "0x10288dac2",
+          "bytes": "4183e1fc",
+          "instruction": "and\tr9d, -0x4"
+        },
+        {
+          "va": "0x10288dac6",
+          "bytes": "662e0f1f840000000000",
+          "instruction": "nop\tword ptr cs:[rax + rax]"
+        },
+        {
+          "va": "0x10288dad0",
+          "bytes": "440fb617",
+          "instruction": "movzx\tr10d, byte ptr [rdi]"
+        },
+        {
+          "va": "0x10288dad4",
+          "bytes": "4d31c2",
+          "instruction": "xor\tr10, r8"
+        },
+        {
+          "va": "0x10288dad7",
+          "bytes": "4c0fafd2",
+          "instruction": "imul\tr10, rdx"
+        },
+        {
+          "va": "0x10288dadb",
+          "bytes": "440fb64701",
+          "instruction": "movzx\tr8d, byte ptr [rdi + 0x1]"
+        },
+        {
+          "va": "0x10288dae0",
+          "bytes": "4d31d0",
+          "instruction": "xor\tr8, r10"
+        },
+        {
+          "va": "0x10288dae3",
+          "bytes": "4c0fafc2",
+          "instruction": "imul\tr8, rdx"
+        },
+        {
+          "va": "0x10288dae7",
+          "bytes": "440fb65702",
+          "instruction": "movzx\tr10d, byte ptr [rdi + 0x2]"
+        },
+        {
+          "va": "0x10288daec",
+          "bytes": "4d31c2",
+          "instruction": "xor\tr10, r8"
+        },
+        {
+          "va": "0x10288daef",
+          "bytes": "4c0fafd2",
+          "instruction": "imul\tr10, rdx"
+        },
+        {
+          "va": "0x10288daf3",
+          "bytes": "440fb64703",
+          "instruction": "movzx\tr8d, byte ptr [rdi + 0x3]"
+        }
+      ],
+      "notes": "FNV lookup_n, see localisation-coverage.md"
+    },
+    {
+      "id": "country.lookup_z",
+      "windows_table": "country_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x288d420",
+      "hex": "554889e548be25232284e49cf2cb488b0da3f0d400488b11440fb60f4584c9742b48ffc749b8b3010000000100006690410fb6c14831f0490fafc0440fb60f48ffc74889c64584c975e6eb034889f0486372244885f6745a488b7a184889fa4989f14989f0",
+      "length": 101,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x10288d420",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10288d421",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10288d424",
+          "bytes": "48be25232284e49cf2cb",
+          "instruction": "movabs\trsi, -0x340d631b7bdddcdb"
+        },
+        {
+          "va": "0x10288d42e",
+          "bytes": "488b0da3f0d400",
+          "instruction": "mov\trcx, qword ptr [rip + 0xd4f0a3] ## 0x1035dc4d8 <dyld_stub_binder+0x1035dc4d8>"
+        },
+        {
+          "va": "0x10288d435",
+          "bytes": "488b11",
+          "instruction": "mov\trdx, qword ptr [rcx]"
+        },
+        {
+          "va": "0x10288d438",
+          "bytes": "440fb60f",
+          "instruction": "movzx\tr9d, byte ptr [rdi]"
+        },
+        {
+          "va": "0x10288d43c",
+          "bytes": "4584c9",
+          "instruction": "test\tr9b, r9b"
+        },
+        {
+          "va": "0x10288d43f",
+          "bytes": "742b",
+          "instruction": "je\t0x10288d46c <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x675c>"
+        },
+        {
+          "va": "0x10288d441",
+          "bytes": "48ffc7",
+          "instruction": "inc\trdi"
+        },
+        {
+          "va": "0x10288d444",
+          "bytes": "49b8b301000000010000",
+          "instruction": "movabs\tr8, 0x100000001b3"
+        },
+        {
+          "va": "0x10288d44e",
+          "bytes": "6690",
+          "instruction": "nop"
+        },
+        {
+          "va": "0x10288d450",
+          "bytes": "410fb6c1",
+          "instruction": "movzx\teax, r9b"
+        },
+        {
+          "va": "0x10288d454",
+          "bytes": "4831f0",
+          "instruction": "xor\trax, rsi"
+        },
+        {
+          "va": "0x10288d457",
+          "bytes": "490fafc0",
+          "instruction": "imul\trax, r8"
+        },
+        {
+          "va": "0x10288d45b",
+          "bytes": "440fb60f",
+          "instruction": "movzx\tr9d, byte ptr [rdi]"
+        },
+        {
+          "va": "0x10288d45f",
+          "bytes": "48ffc7",
+          "instruction": "inc\trdi"
+        },
+        {
+          "va": "0x10288d462",
+          "bytes": "4889c6",
+          "instruction": "mov\trsi, rax"
+        },
+        {
+          "va": "0x10288d465",
+          "bytes": "4584c9",
+          "instruction": "test\tr9b, r9b"
+        },
+        {
+          "va": "0x10288d468",
+          "bytes": "75e6",
+          "instruction": "jne\t0x10288d450 <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x6740>"
+        },
+        {
+          "va": "0x10288d46a",
+          "bytes": "eb03",
+          "instruction": "jmp\t0x10288d46f <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x675f>"
+        },
+        {
+          "va": "0x10288d46c",
+          "bytes": "4889f0",
+          "instruction": "mov\trax, rsi"
+        },
+        {
+          "va": "0x10288d46f",
+          "bytes": "48637224",
+          "instruction": "movsxd\trsi, dword ptr [rdx + 0x24]"
+        },
+        {
+          "va": "0x10288d473",
+          "bytes": "4885f6",
+          "instruction": "test\trsi, rsi"
+        },
+        {
+          "va": "0x10288d476",
+          "bytes": "745a",
+          "instruction": "je\t0x10288d4d2 <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x67c2>"
+        },
+        {
+          "va": "0x10288d478",
+          "bytes": "488b7a18",
+          "instruction": "mov\trdi, qword ptr [rdx + 0x18]"
+        },
+        {
+          "va": "0x10288d47c",
+          "bytes": "4889fa",
+          "instruction": "mov\trdx, rdi"
+        },
+        {
+          "va": "0x10288d47f",
+          "bytes": "4989f1",
+          "instruction": "mov\tr9, rsi"
+        },
+        {
+          "va": "0x10288d482",
+          "bytes": "4989f0",
+          "instruction": "mov\tr8, rsi"
+        }
+      ],
+      "notes": "FNV lookup_z, see localisation-coverage.md"
+    },
+    {
+      "id": "country.exists",
+      "windows_table": "country_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x288e4c0",
+      "hex": "554889e548be25232284e49cf2cb488b0503e0d400488b10440fb60f4584c9742b48ffc749b8b3010000000100006690410fb6c94831f1490fafc8440fb60f48ffc74889ce4584c975e6eb034889f1486372244885f6745a488b7a184889fa4989f14989f0",
+      "length": 101,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x10288e4c0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10288e4c1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10288e4c4",
+          "bytes": "48be25232284e49cf2cb",
+          "instruction": "movabs\trsi, -0x340d631b7bdddcdb"
+        },
+        {
+          "va": "0x10288e4ce",
+          "bytes": "488b0503e0d400",
+          "instruction": "mov\trax, qword ptr [rip + 0xd4e003] ## 0x1035dc4d8 <dyld_stub_binder+0x1035dc4d8>"
+        },
+        {
+          "va": "0x10288e4d5",
+          "bytes": "488b10",
+          "instruction": "mov\trdx, qword ptr [rax]"
+        },
+        {
+          "va": "0x10288e4d8",
+          "bytes": "440fb60f",
+          "instruction": "movzx\tr9d, byte ptr [rdi]"
+        },
+        {
+          "va": "0x10288e4dc",
+          "bytes": "4584c9",
+          "instruction": "test\tr9b, r9b"
+        },
+        {
+          "va": "0x10288e4df",
+          "bytes": "742b",
+          "instruction": "je\t0x10288e50c <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x77fc>"
+        },
+        {
+          "va": "0x10288e4e1",
+          "bytes": "48ffc7",
+          "instruction": "inc\trdi"
+        },
+        {
+          "va": "0x10288e4e4",
+          "bytes": "49b8b301000000010000",
+          "instruction": "movabs\tr8, 0x100000001b3"
+        },
+        {
+          "va": "0x10288e4ee",
+          "bytes": "6690",
+          "instruction": "nop"
+        },
+        {
+          "va": "0x10288e4f0",
+          "bytes": "410fb6c9",
+          "instruction": "movzx\tecx, r9b"
+        },
+        {
+          "va": "0x10288e4f4",
+          "bytes": "4831f1",
+          "instruction": "xor\trcx, rsi"
+        },
+        {
+          "va": "0x10288e4f7",
+          "bytes": "490fafc8",
+          "instruction": "imul\trcx, r8"
+        },
+        {
+          "va": "0x10288e4fb",
+          "bytes": "440fb60f",
+          "instruction": "movzx\tr9d, byte ptr [rdi]"
+        },
+        {
+          "va": "0x10288e4ff",
+          "bytes": "48ffc7",
+          "instruction": "inc\trdi"
+        },
+        {
+          "va": "0x10288e502",
+          "bytes": "4889ce",
+          "instruction": "mov\trsi, rcx"
+        },
+        {
+          "va": "0x10288e505",
+          "bytes": "4584c9",
+          "instruction": "test\tr9b, r9b"
+        },
+        {
+          "va": "0x10288e508",
+          "bytes": "75e6",
+          "instruction": "jne\t0x10288e4f0 <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x77e0>"
+        },
+        {
+          "va": "0x10288e50a",
+          "bytes": "eb03",
+          "instruction": "jmp\t0x10288e50f <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x77ff>"
+        },
+        {
+          "va": "0x10288e50c",
+          "bytes": "4889f1",
+          "instruction": "mov\trcx, rsi"
+        },
+        {
+          "va": "0x10288e50f",
+          "bytes": "48637224",
+          "instruction": "movsxd\trsi, dword ptr [rdx + 0x24]"
+        },
+        {
+          "va": "0x10288e513",
+          "bytes": "4885f6",
+          "instruction": "test\trsi, rsi"
+        },
+        {
+          "va": "0x10288e516",
+          "bytes": "745a",
+          "instruction": "je\t0x10288e572 <__ZNSt3__116__variant_detail12__visitation6__base12__dispatcherIJLm1ELm1EEE10__dispatchB7v160006IOZNS0_6__ctorINS0_8__traitsIJN7NPdxLoc22CFormattedLocalizationEiEEEE19__generic_constructB7v160006IRKNS0_18__copy_constructorISA_LNS0_6_TraitE1EEEEEvRSB_OT_EUlRSJ_OT0_E_JRNS0_6__baseILSE_1EJS9_iEEERKSR_EEEDcSJ_DpT0_+0x7862>"
+        },
+        {
+          "va": "0x10288e518",
+          "bytes": "488b7a18",
+          "instruction": "mov\trdi, qword ptr [rdx + 0x18]"
+        },
+        {
+          "va": "0x10288e51c",
+          "bytes": "4889fa",
+          "instruction": "mov\trdx, rdi"
+        },
+        {
+          "va": "0x10288e51f",
+          "bytes": "4989f1",
+          "instruction": "mov\tr9, rsi"
+        },
+        {
+          "va": "0x10288e522",
+          "bytes": "4989f0",
+          "instruction": "mov\tr8, rsi"
+        }
+      ],
+      "notes": "FNV exists, see localisation-coverage.md"
+    },
+    {
+      "id": "editor.bind",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.bind"
+      },
+      "notes": "0x100b45ed4 loads model; resolves parent, creates root at 0x100b462a7; stores root at 0x100b462af and binds context at 0x100b463df. Original map representation: 0xB45EC0"
+    },
+    {
+      "id": "editor.tick",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.tick"
+      },
+      "notes": "0x100b44034 saves `esi` force flag; +0xf0 root, +0xa50 parent-visible and +0xa51 visible-trigger result; 0x100b443d5 updates embedded context. Original map representation: 0xB44020"
+    },
+    {
+      "id": "editor.key",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.key"
+      },
+      "notes": "CEditBox secondary vtable +0x38 points here; receives key event in rsi, uses key helpers; not a Windows-handler ABI substitute. Original map representation: 0x285E6D0"
+    },
+    {
+      "id": "editor.find_edit",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.find_edit"
+      },
+      "notes": "CContainerWindow virtual +0xa0; previewer_editbox caller 0x10254881f passes root,name,bool then 0x10254883a adjusts result+0x70. Body 0x1027722ea / 2f1 searches name array/root child list. This is a THREE-argument lookup; Windows four-argument recursion/boolean behavior remains unverified. 0x102772309 tests report-error bool; failure path logs at 0x10277240e, returns dummy [root+0x88]+0x1b8 at 0x102772470/477. Native identity proven; ABI needs macOS adapter and explicit missing-widget guard. Original map representation: 0x27722D0"
+    },
+    {
+      "id": "editor.find_instant",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.find_instant"
+      },
+      "notes": "CContainerWindow virtual +0x98; 0x10077aa63 resolves floating_number name, 0x10077aae1 passes result to CInstantTextBox string setter. Body uses root+0xe38 names and +0xe20 pointers. THREE-argument lookup; Windows fourth argument semantics unverified. 0x102772129 tests report-error bool; failure path logs at 0x10277222e, returns dummy [root+0x88]+0x1c0 at 0x102772290/297. Native identity proven; ABI needs macOS adapter and explicit missing-widget guard. Original map representation: 0x27720F0"
+    },
+    {
+      "id": "editor.set_text",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.set_text"
+      },
+      "notes": "0x10285e4a4 tests libc++ source mode and tails to 0x10285e3e0; body clears buffer+0x30 UTF-32 string and inserts converted text. 0x1000dfeb9 passes edit+0x70, then refreshes. Original map representation: 0x285E4A0"
+    },
+    {
+      "id": "editor.refresh_edit",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.refresh_edit"
+      },
+      "notes": "0x1000dfec0 calls SetText with edit+0x70 and 0x1000dfece tails here with edit; wrapper 0x102793bd4 refreshes after key input. Original map representation: 0x2793F10"
+    },
+    {
+      "id": "editor.wrapper",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.wrapper"
+      },
+      "notes": "CEditBox primary vtable +0x10; 0x102793b79 adjusts this by +0x70 and 0x102793b8f calls buffer slot +0x38. Original map representation: 0x2793AD0"
+    },
+    {
+      "id": "editor.dispatch",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.dispatch"
+      },
+      "notes": "0x100b480f7 calls with GUI updater and selector; 0x100b4b8ec resolves selector; 0x100b4bae5 constructs effect. Original map representation: 0xB4B7E0"
+    },
+    {
+      "id": "editor.ctor",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.ctor"
+      },
+      "notes": "0x100b4bae5 calls thunk; 0x10020b825 jumps to body; body writes RTTI-backed effect vptr at 0x10020b2f6. Original map representation: 0x20B820 (thunk), 0x20B2B0 (body)"
+    },
+    {
+      "id": "editor.execute",
+      "windows_table": "editor_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.execute"
+      },
+      "notes": "Effect vtable +0x58 points here; 0x10020b8a6 reads model +0x70; 0x10020b98f reads selector +0x58; 0x10020b9c4 executes resolved effect. Original map representation: 0x20B830"
+    },
+    {
+      "id": "caption.DCCF30",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x77bd00",
+      "hex": "554889e5488b87700600005dc30f1f00",
+      "length": 16,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x10077bd00",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10077bd01",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10077bd04",
+          "bytes": "488b8770060000",
+          "instruction": "mov\trax, qword ptr [rdi + 0x670]"
+        },
+        {
+          "va": "0x10077bd0b",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x10077bd0c",
+          "bytes": "c3",
+          "instruction": "ret"
+        },
+        {
+          "va": "0x10077bd0d",
+          "bytes": "0f1f00",
+          "instruction": "nop\tdword ptr [rax]"
+        }
+      ],
+      "notes": "GUI getter returns idler+670"
+    },
+    {
+      "id": "caption.B6E210",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x20ee380",
+      "hex": "554889e541565383fe1774324889fb4189f64a8bbcf7c80000004885ff741f488b07ff503084c074154a8bbcf3c80000004883c7285b415e5de982ad29005b415e5dc3666666662e0f1f840000000000",
+      "length": 80,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x1020ee380",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x1020ee381",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x1020ee384",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x1020ee386",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x1020ee387",
+          "bytes": "83fe17",
+          "instruction": "cmp\tesi, 0x17"
+        },
+        {
+          "va": "0x1020ee38a",
+          "bytes": "7432",
+          "instruction": "je\t0x1020ee3be <__ZN22CStripFlagGarrisonItem7OnClickEv+0xba2e>"
+        },
+        {
+          "va": "0x1020ee38c",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x1020ee38f",
+          "bytes": "4189f6",
+          "instruction": "mov\tr14d, esi"
+        },
+        {
+          "va": "0x1020ee392",
+          "bytes": "4a8bbcf7c8000000",
+          "instruction": "mov\trdi, qword ptr [rdi + 8*r14 + 0xc8]"
+        },
+        {
+          "va": "0x1020ee39a",
+          "bytes": "4885ff",
+          "instruction": "test\trdi, rdi"
+        },
+        {
+          "va": "0x1020ee39d",
+          "bytes": "741f",
+          "instruction": "je\t0x1020ee3be <__ZN22CStripFlagGarrisonItem7OnClickEv+0xba2e>"
+        },
+        {
+          "va": "0x1020ee39f",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x1020ee3a2",
+          "bytes": "ff5030",
+          "instruction": "call\tqword ptr [rax + 0x30]"
+        },
+        {
+          "va": "0x1020ee3a5",
+          "bytes": "84c0",
+          "instruction": "test\tal, al"
+        },
+        {
+          "va": "0x1020ee3a7",
+          "bytes": "7415",
+          "instruction": "je\t0x1020ee3be <__ZN22CStripFlagGarrisonItem7OnClickEv+0xba2e>"
+        },
+        {
+          "va": "0x1020ee3a9",
+          "bytes": "4a8bbcf3c8000000",
+          "instruction": "mov\trdi, qword ptr [rbx + 8*r14 + 0xc8]"
+        },
+        {
+          "va": "0x1020ee3b1",
+          "bytes": "4883c728",
+          "instruction": "add\trdi, 0x28"
+        },
+        {
+          "va": "0x1020ee3b5",
+          "bytes": "5b",
+          "instruction": "pop\trbx"
+        },
+        {
+          "va": "0x1020ee3b6",
+          "bytes": "415e",
+          "instruction": "pop\tr14"
+        },
+        {
+          "va": "0x1020ee3b8",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x1020ee3b9",
+          "bytes": "e982ad2900",
+          "instruction": "jmp\t0x102389140 <__ZNK11CUnitLeader7GetNameEv+0x4bd70>"
+        },
+        {
+          "va": "0x1020ee3be",
+          "bytes": "5b",
+          "instruction": "pop\trbx"
+        },
+        {
+          "va": "0x1020ee3bf",
+          "bytes": "415e",
+          "instruction": "pop\tr14"
+        },
+        {
+          "va": "0x1020ee3c1",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x1020ee3c2",
+          "bytes": "c3",
+          "instruction": "ret"
+        },
+        {
+          "va": "0x1020ee3c3",
+          "bytes": "666666662e0f1f840000000000",
+          "instruction": "nop\tword ptr cs:[rax + rax]"
+        }
+      ],
+      "notes": "Request refresh: index17 sentinel, view C8+8i, visibility30, observer28"
+    },
+    {
+      "id": "caption.1236950",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x2389140",
+      "hex": "554889e5c64714015dc3660f1f440000",
+      "length": 16,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x102389140",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x102389141",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x102389144",
+          "bytes": "c6471401",
+          "instruction": "mov\tbyte ptr [rdi + 0x14], 0x1"
+        },
+        {
+          "va": "0x102389148",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x102389149",
+          "bytes": "c3",
+          "instruction": "ret"
+        },
+        {
+          "va": "0x10238914a",
+          "bytes": "660f1f440000",
+          "instruction": "nop\tword ptr [rax + rax]"
+        }
+      ],
+      "notes": "Set observer+14 dirty"
+    },
+    {
+      "id": "caption.1236980",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x2389150",
+      "hex": "554889e553504889fb488b07ff5050c64314004883c4085b5dc3909090909090",
+      "length": 32,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x102389150",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x102389151",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x102389154",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x102389155",
+          "bytes": "50",
+          "instruction": "push\trax"
+        },
+        {
+          "va": "0x102389156",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x102389159",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x10238915c",
+          "bytes": "ff5050",
+          "instruction": "call\tqword ptr [rax + 0x50]"
+        },
+        {
+          "va": "0x10238915f",
+          "bytes": "c6431400",
+          "instruction": "mov\tbyte ptr [rbx + 0x14], 0x0"
+        },
+        {
+          "va": "0x102389163",
+          "bytes": "4883c408",
+          "instruction": "add\trsp, 0x8"
+        },
+        {
+          "va": "0x102389167",
+          "bytes": "5b",
+          "instruction": "pop\trbx"
+        },
+        {
+          "va": "0x102389168",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x102389169",
+          "bytes": "c3",
+          "instruction": "ret"
+        },
+        {
+          "va": "0x10238916a",
+          "bytes": "90",
+          "instruction": "nop"
+        },
+        {
+          "va": "0x10238916b",
+          "bytes": "90",
+          "instruction": "nop"
+        },
+        {
+          "va": "0x10238916c",
+          "bytes": "90",
+          "instruction": "nop"
+        },
+        {
+          "va": "0x10238916d",
+          "bytes": "90",
+          "instruction": "nop"
+        },
+        {
+          "va": "0x10238916e",
+          "bytes": "90",
+          "instruction": "nop"
+        },
+        {
+          "va": "0x10238916f",
+          "bytes": "90",
+          "instruction": "nop"
+        }
+      ],
+      "notes": "Observer slot50 then clear+14"
+    },
+    {
+      "id": "caption.1237520",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x1fc8e30",
+      "hex": "554889e553504889fb488bbf300400004885ff740d488b07ff900803000084c0740431c0eb13488b83300400000fb680950000002408c0e8034883c4085b5dc3",
+      "length": 64,
+      "whole_instructions": true,
+      "file_occurrences": 3,
+      "text_occurrences": 3,
+      "instructions": [
+        {
+          "va": "0x101fc8e30",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x101fc8e31",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x101fc8e34",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x101fc8e35",
+          "bytes": "50",
+          "instruction": "push\trax"
+        },
+        {
+          "va": "0x101fc8e36",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x101fc8e39",
+          "bytes": "488bbf30040000",
+          "instruction": "mov\trdi, qword ptr [rdi + 0x430]"
+        },
+        {
+          "va": "0x101fc8e40",
+          "bytes": "4885ff",
+          "instruction": "test\trdi, rdi"
+        },
+        {
+          "va": "0x101fc8e43",
+          "bytes": "740d",
+          "instruction": "je\t0x101fc8e52 <__ZN31COccupationSettingSelectionView16OnClearOverridesEv+0x525e2>"
+        },
+        {
+          "va": "0x101fc8e45",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x101fc8e48",
+          "bytes": "ff9008030000",
+          "instruction": "call\tqword ptr [rax + 0x308]"
+        },
+        {
+          "va": "0x101fc8e4e",
+          "bytes": "84c0",
+          "instruction": "test\tal, al"
+        },
+        {
+          "va": "0x101fc8e50",
+          "bytes": "7404",
+          "instruction": "je\t0x101fc8e56 <__ZN31COccupationSettingSelectionView16OnClearOverridesEv+0x525e6>"
+        },
+        {
+          "va": "0x101fc8e52",
+          "bytes": "31c0",
+          "instruction": "xor\teax, eax"
+        },
+        {
+          "va": "0x101fc8e54",
+          "bytes": "eb13",
+          "instruction": "jmp\t0x101fc8e69 <__ZN31COccupationSettingSelectionView16OnClearOverridesEv+0x525f9>"
+        },
+        {
+          "va": "0x101fc8e56",
+          "bytes": "488b8330040000",
+          "instruction": "mov\trax, qword ptr [rbx + 0x430]"
+        },
+        {
+          "va": "0x101fc8e5d",
+          "bytes": "0fb68095000000",
+          "instruction": "movzx\teax, byte ptr [rax + 0x95]"
+        },
+        {
+          "va": "0x101fc8e64",
+          "bytes": "2408",
+          "instruction": "and\tal, 0x8"
+        },
+        {
+          "va": "0x101fc8e66",
+          "bytes": "c0e803",
+          "instruction": "shr\tal, 0x3"
+        },
+        {
+          "va": "0x101fc8e69",
+          "bytes": "4883c408",
+          "instruction": "add\trsp, 0x8"
+        },
+        {
+          "va": "0x101fc8e6d",
+          "bytes": "5b",
+          "instruction": "pop\trbx"
+        },
+        {
+          "va": "0x101fc8e6e",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x101fc8e6f",
+          "bytes": "c3",
+          "instruction": "ret"
+        }
+      ],
+      "notes": "Visibility from view+430 root and root+95",
+      "required_identity_companions": [
+        "caption_slot_pins[0]"
+      ]
+    },
+    {
+      "id": "caption.12374F0",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x1fc8f30",
+      "hex": "554889e5488b87300400005dc30f1f00",
+      "length": 16,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x101fc8f30",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x101fc8f31",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x101fc8f34",
+          "bytes": "488b8730040000",
+          "instruction": "mov\trax, qword ptr [rdi + 0x430]"
+        },
+        {
+          "va": "0x101fc8f3b",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x101fc8f3c",
+          "bytes": "c3",
+          "instruction": "ret"
+        },
+        {
+          "va": "0x101fc8f3d",
+          "bytes": "0f1f00",
+          "instruction": "nop\tdword ptr [rax]"
+        }
+      ],
+      "notes": "Root getter view+430"
+    },
+    {
+      "id": "caption.12362A0",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x2388650",
+      "hex": "554889e5488d0515a2100148890748897708895710c64714005de95100000090",
+      "length": 32,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x102388650",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x102388651",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x102388654",
+          "bytes": "488d0515a21001",
+          "instruction": "lea\trax, [rip + 0x110a215]  ## 0x103492870 <__ZTINSt3__16__bindIRM18CMedalTemplateItemFvP10CGuiObjectiEJPS1_RKNS_12placeholders4__phILi1EEERKNS9_ILi2EEEEEE+0x28>"
+        },
+        {
+          "va": "0x10238865b",
+          "bytes": "488907",
+          "instruction": "mov\tqword ptr [rdi], rax"
+        },
+        {
+          "va": "0x10238865e",
+          "bytes": "48897708",
+          "instruction": "mov\tqword ptr [rdi + 0x8], rsi"
+        },
+        {
+          "va": "0x102388662",
+          "bytes": "895710",
+          "instruction": "mov\tdword ptr [rdi + 0x10], edx"
+        },
+        {
+          "va": "0x102388665",
+          "bytes": "c6471400",
+          "instruction": "mov\tbyte ptr [rdi + 0x14], 0x0"
+        },
+        {
+          "va": "0x102388669",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x10238866a",
+          "bytes": "e951000000",
+          "instruction": "jmp\t0x1023886c0 <__ZNK11CUnitLeader7GetNameEv+0x4b2f0>"
+        },
+        {
+          "va": "0x10238866f",
+          "bytes": "90",
+          "instruction": "nop"
+        }
+      ],
+      "notes": "Observer ctor stores GUI at+8"
+    },
+    {
+      "id": "caption.1237180",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x1fc88e0",
+      "hex": "554889e54157415641554154534881ec480100004589c54989cc4989d74989f64889fb488bbec00400004889ce31d2e8ccd27f00488d70404889dfe8509e6f00488b0559012c014883c01048894320488d7b2848897dd04c89fe4489eae80efd3b00488d05dfdb4701",
+      "length": 105,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x101fc88e0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x101fc88e1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x101fc88e4",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x101fc88e6",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x101fc88e8",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x101fc88ea",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x101fc88ec",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x101fc88ed",
+          "bytes": "4881ec48010000",
+          "instruction": "sub\trsp, 0x148"
+        },
+        {
+          "va": "0x101fc88f4",
+          "bytes": "4589c5",
+          "instruction": "mov\tr13d, r8d"
+        },
+        {
+          "va": "0x101fc88f7",
+          "bytes": "4989cc",
+          "instruction": "mov\tr12, rcx"
+        },
+        {
+          "va": "0x101fc88fa",
+          "bytes": "4989d7",
+          "instruction": "mov\tr15, rdx"
+        },
+        {
+          "va": "0x101fc88fd",
+          "bytes": "4989f6",
+          "instruction": "mov\tr14, rsi"
+        },
+        {
+          "va": "0x101fc8900",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x101fc8903",
+          "bytes": "488bbec0040000",
+          "instruction": "mov\trdi, qword ptr [rsi + 0x4c0]"
+        },
+        {
+          "va": "0x101fc890a",
+          "bytes": "4889ce",
+          "instruction": "mov\trsi, rcx"
+        },
+        {
+          "va": "0x101fc890d",
+          "bytes": "31d2",
+          "instruction": "xor\tedx, edx"
+        },
+        {
+          "va": "0x101fc890f",
+          "bytes": "e8ccd27f00",
+          "instruction": "call\t0x1027c5be0 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xf44c0>"
+        },
+        {
+          "va": "0x101fc8914",
+          "bytes": "488d7040",
+          "instruction": "lea\trsi, [rax + 0x40]"
+        },
+        {
+          "va": "0x101fc8918",
+          "bytes": "4889df",
+          "instruction": "mov\trdi, rbx"
+        },
+        {
+          "va": "0x101fc891b",
+          "bytes": "e8509e6f00",
+          "instruction": "call\t0x1026c2770 <__ZN3tbb17concurrent_vectorINS_8internal6paddedINS_10interface68internal11ets_elementI10TPdxDefValIbLb0EEEELm128EEENS_23cache_aligned_allocatorIS9_EEE13destroy_arrayEPvm+0x10f0>"
+        },
+        {
+          "va": "0x101fc8920",
+          "bytes": "488b0559012c01",
+          "instruction": "mov\trax, qword ptr [rip + 0x12c0159] ## 0x103288a80 <dyld_stub_binder+0x103288a80>"
+        },
+        {
+          "va": "0x101fc8927",
+          "bytes": "4883c010",
+          "instruction": "add\trax, 0x10"
+        },
+        {
+          "va": "0x101fc892b",
+          "bytes": "48894320",
+          "instruction": "mov\tqword ptr [rbx + 0x20], rax"
+        },
+        {
+          "va": "0x101fc892f",
+          "bytes": "488d7b28",
+          "instruction": "lea\trdi, [rbx + 0x28]"
+        },
+        {
+          "va": "0x101fc8933",
+          "bytes": "48897dd0",
+          "instruction": "mov\tqword ptr [rbp - 0x30], rdi"
+        },
+        {
+          "va": "0x101fc8937",
+          "bytes": "4c89fe",
+          "instruction": "mov\trsi, r15"
+        },
+        {
+          "va": "0x101fc893a",
+          "bytes": "4489ea",
+          "instruction": "mov\tedx, r13d"
+        },
+        {
+          "va": "0x101fc893d",
+          "bytes": "e80efd3b00",
+          "instruction": "call\t0x102388650 <__ZNK11CUnitLeader7GetNameEv+0x4b280>"
+        },
+        {
+          "va": "0x101fc8942",
+          "bytes": "488d05dfdb4701",
+          "instruction": "lea\trax, [rip + 0x147dbdf]  ## 0x103446528 <__ZTINSt3__16__bindIRM17CCountryTradeViewFvP10CGuiObjectiEJPS1_RKNS_12placeholders4__phILi1EEERKNS9_ILi2EEEEEE+0x28>"
+        }
+      ],
+      "notes": "View ctor SysV param tracking: rsi idler, rdx GUI"
+    },
+    {
+      "id": "caption.12371DB",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x1fc892f",
+      "hex": "488d7b2848897dd04c89fe4489eae80efd3b00",
+      "length": 19,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x101fc892f",
+          "bytes": "488d7b28",
+          "instruction": "lea\trdi, [rbx + 0x28]"
+        },
+        {
+          "va": "0x101fc8933",
+          "bytes": "48897dd0",
+          "instruction": "mov\tqword ptr [rbp - 0x30], rdi"
+        },
+        {
+          "va": "0x101fc8937",
+          "bytes": "4c89fe",
+          "instruction": "mov\trsi, r15"
+        },
+        {
+          "va": "0x101fc893a",
+          "bytes": "4489ea",
+          "instruction": "mov\tedx, r13d"
+        },
+        {
+          "va": "0x101fc893d",
+          "bytes": "e80efd3b00",
+          "instruction": "call\t0x102388650 <__ZNK11CUnitLeader7GetNameEv+0x4b280>"
+        }
+      ],
+      "notes": "Observer(view+28,GUI) construction"
+    },
+    {
+      "id": "caption.1237358",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x1fc8aa9",
+      "hex": "4c89b32804000048c7833004000000000000",
+      "length": 18,
+      "whole_instructions": true,
+      "file_occurrences": 2,
+      "text_occurrences": 2,
+      "instructions": [
+        {
+          "va": "0x101fc8aa9",
+          "bytes": "4c89b328040000",
+          "instruction": "mov\tqword ptr [rbx + 0x428], r14"
+        },
+        {
+          "va": "0x101fc8ab0",
+          "bytes": "48c7833004000000000000",
+          "instruction": "mov\tqword ptr [rbx + 0x430], 0x0"
+        }
+      ],
+      "notes": "View+428 idler, +430 root clear",
+      "required_identity_companions": [
+        "caption.1237180"
+      ]
+    },
+    {
+      "id": "caption.B62D52",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x20e9395",
+      "hex": "488bb3800100004889c74889dae8f90bebff4c89bb28010000",
+      "length": 25,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x1020e9395",
+          "bytes": "488bb380010000",
+          "instruction": "mov\trsi, qword ptr [rbx + 0x180]"
+        },
+        {
+          "va": "0x1020e939c",
+          "bytes": "4889c7",
+          "instruction": "mov\trdi, rax"
+        },
+        {
+          "va": "0x1020e939f",
+          "bytes": "4889da",
+          "instruction": "mov\trdx, rbx"
+        },
+        {
+          "va": "0x1020e93a2",
+          "bytes": "e8f90bebff",
+          "instruction": "call\t0x101f99fa0 <__ZN31COccupationSettingSelectionView16OnClearOverridesEv+0x23730>"
+        },
+        {
+          "va": "0x1020e93a7",
+          "bytes": "4c89bb28010000",
+          "instruction": "mov\tqword ptr [rbx + 0x128], r15"
+        }
+      ],
+      "notes": "Politics constructor(idler,GUI) then GUI+128 store => index12"
+    },
+    {
+      "id": "caption.B68C52",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x20ed510",
+      "hex": "49ffc64983fe17741e4a8bbcf3c80000004885ff74ea807f3c0074e44883c728e81bbc2900ebd9",
+      "length": 39,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x1020ed510",
+          "bytes": "49ffc6",
+          "instruction": "inc\tr14"
+        },
+        {
+          "va": "0x1020ed513",
+          "bytes": "4983fe17",
+          "instruction": "cmp\tr14, 0x17"
+        },
+        {
+          "va": "0x1020ed517",
+          "bytes": "741e",
+          "instruction": "je\t0x1020ed537 <__ZN22CStripFlagGarrisonItem7OnClickEv+0xaba7>"
+        },
+        {
+          "va": "0x1020ed519",
+          "bytes": "4a8bbcf3c8000000",
+          "instruction": "mov\trdi, qword ptr [rbx + 8*r14 + 0xc8]"
+        },
+        {
+          "va": "0x1020ed521",
+          "bytes": "4885ff",
+          "instruction": "test\trdi, rdi"
+        },
+        {
+          "va": "0x1020ed524",
+          "bytes": "74ea",
+          "instruction": "je\t0x1020ed510 <__ZN22CStripFlagGarrisonItem7OnClickEv+0xab80>"
+        },
+        {
+          "va": "0x1020ed526",
+          "bytes": "807f3c00",
+          "instruction": "cmp\tbyte ptr [rdi + 0x3c], 0x0"
+        },
+        {
+          "va": "0x1020ed52a",
+          "bytes": "74e4",
+          "instruction": "je\t0x1020ed510 <__ZN22CStripFlagGarrisonItem7OnClickEv+0xab80>"
+        },
+        {
+          "va": "0x1020ed52c",
+          "bytes": "4883c728",
+          "instruction": "add\trdi, 0x28"
+        },
+        {
+          "va": "0x1020ed530",
+          "bytes": "e81bbc2900",
+          "instruction": "call\t0x102389150 <__ZNK11CUnitLeader7GetNameEv+0x4bd80>"
+        },
+        {
+          "va": "0x1020ed535",
+          "bytes": "ebd9",
+          "instruction": "jmp\t0x1020ed510 <__ZN22CStripFlagGarrisonItem7OnClickEv+0xab80>"
+        }
+      ],
+      "notes": "Frame loops23 views, dirty+3c, consume(view+28)"
+    },
+    {
+      "id": "caption.B88BEE",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb44175",
+      "hex": "488bbbd8000000488b07ff90d80000004889c7",
+      "length": 19,
+      "whole_instructions": true,
+      "file_occurrences": 6,
+      "text_occurrences": 6,
+      "instructions": [
+        {
+          "va": "0x100b44175",
+          "bytes": "488bbbd8000000",
+          "instruction": "mov\trdi, qword ptr [rbx + 0xd8]"
+        },
+        {
+          "va": "0x100b4417c",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x100b4417f",
+          "bytes": "ff90d8000000",
+          "instruction": "call\tqword ptr [rax + 0xd8]"
+        },
+        {
+          "va": "0x100b44185",
+          "bytes": "4889c7",
+          "instruction": "mov\trdi, rax"
+        }
+      ],
+      "notes": "Window+d8 idler getter virtual+d8",
+      "required_identity_companions": [
+        "editor.tick"
+      ]
+    },
+    {
+      "id": "caption.B88B27",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb44207",
+      "hex": "488b83e0000000817820703a0000",
+      "length": 14,
+      "whole_instructions": true,
+      "file_occurrences": 2,
+      "text_occurrences": 2,
+      "instructions": [
+        {
+          "va": "0x100b44207",
+          "bytes": "488b83e0000000",
+          "instruction": "mov\trax, qword ptr [rbx + 0xe0]"
+        },
+        {
+          "va": "0x100b4420e",
+          "bytes": "817820703a0000",
+          "instruction": "cmp\tdword ptr [rax + 0x20], 0x3a70"
+        }
+      ],
+      "notes": "Model+20 context token compare3a70",
+      "required_identity_companions": [
+        "editor.tick"
+      ]
+    },
+    {
+      "id": "caption.B86346",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb45ed4",
+      "hex": "4c8b9fe0000000418b4b2485c90f8e44010000",
+      "length": 19,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b45ed4",
+          "bytes": "4c8b9fe0000000",
+          "instruction": "mov\tr11, qword ptr [rdi + 0xe0]"
+        },
+        {
+          "va": "0x100b45edb",
+          "bytes": "418b4b24",
+          "instruction": "mov\tecx, dword ptr [r11 + 0x24]"
+        },
+        {
+          "va": "0x100b45edf",
+          "bytes": "85c9",
+          "instruction": "test\tecx, ecx"
+        },
+        {
+          "va": "0x100b45ee1",
+          "bytes": "0f8e44010000",
+          "instruction": "jle\t0x100b4602b <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7ae9b>"
+        }
+      ],
+      "notes": "Model+24 parent token"
+    },
+    {
+      "id": "caption.B86350",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb45edb",
+      "hex": "418b4b2485c90f8e440100004d8b8c24e8000000498b7978",
+      "length": 24,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b45edb",
+          "bytes": "418b4b24",
+          "instruction": "mov\tecx, dword ptr [r11 + 0x24]"
+        },
+        {
+          "va": "0x100b45edf",
+          "bytes": "85c9",
+          "instruction": "test\tecx, ecx"
+        },
+        {
+          "va": "0x100b45ee1",
+          "bytes": "0f8e44010000",
+          "instruction": "jle\t0x100b4602b <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7ae9b>"
+        },
+        {
+          "va": "0x100b45ee7",
+          "bytes": "4d8b8c24e8000000",
+          "instruction": "mov\tr9, qword ptr [r12 + 0xe8]"
+        },
+        {
+          "va": "0x100b45eef",
+          "bytes": "498b7978",
+          "instruction": "mov\trdi, qword ptr [r9 + 0x78]"
+        }
+      ],
+      "notes": "Token and window+e8 manager"
+    },
+    {
+      "id": "caption.B8A1C0",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb43310",
+      "hex": "554889e54157415641554154534883ec784989fe488b7f18488b07ff90d80000004989c7498d467048898578ffffff",
+      "length": 47,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b43310",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x100b43311",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x100b43314",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x100b43316",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x100b43318",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x100b4331a",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x100b4331c",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x100b4331d",
+          "bytes": "4883ec78",
+          "instruction": "sub\trsp, 0x78"
+        },
+        {
+          "va": "0x100b43321",
+          "bytes": "4989fe",
+          "instruction": "mov\tr14, rdi"
+        },
+        {
+          "va": "0x100b43324",
+          "bytes": "488b7f18",
+          "instruction": "mov\trdi, qword ptr [rdi + 0x18]"
+        },
+        {
+          "va": "0x100b43328",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x100b4332b",
+          "bytes": "ff90d8000000",
+          "instruction": "call\tqword ptr [rax + 0xd8]"
+        },
+        {
+          "va": "0x100b43331",
+          "bytes": "4989c7",
+          "instruction": "mov\tr15, rax"
+        },
+        {
+          "va": "0x100b43334",
+          "bytes": "498d4670",
+          "instruction": "lea\trax, [r14 + 0x70]"
+        },
+        {
+          "va": "0x100b43338",
+          "bytes": "48898578ffffff",
+          "instruction": "mov\tqword ptr [rbp - 0x88], rax"
+        }
+      ],
+      "notes": "Manager+18 idler, virtual+d8 GUI, +70 map"
+    },
+    {
+      "id": "caption.B86414",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb4602b",
+      "hex": "410fb64358a80175084889c148d1e9eb04498b4b604885c9",
+      "length": 24,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b4602b",
+          "bytes": "410fb64358",
+          "instruction": "movzx\teax, byte ptr [r11 + 0x58]"
+        },
+        {
+          "va": "0x100b46030",
+          "bytes": "a801",
+          "instruction": "test\tal, 0x1"
+        },
+        {
+          "va": "0x100b46032",
+          "bytes": "7508",
+          "instruction": "jne\t0x100b4603c <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7aeac>"
+        },
+        {
+          "va": "0x100b46034",
+          "bytes": "4889c1",
+          "instruction": "mov\trcx, rax"
+        },
+        {
+          "va": "0x100b46037",
+          "bytes": "48d1e9",
+          "instruction": "shr\trcx"
+        },
+        {
+          "va": "0x100b4603a",
+          "bytes": "eb04",
+          "instruction": "jmp\t0x100b46040 <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7aeb0>"
+        },
+        {
+          "va": "0x100b4603c",
+          "bytes": "498b4b60",
+          "instruction": "mov\trcx, qword ptr [r11 + 0x60]"
+        },
+        {
+          "va": "0x100b46040",
+          "bytes": "4885c9",
+          "instruction": "test\trcx, rcx"
+        }
+      ],
+      "notes": "libc++ parent SG length short/long; adapter replaces unconditional offset"
+    },
+    {
+      "id": "caption.B863F9",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb4601c",
+      "hex": "4d8b4a184989db4d898c24f8000000",
+      "length": 15,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b4601c",
+          "bytes": "4d8b4a18",
+          "instruction": "mov\tr9, qword ptr [r10 + 0x18]"
+        },
+        {
+          "va": "0x100b46020",
+          "bytes": "4989db",
+          "instruction": "mov\tr11, rbx"
+        },
+        {
+          "va": "0x100b46023",
+          "bytes": "4d898c24f8000000",
+          "instruction": "mov\tqword ptr [r12 + 0xf8], r9"
+        }
+      ],
+      "notes": "Map entry+18 -> window+f8 parent"
+    },
+    {
+      "id": "caption.B8649E",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb4612d",
+      "hex": "4c8b65b849c784240001000000000000",
+      "length": 16,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b4612d",
+          "bytes": "4c8b65b8",
+          "instruction": "mov\tr12, qword ptr [rbp - 0x48]"
+        },
+        {
+          "va": "0x100b46131",
+          "bytes": "49c784240001000000000000",
+          "instruction": "mov\tqword ptr [r12 + 0x100], 0x0"
+        }
+      ],
+      "notes": "Clear parent SG window+100"
+    },
+    {
+      "id": "caption.B864F1",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb46224",
+      "hex": "498bb424e00000000fb64640a8010f859f00000048d1e84885c00f85a0000000",
+      "length": 32,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b46224",
+          "bytes": "498bb424e0000000",
+          "instruction": "mov\trsi, qword ptr [r12 + 0xe0]"
+        },
+        {
+          "va": "0x100b4622c",
+          "bytes": "0fb64640",
+          "instruction": "movzx\teax, byte ptr [rsi + 0x40]"
+        },
+        {
+          "va": "0x100b46230",
+          "bytes": "a801",
+          "instruction": "test\tal, 0x1"
+        },
+        {
+          "va": "0x100b46232",
+          "bytes": "0f859f000000",
+          "instruction": "jne\t0x100b462d7 <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7b147>"
+        },
+        {
+          "va": "0x100b46238",
+          "bytes": "48d1e8",
+          "instruction": "shr\trax"
+        },
+        {
+          "va": "0x100b4623b",
+          "bytes": "4885c0",
+          "instruction": "test\trax, rax"
+        },
+        {
+          "va": "0x100b4623e",
+          "bytes": "0f85a0000000",
+          "instruction": "jne\t0x100b462e4 <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7b154>"
+        }
+      ],
+      "notes": "libc++ parent window short length, long branch100b462d7",
+      "requires_companion": [
+        "parent_window.long_length"
+      ],
+      "compound_guard_note": "All references are mandatory parts of the semantic evidence/guard. Supplemental records are not optional. Runtime token values additionally require post-initialization validation."
+    },
+    {
+      "id": "caption.B8A660",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb437aa",
+      "hex": "4c89ffbe0c000000e8d9ed5a014889c7e8715748014d89fc4989c7c745a8b23a000048895dc0488d15de962302488d4dc04c8d6d884c8bb578ffffff4c89f74889de4d89e8e83c8700004c897818",
+      "length": 78,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b437aa",
+          "bytes": "4c89ff",
+          "instruction": "mov\trdi, r15"
+        },
+        {
+          "va": "0x100b437ad",
+          "bytes": "be0c000000",
+          "instruction": "mov\tesi, 0xc"
+        },
+        {
+          "va": "0x100b437b2",
+          "bytes": "e8d9ed5a01",
+          "instruction": "call\t0x1020f2590 <__ZN22CStripFlagGarrisonItem7OnClickEv+0xfc00>"
+        },
+        {
+          "va": "0x100b437b7",
+          "bytes": "4889c7",
+          "instruction": "mov\trdi, rax"
+        },
+        {
+          "va": "0x100b437ba",
+          "bytes": "e871574801",
+          "instruction": "call\t0x101fc8f30 <__ZN31COccupationSettingSelectionView16OnClearOverridesEv+0x526c0>"
+        },
+        {
+          "va": "0x100b437bf",
+          "bytes": "4d89fc",
+          "instruction": "mov\tr12, r15"
+        },
+        {
+          "va": "0x100b437c2",
+          "bytes": "4989c7",
+          "instruction": "mov\tr15, rax"
+        },
+        {
+          "va": "0x100b437c5",
+          "bytes": "c745a8b23a0000",
+          "instruction": "mov\tdword ptr [rbp - 0x58], 0x3ab2"
+        },
+        {
+          "va": "0x100b437cc",
+          "bytes": "48895dc0",
+          "instruction": "mov\tqword ptr [rbp - 0x40], rbx"
+        },
+        {
+          "va": "0x100b437d0",
+          "bytes": "488d15de962302",
+          "instruction": "lea\trdx, [rip + 0x22396de]  ## 0x102d7ceb5 <__ZTS17TGameItemDatabaseI23CScriptedWindowDatabaseE+0x115>"
+        },
+        {
+          "va": "0x100b437d7",
+          "bytes": "488d4dc0",
+          "instruction": "lea\trcx, [rbp - 0x40]"
+        },
+        {
+          "va": "0x100b437db",
+          "bytes": "4c8d6d88",
+          "instruction": "lea\tr13, [rbp - 0x78]"
+        },
+        {
+          "va": "0x100b437df",
+          "bytes": "4c8bb578ffffff",
+          "instruction": "mov\tr14, qword ptr [rbp - 0x88]"
+        },
+        {
+          "va": "0x100b437e6",
+          "bytes": "4c89f7",
+          "instruction": "mov\trdi, r14"
+        },
+        {
+          "va": "0x100b437e9",
+          "bytes": "4889de",
+          "instruction": "mov\trsi, rbx"
+        },
+        {
+          "va": "0x100b437ec",
+          "bytes": "4d89e8",
+          "instruction": "mov\tr8, r13"
+        },
+        {
+          "va": "0x100b437ef",
+          "bytes": "e83c870000",
+          "instruction": "call\t0x100b4bf30 <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x80da0>"
+        },
+        {
+          "va": "0x100b437f4",
+          "bytes": "4c897818",
+          "instruction": "mov\tqword ptr [rax + 0x18], r15"
+        }
+      ],
+      "notes": "GUI index12 root lookup then token3ab2 map entry+18"
+    },
+    {
+      "id": "caption.F86CC",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x24d72b9",
+      "hex": "488d3dd8820d01488d1518dcc9004889fbbeb23a0000e87c2e5a00",
+      "length": 27,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x1024d72b9",
+          "bytes": "488d3dd8820d01",
+          "instruction": "lea\trdi, [rip + 0x10d82d8]  ## 0x1035af598 <dyld_stub_binder+0x1035af598>"
+        },
+        {
+          "va": "0x1024d72c0",
+          "bytes": "488d1518dcc900",
+          "instruction": "lea\trdx, [rip + 0xc9dc18]   ## 0x103174edf <dyld_stub_binder+0x103174edf>"
+        },
+        {
+          "va": "0x1024d72c7",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x1024d72ca",
+          "bytes": "beb23a0000",
+          "instruction": "mov\tesi, 0x3ab2"
+        },
+        {
+          "va": "0x1024d72cf",
+          "bytes": "e87c2e5a00",
+          "instruction": "call\t0x102a7a150 <__Z31SteamInternal_Init_SteamFriendsPP13ISteamFriends+0xfe90>"
+        }
+      ],
+      "notes": "Registry initializer associates politics_tab with3ab2; replacement identity evidence, not Windows instruction-level equivalent",
+      "requires_companion": [
+        "token.constructor_store",
+        "token.politics_tab_literal"
+      ],
+      "compound_guard_note": "All references are mandatory parts of the semantic evidence/guard. Supplemental records are not optional. Runtime token values additionally require post-initialization validation."
+    },
+    {
+      "id": "caption.F78FE",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x24d6c2f",
+      "hex": "488d3df2770d01488d15beddc9004889fbbe6e3a0000e806355a00",
+      "length": 27,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x1024d6c2f",
+          "bytes": "488d3df2770d01",
+          "instruction": "lea\trdi, [rip + 0x10d77f2]  ## 0x1035ae428 <dyld_stub_binder+0x1035ae428>"
+        },
+        {
+          "va": "0x1024d6c36",
+          "bytes": "488d15beddc900",
+          "instruction": "lea\trdx, [rip + 0xc9ddbe]   ## 0x1031749fb <dyld_stub_binder+0x1031749fb>"
+        },
+        {
+          "va": "0x1024d6c3d",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x1024d6c40",
+          "bytes": "be6e3a0000",
+          "instruction": "mov\tesi, 0x3a6e"
+        },
+        {
+          "va": "0x1024d6c45",
+          "bytes": "e806355a00",
+          "instruction": "call\t0x102a7a150 <__Z31SteamInternal_Init_SteamFriendsPP13ISteamFriends+0xfe90>"
+        }
+      ],
+      "notes": "Registry initializer associates parent_window_token with3a6e",
+      "requires_companion": [
+        "token.constructor_store",
+        "token.parent_window_literal"
+      ],
+      "compound_guard_note": "All references are mandatory parts of the semantic evidence/guard. Supplemental records are not optional. Runtime token values additionally require post-initialization validation."
+    },
+    {
+      "id": "caption.159F33D",
+      "windows_table": "caption_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb3ecfa",
+      "hex": "418b85c000000041894624e9c2090000",
+      "length": 16,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b3ecfa",
+          "bytes": "418b85c0000000",
+          "instruction": "mov\teax, dword ptr [r13 + 0xc0]"
+        },
+        {
+          "va": "0x100b3ed01",
+          "bytes": "41894624",
+          "instruction": "mov\tdword ptr [r14 + 0x24], eax"
+        },
+        {
+          "va": "0x100b3ed05",
+          "bytes": "e9c2090000",
+          "instruction": "jmp\t0x100b3f6cc <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7453c>"
+        }
+      ],
+      "notes": "CScriptedWindowTemplate parser slot28; jump table0x100b3f9bc indexed by token-3a6b; parser+C0 -> model+24",
+      "requires_companion": [
+        "parent_token.parser_dispatch",
+        "parent_token.parser_case_entry",
+        "caption.F78FE"
+      ],
+      "compound_guard_note": "All references are mandatory parts of the semantic evidence/guard. Supplemental records are not optional. Runtime token values additionally require post-initialization validation."
+    },
+    {
+      "id": "focus.225E320",
+      "windows_table": "focus_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x27c86c0",
+      "hex": "554889e54156534889f34989fe488bbf380100004885ff7409488b07ff90c800000049899e380100004885db7410488b034889df5b415e5dffa0c00000005b415e5dc3666666662e0f1f840000000000",
+      "length": 80,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x1027c86c0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x1027c86c1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x1027c86c4",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x1027c86c6",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x1027c86c7",
+          "bytes": "4889f3",
+          "instruction": "mov\trbx, rsi"
+        },
+        {
+          "va": "0x1027c86ca",
+          "bytes": "4989fe",
+          "instruction": "mov\tr14, rdi"
+        },
+        {
+          "va": "0x1027c86cd",
+          "bytes": "488bbf38010000",
+          "instruction": "mov\trdi, qword ptr [rdi + 0x138]"
+        },
+        {
+          "va": "0x1027c86d4",
+          "bytes": "4885ff",
+          "instruction": "test\trdi, rdi"
+        },
+        {
+          "va": "0x1027c86d7",
+          "bytes": "7409",
+          "instruction": "je\t0x1027c86e2 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xf6fc2>"
+        },
+        {
+          "va": "0x1027c86d9",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x1027c86dc",
+          "bytes": "ff90c8000000",
+          "instruction": "call\tqword ptr [rax + 0xc8]"
+        },
+        {
+          "va": "0x1027c86e2",
+          "bytes": "49899e38010000",
+          "instruction": "mov\tqword ptr [r14 + 0x138], rbx"
+        },
+        {
+          "va": "0x1027c86e9",
+          "bytes": "4885db",
+          "instruction": "test\trbx, rbx"
+        },
+        {
+          "va": "0x1027c86ec",
+          "bytes": "7410",
+          "instruction": "je\t0x1027c86fe <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xf6fde>"
+        },
+        {
+          "va": "0x1027c86ee",
+          "bytes": "488b03",
+          "instruction": "mov\trax, qword ptr [rbx]"
+        },
+        {
+          "va": "0x1027c86f1",
+          "bytes": "4889df",
+          "instruction": "mov\trdi, rbx"
+        },
+        {
+          "va": "0x1027c86f4",
+          "bytes": "5b",
+          "instruction": "pop\trbx"
+        },
+        {
+          "va": "0x1027c86f5",
+          "bytes": "415e",
+          "instruction": "pop\tr14"
+        },
+        {
+          "va": "0x1027c86f7",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x1027c86f8",
+          "bytes": "ffa0c0000000",
+          "instruction": "jmp\tqword ptr [rax + 0xc0]"
+        },
+        {
+          "va": "0x1027c86fe",
+          "bytes": "5b",
+          "instruction": "pop\trbx"
+        },
+        {
+          "va": "0x1027c86ff",
+          "bytes": "415e",
+          "instruction": "pop\tr14"
+        },
+        {
+          "va": "0x1027c8701",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x1027c8702",
+          "bytes": "c3",
+          "instruction": "ret"
+        },
+        {
+          "va": "0x1027c8703",
+          "bytes": "666666662e0f1f840000000000",
+          "instruction": "nop\tword ptr cs:[rax + rax]"
+        }
+      ],
+      "notes": "Focus switch old virtualc8, manager138=new, new virtualc0"
+    },
+    {
+      "id": "focus.22F4770",
+      "windows_table": "focus_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x2794bd0",
+      "hex": "554889e553504889fb0fb6873902000089c180e1fe888f39020000a810741524ee888339020000488bbb98010000488b07ff5068488bbba00100004885ff7406488b07ff50688b4364a900040000750e488d7b7031f6e885eb0c008b4364a900040000750e",
+      "length": 101,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x102794bd0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x102794bd1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x102794bd4",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x102794bd5",
+          "bytes": "50",
+          "instruction": "push\trax"
+        },
+        {
+          "va": "0x102794bd6",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x102794bd9",
+          "bytes": "0fb68739020000",
+          "instruction": "movzx\teax, byte ptr [rdi + 0x239]"
+        },
+        {
+          "va": "0x102794be0",
+          "bytes": "89c1",
+          "instruction": "mov\tecx, eax"
+        },
+        {
+          "va": "0x102794be2",
+          "bytes": "80e1fe",
+          "instruction": "and\tcl, -0x2"
+        },
+        {
+          "va": "0x102794be5",
+          "bytes": "888f39020000",
+          "instruction": "mov\tbyte ptr [rdi + 0x239], cl"
+        },
+        {
+          "va": "0x102794beb",
+          "bytes": "a810",
+          "instruction": "test\tal, 0x10"
+        },
+        {
+          "va": "0x102794bed",
+          "bytes": "7415",
+          "instruction": "je\t0x102794c04 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xc34e4>"
+        },
+        {
+          "va": "0x102794bef",
+          "bytes": "24ee",
+          "instruction": "and\tal, -0x12"
+        },
+        {
+          "va": "0x102794bf1",
+          "bytes": "888339020000",
+          "instruction": "mov\tbyte ptr [rbx + 0x239], al"
+        },
+        {
+          "va": "0x102794bf7",
+          "bytes": "488bbb98010000",
+          "instruction": "mov\trdi, qword ptr [rbx + 0x198]"
+        },
+        {
+          "va": "0x102794bfe",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x102794c01",
+          "bytes": "ff5068",
+          "instruction": "call\tqword ptr [rax + 0x68]"
+        },
+        {
+          "va": "0x102794c04",
+          "bytes": "488bbba0010000",
+          "instruction": "mov\trdi, qword ptr [rbx + 0x1a0]"
+        },
+        {
+          "va": "0x102794c0b",
+          "bytes": "4885ff",
+          "instruction": "test\trdi, rdi"
+        },
+        {
+          "va": "0x102794c0e",
+          "bytes": "7406",
+          "instruction": "je\t0x102794c16 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xc34f6>"
+        },
+        {
+          "va": "0x102794c10",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x102794c13",
+          "bytes": "ff5068",
+          "instruction": "call\tqword ptr [rax + 0x68]"
+        },
+        {
+          "va": "0x102794c16",
+          "bytes": "8b4364",
+          "instruction": "mov\teax, dword ptr [rbx + 0x64]"
+        },
+        {
+          "va": "0x102794c19",
+          "bytes": "a900040000",
+          "instruction": "test\teax, 0x400"
+        },
+        {
+          "va": "0x102794c1e",
+          "bytes": "750e",
+          "instruction": "jne\t0x102794c2e <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xc350e>"
+        },
+        {
+          "va": "0x102794c20",
+          "bytes": "488d7b70",
+          "instruction": "lea\trdi, [rbx + 0x70]"
+        },
+        {
+          "va": "0x102794c24",
+          "bytes": "31f6",
+          "instruction": "xor\tesi, esi"
+        },
+        {
+          "va": "0x102794c26",
+          "bytes": "e885eb0c00",
+          "instruction": "call\t0x1028637b0 <__ZN20CFixedMaxSizeListboxI20CStandardlistboxItemE22OnScrollbarvalueChangeEv+0x9240>"
+        },
+        {
+          "va": "0x102794c2b",
+          "bytes": "8b4364",
+          "instruction": "mov\teax, dword ptr [rbx + 0x64]"
+        },
+        {
+          "va": "0x102794c2e",
+          "bytes": "a900040000",
+          "instruction": "test\teax, 0x400"
+        },
+        {
+          "va": "0x102794c33",
+          "bytes": "750e",
+          "instruction": "jne\t0x102794c43 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xc3523>"
+        }
+      ],
+      "notes": "Unfocus clears edit239 bit0"
+    },
+    {
+      "id": "focus.22F47F0",
+      "windows_table": "focus_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x2794c43",
+      "hex": "4881c3800100004889df4883c4085b5de9a8f20c00",
+      "length": 21,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x102794c43",
+          "bytes": "4881c380010000",
+          "instruction": "add\trbx, 0x180"
+        },
+        {
+          "va": "0x102794c4a",
+          "bytes": "4889df",
+          "instruction": "mov\trdi, rbx"
+        },
+        {
+          "va": "0x102794c4d",
+          "bytes": "4883c408",
+          "instruction": "add\trsp, 0x8"
+        },
+        {
+          "va": "0x102794c51",
+          "bytes": "5b",
+          "instruction": "pop\trbx"
+        },
+        {
+          "va": "0x102794c52",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x102794c53",
+          "bytes": "e9a8f20c00",
+          "instruction": "jmp\t0x102863f00 <__ZN20CFixedMaxSizeListboxI20CStandardlistboxItemE22OnScrollbarvalueChangeEv+0x9990>"
+        }
+      ],
+      "notes": "Receiver subobject edit+180 and unregister tail"
+    },
+    {
+      "id": "focus.22FBEC0",
+      "windows_table": "focus_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x2863f00",
+      "hex": "554889e54889fe488d054a81d700488b385de94950f6ff660f1f840000000000",
+      "length": 32,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x102863f00",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x102863f01",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x102863f04",
+          "bytes": "4889fe",
+          "instruction": "mov\trsi, rdi"
+        },
+        {
+          "va": "0x102863f07",
+          "bytes": "488d054a81d700",
+          "instruction": "lea\trax, [rip + 0xd7814a]   ## 0x1035dc058 <dyld_stub_binder+0x1035dc058>"
+        },
+        {
+          "va": "0x102863f0e",
+          "bytes": "488b38",
+          "instruction": "mov\trdi, qword ptr [rax]"
+        },
+        {
+          "va": "0x102863f11",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x102863f12",
+          "bytes": "e94950f6ff",
+          "instruction": "jmp\t0x1027c8f60 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xf7840>"
+        },
+        {
+          "va": "0x102863f17",
+          "bytes": "660f1f840000000000",
+          "instruction": "nop\tword ptr [rax + rax]"
+        }
+      ],
+      "notes": "Receiver release trampoline through global35dc058"
+    },
+    {
+      "id": "focus.225E3B0",
+      "windows_table": "focus_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0x27c8f60",
+      "hex": "554889e553504883bf1002000000741c4889fbe818cfeeff488b084889c7ff513848c78310020000000000004883c4085b5dc3666666662e0f1f840000000000",
+      "length": 64,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x1027c8f60",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x1027c8f61",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x1027c8f64",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x1027c8f65",
+          "bytes": "50",
+          "instruction": "push\trax"
+        },
+        {
+          "va": "0x1027c8f66",
+          "bytes": "4883bf1002000000",
+          "instruction": "cmp\tqword ptr [rdi + 0x210], 0x0"
+        },
+        {
+          "va": "0x1027c8f6e",
+          "bytes": "741c",
+          "instruction": "je\t0x1027c8f8c <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xf786c>"
+        },
+        {
+          "va": "0x1027c8f70",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x1027c8f73",
+          "bytes": "e818cfeeff",
+          "instruction": "call\t0x1026b5e90 <__ZN14CCommandHelperI14CChunkReceivedE18CommandRegistrator6CreateEv+0x166a0>"
+        },
+        {
+          "va": "0x1027c8f78",
+          "bytes": "488b08",
+          "instruction": "mov\trcx, qword ptr [rax]"
+        },
+        {
+          "va": "0x1027c8f7b",
+          "bytes": "4889c7",
+          "instruction": "mov\trdi, rax"
+        },
+        {
+          "va": "0x1027c8f7e",
+          "bytes": "ff5138",
+          "instruction": "call\tqword ptr [rcx + 0x38]"
+        },
+        {
+          "va": "0x1027c8f81",
+          "bytes": "48c7831002000000000000",
+          "instruction": "mov\tqword ptr [rbx + 0x210], 0x0"
+        },
+        {
+          "va": "0x1027c8f8c",
+          "bytes": "4883c408",
+          "instruction": "add\trsp, 0x8"
+        },
+        {
+          "va": "0x1027c8f90",
+          "bytes": "5b",
+          "instruction": "pop\trbx"
+        },
+        {
+          "va": "0x1027c8f91",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x1027c8f92",
+          "bytes": "c3",
+          "instruction": "ret"
+        },
+        {
+          "va": "0x1027c8f93",
+          "bytes": "666666662e0f1f840000000000",
+          "instruction": "nop\tword ptr cs:[rax + rax]"
+        }
+      ],
+      "notes": "Manager receiver+210 clear"
+    },
+    {
+      "id": "focus.B889AE",
+      "windows_table": "focus_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb44078",
+      "hex": "488b8bf80000004885c9742a8b8994000000f7c1000400007561",
+      "length": 26,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b44078",
+          "bytes": "488b8bf8000000",
+          "instruction": "mov\trcx, qword ptr [rbx + 0xf8]"
+        },
+        {
+          "va": "0x100b4407f",
+          "bytes": "4885c9",
+          "instruction": "test\trcx, rcx"
+        },
+        {
+          "va": "0x100b44082",
+          "bytes": "742a",
+          "instruction": "je\t0x100b440ae <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x78f1e>"
+        },
+        {
+          "va": "0x100b44084",
+          "bytes": "8b8994000000",
+          "instruction": "mov\tecx, dword ptr [rcx + 0x94]"
+        },
+        {
+          "va": "0x100b4408a",
+          "bytes": "f7c100040000",
+          "instruction": "test\tecx, 0x400"
+        },
+        {
+          "va": "0x100b44090",
+          "bytes": "7561",
+          "instruction": "jne\t0x100b440f3 <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x78f63>"
+        }
+      ],
+      "notes": "Parent window+f8, flags DWORD+94 mask400 == byte95 mask4"
+    },
+    {
+      "id": "focus.B88A5B",
+      "windows_table": "focus_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb4409b",
+      "hex": "f7c1000800000f85bc000000",
+      "length": 12,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b4409b",
+          "bytes": "f7c100080000",
+          "instruction": "test\tecx, 0x800"
+        },
+        {
+          "va": "0x100b440a1",
+          "bytes": "0f85bc000000",
+          "instruction": "jne\t0x100b44163 <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x78fd3>"
+        }
+      ],
+      "notes": "Parent flags DWORD+94 mask800 == byte95 mask8"
+    },
+    {
+      "id": "focus.B88AFF",
+      "windows_table": "focus_signatures",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "bytes",
+      "rva": "0xb441f1",
+      "hex": "3883500a00007525",
+      "length": 8,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b441f1",
+          "bytes": "3883500a0000",
+          "instruction": "cmp\tbyte ptr [rbx + 0xa50], al"
+        },
+        {
+          "va": "0x100b441f7",
+          "bytes": "7525",
+          "instruction": "jne\t0x100b4421e <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7908e>"
+        }
+      ],
+      "notes": "Parent visibility cache window+a50"
+    },
+    {
+      "id": "caption_slot_pins[0]",
+      "windows_table": "caption_slot_pins",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "pointer",
+      "rva": "0x3444538",
+      "vtable_rva": "0x3444508",
+      "slot": "0x30",
+      "target_rva": "0x1fc8e30",
+      "target_code": true,
+      "disk_unslid_qword": "0x101fc8e30",
+      "notes": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes."
+    },
+    {
+      "id": "caption_slot_pins[1]",
+      "windows_table": "caption_slot_pins",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "pointer",
+      "rva": "0x3444640",
+      "vtable_rva": "0x3444600",
+      "slot": "0x40",
+      "target_rva": "0x1fa4320",
+      "target_code": true,
+      "disk_unslid_qword": "0x101fa4320",
+      "notes": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes."
+    },
+    {
+      "id": "caption_slot_pins[2]",
+      "windows_table": "caption_slot_pins",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "pointer",
+      "rva": "0x3444650",
+      "vtable_rva": "0x3444600",
+      "slot": "0x50",
+      "target_rva": "0x1f9fc10",
+      "target_code": true,
+      "disk_unslid_qword": "0x101f9fc10",
+      "notes": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes."
+    },
+    {
+      "id": "caption_slot_pins[3]",
+      "windows_table": "caption_slot_pins",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "pointer",
+      "rva": "0x3309068",
+      "vtable_rva": "0x3308f90",
+      "slot": "0xd8",
+      "target_rva": "0x77bd00",
+      "target_code": true,
+      "disk_unslid_qword": "0x10077bd00",
+      "notes": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes."
+    },
+    {
+      "id": "token.politics_tab",
+      "windows_table": "caption_token_pins",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "runtime_u32",
+      "rva": "0x35af598",
+      "value": "0x3ab2",
+      "hex": "b23a0000",
+      "notes": "0x1024d72b9 LEA destination, 0x1024d72c0 string politics_tab, 0x1024d72ca token 0x3ab2, constructor 0x102a7a1c6 writes DWORD [this]. Runtime-initialized, not readonly constant. Original map representation: 0x35AF598",
+      "activation_requirement": "Read after token registry initialization; retain initializer bytes as static identity evidence. Do not compare expected initialized value against raw file/BSS bytes.",
+      "requires_companion": [
+        "caption.F86CC",
+        "token.constructor_store",
+        "token.politics_tab_literal"
+      ],
+      "compound_guard_note": "All references are mandatory parts of the semantic evidence/guard. Supplemental records are not optional. Runtime token values additionally require post-initialization validation."
+    },
+    {
+      "id": "token.player_context",
+      "windows_table": "caption_token_pins",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "runtime_u32",
+      "rva": "0x35ae4b8",
+      "value": "0x3a70",
+      "hex": "703a0000",
+      "notes": "0x1024d6c65 LEA destination, 0x1024d6c6c string player_context, 0x1024d6c76 token 0x3a70, constructor 0x102a7a1c6 writes DWORD [this]. Runtime-initialized. Original map representation: 0x35AE4B8",
+      "activation_requirement": "Read after token registry initialization; retain initializer bytes as static identity evidence. Do not compare expected initialized value against raw file/BSS bytes.",
+      "requires_companion": [
+        "token.player_context_initializer",
+        "token.constructor_store",
+        "token.player_context_literal"
+      ],
+      "compound_guard_note": "All references are mandatory parts of the semantic evidence/guard. Supplemental records are not optional. Runtime token values additionally require post-initialization validation."
+    },
+    {
+      "id": "focus_slot_pins[0]",
+      "windows_table": "focus_slot_pins",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "pointer",
+      "rva": "0x34ade60",
+      "vtable_rva": "0x34add98",
+      "slot": "0xc8",
+      "target_rva": "0x2794bd0",
+      "target_code": true,
+      "disk_unslid_qword": "0x102794bd0",
+      "notes": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes."
+    },
+    {
+      "id": "focus_slot_pins[1]",
+      "windows_table": "focus_slot_pins",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "pointer",
+      "rva": "0x34ade58",
+      "vtable_rva": "0x34add98",
+      "slot": "0xc0",
+      "target_rva": "0x2794af0",
+      "target_code": true,
+      "disk_unslid_qword": "0x102794af0",
+      "notes": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes."
+    },
+    {
+      "id": "focus.manager_global",
+      "windows_table": "focus_manager_rip_pin",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "kind": "relative32",
+      "displacement_rva": "0x2863eed",
+      "next_instruction_rva": "0x2863ef1",
+      "target_rva": "0x35dc058",
+      "target_code": false,
+      "instruction": {
+        "kind": "bytes",
+        "rva": "0x2863eea",
+        "hex": "488d056781d700",
+        "length": 7,
+        "whole_instructions": true,
+        "file_occurrences": 1,
+        "text_occurrences": 1,
+        "instructions": [
+          {
+            "va": "0x102863eea",
+            "bytes": "488d056781d700",
+            "instruction": "lea\trax, [rip + 0xd78167]   ## 0x1035dc058 <dyld_stub_binder+0x1035dc058>"
+          }
+        ]
+      },
+      "notes": "LEA then dereference, not Windows MOV; checks global address only, not current manager pointee."
+    }
+  ],
+  "supplemental": [
+    {
+      "kind": "bytes",
+      "rva": "0xb3df74",
+      "hex": "4989f54989fe81fa6a3a00007e6c81fac53b00004c89ad70ffffff0f8f890000008d8295c5ffff83f85f0f873a170000488d0d111a0000486304814801c8ffe0",
+      "length": 64,
+      "whole_instructions": true,
+      "file_occurrences": 1,
+      "text_occurrences": 1,
+      "instructions": [
+        {
+          "va": "0x100b3df74",
+          "bytes": "4989f5",
+          "instruction": "mov\tr13, rsi"
+        },
+        {
+          "va": "0x100b3df77",
+          "bytes": "4989fe",
+          "instruction": "mov\tr14, rdi"
+        },
+        {
+          "va": "0x100b3df7a",
+          "bytes": "81fa6a3a0000",
+          "instruction": "cmp\tedx, 0x3a6a"
+        },
+        {
+          "va": "0x100b3df80",
+          "bytes": "7e6c",
+          "instruction": "jle\t0x100b3dfee <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x72e5e>"
+        },
+        {
+          "va": "0x100b3df82",
+          "bytes": "81fac53b0000",
+          "instruction": "cmp\tedx, 0x3bc5"
+        },
+        {
+          "va": "0x100b3df88",
+          "bytes": "4c89ad70ffffff",
+          "instruction": "mov\tqword ptr [rbp - 0x90], r13"
+        },
+        {
+          "va": "0x100b3df8f",
+          "bytes": "0f8f89000000",
+          "instruction": "jg\t0x100b3e01e <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x72e8e>"
+        },
+        {
+          "va": "0x100b3df95",
+          "bytes": "8d8295c5ffff",
+          "instruction": "lea\teax, [rdx - 0x3a6b]"
+        },
+        {
+          "va": "0x100b3df9b",
+          "bytes": "83f85f",
+          "instruction": "cmp\teax, 0x5f"
+        },
+        {
+          "va": "0x100b3df9e",
+          "bytes": "0f873a170000",
+          "instruction": "ja\t0x100b3f6de <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7454e>"
+        },
+        {
+          "va": "0x100b3dfa4",
+          "bytes": "488d0d111a0000",
+          "instruction": "lea\trcx, [rip + 0x1a11]     ## 0x100b3f9bc <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7482c>"
+        },
+        {
+          "va": "0x100b3dfab",
+          "bytes": "48630481",
+          "instruction": "movsxd\trax, dword ptr [rcx + 4*rax]"
+        },
+        {
+          "va": "0x100b3dfaf",
+          "bytes": "4801c8",
+          "instruction": "add\trax, rcx"
+        },
+        {
+          "va": "0x100b3dfb2",
+          "bytes": "ffe0",
+          "instruction": "jmp\trax"
+        }
+      ],
+      "id": "parent_token.parser_dispatch"
+    },
+    {
+      "kind": "relative_jump_table_entry",
+      "rva": "0xb3f9c8",
+      "base_rva": "0xb3f9bc",
+      "target_rva": "0xb3ecfa",
+      "index": 3,
+      "switch_value": "0x3a6e",
+      "switch_bias": "0x3a6b",
+      "hex": "3ef3ffff",
+      "notes": "Signed DWORD added to table base; parser virtual+28, source token value3a6e selects parent token assignment.",
+      "id": "parent_token.parser_case_entry"
+    },
+    {
+      "id": "parent_window.long_length",
+      "kind": "bytes",
+      "rva": "0xb462d7",
+      "hex": "488b46484885c00f84af000000",
+      "length": 13,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x100b462d7",
+          "bytes": "488b4648",
+          "instruction": "mov\trax, qword ptr [rsi + 0x48]"
+        },
+        {
+          "va": "0x100b462db",
+          "bytes": "4885c0",
+          "instruction": "test\trax, rax"
+        },
+        {
+          "va": "0x100b462de",
+          "bytes": "0f84af000000",
+          "instruction": "je\t0x100b46393"
+        }
+      ]
+    },
+    {
+      "id": "token.player_context_initializer",
+      "kind": "bytes",
+      "rva": "0x24d6c65",
+      "hex": "488d3d4c780d01488d159cddc9004889fbbe703a0000e8d0345a00",
+      "length": 27,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x1024d6c65",
+          "bytes": "488d3d4c780d01",
+          "instruction": "lea\trdi, [rip + 0x10d784c]"
+        },
+        {
+          "va": "0x1024d6c6c",
+          "bytes": "488d159cddc900",
+          "instruction": "lea\trdx, [rip + 0xc9dd9c] ## literal pool for: \"player_context\""
+        },
+        {
+          "va": "0x1024d6c73",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x1024d6c76",
+          "bytes": "be703a0000",
+          "instruction": "mov\tesi, 0x3a70"
+        },
+        {
+          "va": "0x1024d6c7b",
+          "bytes": "e8d0345a00",
+          "instruction": "call\t0x102a7a150"
+        }
+      ]
+    },
+    {
+      "id": "token.constructor_store",
+      "kind": "bytes",
+      "rva": "0x2a7a150",
+      "hex": "554889e5415741564155415453504889d34189f54989fec70700000000c6470400488d47200f57c00f11470848894718488b05a93681004883c01048894720488b3d3228820049897e40488b0731f6ff50184d8d66284d89660841c746101500000048895dd04889dfe858c40a004989c741c646040045892e",
+      "length": 121,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x102a7a150",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x102a7a151",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x102a7a154",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x102a7a156",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x102a7a158",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x102a7a15a",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x102a7a15c",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x102a7a15d",
+          "bytes": "50",
+          "instruction": "push\trax"
+        },
+        {
+          "va": "0x102a7a15e",
+          "bytes": "4889d3",
+          "instruction": "mov\trbx, rdx"
+        },
+        {
+          "va": "0x102a7a161",
+          "bytes": "4189f5",
+          "instruction": "mov\tr13d, esi"
+        },
+        {
+          "va": "0x102a7a164",
+          "bytes": "4989fe",
+          "instruction": "mov\tr14, rdi"
+        },
+        {
+          "va": "0x102a7a167",
+          "bytes": "c70700000000",
+          "instruction": "mov\tdword ptr [rdi], 0x0"
+        },
+        {
+          "va": "0x102a7a16d",
+          "bytes": "c6470400",
+          "instruction": "mov\tbyte ptr [rdi + 0x4], 0x0"
+        },
+        {
+          "va": "0x102a7a171",
+          "bytes": "488d4720",
+          "instruction": "lea\trax, [rdi + 0x20]"
+        },
+        {
+          "va": "0x102a7a175",
+          "bytes": "0f57c0",
+          "instruction": "xorps\txmm0, xmm0"
+        },
+        {
+          "va": "0x102a7a178",
+          "bytes": "0f114708",
+          "instruction": "movups\txmmword ptr [rdi + 0x8], xmm0"
+        },
+        {
+          "va": "0x102a7a17c",
+          "bytes": "48894718",
+          "instruction": "mov\tqword ptr [rdi + 0x18], rax"
+        },
+        {
+          "va": "0x102a7a180",
+          "bytes": "488b05a9368100",
+          "instruction": "mov\trax, qword ptr [rip + 0x8136a9]"
+        },
+        {
+          "va": "0x102a7a187",
+          "bytes": "4883c010",
+          "instruction": "add\trax, 0x10"
+        },
+        {
+          "va": "0x102a7a18b",
+          "bytes": "48894720",
+          "instruction": "mov\tqword ptr [rdi + 0x20], rax"
+        },
+        {
+          "va": "0x102a7a18f",
+          "bytes": "488b3d32288200",
+          "instruction": "mov\trdi, qword ptr [rip + 0x822832] ## literal pool symbol address: __ZZ24PdxGetNewDeleteAllocatorvE5Alloc"
+        },
+        {
+          "va": "0x102a7a196",
+          "bytes": "49897e40",
+          "instruction": "mov\tqword ptr [r14 + 0x40], rdi"
+        },
+        {
+          "va": "0x102a7a19a",
+          "bytes": "488b07",
+          "instruction": "mov\trax, qword ptr [rdi]"
+        },
+        {
+          "va": "0x102a7a19d",
+          "bytes": "31f6",
+          "instruction": "xor\tesi, esi"
+        },
+        {
+          "va": "0x102a7a19f",
+          "bytes": "ff5018",
+          "instruction": "call\tqword ptr [rax + 0x18]"
+        },
+        {
+          "va": "0x102a7a1a2",
+          "bytes": "4d8d6628",
+          "instruction": "lea\tr12, [r14 + 0x28]"
+        },
+        {
+          "va": "0x102a7a1a6",
+          "bytes": "4d896608",
+          "instruction": "mov\tqword ptr [r14 + 0x8], r12"
+        },
+        {
+          "va": "0x102a7a1aa",
+          "bytes": "41c7461015000000",
+          "instruction": "mov\tdword ptr [r14 + 0x10], 0x15"
+        },
+        {
+          "va": "0x102a7a1b2",
+          "bytes": "48895dd0",
+          "instruction": "mov\tqword ptr [rbp - 0x30], rbx"
+        },
+        {
+          "va": "0x102a7a1b6",
+          "bytes": "4889df",
+          "instruction": "mov\trdi, rbx"
+        },
+        {
+          "va": "0x102a7a1b9",
+          "bytes": "e858c40a00",
+          "instruction": "call\t0x102b26616 ## symbol stub for: _strlen"
+        },
+        {
+          "va": "0x102a7a1be",
+          "bytes": "4989c7",
+          "instruction": "mov\tr15, rax"
+        },
+        {
+          "va": "0x102a7a1c1",
+          "bytes": "41c6460400",
+          "instruction": "mov\tbyte ptr [r14 + 0x4], 0x0"
+        },
+        {
+          "va": "0x102a7a1c6",
+          "bytes": "45892e",
+          "instruction": "mov\tdword ptr [r14], r13d"
+        }
+      ]
+    },
+    {
+      "id": "token.player_context_literal",
+      "kind": "literal_bytes",
+      "rva": "0x3174a0f",
+      "hex": "706c617965725f636f6e7465787400",
+      "length": 15,
+      "text": "player_context"
+    },
+    {
+      "id": "token.politics_tab_literal",
+      "kind": "literal_bytes",
+      "rva": "0x3174edf",
+      "hex": "706f6c69746963735f74616200",
+      "length": 13,
+      "text": "politics_tab"
+    },
+    {
+      "id": "token.parent_window_literal",
+      "kind": "literal_bytes",
+      "rva": "0x31749fb",
+      "hex": "706172656e745f77696e646f775f746f6b656e00",
+      "length": 20,
+      "text": "parent_window_token"
+    }
+  ]
+}

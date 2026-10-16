@@ -15,10 +15,16 @@
  * Read FA5246), the same container type as a country's. The ruling leader of a country is
  * found with the chain of the `set_country_leader_portrait` effect (2E5680): country+0xF90
  * politics, +0xD0 ruling party, first of the leader roles at +0x70 (count +0x7C), role+0x8
- * character. Pure functions templated over the memory policy; no writes, no game calls.
+ * character. macOS uses the same chain with country+0xD38, party roles+0x60/count+0x6C,
+ * embedded character variables+0xD0 and its own RTTI vtable (macos_game_layout.hpp).
+ * Pure functions templated over the memory policy; no writes, no game calls.
  */
 #pragma once
+#if defined(__APPLE__)
+#include "../../core/macos_game_layout.hpp"
+#else
 #include "../../core/game_layout.hpp"
+#endif
 #include "../../core/memory.hpp"
 #include "flag_layer.hpp"
 #include "name_layer.hpp"
@@ -27,6 +33,14 @@
 #include <string_view>
 
 namespace capie::country::portrait {
+
+#if defined(__APPLE__)
+namespace layout_off = core::macos::off;
+namespace layout_rva = core::macos::rva;
+#else
+namespace layout_off = core::off;
+namespace layout_rva = core::rva;
+#endif
 
 using core::uptr;
 using flag::Text;
@@ -68,12 +82,12 @@ struct Layer {
 template <class M>
 Layer read_portrait_layer(const M& mem, uptr character) noexcept {
     Layer out{};
-    if (character == 0 || character > core::uptr_max - core::off::character_variables) {
+    if (character == 0 || character > core::uptr_max - layout_off::character_variables) {
         out.status = Status::unreadable;
         return out;
     }
     Table table{};
-    if (!layer::read_table(mem, character + core::off::character_variables, table)) {
+    if (!layer::read_table(mem, character + layout_off::character_variables, table)) {
         out.status = Status::unreadable;
         return out;
     }
@@ -116,8 +130,13 @@ Layer read_portrait_layer(const M& mem, uptr character) noexcept {
  */
 template <class M>
 bool is_character(const M& mem, uptr image, uptr object) noexcept {
+#if defined(__APPLE__)
+    if (image == 0 || image > core::uptr_max - layout_rva::vt_character) {
+        return false;
+    }
+#endif
     uptr vtable = 0;
-    return object != 0 && core::rd(mem, object, 0, vtable) && vtable == image + core::rva::vt_character;
+    return object != 0 && core::rd(mem, object, 0, vtable) && vtable == image + layout_rva::vt_character;
 }
 
 /**
@@ -133,15 +152,15 @@ bool ruling_leader(const M& mem, uptr image, uptr country, uptr& character) noex
     character = 0;
     uptr politics = 0;
     uptr party = 0;
-    if (!core::rd(mem, country, core::off::country_politics, politics) || politics == 0 ||
-        !core::rd(mem, politics, core::off::politics_ruling_party, party)) {
+    if (!core::rd(mem, country, layout_off::country_politics, politics) || politics == 0 ||
+        !core::rd(mem, politics, layout_off::politics_ruling_party, party)) {
         return false;
     }
     if (party == 0) {
         return true;  // no ruling party: no leader
     }
     std::int32_t count = 0;
-    if (!core::rd(mem, party, core::off::party_leader_count, count) || count < 0) {
+    if (!core::rd(mem, party, layout_off::party_leader_count, count) || count < 0) {
         return false;
     }
     if (count == 0) {
@@ -150,8 +169,8 @@ bool ruling_leader(const M& mem, uptr image, uptr country, uptr& character) noex
     uptr roles = 0;
     uptr role = 0;
     uptr found = 0;
-    if (!core::rd(mem, party, core::off::party_leaders, roles) || !core::rd(mem, roles, 0, role) ||
-        !core::rd(mem, role, core::off::leader_role_character, found) || !is_character(mem, image, found)) {
+    if (!core::rd(mem, party, layout_off::party_leaders, roles) || !core::rd(mem, roles, 0, role) ||
+        !core::rd(mem, role, layout_off::leader_role_character, found) || !is_character(mem, image, found)) {
         return false;
     }
     character = found;

@@ -19,13 +19,7 @@
  * as before; when it is clear, `take()` would have returned an empty `Work`.
  */
 #pragma once
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX  // std::numeric_limits<T>::max() must not hit the windows.h macro
-#endif
-#include <windows.h>
+#include "platform.hpp"
 
 #include <array>
 #include <atomic>
@@ -47,7 +41,7 @@ constexpr std::uint64_t counter_max = std::numeric_limits<std::uint64_t>::max();
 struct Stamp {
     std::uint64_t sequence{};  ///< Monotonic line number (saturating).
     std::uint64_t ms{};        ///< `GetTickCount64()` at append time.
-    DWORD thread{};            ///< Appending thread id.
+    unsigned long thread{};            ///< Appending thread id.
     bool truncated{};          ///< Text was cut to `line_capacity - 1` bytes.
 };
 
@@ -68,7 +62,7 @@ struct Dump {
 
 /// @brief Fixed-size ring of copied log lines; all members are thread-safe.
 class Ring {
-    SRWLOCK lock_ = SRWLOCK_INIT;
+    platform::Lock lock_{};
     std::array<Entry, ring_capacity> entries_{};
     std::size_t start_{};
     std::size_t count_{};
@@ -82,9 +76,9 @@ public:
      * @param enabled `true` to record.
      */
     void arm(bool enabled) noexcept {
-        AcquireSRWLockExclusive(&lock_);
+        platform::lock(&lock_);
         armed_ = enabled;
-        ReleaseSRWLockExclusive(&lock_);
+        platform::unlock(&lock_);
     }
 
     /**
@@ -97,11 +91,11 @@ public:
      * @param force Append even while paused.
      * @return `false` when paused (nothing stored).
      */
-    bool append(const char* text, std::size_t size, std::uint64_t ms, DWORD thread, Stamp& stamp,
+    bool append(const char* text, std::size_t size, std::uint64_t ms, unsigned long thread, Stamp& stamp,
                 bool force = false) noexcept {
-        AcquireSRWLockExclusive(&lock_);
+        platform::lock(&lock_);
         if (!armed_ && !force) {
-            ReleaseSRWLockExclusive(&lock_);
+            platform::unlock(&lock_);
             return false;
         }
         if (sequence_ != counter_max) {
@@ -125,7 +119,7 @@ public:
         if (entry.size != 0) {
             std::memcpy(entry.text, text, entry.size);
         }
-        ReleaseSRWLockExclusive(&lock_);
+        platform::unlock(&lock_);
         return true;
     }
 
@@ -134,14 +128,14 @@ public:
      * @param dump Destination.
      */
     void copy(Dump& dump) noexcept {
-        AcquireSRWLockShared(&lock_);
+        platform::lock_shared(&lock_);
         dump.count = count_;
         dump.overwritten = overwritten_;
         dump.sequence_saturated = sequence_ == counter_max;
         for (std::size_t i = 0; i < count_; ++i) {
             dump.entries[i] = entries_[(start_ + i) % ring_capacity];
         }
-        ReleaseSRWLockShared(&lock_);
+        platform::unlock_shared(&lock_);
     }
 
     Ring() = default;
@@ -182,7 +176,7 @@ struct Work {
 
 /// @brief Mailbox between the remote request thread and the UI thread.
 class Control {
-    SRWLOCK lock_ = SRWLOCK_INIT;
+    platform::Lock lock_{};
     std::uint64_t serial_{};
     std::uint64_t reported_{};
     std::uint64_t deadline_{};
@@ -203,9 +197,9 @@ public:
         if (code < first_operation || code > last_operation) {
             return false;
         }
-        AcquireSRWLockExclusive(&lock_);
+        platform::lock(&lock_);
         if (serial_ == counter_max) {
-            ReleaseSRWLockExclusive(&lock_);
+            platform::unlock(&lock_);
             return false;
         }
         ++serial_;
@@ -221,7 +215,7 @@ public:
             dump_ = true;
         }
         busy_.store(true, std::memory_order_release);
-        ReleaseSRWLockExclusive(&lock_);
+        platform::unlock(&lock_);
         return true;
     }
 
@@ -239,7 +233,7 @@ public:
      */
     Work take(std::uint64_t now, unsigned model_bit) noexcept {
         Work work{};
-        AcquireSRWLockExclusive(&lock_);
+        platform::lock(&lock_);
         work.serial = serial_;
         work.operation = operation_;
         work.changed = serial_ != reported_;
@@ -260,7 +254,7 @@ public:
             work.dump = true;
         }
         busy_.store(pending_ != 0 || dump_, std::memory_order_release);
-        ReleaseSRWLockExclusive(&lock_);
+        platform::unlock(&lock_);
         return work;
     }
 

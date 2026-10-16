@@ -1,0 +1,141 @@
+{
+  "sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "runtime_ready": false,
+  "pins": [
+    {
+      "id": "loc_lookup_n",
+      "va": "0x10288da90",
+      "rva": "0x288da90",
+      "file_offset": 42523280,
+      "hex": "554889e549b825232284e49cf2cb",
+      "disassembly": "10288da90:\tpush\trbp\n10288da91:\tmov\trbp, rsp\n10288da94:\tmovabs\tr8, -0x340d631b7bdddcdb",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "loc_lookup_z",
+      "va": "0x10288d420",
+      "rva": "0x288d420",
+      "file_offset": 42521632,
+      "hex": "554889e548be25232284e49cf2cb",
+      "disassembly": "10288d420:\tpush\trbp\n10288d421:\tmov\trbp, rsp\n10288d424:\tmovabs\trsi, -0x340d631b7bdddcdb",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "loc_exists",
+      "va": "0x10288e4c0",
+      "rva": "0x288e4c0",
+      "file_offset": 42525888,
+      "hex": "554889e548be25232284e49cf2cb",
+      "disassembly": "10288e4c0:\tpush\trbp\n10288e4c1:\tmov\trbp, rsp\n10288e4c4:\tmovabs\trsi, -0x340d631b7bdddcdb",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "update_names",
+      "va": "0x10117a790",
+      "rva": "0x117a790",
+      "file_offset": 18327440,
+      "hex": "554889e54157415641554154534881ec58040000",
+      "disassembly": "10117a790:\tpush\trbp\n10117a791:\tmov\trbp, rsp\n10117a794:\tpush\tr15\n10117a796:\tpush\tr14\n10117a798:\tpush\tr13\n10117a79a:\tpush\tr12\n10117a79c:\tpush\trbx\n10117a79d:\tsub\trsp, 0x458",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "build_name_key",
+      "va": "0x101177f30",
+      "rva": "0x1177f30",
+      "file_offset": 18317104,
+      "hex": "554889e54157415641554154534881ece8000000",
+      "disassembly": "101177f30:\tpush\trbp\n101177f31:\tmov\trbp, rsp\n101177f34:\tpush\tr15\n101177f36:\tpush\tr14\n101177f38:\tpush\tr13\n101177f3a:\tpush\tr12\n101177f3c:\tpush\trbx\n101177f3d:\tsub\trsp, 0xe8",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "set_variable_execute",
+      "va": "0x1010607f0",
+      "rva": "0x10607f0",
+      "file_offset": 17172464,
+      "hex": "554889e54157415653504989f64989ff",
+      "disassembly": "1010607f0:\tpush\trbp\n1010607f1:\tmov\trbp, rsp\n1010607f4:\tpush\tr15\n1010607f6:\tpush\tr14\n1010607f8:\tpush\trbx\n1010607f9:\tpush\trax\n1010607fa:\tmov\tr14, rsi\n1010607fd:\tmov\tr15, rdi",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "faction_get_name",
+      "va": "0x100e527e0",
+      "rva": "0xe527e0",
+      "file_offset": 15017952,
+      "hex": "554889e5415741564154534889fb",
+      "disassembly": "100e527e0:\tpush\trbp\n100e527e1:\tmov\trbp, rsp\n100e527e4:\tpush\tr15\n100e527e6:\tpush\tr14\n100e527e8:\tpush\tr12\n100e527ea:\tpush\trbx\n100e527eb:\tmov\trbx, rdi",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "flag_atlas_update",
+      "va": "0x10194a920",
+      "rva": "0x194a920",
+      "file_offset": 26519840,
+      "hex": "554889e54157415641554154534881ec88000000",
+      "disassembly": "10194a920:\tpush\trbp\n10194a921:\tmov\trbp, rsp\n10194a924:\tpush\tr15\n10194a926:\tpush\tr14\n10194a928:\tpush\tr13\n10194a92a:\tpush\tr12\n10194a92c:\tpush\trbx\n10194a92d:\tsub\trsp, 0x88",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "load_country_flag",
+      "va": "0x10194a460",
+      "rva": "0x194a460",
+      "file_offset": 26518624,
+      "hex": "554889e54157415641554154534881ec78020000",
+      "disassembly": "10194a460:\tpush\trbp\n10194a461:\tmov\trbp, rsp\n10194a464:\tpush\tr15\n10194a466:\tpush\tr14\n10194a468:\tpush\tr13\n10194a46a:\tpush\tr12\n10194a46c:\tpush\trbx\n10194a46d:\tsub\trsp, 0x278",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "build_flag_candidates",
+      "va": "0x100257750",
+      "rva": "0x257750",
+      "file_offset": 2455376,
+      "hex": "554889e54157415641554154534883ec38",
+      "disassembly": "100257750:\tpush\trbp\n100257751:\tmov\trbp, rsp\n100257754:\tpush\tr15\n100257756:\tpush\tr14\n100257758:\tpush\tr13\n10025775a:\tpush\tr12\n10025775c:\tpush\trbx\n10025775d:\tsub\trsp, 0x38",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "portrait_resolve",
+      "va": "0x100d6fbe0",
+      "rva": "0xd6fbe0",
+      "file_offset": 14089184,
+      "hex": "554889e54157415641554154534881ec88000000",
+      "disassembly": "100d6fbe0:\tpush\trbp\n100d6fbe1:\tmov\trbp, rsp\n100d6fbe4:\tpush\tr15\n100d6fbe6:\tpush\tr14\n100d6fbe8:\tpush\tr13\n100d6fbea:\tpush\tr12\n100d6fbec:\tpush\trbx\n100d6fbed:\tsub\trsp, 0x88",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "window_tick",
+      "va": "0x100b44020",
+      "rva": "0xb44020",
+      "file_offset": 11812896,
+      "hex": "554889e54157415641554154534881ecd8000000",
+      "disassembly": "100b44020:\tpush\trbp\n100b44021:\tmov\trbp, rsp\n100b44024:\tpush\tr15\n100b44026:\tpush\tr14\n100b44028:\tpush\tr13\n100b4402a:\tpush\tr12\n100b4402c:\tpush\trbx\n100b4402d:\tsub\trsp, 0xd8",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "window_bind",
+      "va": "0x100b45ec0",
+      "rva": "0xb45ec0",
+      "file_offset": 11820736,
+      "hex": "554889e54157415641554154534883ec28",
+      "disassembly": "100b45ec0:\tpush\trbp\n100b45ec1:\tmov\trbp, rsp\n100b45ec4:\tpush\tr15\n100b45ec6:\tpush\tr14\n100b45ec8:\tpush\tr13\n100b45eca:\tpush\tr12\n100b45ecc:\tpush\trbx\n100b45ecd:\tsub\trsp, 0x28",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "window_dispatch",
+      "va": "0x100b4b7e0",
+      "rva": "0xb4b7e0",
+      "file_offset": 11843552,
+      "hex": "554889e54157415641554154534883ec48",
+      "disassembly": "100b4b7e0:\tpush\trbp\n100b4b7e1:\tmov\trbp, rsp\n100b4b7e4:\tpush\tr15\n100b4b7e6:\tpush\tr14\n100b4b7e8:\tpush\tr13\n100b4b7ea:\tpush\tr12\n100b4b7ec:\tpush\trbx\n100b4b7ed:\tsub\trsp, 0x48",
+      "note": "Whole relocation-free prefix."
+    },
+    {
+      "id": "effect_ctor",
+      "va": "0x10020b2b0",
+      "rva": "0x20b2b0",
+      "file_offset": 2142896,
+      "hex": "554889e54157415641554154534883ec58",
+      "disassembly": "10020b2b0:\tpush\trbp\n10020b2b1:\tmov\trbp, rsp\n10020b2b4:\tpush\tr15\n10020b2b6:\tpush\tr14\n10020b2b8:\tpush\tr13\n10020b2ba:\tpush\tr12\n10020b2bc:\tpush\trbx\n10020b2bd:\tsub\trsp, 0x58",
+      "note": "Body reached by pinned tail thunk 0x10020b825; own dispatch identity gates remain mandatory."
+    }
+  ]
+}

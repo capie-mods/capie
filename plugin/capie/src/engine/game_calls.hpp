@@ -16,6 +16,9 @@
  * set it to an owned fake image). It is a scalar, not a borrowed pointer.
  */
 #pragma once
+#if defined(__APPLE__)
+#include "macos_game_calls.hpp"
+#else
 #include "../core/game_layout.hpp"
 #include "../core/memory.hpp"
 #include "msvc_string.hpp"
@@ -138,3 +141,5 @@ inline bool focus_call_null(void* manager) noexcept {
 }
 
 }  // namespace capie::engine
+
+#endif

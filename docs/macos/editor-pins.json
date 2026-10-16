@@ -1,0 +1,1021 @@
+{
+  "sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "image_base": "0x100000000",
+  "status": "candidate_validation_manifest_not_runtime_enabled",
+  "warning": "Exact bytes from current binary. Whole-instruction signatures do not establish trampoline relocatability. ctor is a 10-byte tail thunk; do not overwrite 14 bytes. ABI adapters, data/vtable pins and runtime guards remain necessary.",
+  "entries": [
+    {
+      "id": "editor.bind",
+      "field": "core::rva::window_bind",
+      "rva": "0xb45ec0",
+      "bytes": "554889e54157415641554154534883ec284989fc4c8b9fe0000000418b4b2485c90f8e440100004d8b8c24e8000000498b7978",
+      "length": 51,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x100b45ec0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x100b45ec1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x100b45ec4",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x100b45ec6",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x100b45ec8",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x100b45eca",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x100b45ecc",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x100b45ecd",
+          "bytes": "4883ec28",
+          "instruction": "sub\trsp, 0x28"
+        },
+        {
+          "va": "0x100b45ed1",
+          "bytes": "4989fc",
+          "instruction": "mov\tr12, rdi"
+        },
+        {
+          "va": "0x100b45ed4",
+          "bytes": "4c8b9fe0000000",
+          "instruction": "mov\tr11, qword ptr [rdi + 0xe0]"
+        },
+        {
+          "va": "0x100b45edb",
+          "bytes": "418b4b24",
+          "instruction": "mov\tecx, dword ptr [r11 + 0x24]"
+        },
+        {
+          "va": "0x100b45edf",
+          "bytes": "85c9",
+          "instruction": "test\tecx, ecx"
+        },
+        {
+          "va": "0x100b45ee1",
+          "bytes": "0f8e44010000",
+          "instruction": "jle\t0x100b4602b <__ZN14CCommandHelperI19CMergeArmiesCommandE18CommandRegistrator6CreateEv+0x7ae9b>"
+        },
+        {
+          "va": "0x100b45ee7",
+          "bytes": "4d8b8c24e8000000",
+          "instruction": "mov\tr9, qword ptr [r12 + 0xe8]"
+        },
+        {
+          "va": "0x100b45eef",
+          "bytes": "498b7978",
+          "instruction": "mov\trdi, qword ptr [r9 + 0x78]"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "0x100b45ed4 loads model; resolves parent, creates root at 0x100b462a7; stores root at 0x100b462af and binds context at 0x100b463df. Original map representation: 0xB45EC0"
+    },
+    {
+      "id": "editor.tick",
+      "field": "core::rva::window_tick",
+      "rva": "0xb44020",
+      "bytes": "554889e54157415641554154534881ecd80000004189f64889fb488d7720488d7dc831d2b902000000e8b224f601488b83f0000000",
+      "length": 53,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x100b44020",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x100b44021",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x100b44024",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x100b44026",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x100b44028",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x100b4402a",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x100b4402c",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x100b4402d",
+          "bytes": "4881ecd8000000",
+          "instruction": "sub\trsp, 0xd8"
+        },
+        {
+          "va": "0x100b44034",
+          "bytes": "4189f6",
+          "instruction": "mov\tr14d, esi"
+        },
+        {
+          "va": "0x100b44037",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x100b4403a",
+          "bytes": "488d7720",
+          "instruction": "lea\trsi, [rdi + 0x20]"
+        },
+        {
+          "va": "0x100b4403e",
+          "bytes": "488d7dc8",
+          "instruction": "lea\trdi, [rbp - 0x38]"
+        },
+        {
+          "va": "0x100b44042",
+          "bytes": "31d2",
+          "instruction": "xor\tedx, edx"
+        },
+        {
+          "va": "0x100b44044",
+          "bytes": "b902000000",
+          "instruction": "mov\tecx, 0x2"
+        },
+        {
+          "va": "0x100b44049",
+          "bytes": "e8b224f601",
+          "instruction": "call\t0x102aa6500 <__ZN7CMatrixIfLi4ELi4EE10ApplyScaleEf+0x16e60>"
+        },
+        {
+          "va": "0x100b4404e",
+          "bytes": "488b83f0000000",
+          "instruction": "mov\trax, qword ptr [rbx + 0xf0]"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "0x100b44034 saves `esi` force flag; +0xf0 root, +0xa50 parent-visible and +0xa51 visible-trigger result; 0x100b443d5 updates embedded context. Original map representation: 0xB44020"
+    },
+    {
+      "id": "editor.key",
+      "field": "core::rva::edit_key_handler",
+      "rva": "0x285e6d0",
+      "bytes": "554889e5415741564154534883ec204989f64889fb4889f7e823cee3ff84c00f8473020000488d05247e6900448b384c89f7",
+      "length": 50,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x10285e6d0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10285e6d1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10285e6d4",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x10285e6d6",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x10285e6d8",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x10285e6da",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x10285e6db",
+          "bytes": "4883ec20",
+          "instruction": "sub\trsp, 0x20"
+        },
+        {
+          "va": "0x10285e6df",
+          "bytes": "4989f6",
+          "instruction": "mov\tr14, rsi"
+        },
+        {
+          "va": "0x10285e6e2",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x10285e6e5",
+          "bytes": "4889f7",
+          "instruction": "mov\trdi, rsi"
+        },
+        {
+          "va": "0x10285e6e8",
+          "bytes": "e823cee3ff",
+          "instruction": "call\t0x10269b510 <__ZN14CCommandHelperIN11CChatBuffer16CSendChatMessageEE18CommandRegistrator6CreateEv+0x12e90>"
+        },
+        {
+          "va": "0x10285e6ed",
+          "bytes": "84c0",
+          "instruction": "test\tal, al"
+        },
+        {
+          "va": "0x10285e6ef",
+          "bytes": "0f8473020000",
+          "instruction": "je\t0x10285e968 <__ZN20CFixedMaxSizeListboxI20CStandardlistboxItemE22OnScrollbarvalueChangeEv+0x43f8>"
+        },
+        {
+          "va": "0x10285e6f5",
+          "bytes": "488d05247e6900",
+          "instruction": "lea\trax, [rip + 0x697e24]   ## 0x102ef6520 <__ZTS29CPdxBaseInlineBufferAllocatorINSt3__117basic_string_viewIcNS0_11char_traitsIcEEEELj1EiE+0xac>"
+        },
+        {
+          "va": "0x10285e6fc",
+          "bytes": "448b38",
+          "instruction": "mov\tr15d, dword ptr [rax]"
+        },
+        {
+          "va": "0x10285e6ff",
+          "bytes": "4c89f7",
+          "instruction": "mov\trdi, r14"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "CEditBox secondary vtable +0x38 points here; receives key event in rsi, uses key helpers; not a Windows-handler ABI substitute. Original map representation: 0x285E6D0"
+    },
+    {
+      "id": "editor.find_edit",
+      "field": "core::rva::find_edit",
+      "rva": "0x27722d0",
+      "bytes": "554889e54157415641554154534883ec384189d64989f54889fb488db7980e0000488d97800e00004c89efe850b3ffff",
+      "length": 48,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x1027722d0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x1027722d1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x1027722d4",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x1027722d6",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x1027722d8",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x1027722da",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x1027722dc",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x1027722dd",
+          "bytes": "4883ec38",
+          "instruction": "sub\trsp, 0x38"
+        },
+        {
+          "va": "0x1027722e1",
+          "bytes": "4189d6",
+          "instruction": "mov\tr14d, edx"
+        },
+        {
+          "va": "0x1027722e4",
+          "bytes": "4989f5",
+          "instruction": "mov\tr13, rsi"
+        },
+        {
+          "va": "0x1027722e7",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x1027722ea",
+          "bytes": "488db7980e0000",
+          "instruction": "lea\trsi, [rdi + 0xe98]"
+        },
+        {
+          "va": "0x1027722f1",
+          "bytes": "488d97800e0000",
+          "instruction": "lea\trdx, [rdi + 0xe80]"
+        },
+        {
+          "va": "0x1027722f8",
+          "bytes": "4c89ef",
+          "instruction": "mov\trdi, r13"
+        },
+        {
+          "va": "0x1027722fb",
+          "bytes": "e850b3ffff",
+          "instruction": "call\t0x10276d650 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0x9bf30>"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "CContainerWindow virtual +0xa0; previewer_editbox caller 0x10254881f passes root,name,bool then 0x10254883a adjusts result+0x70. Body 0x1027722ea / 2f1 searches name array/root child list. This is a THREE-argument lookup; Windows four-argument recursion/boolean behavior remains unverified. 0x102772309 tests report-error bool; failure path logs at 0x10277240e, returns dummy [root+0x88]+0x1b8 at 0x102772470/477. Native identity proven; ABI needs macOS adapter and explicit missing-widget guard. Original map representation: 0x27722D0"
+    },
+    {
+      "id": "editor.find_instant",
+      "field": "core::rva::find_instant",
+      "rva": "0x27720f0",
+      "bytes": "554889e54157415641554154534883ec384189d64989f54889fb488db7380e0000488d97200e00004c89efe850b3ffff",
+      "length": 48,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x1027720f0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x1027720f1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x1027720f4",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x1027720f6",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x1027720f8",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x1027720fa",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x1027720fc",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x1027720fd",
+          "bytes": "4883ec38",
+          "instruction": "sub\trsp, 0x38"
+        },
+        {
+          "va": "0x102772101",
+          "bytes": "4189d6",
+          "instruction": "mov\tr14d, edx"
+        },
+        {
+          "va": "0x102772104",
+          "bytes": "4989f5",
+          "instruction": "mov\tr13, rsi"
+        },
+        {
+          "va": "0x102772107",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x10277210a",
+          "bytes": "488db7380e0000",
+          "instruction": "lea\trsi, [rdi + 0xe38]"
+        },
+        {
+          "va": "0x102772111",
+          "bytes": "488d97200e0000",
+          "instruction": "lea\trdx, [rdi + 0xe20]"
+        },
+        {
+          "va": "0x102772118",
+          "bytes": "4c89ef",
+          "instruction": "mov\trdi, r13"
+        },
+        {
+          "va": "0x10277211b",
+          "bytes": "e850b3ffff",
+          "instruction": "call\t0x10276d470 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0x9bd50>"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "CContainerWindow virtual +0x98; 0x10077aa63 resolves floating_number name, 0x10077aae1 passes result to CInstantTextBox string setter. Body uses root+0xe38 names and +0xe20 pointers. THREE-argument lookup; Windows fourth argument semantics unverified. 0x102772129 tests report-error bool; failure path logs at 0x10277222e, returns dummy [root+0x88]+0x1c0 at 0x102772290/297. Native identity proven; ABI needs macOS adapter and explicit missing-widget guard. Original map representation: 0x27720F0"
+    },
+    {
+      "id": "editor.set_text",
+      "field": "core::rva::text_buffer_set",
+      "rva": "0x285e4a0",
+      "bytes": "554889e5f60601740a488b76105de92dffffff48ffc65de924ffffff0f1f4000",
+      "length": 32,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x10285e4a0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10285e4a1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10285e4a4",
+          "bytes": "f60601",
+          "instruction": "test\tbyte ptr [rsi], 0x1"
+        },
+        {
+          "va": "0x10285e4a7",
+          "bytes": "740a",
+          "instruction": "je\t0x10285e4b3 <__ZN20CFixedMaxSizeListboxI20CStandardlistboxItemE22OnScrollbarvalueChangeEv+0x3f43>"
+        },
+        {
+          "va": "0x10285e4a9",
+          "bytes": "488b7610",
+          "instruction": "mov\trsi, qword ptr [rsi + 0x10]"
+        },
+        {
+          "va": "0x10285e4ad",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x10285e4ae",
+          "bytes": "e92dffffff",
+          "instruction": "jmp\t0x10285e3e0 <__ZN20CFixedMaxSizeListboxI20CStandardlistboxItemE22OnScrollbarvalueChangeEv+0x3e70>"
+        },
+        {
+          "va": "0x10285e4b3",
+          "bytes": "48ffc6",
+          "instruction": "inc\trsi"
+        },
+        {
+          "va": "0x10285e4b6",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x10285e4b7",
+          "bytes": "e924ffffff",
+          "instruction": "jmp\t0x10285e3e0 <__ZN20CFixedMaxSizeListboxI20CStandardlistboxItemE22OnScrollbarvalueChangeEv+0x3e70>"
+        },
+        {
+          "va": "0x10285e4bc",
+          "bytes": "0f1f4000",
+          "instruction": "nop\tdword ptr [rax]"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "0x10285e4a4 tests libc++ source mode and tails to 0x10285e3e0; body clears buffer+0x30 UTF-32 string and inserts converted text. 0x1000dfeb9 passes edit+0x70, then refreshes. Original map representation: 0x285E4A0"
+    },
+    {
+      "id": "editor.refresh_edit",
+      "field": "core::rva::edit_refresh",
+      "rva": "0x2793f10",
+      "bytes": "554889e54157415641554154534881ec980000004883bf90010000000f84c50200004889fb4883c770e8b2c60c004989c6",
+      "length": 49,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x102793f10",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x102793f11",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x102793f14",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x102793f16",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x102793f18",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x102793f1a",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x102793f1c",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x102793f1d",
+          "bytes": "4881ec98000000",
+          "instruction": "sub\trsp, 0x98"
+        },
+        {
+          "va": "0x102793f24",
+          "bytes": "4883bf9001000000",
+          "instruction": "cmp\tqword ptr [rdi + 0x190], 0x0"
+        },
+        {
+          "va": "0x102793f2c",
+          "bytes": "0f84c5020000",
+          "instruction": "je\t0x1027941f7 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xc2ad7>"
+        },
+        {
+          "va": "0x102793f32",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x102793f35",
+          "bytes": "4883c770",
+          "instruction": "add\trdi, 0x70"
+        },
+        {
+          "va": "0x102793f39",
+          "bytes": "e8b2c60c00",
+          "instruction": "call\t0x1028605f0 <__ZN20CFixedMaxSizeListboxI20CStandardlistboxItemE22OnScrollbarvalueChangeEv+0x6080>"
+        },
+        {
+          "va": "0x102793f3e",
+          "bytes": "4989c6",
+          "instruction": "mov\tr14, rax"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "0x1000dfec0 calls SetText with edit+0x70 and 0x1000dfece tails here with edit; wrapper 0x102793bd4 refreshes after key input. Original map representation: 0x2793F10"
+    },
+    {
+      "id": "editor.wrapper",
+      "field": "core::rva::edit_key_wrapper",
+      "rva": "0x2793ad0",
+      "bytes": "554889e5415741565350f68739020000020f85f20000004889f34989fe4889f7e85b76f0ff85c075624c89f7e82f720300",
+      "length": 49,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x102793ad0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x102793ad1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x102793ad4",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x102793ad6",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x102793ad8",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x102793ad9",
+          "bytes": "50",
+          "instruction": "push\trax"
+        },
+        {
+          "va": "0x102793ada",
+          "bytes": "f6873902000002",
+          "instruction": "test\tbyte ptr [rdi + 0x239], 0x2"
+        },
+        {
+          "va": "0x102793ae1",
+          "bytes": "0f85f2000000",
+          "instruction": "jne\t0x102793bd9 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xc24b9>"
+        },
+        {
+          "va": "0x102793ae7",
+          "bytes": "4889f3",
+          "instruction": "mov\trbx, rsi"
+        },
+        {
+          "va": "0x102793aea",
+          "bytes": "4989fe",
+          "instruction": "mov\tr14, rdi"
+        },
+        {
+          "va": "0x102793aed",
+          "bytes": "4889f7",
+          "instruction": "mov\trdi, rsi"
+        },
+        {
+          "va": "0x102793af0",
+          "bytes": "e85b76f0ff",
+          "instruction": "call\t0x10269b150 <__ZN14CCommandHelperIN11CChatBuffer16CSendChatMessageEE18CommandRegistrator6CreateEv+0x12ad0>"
+        },
+        {
+          "va": "0x102793af5",
+          "bytes": "85c0",
+          "instruction": "test\teax, eax"
+        },
+        {
+          "va": "0x102793af7",
+          "bytes": "7562",
+          "instruction": "jne\t0x102793b5b <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xc243b>"
+        },
+        {
+          "va": "0x102793af9",
+          "bytes": "4c89f7",
+          "instruction": "mov\trdi, r14"
+        },
+        {
+          "va": "0x102793afc",
+          "bytes": "e82f720300",
+          "instruction": "call\t0x1027cad30 <__ZN3tbb10strict_ppl16concurrent_queueIP8CCommandNS_23cache_aligned_allocatorIS3_EEE19copy_construct_itemEPS3_PKv+0xf9610>"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "CEditBox primary vtable +0x10; 0x102793b79 adjusts this by +0x70 and 0x102793b8f calls buffer slot +0x38. Original map representation: 0x2793AD0"
+    },
+    {
+      "id": "editor.dispatch",
+      "field": "core::rva::window_dispatch",
+      "rva": "0xb4b7e0",
+      "bytes": "554889e54157415641554154534883ec48488975c04889fb4c8db7c0030000488d7d984c89f631d2e81376e1ff48895dd0",
+      "length": 49,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x100b4b7e0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x100b4b7e1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x100b4b7e4",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x100b4b7e6",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x100b4b7e8",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x100b4b7ea",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x100b4b7ec",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x100b4b7ed",
+          "bytes": "4883ec48",
+          "instruction": "sub\trsp, 0x48"
+        },
+        {
+          "va": "0x100b4b7f1",
+          "bytes": "488975c0",
+          "instruction": "mov\tqword ptr [rbp - 0x40], rsi"
+        },
+        {
+          "va": "0x100b4b7f5",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x100b4b7f8",
+          "bytes": "4c8db7c0030000",
+          "instruction": "lea\tr14, [rdi + 0x3c0]"
+        },
+        {
+          "va": "0x100b4b7ff",
+          "bytes": "488d7d98",
+          "instruction": "lea\trdi, [rbp - 0x68]"
+        },
+        {
+          "va": "0x100b4b803",
+          "bytes": "4c89f6",
+          "instruction": "mov\trsi, r14"
+        },
+        {
+          "va": "0x100b4b806",
+          "bytes": "31d2",
+          "instruction": "xor\tedx, edx"
+        },
+        {
+          "va": "0x100b4b808",
+          "bytes": "e81376e1ff",
+          "instruction": "call\t0x100962e20 <__ZN14CCommandHelperI25CRailwayGunSetNameCommandE18CommandRegistrator6CreateEv+0x2e680>"
+        },
+        {
+          "va": "0x100b4b80d",
+          "bytes": "48895dd0",
+          "instruction": "mov\tqword ptr [rbp - 0x30], rbx"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "0x100b480f7 calls with GUI updater and selector; 0x100b4b8ec resolves selector; 0x100b4bae5 constructs effect. Original map representation: 0xB4B7E0"
+    },
+    {
+      "id": "editor.ctor",
+      "field": "core::rva::effect_ctor",
+      "rva": "0x20b820",
+      "bytes": "554889e55de986faffff",
+      "length": 10,
+      "occurrences_in_file": 8,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x10020b820",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10020b821",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10020b824",
+          "bytes": "5d",
+          "instruction": "pop\trbp"
+        },
+        {
+          "va": "0x10020b825",
+          "bytes": "e986faffff",
+          "instruction": "jmp\t0x10020b2b0 <__ZN14CCommandHelperI32CSetCountryControllerTypeCommandE18CommandRegistrator6CreateEv+0x5e2c0>"
+        }
+      ],
+      "status": "compound_pin_required",
+      "notes": "0x100b4bae5 calls thunk; 0x10020b825 jumps to body; body writes RTTI-backed effect vptr at 0x10020b2f6. Original map representation: 0x20B820 (thunk), 0x20B2B0 (body)",
+      "compound_checks": {
+        "fixed_rva": "0x20b820",
+        "jump_instruction_rva": "0x20b825",
+        "relative_target_rva": "0x20b2b0",
+        "required_companion_id": "editor.ctor_body"
+      }
+    },
+    {
+      "id": "editor.execute",
+      "field": "core::rva::effect_execute",
+      "rva": "0x20b830",
+      "bytes": "554889e54157415641554154534883ec584889fb488d051e4e3d03803800744c4c8b354125090341803e00753f488b050cf30603",
+      "length": 52,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x10020b830",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10020b831",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10020b834",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x10020b836",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x10020b838",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x10020b83a",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x10020b83c",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x10020b83d",
+          "bytes": "4883ec58",
+          "instruction": "sub\trsp, 0x58"
+        },
+        {
+          "va": "0x10020b841",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x10020b844",
+          "bytes": "488d051e4e3d03",
+          "instruction": "lea\trax, [rip + 0x33d4e1e]  ## 0x1035e0669 <dyld_stub_binder+0x1035e0669>"
+        },
+        {
+          "va": "0x10020b84b",
+          "bytes": "803800",
+          "instruction": "cmp\tbyte ptr [rax], 0x0"
+        },
+        {
+          "va": "0x10020b84e",
+          "bytes": "744c",
+          "instruction": "je\t0x10020b89c <__ZN14CCommandHelperI32CSetCountryControllerTypeCommandE18CommandRegistrator6CreateEv+0x5e8ac>"
+        },
+        {
+          "va": "0x10020b850",
+          "bytes": "4c8b3541250903",
+          "instruction": "mov\tr14, qword ptr [rip + 0x3092541] ## 0x10329dd98 <dyld_stub_binder+0x10329dd98>"
+        },
+        {
+          "va": "0x10020b857",
+          "bytes": "41803e00",
+          "instruction": "cmp\tbyte ptr [r14], 0x0"
+        },
+        {
+          "va": "0x10020b85b",
+          "bytes": "753f",
+          "instruction": "jne\t0x10020b89c <__ZN14CCommandHelperI32CSetCountryControllerTypeCommandE18CommandRegistrator6CreateEv+0x5e8ac>"
+        },
+        {
+          "va": "0x10020b85d",
+          "bytes": "488b050cf30603",
+          "instruction": "mov\trax, qword ptr [rip + 0x306f30c] ## 0x10327ab70 <dyld_stub_binder+0x10327ab70>"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "Effect vtable +0x58 points here; 0x10020b8a6 reads model +0x70; 0x10020b98f reads selector +0x58; 0x10020b9c4 executes resolved effect. Original map representation: 0x20B830"
+    },
+    {
+      "id": "editor.ctor_body",
+      "field": "core::rva::effect_ctor_body",
+      "rva": "0x20b2b0",
+      "bytes": "554889e54157415641554154534883ec584989cf4989d64989f44889fbc6470800b8ffffffff4889470cc747140000ffff",
+      "length": 49,
+      "occurrences_in_file": 1,
+      "whole_instructions": true,
+      "instructions": [
+        {
+          "va": "0x10020b2b0",
+          "bytes": "55",
+          "instruction": "push\trbp"
+        },
+        {
+          "va": "0x10020b2b1",
+          "bytes": "4889e5",
+          "instruction": "mov\trbp, rsp"
+        },
+        {
+          "va": "0x10020b2b4",
+          "bytes": "4157",
+          "instruction": "push\tr15"
+        },
+        {
+          "va": "0x10020b2b6",
+          "bytes": "4156",
+          "instruction": "push\tr14"
+        },
+        {
+          "va": "0x10020b2b8",
+          "bytes": "4155",
+          "instruction": "push\tr13"
+        },
+        {
+          "va": "0x10020b2ba",
+          "bytes": "4154",
+          "instruction": "push\tr12"
+        },
+        {
+          "va": "0x10020b2bc",
+          "bytes": "53",
+          "instruction": "push\trbx"
+        },
+        {
+          "va": "0x10020b2bd",
+          "bytes": "4883ec58",
+          "instruction": "sub\trsp, 0x58"
+        },
+        {
+          "va": "0x10020b2c1",
+          "bytes": "4989cf",
+          "instruction": "mov\tr15, rcx"
+        },
+        {
+          "va": "0x10020b2c4",
+          "bytes": "4989d6",
+          "instruction": "mov\tr14, rdx"
+        },
+        {
+          "va": "0x10020b2c7",
+          "bytes": "4989f4",
+          "instruction": "mov\tr12, rsi"
+        },
+        {
+          "va": "0x10020b2ca",
+          "bytes": "4889fb",
+          "instruction": "mov\trbx, rdi"
+        },
+        {
+          "va": "0x10020b2cd",
+          "bytes": "c6470800",
+          "instruction": "mov\tbyte ptr [rdi + 0x8], 0x0"
+        },
+        {
+          "va": "0x10020b2d1",
+          "bytes": "b8ffffffff",
+          "instruction": "mov\teax, 0xffffffff"
+        },
+        {
+          "va": "0x10020b2d6",
+          "bytes": "4889470c",
+          "instruction": "mov\tqword ptr [rdi + 0xc], rax"
+        },
+        {
+          "va": "0x10020b2da",
+          "bytes": "c747140000ffff",
+          "instruction": "mov\tdword ptr [rdi + 0x14], 0xffff0000"
+        }
+      ],
+      "status": "static_signature_only",
+      "notes": "Target of tail jump from canonical ctor thunk; companion identity pin required because thunk bytes occur eight times."
+    }
+  ],
+  "complete_for_runtime": false
+}

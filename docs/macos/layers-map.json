@@ -1,0 +1,528 @@
+{
+  "schema": 1,
+  "target_sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "address_convention": "rva ids use RVA; instruction_evidence uses unslid VA; off ids use byte offset",
+  "entries": {
+    "core::off::country_variables": {
+      "value": "0x1d8",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10095c142"
+      ],
+      "notes": ""
+    },
+    "core::off::gamestate_countries": {
+      "value": "0x2d8",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1011d7250"
+      ],
+      "notes": ""
+    },
+    "core::off::country_politics": {
+      "value": "0xd38",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10117c434"
+      ],
+      "notes": ""
+    },
+    "core::off::politics_ruling_party": {
+      "value": "0xd0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100fbef1d"
+      ],
+      "notes": ""
+    },
+    "core::off::party_leaders": {
+      "value": "0x60",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x101366a7a"
+      ],
+      "notes": ""
+    },
+    "core::off::party_leader_count": {
+      "value": "0x6c",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x101366a74"
+      ],
+      "notes": ""
+    },
+    "core::off::leader_role_character": {
+      "value": "0x8",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x101300d14"
+      ],
+      "notes": ""
+    },
+    "core::off::character_variables": {
+      "value": "0xd0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100d5df73"
+      ],
+      "notes": ""
+    },
+    "core::off::variables_entries": {
+      "value": "0x10",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100b063c9"
+      ],
+      "notes": "Variable table fields proven via insertion path; read-only accessors pending."
+    },
+    "core::off::variables_mask": {
+      "value": "0x1c",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100b063b6"
+      ],
+      "notes": "Variable table fields proven via insertion path; read-only accessors pending."
+    },
+    "core::off::variable_entry_size": {
+      "value": "0x28",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100b063f7"
+      ],
+      "notes": "Variable table fields proven via insertion path; read-only accessors pending."
+    },
+    "core::off::variable_entry_probe": {
+      "value": "0x4",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100b063d6"
+      ],
+      "notes": "Variable table fields proven via insertion path; read-only accessors pending."
+    },
+    "core::off::variable_entry_key": {
+      "value": "0x8",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100b06400"
+      ],
+      "notes": "Variable table fields proven via insertion path; read-only accessors pending."
+    },
+    "core::off::variable_entry_value": {
+      "value": "0x20",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100b03424"
+      ],
+      "notes": "Variable table fields proven via insertion path; read-only accessors pending."
+    },
+    "core::off::set_variable_name": {
+      "value": "0xc0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x101060800",
+        "0x10095d9bd"
+      ],
+      "notes": "0x50 scoped-variable +0x70 string; libc++ representation."
+    },
+    "core::rva::country_of": {
+      "value": "0x11d7110",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10095c13d",
+        "0x10095c142",
+        "0x1011d7250"
+      ],
+      "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted."
+    },
+    "core::rva::gamestate_global": {
+      "value": "0x3519740",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1011d7074"
+      ],
+      "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted."
+    },
+    "core::rva::set_variable_execute": {
+      "value": "0x10607f0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x101060800",
+        "0x101060844"
+      ],
+      "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted."
+    },
+    "core::rva::vt_character": {
+      "value": "0x332efe0",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted."
+    },
+    "core::rva::portrait_resolve": {
+      "value": "0xd6fbe0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1023d33db",
+        "0x100d6fbf7",
+        "0x100d6fd01"
+      ],
+      "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted."
+    },
+    "core::rva::portrait_valid": {
+      "value": "0x7581a0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1023d33e3",
+        "0x1007581af",
+        "0x1007581bb"
+      ],
+      "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted."
+    },
+    "core::rva::sprite_find": {
+      "value": "0x27b7b30",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1007581e6"
+      ],
+      "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted."
+    },
+    "core::rva::sprite_database_global": {
+      "value": "0x35dc028",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1007581d8",
+        "0x1007581df"
+      ],
+      "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted."
+    },
+    "core::off::character_id": {
+      "value": "0xc",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100d6fd01"
+      ],
+      "notes": ""
+    },
+    "core::off::portrait_entry_kind": {
+      "value": "0x4",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1007581bb"
+      ],
+      "notes": ""
+    },
+    "core::off::portrait_entry_name": {
+      "value": "0x8",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1007581e2",
+        "0x100d6fc21"
+      ],
+      "notes": ""
+    },
+    "core::off::portrait_entry_handle": {
+      "value": "0x20",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1007581cb",
+        "0x100d6fcc2"
+      ],
+      "notes": ""
+    },
+    "host::layout::app_session": {
+      "value": "0x320",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10060e109",
+        "0x10060e10e",
+        "0x1026d4685",
+        "0x10062e904"
+      ],
+      "notes": "CGameApplication constructor stores newly constructed CSession at+320; thunk1026d4680 jumps RTTI-established constructor1026d3d40. Primary vslot+90 returns this field."
+    },
+    "host::layout::vt_game_application": {
+      "value": "0x32ff870",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown."
+    },
+    "host::layout::vt_session": {
+      "value": "0x34a7710",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown."
+    },
+    "host::layout::vt_proxy_server": {
+      "value": "0x34a71a0",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown."
+    },
+    "host::layout::vt_network_server": {
+      "value": "0x34a7078",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown."
+    },
+    "host::layout::vt_dummy_server": {
+      "value": "0x34a75d8",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown."
+    },
+    "host::layout::vt_human": {
+      "value": "0x3308f18",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown."
+    },
+    "core::rva::flag_atlas_update": {
+      "value": "0x194a920",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10194ac3a",
+        "0x10194ad8a",
+        "0x10194ad91"
+      ],
+      "notes": "Selects changed slots then incremental or threaded rebuild; void return appears likely, not Windows u64."
+    },
+    "core::rva::load_country_flag": {
+      "value": "0x194a460",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10194a1fd",
+        "0x10194bdc1",
+        "0x10194a4e2"
+      ],
+      "notes": "Two direct callers in full dump; register and stack arguments require adapter."
+    },
+    "core::rva::build_flag_candidates": {
+      "value": "0x257750",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10194a4ac",
+        "0x10194a4d9",
+        "0x10194a4e2"
+      ],
+      "notes": "SysV out=rdi, tag=rsi, cosmetic=rdx, group=rcx; custom inline-buffer vector result layout must be adapted."
+    },
+    "core::off::flag_atlas_cosmetic_keys": {
+      "value": "0xc0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10194ad8a",
+        "0x10194a146"
+      ],
+      "notes": "Qword per slot, compare at 0x10194ad91; write at 0x10194a14f."
+    },
+    "core::off::flag_atlas_cosmetic_count": {
+      "value": "0xcc",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10194aa80"
+      ],
+      "notes": ""
+    },
+    "core::off::country_cosmetic_tag": {
+      "value": "0x1200",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10194a4ac",
+        "0x10194acf1"
+      ],
+      "notes": "libc++ string, flag byte+0x1200, long len+0x1208 data+0x1210."
+    },
+    "core::off::country_tag": {
+      "value": "0x8",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10194ac45",
+        "0x10194ac51"
+      ],
+      "notes": "Tag value is remapped through gamestate+0x308; never assume raw tag == atlas index."
+    },
+    "core::off::faction_members": {
+      "value": "0x48",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100db7460",
+        "0x100db7464",
+        "0x100db7467"
+      ],
+      "notes": "CSetFactionLeaderEffect Execute (RTTI vtable103331200 slot70 ->100db7430) reads first member tag and compares before leader replacement."
+    },
+    "core::off::faction_member_count": {
+      "value": "0x54",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100e503d5",
+        "0x100e4f96a"
+      ],
+      "notes": "Member containment loop and serialization loop both use count54."
+    },
+    "host::layout::session_mode": {
+      "value": "0x4c",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1026d3c6f"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked."
+    },
+    "host::layout::session_is_server": {
+      "value": "0x54",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1026d3c57",
+        "0x1026d3c5a",
+        "0x1026d3c5d"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked."
+    },
+    "host::layout::session_backend": {
+      "value": "0x58",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1026d3c8f",
+        "0x1026d4d08"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked."
+    },
+    "host::layout::session_machine_id": {
+      "value": "0xa4",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1026d5694",
+        "0x1026d56b0"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked."
+    },
+    "host::layout::gamestate_humans": {
+      "value": "0xe0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006e7e93"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked."
+    },
+    "host::layout::gamestate_human_count": {
+      "value": "0xec",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006e7e89"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked."
+    },
+    "host::layout::human_stride": {
+      "value": "0x90",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006e7ea8"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked."
+    },
+    "host::layout::human_machine_id": {
+      "value": "0x88",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006e7ea0",
+        "0x100757a28"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked."
+    },
+    "host::layout::human_name": {
+      "value": "0x20",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100692988",
+        "0x1006929a0",
+        "0x1006929ba",
+        "0x1006929be",
+        "0x1006929e4",
+        "0x1006929fd"
+      ],
+      "notes": "Game humans array +e0, match machine id+88, selected human+20 passed as USER value to USER_NAME formatter; independently CHuman writer token0xe2."
+    },
+    "host::layout::app_global": {
+      "value": "0x3639ad8",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x102675944",
+        "0x10060df09",
+        "0x10060df10"
+      ],
+      "notes": "RTTI CGameApplication primary vtable+0x40 =102675940 publishes unadjusted this to103639ad8. Static identity proven; startup/shutdown lifetime and host authorization not runtime checked."
+    },
+    "core::rva::update_names": {
+      "value": "0x117a790",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1011ca76a",
+        "0x1011ca772",
+        "0x10117abe1",
+        "0x10117ac2d"
+      ],
+      "notes": "Called immediately after cosmetic-tag assignment; builds cached country names and _ADJ/_DEF/OVERLORD variants. Return ABI and complete writes require final review."
+    },
+    "core::rva::build_name_key": {
+      "value": "0x1177f30",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10117abe1",
+        "0x10117ac2a",
+        "0x10117ac2d"
+      ],
+      "notes": "Output rdi, cosmetic tag rsi. Other args rdx,rcx,r8,r9 plus stack pointer and byte. Behaviour has _subject/COUNTRY fallbacks; hook coverage requires call-site inventory."
+    },
+    "core::rva::faction_get_name": {
+      "value": "0xe527e0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100e527ee",
+        "0x100e52832",
+        "0x100e52848",
+        "0x100db7a9e"
+      ],
+      "notes": "ABI rdi=out,rsi=faction. Named string+18 copied inline. Template+450, template+b8 LOCALIZED via100f9b2a0, not plain copied."
+    },
+    "core::rva::variable_get": {
+      "value": "0xb03190",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100b0319c",
+        "0x100b031a4",
+        "0x100b031a9"
+      ],
+      "notes": "SysV(container*,byte-span*,int64 fallback)->int64 rax. No output pointer parameter."
+    },
+    "core::rva::variable_find": {
+      "value": "0xb031c0",
+      "confidence": "static",
+      "instruction_evidence": [
+        "0x100b031a4",
+        "0x100b03287",
+        "0x100b03294",
+        "0x100b03354",
+        "0x100b0335b"
+      ],
+      "notes": "Static evidence-only counterpart for Windows variable_find (game_layout.hpp: pinned, never called). Native lookup returns a value pointer or fallback pointer, not the Windows entry iterator. Exported prologue, caller rel32 and table/value-selection instructions establish the pin role; callable ABI compatibility and runtime integration are not established.",
+      "runtime_ready": false
+    },
+    "core::off::variables_extra": {
+      "value": "0x20",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100b0319c",
+        "0x100b03314"
+      ],
+      "notes": "container+10 table, table+10 extra byte; end=(mask+extra+1)*0x28."
+    },
+    "core::off::gamestate_country_count": {
+      "value": "0x2e4",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006ee534",
+        "0x10194aa63"
+      ],
+      "notes": "CGameState RTTI primary vtable0x103306308 slot68 points1006ee530, getter loads +2e4. Atlas calls this slot for count."
+    }
+  }
+}

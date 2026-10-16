@@ -132,14 +132,14 @@ constexpr std::size_t utf8_length(std::uint32_t cp) noexcept {
  * @note Release flavor: the text, code points and input verdict are omitted (player data).
  */
 inline void diagnostic(unsigned long id, const char* event, std::size_t field, std::uint64_t epoch,
-                       std::uint64_t generation, const InputSnapshot* text = nullptr, DWORD producer = 0) noexcept {
+                       std::uint64_t generation, const InputSnapshot* text = nullptr, unsigned long producer = 0) noexcept {
     char line[inline_line_capacity]{};
     if (text == nullptr || !debug_diagnostics) {
         static_cast<void>(
             std::snprintf(line, sizeof(line),
                           "RN_INLINE id=%lu event=%s field=%s epoch=%llu generation=%llu thread=%lu; no Apply\r\n", id,
                           event, fields[field].edit, static_cast<unsigned long long>(epoch),
-                          static_cast<unsigned long long>(generation), GetCurrentThreadId()));
+                          static_cast<unsigned long long>(generation), core::platform::thread_id()));
     } else {
         char encoded[(max_codepoints * escaped_bytes_per_point) + 1]{};
         std::size_t escaped = 0;
@@ -166,7 +166,7 @@ inline void diagnostic(unsigned long id, const char* event, std::size_t field, s
             "consumer_thread=%lu utf32_len=%zu utf8_valid=%u utf8_bytes=%zu escaped_bytes=%zu text=\"%s\" "
             "codepoints=[%s] strict_input_ok=%u input_error=%u error_index=%zu; no Apply\r\n",
             id, event, fields[field].edit, static_cast<unsigned long long>(epoch),
-            static_cast<unsigned long long>(generation), producer, GetCurrentThreadId(), text->size, valid ? 1U : 0U,
+            static_cast<unsigned long long>(generation), producer, core::platform::thread_id(), text->size, valid ? 1U : 0U,
             utf8_bytes, valid ? escaped : 0, valid ? encoded : "<invalid scalar>", codepoints,
             converted.value ? 1U : 0U, static_cast<unsigned>(converted.error), converted.error_index));
     }

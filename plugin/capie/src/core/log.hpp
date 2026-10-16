@@ -30,6 +30,10 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#if defined(__APPLE__)
+#include <cerrno>
+#include <unistd.h>
+#endif
 
 #ifndef CAPIE_DEBUG_DIAGNOSTICS
 #define CAPIE_DEBUG_DIAGNOSTICS 0  // NOLINT(cppcoreguidelines-macro-usage): build flavor switch set by build.ps1
@@ -76,13 +80,17 @@ constexpr std::size_t stored_bytes(int count, std::size_t capacity) noexcept {
 }
 
 /// @brief Append-only log file next to the editor DLL; invalid until initialization.
+#if defined(__APPLE__)
+inline int log_file = -1;
+#else
 inline HANDLE log_file = INVALID_HANDLE_VALUE;
+#endif
 /// @brief Serializes whole lines in the file (never held across a game call).
-inline SRWLOCK debug_file_lock = SRWLOCK_INIT;
+inline platform::Lock debug_file_lock{};
 /// @brief Admits one ring dump at a time.
-inline SRWLOCK debug_dump_lock = SRWLOCK_INIT;
+inline platform::Lock debug_dump_lock{};
 /// @brief Serializes remote debug requests with ring arm/pause.
-inline SRWLOCK debug_request_lock = SRWLOCK_INIT;
+inline platform::Lock debug_request_lock{};
 /// @brief Recent copied lines (debug flavor).
 inline trace::Ring debug_ring;
 /// @brief Remote request mailbox (debug flavor).
@@ -97,11 +105,22 @@ inline trace::Dump debug_dump_buffer;
  * @pre Caller holds `debug_file_lock` when line atomicity matters.
  */
 inline void write_bytes(const char* text, std::size_t size) noexcept {
+#if defined(__APPLE__)
+    if (log_file < 0) return;
+    while (size != 0) {
+        const auto written = ::write(log_file, text, size);
+        if (written < 0 && errno == EINTR) continue;
+        if (written <= 0) return;
+        text += written;
+        size -= static_cast<std::size_t>(written);
+    }
+#else
     if (log_file == INVALID_HANDLE_VALUE) {
         return;
     }
     DWORD written = 0;
     WriteFile(log_file, text, static_cast<DWORD>(size), &written, nullptr);
+#endif
 }
 
 /**
@@ -111,7 +130,7 @@ inline void write_bytes(const char* text, std::size_t size) noexcept {
 inline void remember_log(const char* text) noexcept {
     if constexpr (debug_diagnostics) {
         trace::Stamp stamp{};
-        debug_ring.append(text, std::strlen(text), GetTickCount64(), GetCurrentThreadId(), stamp);
+        debug_ring.append(text, std::strlen(text), platform::monotonic_ms(), platform::thread_id(), stamp);
     }
 }
 
@@ -126,7 +145,7 @@ inline void write_log(const char* text, std::size_t size) noexcept {
     int count = 0;
     if constexpr (debug_diagnostics) {
         trace::Stamp stamp{};
-        const bool remembered = debug_ring.append(text, size, GetTickCount64(), GetCurrentThreadId(), stamp);
+        const bool remembered = debug_ring.append(text, size, platform::monotonic_ms(), platform::thread_id(), stamp);
         count = remembered
                     ? std::snprintf(suffix, sizeof(suffix),
                                     " trace_seq=%llu monotonic_ms=%llu trace_thread=%lu truncated=%u\r\n",
@@ -135,7 +154,7 @@ inline void write_log(const char* text, std::size_t size) noexcept {
                     : std::snprintf(suffix, sizeof(suffix), " trace_paused=1\r\n");
     } else {
         count = std::snprintf(suffix, sizeof(suffix), " monotonic_ms=%llu thread=%lu\r\n",
-                              static_cast<unsigned long long>(GetTickCount64()), GetCurrentThreadId());
+                              static_cast<unsigned long long>(platform::monotonic_ms()), platform::thread_id());
     }
     std::size_t end = size;
     // `size` is the caller's line length (strlen of a NUL-terminated snprintf buffer), so
@@ -144,10 +163,10 @@ inline void write_log(const char* text, std::size_t size) noexcept {
     while (end != 0 && (text[end - 1] == '\r' || text[end - 1] == '\n')) {
         --end;
     }
-    AcquireSRWLockExclusive(&debug_file_lock);
+    platform::lock(&debug_file_lock);
     write_bytes(text, end);
     write_bytes(suffix, stored_bytes(count, sizeof(suffix)));
-    ReleaseSRWLockExclusive(&debug_file_lock);
+    platform::unlock(&debug_file_lock);
 }
 
 /**
@@ -176,7 +195,7 @@ inline void log_line(Channel channel, const char* text) noexcept {
  */
 inline void dump_debug_ring(std::uint64_t request) noexcept {
     if constexpr (debug_diagnostics) {
-        if (TryAcquireSRWLockExclusive(&debug_dump_lock) == 0) {
+        if (platform::try_lock(&debug_dump_lock) == 0) {
             write_log("RN_DEBUG stage=dump reason=dump_already_running; no retry\r\n");
             return;
         }
@@ -188,7 +207,7 @@ inline void dump_debug_ring(std::uint64_t request) noexcept {
                                    static_cast<unsigned long long>(request), debug_dump_buffer.count,
                                    static_cast<unsigned long long>(debug_dump_buffer.overwritten),
                                    debug_dump_buffer.sequence_saturated ? 1U : 0U);
-        AcquireSRWLockExclusive(&debug_file_lock);
+        platform::lock(&debug_file_lock);
         write_bytes(header, stored_bytes(count, sizeof(header)));
         for (std::size_t i = 0; i < debug_dump_buffer.count; ++i) {
             const auto& entry = debug_dump_buffer.entries[i];
@@ -204,8 +223,8 @@ inline void dump_debug_ring(std::uint64_t request) noexcept {
         }
         constexpr char end_marker[] = "RN_DEBUG_DUMP end\r\n";
         write_bytes(end_marker, sizeof(end_marker) - 1);
-        ReleaseSRWLockExclusive(&debug_file_lock);
-        ReleaseSRWLockExclusive(&debug_dump_lock);
+        platform::unlock(&debug_file_lock);
+        platform::unlock(&debug_dump_lock);
     } else {
         static_cast<void>(request);
     }

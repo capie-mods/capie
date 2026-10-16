@@ -1,0 +1,26 @@
+[
+  {
+    "architecture": "arm64",
+    "mode": "minimal",
+    "stdout": "first_ctor observed=0 threads=1\nlater_ctor target_called\nexecutable_ctor\nmain\n",
+    "exit": 0
+  },
+  {
+    "architecture": "arm64",
+    "mode": "dependency",
+    "stdout": "later_ctor target_called\nfirst_ctor observed=1 threads=1\nexecutable_ctor\nmain\n",
+    "exit": 0
+  },
+  {
+    "architecture": "x86_64",
+    "mode": "minimal",
+    "stdout": "first_ctor observed=0 threads=2\nlater_ctor target_called\nexecutable_ctor\nmain\n",
+    "exit": 0
+  },
+  {
+    "architecture": "x86_64",
+    "mode": "dependency",
+    "stdout": "later_ctor target_called\nfirst_ctor observed=1 threads=2\nexecutable_ctor\nmain\n",
+    "exit": 0
+  }
+]

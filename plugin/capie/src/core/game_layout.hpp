@@ -14,6 +14,9 @@
  * to write or to call, so a wrong inference can only make CAPIE refuse.
  */
 #pragma once
+#if defined(__APPLE__)
+#error "Windows game_layout.hpp is not a macOS profile; use the proven macOS adapters."
+#endif
 #include <cstddef>
 #include <cstdint>
 

@@ -20,10 +20,16 @@
  * names; it reads nothing but the character's vtable and id, which the game passes to it.
  */
 #pragma once
+#if !defined(__APPLE__)
 #include "../../core/game_layout.hpp"
+#endif
 #include "../../core/log.hpp"
 #include "../../core/memory.hpp"
+#if defined(__APPLE__)
+#include "../../engine/macos_owned_string.hpp"
+#else
 #include "../../engine/msvc_string.hpp"
+#endif
 #include "portrait_layer.hpp"
 
 #include <array>
@@ -41,21 +47,29 @@
 namespace capie::country::portrait {
 
 /// @brief Size of the game's portrait entry.
+#if defined(__APPLE__)
+inline constexpr std::size_t entry_size = 0x28;
+#else
 inline constexpr std::size_t entry_size = 0x30;
+#endif
 
-/// @brief The game's portrait entry (0x30 bytes; 139DF5D..139DF7C copies it field by field).
+/// @brief Native portrait entry: Windows 0x30, macOS 0x28; the string representation differs.
 struct Entry {
     std::uint8_t set;                     ///< Non-zero when the entry holds a portrait (139D1E6).
     std::array<std::uint8_t, 3> padding;  ///< Unused.
     std::int32_t kind;                    ///< 0 = sprite name, 1 = .dds path (139D1EF).
-    engine::MsvcString name;              ///< Sprite name or path (139D20D).
-    std::uint64_t handle;                 ///< Texture handle of a path entry (139D1F7).
+#if defined(__APPLE__)
+    engine::macos::NativeString name;  ///< Native owned return string.
+#else
+    engine::MsvcString name;  ///< Sprite name or path (139D20D).
+#endif
+    std::uint64_t handle;  ///< Texture handle of a path entry (139D1F7).
 };
-static_assert(sizeof(Entry) == entry_size && offsetof(Entry, kind) == core::off::portrait_entry_kind &&
-              offsetof(Entry, name) == core::off::portrait_entry_name &&
-              offsetof(Entry, handle) == core::off::portrait_entry_handle);
+static_assert(sizeof(Entry) == entry_size && offsetof(Entry, kind) == layout_off::portrait_entry_kind &&
+              offsetof(Entry, name) == layout_off::portrait_entry_name &&
+              offsetof(Entry, handle) == layout_off::portrait_entry_handle);
 
-/// @brief `entry* ResolvePortrait(map*, entry* out, int type, int size, character*, const char* fallback)`.
+/// @brief Resolver trampoline: Windows map/out; macOS SysV out/map, then type/size/character/fallback.
 using ResolveFn = void* (*)(void*, void*, std::int32_t, std::int32_t, uptr, const void*);
 /// @brief `bool PortraitEntryValid(const entry*)`.
 using ValidFn = bool (*)(const void*);
@@ -95,11 +109,16 @@ struct Stats {
 template <class M>
 class PortraitLayer {
 public:
-    /// @brief Trampoline and game functions; MinHook writes `resolve` before the hook is enabled.
+    /// @brief Verified trampoline and game functions, populated before dispatch is enabled.
     struct Originals {
         ResolveFn resolve{};  ///< ResolvePortrait trampoline.
         ValidFn valid{};      ///< The game's entry validity check (called, never hooked).
-        CopyFn copy{};        ///< The game's string copy-construct (called).
+#if defined(__APPLE__)
+        engine::macos::StringAllocate allocate{};  ///< Verified native allocator.
+        void (*deallocate)(void*) noexcept {};     ///< Matching native free for rejected candidates.
+#else
+        CopyFn copy{};  ///< The game's string copy-construct (called).
+#endif
     };
 
     /**
@@ -122,7 +141,11 @@ public:
     void activate(uptr image, LogFn log) noexcept {
         image_ = image;
         log_ = log;
+#if defined(__APPLE__)
+        enabled_.store(originals_.resolve && originals_.valid && originals_.allocate && originals_.deallocate);
+#else
         enabled_.store(originals_.resolve != nullptr && originals_.valid != nullptr && originals_.copy != nullptr);
+#endif
     }
 
     /// @brief Turns the layer off (the hook passes through).
@@ -200,7 +223,7 @@ public:
 
     /**
      * @brief Hook body of `ResolvePortrait`.
-     * @param map Portrait map of the character (character+0x78).
+     * @param map Portrait map (Windows character+0x78, macOS character+0x60).
      * @param out Caller's entry buffer (uninitialised; the function constructs it).
      * @param type Portrait type (0 = civilian).
      * @param size Portrait size (1 = large, 0 = small).
@@ -215,13 +238,23 @@ public:
             Entry candidate{};
             candidate.set = 1;
             candidate.kind = 0;
+#if defined(__APPLE__)
+            if (!engine::macos::construct_name(name.view(), candidate.name, originals_.allocate)) {
+                return originals_.resolve(out, map, type, size, character, fallback);
+            }
+#else
             candidate.name = engine::borrowed_string(name.bytes.data(), name.size);
+#endif
             if (originals_.valid(&candidate)) {
                 auto* entry = static_cast<Entry*>(out);
                 entry->set = candidate.set;
                 entry->padding = {};
                 entry->kind = 0;
+#if defined(__APPLE__)
+                entry->name = candidate.name;  // Transfer ownership to the game's fresh return object.
+#else
                 originals_.copy(&entry->name, &candidate.name);
+#endif
                 entry->handle = 0;
                 if (applied_lines_.fetch_add(1) < max_debug_lines) {
                     note(core::logging::Channel::debug, "CAPIE_PORTRAIT shown size=%d sprite=%s", size,
@@ -229,13 +262,40 @@ public:
                 }
                 return out;
             }
+#if defined(__APPLE__)
+            if ((candidate.name.bytes[0] & 1u) != 0) {
+                void* buffer = nullptr;
+                std::memcpy(&buffer, candidate.name.bytes.data() + 16, sizeof(buffer));
+                originals_.deallocate(buffer);
+            }
+#endif
             if (fallback_lines_.fetch_add(1) < max_debug_lines) {
                 note(core::logging::Channel::lifecycle,
                      "CAPIE_PORTRAIT sprite not found size=%d sprite=%s; game portrait", size, name.bytes.data());
             }
         }
+#if defined(__APPLE__)
+        return originals_.resolve(out, map, type, size, character, fallback);
+#else
         return originals_.resolve(map, out, type, size, character, fallback);
+#endif
     }
+
+#if defined(__APPLE__)
+    /** @brief Native SysV hook adapter: hidden return storage precedes the portrait map.
+     * @param out Fresh native entry storage (RDI).
+     * @param map Portrait map (RSI).
+     * @param type Portrait type (EDX).
+     * @param size Portrait size (ECX).
+     * @param character Character (R8).
+     * @param fallback Native string object (R9), forwarded unchanged.
+     * @return Native result storage, also returned in RAX.
+     */
+    void* resolve_sysv(void* out, void* map, std::int32_t type, std::int32_t size, uptr character,
+                       const void* fallback) noexcept {
+        return resolve(map, out, type, size, character, fallback);
+    }
+#endif
 
     /**
      * @brief The sprite a character shows for a size (tests and diagnostics).
@@ -261,9 +321,9 @@ private:
      */
     bool country_list(uptr& list, std::int32_t& count) const noexcept {
         uptr state = 0;
-        return core::rd(mem_, image_, core::rva::gamestate_global, state) && state != 0 &&
-               core::rd(mem_, state, core::off::gamestate_countries, list) &&
-               core::rd(mem_, state, core::off::gamestate_country_count, count) && list != 0 && count >= 0 &&
+        return core::rd(mem_, image_, layout_rva::gamestate_global, state) && state != 0 &&
+               core::rd(mem_, state, layout_off::gamestate_countries, list) &&
+               core::rd(mem_, state, layout_off::gamestate_country_count, count) && list != 0 && count >= 0 &&
                count <= max_countries;
     }
 
@@ -280,7 +340,7 @@ private:
             return false;
         }
         std::int32_t id = 0;
-        if (!core::rd(mem_, leader, core::off::character_id, id)) {
+        if (!core::rd(mem_, leader, layout_off::character_id, id)) {
             return false;
         }
         const auto layer = read_portrait_layer(mem_, leader);
@@ -328,7 +388,7 @@ private:
         }
         std::int32_t current = 0;
         return name.size != 0 && is_character(mem_, image_, character) &&
-               core::rd(mem_, character, core::off::character_id, current) && current == id;
+               core::rd(mem_, character, layout_off::character_id, current) && current == id;
     }
 
     /**

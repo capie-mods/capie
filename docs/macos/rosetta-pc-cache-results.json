@@ -1,0 +1,13 @@
+{
+  "scope": "owned x86_64/Rosetta children only; no game or security changes",
+  "pc_stable_threads": {"holds": 100, "maximum_hold_ns": 16012750, "x86_state_success": 0, "x86_state_failures": 300, "x86_error": 4, "flavor6_success": 300, "flavor6_failures": 0, "flavor6_words": 68, "guest_pc_matches": 0},
+  "pc_thread_churn_control": {"holds": 100, "x86_state_success": 0, "x86_state_failures": 356, "x86_error": 4, "flavor6_success": 343, "flavor6_failures": 13, "last_flavor6_error": 268435459},
+  "cache": [
+    {"case": "remote_attribute_first", "all_kernel_operations_success": true, "observed": 7, "readback": "not measured in first run"},
+    {"case": "remote_attribute_readback", "all_kernel_operations_success": true, "readback_matches_42": true, "observed": 7},
+    {"case": "remote_then_child_local_icache_only", "all_kernel_operations_success": true, "readback_matches_42": true, "observed": 7},
+    {"case": "remote_vm_prot_copy", "all_kernel_operations_success": true, "readback_matches_42": true, "observed": 7},
+    {"case": "remote_then_child_local_full_patch_sequence", "all_kernel_operations_success": true, "readback_matches_42": true, "observed": 42}
+  ],
+  "runtime_ready": false
+}

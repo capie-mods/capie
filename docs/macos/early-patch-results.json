@@ -1,0 +1,22 @@
+[
+  {
+    "mode": "known_first",
+    "stdout": "bootstrap_installed_forward\nlater_ctor=7 installed=1\nexecutable_ctor=7\nmain_before=7 main_after=42\n",
+    "exit": 0
+  },
+  {
+    "mode": "wrong_order",
+    "stdout": "1bootstrap_refused\nlater_ctor=7 installed=0\nexecutable_ctor=7\nmain_before=7 main_after=7\n",
+    "exit": 0
+  },
+  {
+    "mode": "unknown_inserted",
+    "stdout": "1bootstrap_refused\nlater_ctor=7 installed=0\nexecutable_ctor=7\nmain_before=7 main_after=7\n",
+    "exit": 0
+  },
+  {
+    "mode": "wrong_hash",
+    "stdout": "2bootstrap_refused\nlater_ctor=7 installed=0\nexecutable_ctor=7\nmain_before=7 main_after=7\n",
+    "exit": 0
+  }
+]

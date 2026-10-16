@@ -1,0 +1,22 @@
+{
+  "sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "scope": "Static RIP-indirect jump instructions only. Does not attest runtime dyld destinations.",
+  "pins": [
+    {
+      "id": "allocate_import_stub",
+      "va": "0x102b263a0",
+      "file_offset": 45245344,
+      "hex": "ff2542c37700",
+      "instruction": "jmp qword ptr [rip + 0x77c342]",
+      "indirect_slot_va": "0x1032a26e8"
+    },
+    {
+      "id": "deallocate_import_stub",
+      "va": "0x102b26178",
+      "file_offset": 45244792,
+      "hex": "ff258ac27700",
+      "instruction": "jmp qword ptr [rip + 0x77c28a]",
+      "indirect_slot_va": "0x1032a2408"
+    }
+  ]
+}

@@ -1,0 +1,1382 @@
+{
+  "schema": 1,
+  "target_sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "address_convention": "All addresses are RVAs except text_range_va. Exact bytes require this SHA; runtime relocated vtable values require image slide.",
+  "runtime_ready": false,
+  "signatures": [
+    {
+      "id": "name.update_names",
+      "rva": "0x117a790",
+      "hex": "554889e54157415641554154534881ec580400004889fb",
+      "length": 23,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "name.build_name_key",
+      "rva": "0x1177f30",
+      "hex": "554889e54157415641554154534881ece80000004c89cb4d89c6",
+      "length": 26,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "name.set_variable_execute",
+      "rva": "0x10607f0",
+      "hex": "554889e54157415653504989f64989ff4883c75031d2e8052290ff",
+      "length": 27,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "name.variable_find",
+      "rva": "0xb031c0",
+      "hex": "554889e54157415641554154534883ec184c8b7e08",
+      "length": 21,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "name.variable_get",
+      "rva": "0xb03190",
+      "hex": "554889e54883ec10488955f84883c710",
+      "length": 16,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "faction.get_name",
+      "rva": "0xe527e0",
+      "hex": "554889e5415741564154534889fb0fb64618",
+      "length": 18,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "portrait.resolve",
+      "rva": "0xd6fbe0",
+      "hex": "554889e54157415641554154534881ec880000004d89cc",
+      "length": 23,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "portrait.valid",
+      "rva": "0x7581a0",
+      "hex": "554889e5415741564154534883ec10803f000f84ce000000",
+      "length": 24,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "flag.atlas_update",
+      "rva": "0x194a920",
+      "hex": "554889e54157415641554154534881ec880000004989f74989fe488d05285dc901",
+      "length": 33,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "flag.load_country_flag",
+      "rva": "0x194a460",
+      "hex": "554889e54157415641554154534881ec780200004589cd",
+      "length": 23,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    },
+    {
+      "id": "flag.build_candidates",
+      "rva": "0x257750",
+      "hex": "554889e54157415641554154534883ec384989cf4989d44989f64889fb488d47180f57c00f110748894710488b05ee530303",
+      "length": 50,
+      "exact_text_occurrences": 1,
+      "text_range_va": [
+        "0x10000b330",
+        "0x102b25350"
+      ],
+      "function_start_verified": true,
+      "abi_equivalent_to_windows": false
+    }
+  ],
+  "instruction_pins": [
+    {
+      "id": "country.variables",
+      "rva": "0x95c142",
+      "hex": "488b98d8010000",
+      "disassembly": "mov\trbx, qword ptr [rax + 0x1d8]"
+    },
+    {
+      "id": "country.variables2",
+      "rva": "0x95c5bd",
+      "hex": "488b98d8010000",
+      "disassembly": "mov\trbx, qword ptr [rax + 0x1d8]"
+    },
+    {
+      "id": "scoped_variable.name_size",
+      "rva": "0x95d9f6",
+      "hex": "4d8b6c2478",
+      "disassembly": "mov\tr13, qword ptr [r12 + 0x78]",
+      "requires_companion": [
+        "scoped_variable.name_capacity",
+        "scoped_variable.name_data"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "scoped_variable.name_data",
+      "rva": "0x95d9fb",
+      "hex": "4d8bb42480000000",
+      "disassembly": "mov\tr14, qword ptr [r12 + 0x80]",
+      "requires_companion": [
+        "scoped_variable.name_capacity",
+        "scoped_variable.name_size"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "scoped_variable.name_capacity",
+      "rva": "0x95d9bd",
+      "hex": "f6467001",
+      "disassembly": "test\tbyte ptr [rsi + 0x70], 0x1"
+    },
+    {
+      "id": "set_variable.scoped_variable",
+      "rva": "0x1060800",
+      "hex": "4883c750",
+      "disassembly": "add\trdi, 0x50"
+    },
+    {
+      "id": "update_names.tag_argument",
+      "rva": "0x117abe1",
+      "hex": "4c8db300120000",
+      "disassembly": "lea\tr14, [rbx + 0x1200]"
+    },
+    {
+      "id": "gamestate.countries",
+      "rva": "0x11d7250",
+      "hex": "498b8c24d8020000",
+      "disassembly": "mov\trcx, qword ptr [r12 + 0x2d8]"
+    },
+    {
+      "id": "gamestate.country_count",
+      "rva": "0x6ee534",
+      "hex": "8b87e4020000",
+      "disassembly": "mov\teax, dword ptr [rdi + 0x2e4]"
+    },
+    {
+      "id": "country_of.countries",
+      "rva": "0x11d7250",
+      "hex": "498b8c24d8020000",
+      "disassembly": "mov\trcx, qword ptr [r12 + 0x2d8]",
+      "requires_companion": [
+        "evidence.0x11d7240",
+        "tag.index_is_int"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "faction.leader_first_member",
+      "rva": "0xdb7460",
+      "hex": "498b4648",
+      "disassembly": "mov\trax, qword ptr [r14 + 0x48]",
+      "requires_companion": [
+        "faction.first_deref",
+        "faction.first_tag"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "faction.member_count",
+      "rva": "0xe503d5",
+      "hex": "418b442454",
+      "disassembly": "mov\teax, dword ptr [r12 + 0x54]"
+    },
+    {
+      "id": "resolve.character_argument",
+      "rva": "0xd6fbf7",
+      "hex": "4d89c7",
+      "disassembly": "mov\tr15, r8"
+    },
+    {
+      "id": "resolve.character_id",
+      "rva": "0xd6fd01",
+      "hex": "418b470c",
+      "disassembly": "mov\teax, dword ptr [r15 + 0xc]"
+    },
+    {
+      "id": "valid.flag_byte",
+      "rva": "0x7581af",
+      "hex": "803f00",
+      "disassembly": "cmp\tbyte ptr [rdi], 0x0"
+    },
+    {
+      "id": "valid.kind",
+      "rva": "0x7581bb",
+      "hex": "8b4704",
+      "disassembly": "mov\teax, dword ptr [rdi + 0x4]"
+    },
+    {
+      "id": "valid.name",
+      "rva": "0x7581e2",
+      "hex": "4883c608",
+      "disassembly": "add\trsi, 0x8"
+    },
+    {
+      "id": "character.write_portraits",
+      "rva": "0xd5dd21",
+      "hex": "498d5560",
+      "disassembly": "lea\trdx, [r13 + 0x60]"
+    },
+    {
+      "id": "character.write_variables",
+      "rva": "0xd5df73",
+      "hex": "4d8dbdd0000000",
+      "disassembly": "lea\tr15, [r13 + 0xd0]"
+    },
+    {
+      "id": "leader.politics",
+      "rva": "0x117c434",
+      "hex": "488b87380d0000",
+      "disassembly": "mov\trax, qword ptr [rdi + 0xd38]"
+    },
+    {
+      "id": "leader.ruling_party",
+      "rva": "0xfbef1d",
+      "hex": "488bb8d0000000",
+      "disassembly": "mov\trdi, qword ptr [rax + 0xd0]"
+    },
+    {
+      "id": "leader.first_role",
+      "rva": "0x1366a74",
+      "hex": "837f6c00",
+      "disassembly": "cmp\tdword ptr [rdi + 0x6c], 0x0",
+      "requires_companion": [
+        "leader.role_data",
+        "leader.first_role_jumps",
+        "leader.deref"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "leader.deref",
+      "rva": "0xd82904",
+      "hex": "488b075dc3",
+      "disassembly": "mov\trax, qword ptr [rdi]; pop\trbp; ret",
+      "notes": "The body, not the one-byte push-rbp prologue, proves role pointer dereference. Entry point remains 0x100d82900."
+    },
+    {
+      "id": "leader.character",
+      "rva": "0x1300d14",
+      "hex": "488b4708",
+      "disassembly": "mov\trax, qword ptr [rdi + 0x8]"
+    },
+    {
+      "id": "effect.civilian_large",
+      "rva": "0xfbef67",
+      "hex": "31f6",
+      "disassembly": "xor\tesi, esi",
+      "requires_companion": [
+        "effect.large_size",
+        "effect.writes_portrait"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "atlas.cosmetic_keys",
+      "rva": "0x194ad8a",
+      "hex": "498b86c0000000",
+      "disassembly": "mov\trax, qword ptr [r14 + 0xc0]"
+    },
+    {
+      "id": "atlas.cosmetic_key_qword",
+      "rva": "0x194ad91",
+      "hex": "4a391cf8",
+      "disassembly": "cmp\tqword ptr [rax + 8*r15], rbx"
+    },
+    {
+      "id": "atlas.cosmetic_count",
+      "rva": "0x194aa80",
+      "hex": "413986cc000000",
+      "disassembly": "cmp\tdword ptr [r14 + 0xcc], eax"
+    },
+    {
+      "id": "atlas.country_list",
+      "rva": "0x194ac3a",
+      "hex": "488b80d8020000",
+      "disassembly": "mov\trax, qword ptr [rax + 0x2d8]"
+    },
+    {
+      "id": "atlas.slot_is_list_index",
+      "rva": "0x194ac41",
+      "hex": "4e8b24f8",
+      "disassembly": "mov\tr12, qword ptr [rax + 8*r15]",
+      "requires_companion": [
+        "atlas.country_list"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "load.cosmetic_argument",
+      "rva": "0x194a4ac",
+      "hex": "4d8da600120000",
+      "disassembly": "lea\tr12, [r14 + 0x1200]"
+    },
+    {
+      "id": "tag.index_is_int",
+      "rva": "0x11d7247",
+      "hex": "8b0488",
+      "disassembly": "mov\teax, dword ptr [rax + 4*rcx]"
+    },
+    {
+      "id": "character.reader_this",
+      "rva": "0xd5cde7",
+      "hex": "4989fd",
+      "disassembly": "mov\tr13, rdi"
+    },
+    {
+      "id": "ui.size_to_resolve",
+      "rva": "0x23d33ce",
+      "hex": "4489e1",
+      "disassembly": "mov\tecx, r12d"
+    },
+    {
+      "id": "ui.out_to_resolve",
+      "rva": "0x23d33c5",
+      "hex": "4889df",
+      "disassembly": "mov\trdi, rbx"
+    },
+    {
+      "id": "ui.unknown_choice",
+      "rva": "0x23d33a5",
+      "hex": "480f44f0",
+      "disassembly": "cmove\trsi, rax"
+    },
+    {
+      "id": "leader.role_data",
+      "rva": "0x1366a7a",
+      "hex": "488b7f60",
+      "disassembly": "mov\trdi, qword ptr [rdi + 0x60]"
+    },
+    {
+      "id": "effect.large_size",
+      "rva": "0xfbef69",
+      "hex": "ba01000000",
+      "disassembly": "mov\tedx, 0x1"
+    },
+    {
+      "id": "faction.first_deref",
+      "rva": "0xdb7464",
+      "hex": "488b38",
+      "disassembly": "mov\trdi, qword ptr [rax]"
+    },
+    {
+      "id": "faction.first_tag",
+      "rva": "0xdb7467",
+      "hex": "8b4708",
+      "disassembly": "mov\teax, dword ptr [rdi + 0x8]"
+    },
+    {
+      "id": "ui.size_small_is_zero",
+      "rva": "0x23d338c",
+      "hex": "4585e4",
+      "disassembly": "test\tr12d, r12d",
+      "requires_companion": [
+        "ui.size_to_resolve",
+        "ui.character_argument",
+        "ui.out_buffer",
+        "ui.out_to_resolve",
+        "ui.calls_resolve"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "ui.character_argument",
+      "rva": "0x23d33d1",
+      "hex": "4d89e8",
+      "disassembly": "mov\tr8, r13",
+      "requires_companion": [
+        "ui.calls_resolve",
+        "resolve.character_argument"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "ui.out_buffer",
+      "rva": "0x23d33c1",
+      "hex": "488d5da8",
+      "disassembly": "lea\trbx, [rbp - 0x58]",
+      "requires_companion": [
+        "ui.out_to_resolve",
+        "ui.calls_resolve"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "character.read_variables_token",
+      "rva": "0xd5cede",
+      "hex": "81fa4a2a0000",
+      "disassembly": "cmp\tedx, 0x2a4a",
+      "requires_companion": [
+        "character.reader_this",
+        "character.read_variables"
+      ],
+      "compound_guard_note": "All listed records are required jointly to establish this semantic chain; an isolated instruction is insufficient."
+    },
+    {
+      "id": "character.read_variables",
+      "rva": "0xd5cf20",
+      "hex": "4981c5d0000000",
+      "disassembly": "add\tr13, 0xd0"
+    },
+    {
+      "id": "evidence.0x11d7240",
+      "rva": "0x11d7240",
+      "hex": "488b8008030000",
+      "disassembly": "mov rax, qword ptr [rax + 0x308]"
+    },
+    {
+      "id": "evidence.0xb063c9",
+      "rva": "0xb063c9",
+      "hex": "488b0f",
+      "disassembly": "mov rcx, qword ptr [rdi]"
+    },
+    {
+      "id": "evidence.0xb063b6",
+      "rva": "0xb063b6",
+      "hex": "448b670c",
+      "disassembly": "mov r12d, dword ptr [rdi + 0xc]"
+    },
+    {
+      "id": "evidence.0xb063f7",
+      "rva": "0xb063f7",
+      "hex": "4883c328",
+      "disassembly": "add rbx, 0x28"
+    },
+    {
+      "id": "evidence.0xb063d6",
+      "rva": "0xb063d6",
+      "hex": "807cc10400",
+      "disassembly": "cmp byte ptr [rcx + 8*rax + 0x4], 0x0"
+    },
+    {
+      "id": "evidence.0xb06400",
+      "rva": "0xb06400",
+      "hex": "0fb64308",
+      "disassembly": "movzx eax, byte ptr [rbx + 0x8]"
+    },
+    {
+      "id": "evidence.0xb03424",
+      "rva": "0xb03424",
+      "hex": "4883c020",
+      "disassembly": "add rax, 0x20"
+    },
+    {
+      "id": "evidence.0x62e904",
+      "rva": "0x62e904",
+      "hex": "488b8720030000",
+      "disassembly": "mov rax, qword ptr [rdi + 0x320]"
+    },
+    {
+      "id": "evidence.0x7581cb",
+      "rva": "0x7581cb",
+      "hex": "48837e2000",
+      "disassembly": "cmp qword ptr [rsi + 0x20], 0x0"
+    },
+    {
+      "id": "evidence.0x7581d8",
+      "rva": "0x7581d8",
+      "hex": "488d05493ee802",
+      "disassembly": "lea rax, [rip + 0x2e83e49]"
+    },
+    {
+      "id": "evidence.0x7581e6",
+      "rva": "0x7581e6",
+      "hex": "e845f90502",
+      "disassembly": "call 0x1027b7b30"
+    },
+    {
+      "id": "evidence.0x23d33db",
+      "rva": "0x23d33db",
+      "hex": "e800c899fe",
+      "disassembly": "call 0x100d6fbe0"
+    },
+    {
+      "id": "evidence.0x23d33e3",
+      "rva": "0x23d33e3",
+      "hex": "e8b84d38fe",
+      "disassembly": "call 0x1007581a0"
+    },
+    {
+      "id": "evidence.0x194a4e2",
+      "rva": "0x194a4e2",
+      "hex": "e869d290fe",
+      "disassembly": "call 0x100257750"
+    },
+    {
+      "id": "evidence.0x194a1fd",
+      "rva": "0x194a1fd",
+      "hex": "e85e020000",
+      "disassembly": "call 0x10194a460"
+    },
+    {
+      "id": "evidence.0x194bdc1",
+      "rva": "0x194bdc1",
+      "hex": "e89ae6ffff",
+      "disassembly": "call 0x10194a460"
+    },
+    {
+      "id": "evidence.0x26d3c6f",
+      "rva": "0x26d3c6f",
+      "hex": "89574c",
+      "disassembly": "mov dword ptr [rdi + 0x4c], edx"
+    },
+    {
+      "id": "evidence.0x26d3c5d",
+      "rva": "0x26d3c5d",
+      "hex": "0f924754",
+      "disassembly": "setb byte ptr [rdi + 0x54]"
+    },
+    {
+      "id": "evidence.0x26d3c8f",
+      "rva": "0x26d3c8f",
+      "hex": "48897758",
+      "disassembly": "mov qword ptr [rdi + 0x58], rsi"
+    },
+    {
+      "id": "evidence.0x26d3c75",
+      "rva": "0x26d3c75",
+      "hex": "48b80200000001000000",
+      "disassembly": "movabs rax, 0x100000002"
+    },
+    {
+      "id": "evidence.0x26d3c7f",
+      "rva": "0x26d3c7f",
+      "hex": "488987a0000000",
+      "disassembly": "mov qword ptr [rdi + 0xa0], rax"
+    },
+    {
+      "id": "evidence.0x26d5694",
+      "rva": "0x26d5694",
+      "hex": "8b87a4000000",
+      "disassembly": "mov eax, dword ptr [rdi + 0xa4]"
+    },
+    {
+      "id": "evidence.0x6e7e93",
+      "rva": "0x6e7e93",
+      "hex": "488b8be0000000",
+      "disassembly": "mov rcx, qword ptr [rbx + 0xe0]"
+    },
+    {
+      "id": "evidence.0x6e7e89",
+      "rva": "0x6e7e89",
+      "hex": "8b93ec000000",
+      "disassembly": "mov edx, dword ptr [rbx + 0xec]"
+    },
+    {
+      "id": "evidence.0x6e7ea0",
+      "rva": "0x6e7ea0",
+      "hex": "398188000000",
+      "disassembly": "cmp dword ptr [rcx + 0x88], eax"
+    },
+    {
+      "id": "evidence.0x6e7ea8",
+      "rva": "0x6e7ea8",
+      "hex": "4881c190000000",
+      "disassembly": "add rcx, 0x90"
+    },
+    {
+      "id": "evidence.0x11ca772",
+      "rva": "0x11ca772",
+      "hex": "e81900fbff",
+      "disassembly": "call 0x10117a790"
+    },
+    {
+      "id": "evidence.0x117ac2a",
+      "rva": "0x117ac2a",
+      "hex": "4c89f6",
+      "disassembly": "mov rsi, r14"
+    },
+    {
+      "id": "evidence.0x117ac2d",
+      "rva": "0x117ac2d",
+      "hex": "e8fed2ffff",
+      "disassembly": "call 0x101177f30"
+    },
+    {
+      "id": "evidence.0xe527ee",
+      "rva": "0xe527ee",
+      "hex": "0fb64618",
+      "disassembly": "movzx eax, byte ptr [rsi + 0x18]"
+    },
+    {
+      "id": "evidence.0xe52832",
+      "rva": "0xe52832",
+      "hex": "488bb650040000",
+      "disassembly": "mov rsi, qword ptr [rsi + 0x450]"
+    },
+    {
+      "id": "evidence.0xb0319c",
+      "rva": "0xb0319c",
+      "hex": "4883c710",
+      "disassembly": "add rdi, 0x10"
+    },
+    {
+      "id": "evidence.0xb031a4",
+      "rva": "0xb031a4",
+      "hex": "e817000000",
+      "disassembly": "call 0x100b031c0"
+    },
+    {
+      "id": "evidence.0xb031a9",
+      "rva": "0xb031a9",
+      "hex": "488b00",
+      "disassembly": "mov rax, qword ptr [rax]"
+    },
+    {
+      "id": "evidence.0xb03287",
+      "rva": "0xb03287",
+      "hex": "8b470c",
+      "disassembly": "mov eax, dword ptr [rdi + 0xc]"
+    },
+    {
+      "id": "evidence.0xb03294",
+      "rva": "0xb03294",
+      "hex": "4c8b2f",
+      "disassembly": "mov r13, qword ptr [rdi]"
+    },
+    {
+      "id": "evidence.0xb03314",
+      "rva": "0xb03314",
+      "hex": "0fb64010",
+      "disassembly": "movzx eax, byte ptr [rax + 0x10]"
+    },
+    {
+      "id": "evidence.0xb03354",
+      "rva": "0xb03354",
+      "hex": "498d4620",
+      "disassembly": "lea rax, [r14 + 0x20]"
+    },
+    {
+      "id": "evidence.0xb0335b",
+      "rva": "0xb0335b",
+      "hex": "480f4445c0",
+      "disassembly": "cmove rax, qword ptr [rbp - 0x40]"
+    },
+    {
+      "id": "evidence.0x60df09",
+      "rva": "0x60df09",
+      "hex": "488d056019cf02",
+      "disassembly": "lea rax, [rip + 0x2cf1960]"
+    },
+    {
+      "id": "evidence.0x60df10",
+      "rva": "0x60df10",
+      "hex": "488903",
+      "disassembly": "mov qword ptr [rbx], rax"
+    },
+    {
+      "id": "evidence.0x60e109",
+      "rva": "0x60e109",
+      "hex": "e872650c02",
+      "disassembly": "call 0x1026d4680"
+    },
+    {
+      "id": "evidence.0x60e10e",
+      "rva": "0x60e10e",
+      "hex": "4c89bb20030000",
+      "disassembly": "mov qword ptr [rbx + 0x320], r15"
+    },
+    {
+      "id": "evidence.0x26d4685",
+      "rva": "0x26d4685",
+      "hex": "e9b6f6ffff",
+      "disassembly": "jmp 0x1026d3d40"
+    },
+    {
+      "id": "evidence.0x2675944",
+      "rva": "0x2675944",
+      "hex": "48893d8d41fc00",
+      "disassembly": "mov qword ptr [rip + 0xfc418d], rdi"
+    }
+  ],
+  "target_pins": [
+    {
+      "id": "variable_get.find",
+      "instruction_rva": "0xb031a4",
+      "hex": "e817000000",
+      "displacement_rva": "0xb031a5",
+      "next_instruction_rva": "0xb031a9",
+      "target_rva": "0xb031c0",
+      "disassembly": "call\t0x100b031c0"
+    },
+    {
+      "id": "update_names.build_name_key",
+      "instruction_rva": "0x117ac2d",
+      "hex": "e8fed2ffff",
+      "displacement_rva": "0x117ac2e",
+      "next_instruction_rva": "0x117ac32",
+      "target_rva": "0x1177f30",
+      "disassembly": "call\t0x101177f30"
+    },
+    {
+      "id": "scope.country_of",
+      "instruction_rva": "0x95c13d",
+      "hex": "e8ceaf8700",
+      "displacement_rva": "0x95c13e",
+      "next_instruction_rva": "0x95c142",
+      "target_rva": "0x11d7110",
+      "disassembly": "call\t0x1011d7110"
+    },
+    {
+      "id": "country_of.gamestate",
+      "instruction_rva": "0x11d7074",
+      "hex": "4c8d2dc5263402",
+      "displacement_rva": "0x11d7077",
+      "next_instruction_rva": "0x11d707b",
+      "target_rva": "0x3519740",
+      "disassembly": "lea\tr13, [rip + 0x23426c5]"
+    },
+    {
+      "id": "ui.calls_resolve",
+      "instruction_rva": "0x23d33db",
+      "hex": "e800c899fe",
+      "displacement_rva": "0x23d33dc",
+      "next_instruction_rva": "0x23d33e0",
+      "target_rva": "0xd6fbe0",
+      "disassembly": "call\t0x100d6fbe0"
+    },
+    {
+      "id": "ui.calls_valid",
+      "instruction_rva": "0x23d33e3",
+      "hex": "e8b84d38fe",
+      "displacement_rva": "0x23d33e4",
+      "next_instruction_rva": "0x23d33e8",
+      "target_rva": "0x7581a0",
+      "disassembly": "call\t0x1007581a0"
+    },
+    {
+      "id": "leader.calls_politics",
+      "instruction_rva": "0xfbef18",
+      "hex": "e813d51b00",
+      "displacement_rva": "0xfbef19",
+      "next_instruction_rva": "0xfbef1d",
+      "target_rva": "0x117c430",
+      "disassembly": "call\t0x10117c430"
+    },
+    {
+      "id": "leader.calls_first_role",
+      "instruction_rva": "0xfbef24",
+      "hex": "e8477b3a00",
+      "displacement_rva": "0xfbef25",
+      "next_instruction_rva": "0xfbef29",
+      "target_rva": "0x1366a70",
+      "disassembly": "call\t0x101366a70"
+    },
+    {
+      "id": "leader.first_role_jumps",
+      "instruction_rva": "0x1366a7f",
+      "hex": "e97cbea1ff",
+      "displacement_rva": "0x1366a80",
+      "next_instruction_rva": "0x1366a84",
+      "target_rva": "0xd82900",
+      "disassembly": "jmp\t0x100d82900"
+    },
+    {
+      "id": "leader.calls_character",
+      "instruction_rva": "0xfbef31",
+      "hex": "e8da1d3400",
+      "displacement_rva": "0xfbef32",
+      "next_instruction_rva": "0xfbef36",
+      "target_rva": "0x1300d10",
+      "disassembly": "call\t0x101300d10"
+    },
+    {
+      "id": "effect.writes_portrait",
+      "instruction_rva": "0xfbef71",
+      "hex": "e80a08dbff",
+      "displacement_rva": "0xfbef72",
+      "next_instruction_rva": "0xfbef76",
+      "target_rva": "0xd6f780",
+      "disassembly": "call\t0x100d6f780"
+    },
+    {
+      "id": "load.calls_candidates",
+      "instruction_rva": "0x194a4e2",
+      "hex": "e869d290fe",
+      "displacement_rva": "0x194a4e3",
+      "next_instruction_rva": "0x194a4e7",
+      "target_rva": "0x257750",
+      "disassembly": "call\t0x100257750"
+    },
+    {
+      "id": "incremental.calls_load",
+      "instruction_rva": "0x194a1fd",
+      "hex": "e85e020000",
+      "displacement_rva": "0x194a1fe",
+      "next_instruction_rva": "0x194a202",
+      "target_rva": "0x194a460",
+      "disassembly": "call\t0x10194a460"
+    },
+    {
+      "id": "threaded.calls_load",
+      "instruction_rva": "0x194bdc1",
+      "hex": "e89ae6ffff",
+      "displacement_rva": "0x194bdc2",
+      "next_instruction_rva": "0x194bdc6",
+      "target_rva": "0x194a460",
+      "disassembly": "call\t0x10194a460"
+    },
+    {
+      "id": "app.publish_global",
+      "instruction_rva": "0x2675944",
+      "hex": "48893d8d41fc00",
+      "displacement_rva": "0x2675947",
+      "next_instruction_rva": "0x267594b",
+      "target_rva": "0x3639ad8",
+      "disassembly": "mov\tqword ptr [rip + 0xfc418d], rdi"
+    },
+    {
+      "id": "app.session_constructor",
+      "instruction_rva": "0x60e109",
+      "hex": "e872650c02",
+      "displacement_rva": "0x60e10a",
+      "next_instruction_rva": "0x60e10e",
+      "target_rva": "0x26d4680",
+      "disassembly": "call\t0x1026d4680"
+    },
+    {
+      "id": "session.constructor_thunk",
+      "instruction_rva": "0x26d4685",
+      "hex": "e9b6f6ffff",
+      "displacement_rva": "0x26d4686",
+      "next_instruction_rva": "0x26d468a",
+      "target_rva": "0x26d3d40",
+      "disassembly": "jmp\t0x1026d3d40"
+    },
+    {
+      "id": "faction.fallback_localises",
+      "instruction_rva": "0xe52848",
+      "hex": "e8538a1400",
+      "displacement_rva": "0xe52849",
+      "next_instruction_rva": "0xe5284d",
+      "target_rva": "0xf9b2a0",
+      "disassembly": "call\t0x100f9b2a0"
+    },
+    {
+      "id": "gamestate.global",
+      "instruction_rva": "0x11d7074",
+      "hex": "4c8d2dc5263402",
+      "displacement_rva": "0x11d7077",
+      "next_instruction_rva": "0x11d707b",
+      "target_rva": "0x3519740",
+      "disassembly": "lea\tr13, [rip + 0x23426c5]"
+    }
+  ],
+  "vtable_pins": [
+    {
+      "id": "set_variable.execute",
+      "vtable_rva": "0x3366ab8",
+      "slot": "0x70",
+      "entry_rva": "0x3366b28",
+      "target_rva": "0x10607f0",
+      "file_hex": "f007060101000000",
+      "runtime_comparison": "pointer == loaded_image_base + target_rva; do not compare unslid file bytes in process"
+    },
+    {
+      "id": "character.writer",
+      "vtable_rva": "0x332efe0",
+      "slot": "0x18",
+      "entry_rva": "0x332eff8",
+      "target_rva": "0xd5dbd0",
+      "file_hex": "d0dbd50001000000",
+      "runtime_comparison": "pointer == loaded_image_base + target_rva; do not compare unslid file bytes in process"
+    },
+    {
+      "id": "character.reader",
+      "vtable_rva": "0x332efe0",
+      "slot": "0x28",
+      "entry_rva": "0x332f008",
+      "target_rva": "0xd5cdd0",
+      "file_hex": "d0cdd50001000000",
+      "runtime_comparison": "pointer == loaded_image_base + target_rva; do not compare unslid file bytes in process"
+    },
+    {
+      "id": "application.publish",
+      "vtable_rva": "0x32ff870",
+      "slot": "0x40",
+      "entry_rva": "0x32ff8b0",
+      "target_rva": "0x2675940",
+      "file_hex": "4059670201000000",
+      "runtime_comparison": "pointer == loaded_image_base + target_rva; do not compare unslid file bytes in process"
+    },
+    {
+      "id": "application.session",
+      "vtable_rva": "0x32ff870",
+      "slot": "0x90",
+      "entry_rva": "0x32ff900",
+      "target_rva": "0x62e900",
+      "file_hex": "00e9620001000000",
+      "runtime_comparison": "pointer == loaded_image_base + target_rva; do not compare unslid file bytes in process"
+    },
+    {
+      "id": "faction.set_leader",
+      "vtable_rva": "0x3331200",
+      "slot": "0x70",
+      "entry_rva": "0x3331270",
+      "target_rva": "0xdb7430",
+      "file_hex": "3074db0001000000",
+      "runtime_comparison": "pointer == loaded_image_base + target_rva; do not compare unslid file bytes in process"
+    },
+    {
+      "id": "portrait.effect",
+      "vtable_rva": "0x334e6c8",
+      "slot": "0x70",
+      "entry_rva": "0x334e738",
+      "target_rva": "0xfbeeb0",
+      "file_hex": "b0eefb0001000000",
+      "runtime_comparison": "pointer == loaded_image_base + target_rva; do not compare unslid file bytes in process"
+    }
+  ],
+  "windows_coverage": [
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "name.update_names",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "name.build_name_key",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "name.set_variable_execute",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "name.variable_find",
+      "status": "static_equivalent_evidence",
+      "notes": "Integrated value/fallback-pointer lookup. Only evidence pin; no Windows iterator ABI."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "name.variable_get",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "faction.get_name",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "faction.string_copy",
+      "status": "replaced_by_adapter",
+      "notes": "Inline libc++ copy; engine/macos_owned_string.hpp adapter replaces Windows callable copy constructor. No 1:1 native RVA."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "country.variables",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "country.variables2",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "scoped_variable.name_size",
+      "status": "static_equivalent_evidence",
+      "notes": "Replacement libc++ flag/size/pointer instruction, not MSVC size/capacity semantics."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "scoped_variable.name_data",
+      "status": "static_equivalent_evidence",
+      "notes": "Replacement libc++ flag/size/pointer instruction, not MSVC size/capacity semantics."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "scoped_variable.name_capacity",
+      "status": "static_equivalent_evidence",
+      "notes": "Replacement libc++ flag/size/pointer instruction, not MSVC size/capacity semantics."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "set_variable.scoped_variable",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "update_names.tag_argument",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "gamestate.countries",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "gamestate.country_count",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "country_of.countries",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "faction.leader_first_member",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "faction.member_count",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "variable_get.find",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "update_names.build_name_key",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "scope.country_of",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "gamestate.global",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "country_of.gamestate",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "name_layer_pins.hpp",
+      "id": "faction.get_name_copy",
+      "status": "replaced_by_adapter",
+      "notes": "Inline libc++ copy; engine/macos_owned_string.hpp adapter replaces Windows callable copy constructor. No 1:1 native RVA."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "portrait.resolve",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "portrait.valid",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "ui.size_small_is_zero",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "ui.character_argument",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "ui.out_buffer",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "resolve.character_argument",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "resolve.character_id",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "valid.flag_byte",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "valid.kind",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "valid.name",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "character.write_portraits",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "character.write_variables",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "character.read_variables_token",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "character.read_variables",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.politics",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.ruling_party",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.first_role",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.deref",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.character",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "effect.civilian_large",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "ui.calls_resolve",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "ui.calls_valid",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.calls_politics",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.calls_first_role",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.first_role_jumps",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "leader.calls_character",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "portrait_layer_pins.hpp",
+      "id": "effect.writes_portrait",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "flag.atlas_update",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "flag.load_country_flag",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "flag.build_candidates",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "atlas.cosmetic_keys",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "atlas.cosmetic_key_qword",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "atlas.cosmetic_count",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "atlas.country_list",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "atlas.slot_is_list_index",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "load.cosmetic_argument",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "tag.index_is_int",
+      "status": "replaced_by_remapping",
+      "notes": "Tag maps through gamestate+308 before array indexing; identity assumption invalid."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "load.calls_candidates",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "incremental.calls_load",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    },
+    {
+      "file": "flag_layer_pins.hpp",
+      "id": "threaded.calls_load",
+      "status": "static_equivalent_evidence",
+      "notes": "See same-id macOS record. ABI/representation differs; this is not hook readiness."
+    }
+  ]
+}

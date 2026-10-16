@@ -31,9 +31,9 @@ namespace capie::editor {
 struct Pending {
     std::uint64_t epoch{};       ///< Epoch at observation.
     std::uint64_t generation{};  ///< Generation at observation.
-    ULONGLONG created{};         ///< `GetTickCount64()` at observation.
+    std::uint64_t created{};         ///< `core::platform::monotonic_ms()` at observation.
     InputSnapshot text{};        ///< Copied text.
-    DWORD thread{};              ///< Observing thread.
+    unsigned long thread{};              ///< Observing thread.
     bool valid{};                ///< Slot holds an observation.
 };
 
@@ -64,7 +64,7 @@ inline Lifecycle lifecycle[model_count]{};
 /// @brief Enter observation per field (debug flavor).
 inline Pending pending[field_count]{};
 /// @brief Guards `lifecycle` and `pending`. Never held across a game call.
-inline SRWLOCK state_lock = SRWLOCK_INIT;
+inline core::platform::Lock state_lock{};
 
 /**
  * @brief Clears the Enter observations of a model.
@@ -111,10 +111,10 @@ inline void end_opening(Lifecycle& state, bool hidden) noexcept {
  *        for an invalid context or epoch (no re-prefill in the same epoch).
  */
 inline void reset_model(std::size_t model, bool hidden) noexcept {
-    AcquireSRWLockExclusive(&state_lock);
+    core::platform::lock(&state_lock);
     end_opening(lifecycle[model], hidden);
     clear_pending(model);
-    ReleaseSRWLockExclusive(&state_lock);
+    core::platform::unlock(&state_lock);
 }
 
 /**
@@ -139,10 +139,10 @@ inline std::uint64_t rebind_opening(Lifecycle& state) noexcept {
  * @return The new generation.
  */
 inline std::uint64_t reset_bound_model(std::size_t model) noexcept {
-    AcquireSRWLockExclusive(&state_lock);
+    core::platform::lock(&state_lock);
     const auto generation = rebind_opening(lifecycle[model]);
     clear_pending(model);
-    ReleaseSRWLockExclusive(&state_lock);
+    core::platform::unlock(&state_lock);
     return generation;
 }
 
@@ -157,13 +157,13 @@ inline std::uint64_t reset_bound_model(std::size_t model) noexcept {
  */
 inline bool opening_ready(const Lifecycle& state, std::uint64_t epoch, std::uint64_t& generation,
                           bool compare_generation) noexcept {
-    AcquireSRWLockShared(&state_lock);
+    core::platform::lock_shared(&state_lock);
     const bool ready = state.visible && state.attempted && state.prefilled && state.epoch == epoch &&
                        (!compare_generation || state.generation == generation);
     if (ready && !compare_generation) {
         generation = state.generation;
     }
-    ReleaseSRWLockShared(&state_lock);
+    core::platform::unlock_shared(&state_lock);
     return ready;
 }
 
@@ -192,12 +192,12 @@ inline bool ready_model(std::size_t model, std::uint64_t epoch, std::uint64_t& g
 inline void status_once(std::size_t model, Status status, const char* event) noexcept {
     bool changed = false;
     const auto code = static_cast<unsigned>(status);
-    AcquireSRWLockExclusive(&state_lock);
+    core::platform::lock(&state_lock);
     if (lifecycle[model].last_status != code) {
         lifecycle[model].last_status = code;
         changed = true;
     }
-    ReleaseSRWLockExclusive(&state_lock);
+    core::platform::unlock(&state_lock);
     if (changed) {
         diagnostic(next_observation_id(), event, models[model].first, 0, 0);
     }

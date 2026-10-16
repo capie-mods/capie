@@ -1,0 +1,128 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "host_machine": "arm64",
+  "signatures": {
+    "unsigned": {
+      "exit": 1,
+      "details": "/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-owned-patch-n4qqyqnc/unsigned: code object is not signed at all\n"
+    },
+    "adhoc": {
+      "exit": 0,
+      "details": "Executable=/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-owned-patch-n4qqyqnc/adhoc\nIdentifier=adhoc-5555494481f35efdbe7637df82126282d6465a89\nFormat=Mach-O thin (x86_64)\nCodeDirectory v=20400 size=455 flags=0x2(adhoc) hashes=8+2 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769472\nHash type=sha256 size=32\nCandidateCDHash sha256=18a747fd0f7a6472bd7bc432d0d0a6fe88b78c32\nCandidateCDHashFull sha256=18a747fd0f7a6472bd7bc432d0d0a6fe88b78c32c5a1b4398b0d3339b0732f9a\nHash choices=sha256\nCMSDigest=18a747fd0f7a6472bd7bc432d0d0a6fe88b78c32c5a1b4398b0d3339b0732f9a\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=24576\nExecutable Segment flags=0x1\nPage size=4096\nCDHash=18a747fd0f7a6472bd7bc432d0d0a6fe88b78c32\nSignature=adhoc\nInfo.plist=not bound\nTeamIdentifier=not set\nSealed Resources=none\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+    },
+    "hardened": {
+      "exit": 0,
+      "details": "Executable=/private/var/folders/dy/3qs1z9rn28b2b46ptl5lbzjh0000gn/T/capie-owned-patch-n4qqyqnc/hardened\nIdentifier=hardened-5555494481f35efdbe7637df82126282d6465a89\nFormat=Mach-O thin (x86_64)\nCodeDirectory v=20500 size=466 flags=0x10002(adhoc,runtime) hashes=8+2 location=embedded\nVersionPlatform=1\nVersionMin=1769472\nVersionSDK=1769472\nHash type=sha256 size=32\nCandidateCDHash sha256=83946f50f4865b32643a1bf18ac3a5cdb4796a02\nCandidateCDHashFull sha256=83946f50f4865b32643a1bf18ac3a5cdb4796a028c76b206e6a5603a76191fc1\nHash choices=sha256\nCMSDigest=83946f50f4865b32643a1bf18ac3a5cdb4796a028c76b206e6a5603a76191fc1\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=24576\nExecutable Segment flags=0x1\nPage size=4096\nCDHash=83946f50f4865b32643a1bf18ac3a5cdb4796a02\nSignature=adhoc\nInfo.plist=not bound\nTeamIdentifier=not set\nRuntime Version=27.0.0\nSealed Resources=none\nInternal requirements count=0 size=12\nTotal signatures=1\nChosen signature=1\n"
+    }
+  },
+  "results": [
+    {
+      "signing": "unsigned",
+      "mapping": "text",
+      "method": "mach-copy",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=text method=mach-copy\nregion before kr=0 protection=5 max=5 size=24576\nwritable mach kr=0 error=(os/kern) successful\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mach kr=0 error=(os/kern) successful\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\nrestore maximum RX kr=0 error=(os/kern) successful\nregion maximum-restored kr=0 protection=5 max=5 size=4096\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "unsigned",
+      "mapping": "text",
+      "method": "posix",
+      "exit": 10,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=text method=posix\nregion before kr=0 protection=5 max=5 size=24576\nwritable mprotect result=-1 errno=13\n",
+      "stderr": "writable mprotect: Permission denied\n",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "unsigned",
+      "mapping": "anonymous",
+      "method": "mach-copy",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=anonymous method=mach-copy\nregion before kr=0 protection=5 max=7 size=4096\nwritable mach kr=0 error=(os/kern) successful\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mach kr=0 error=(os/kern) successful\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "unsigned",
+      "mapping": "anonymous",
+      "method": "posix",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=anonymous method=posix\nregion before kr=0 protection=5 max=7 size=4096\nwritable mprotect result=0 errno=0\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mprotect result=0 errno=0\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "adhoc",
+      "mapping": "text",
+      "method": "mach-copy",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=text method=mach-copy\nregion before kr=0 protection=5 max=5 size=24576\nwritable mach kr=0 error=(os/kern) successful\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mach kr=0 error=(os/kern) successful\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\nrestore maximum RX kr=0 error=(os/kern) successful\nregion maximum-restored kr=0 protection=5 max=5 size=4096\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "adhoc",
+      "mapping": "text",
+      "method": "posix",
+      "exit": 10,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=text method=posix\nregion before kr=0 protection=5 max=5 size=24576\nwritable mprotect result=-1 errno=13\n",
+      "stderr": "writable mprotect: Permission denied\n",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "adhoc",
+      "mapping": "anonymous",
+      "method": "mach-copy",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=anonymous method=mach-copy\nregion before kr=0 protection=5 max=7 size=4096\nwritable mach kr=0 error=(os/kern) successful\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mach kr=0 error=(os/kern) successful\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "adhoc",
+      "mapping": "anonymous",
+      "method": "posix",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=anonymous method=posix\nregion before kr=0 protection=5 max=7 size=4096\nwritable mprotect result=0 errno=0\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mprotect result=0 errno=0\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "hardened",
+      "mapping": "text",
+      "method": "mach-copy",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=text method=mach-copy\nregion before kr=0 protection=5 max=5 size=24576\nwritable mach kr=0 error=(os/kern) successful\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mach kr=0 error=(os/kern) successful\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\nrestore maximum RX kr=0 error=(os/kern) successful\nregion maximum-restored kr=0 protection=5 max=5 size=4096\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "hardened",
+      "mapping": "text",
+      "method": "posix",
+      "exit": 10,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=text method=posix\nregion before kr=0 protection=5 max=5 size=24576\nwritable mprotect result=-1 errno=13\n",
+      "stderr": "writable mprotect: Permission denied\n",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "hardened",
+      "mapping": "anonymous",
+      "method": "mach-copy",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=anonymous method=mach-copy\nregion before kr=0 protection=5 max=7 size=4096\nwritable mach kr=0 error=(os/kern) successful\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mach kr=0 error=(os/kern) successful\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    },
+    {
+      "signing": "hardened",
+      "mapping": "anonymous",
+      "method": "posix",
+      "exit": 0,
+      "stdout": "translated=1 sysctl=0 page_size=4096 target=anonymous method=posix\nregion before kr=0 protection=5 max=7 size=4096\nwritable mprotect result=0 errno=0\nregion writable kr=0 protection=3 max=7 size=4096\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\npatched_call=42\nwritable mprotect result=0 errno=0\nrestore RX kr=0 error=(os/kern) successful\nregion RX kr=0 protection=5 max=7 size=4096\nrestored_call=7 original_bytes=1\n",
+      "stderr": "",
+      "disk_bytes_unchanged": true
+    }
+  ]
+}

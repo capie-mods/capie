@@ -7,7 +7,9 @@
 #include <vector>
 
 namespace {
+unsigned checks = 0;
 void require(bool value,const char* label) {
+    ++checks;
     if(!value) { std::fprintf(stderr,"FAIL: %s\n",label); std::exit(1); }
 }
 }
@@ -72,7 +74,7 @@ int main() {
             concurrent->copy(*snapshot);
             for(std::size_t i=0;i<snapshot->count;++i) {
                 const auto& entry=snapshot->entries[i]; unsigned producer=0,iteration=0;
-                if(sscanf_s(entry.text,"producer=%u iteration=%u",&producer,&iteration)!=2 ||
+                if(std::sscanf(entry.text,"producer=%u iteration=%u",&producer,&iteration)!=2 ||
                    entry.stamp.thread!=producer || entry.stamp.ms!=iteration || entry.size!=std::strlen(entry.text) ||
                    (i && entry.stamp.sequence!=snapshot->entries[i-1].stamp.sequence+1)) coherent=false;
             }
@@ -95,5 +97,6 @@ int main() {
     for(auto& writer:writers) writer.join();
     work=concurrent_control.take(200,0);
     require(work.serial==400 && work.pending==7 && work.changed,"concurrent requests serialized and coalesced");
+    std::printf("debug trace: %u checks passed\n", checks);
     std::puts("debug trace: ring wrap/pause/truncation/concurrency and scalar queue model-order/coalescing/TTL PASS; no game");
 }

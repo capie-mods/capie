@@ -32,9 +32,15 @@
  * outside 1..264, a length outside 1..32, a text the RN1 guard refuses) means "no layer"; the
  * game then shows the cosmetic tag or the base name, as without CAPIE. Nothing here writes,
  * allocates or calls the game. Templated over the memory policy so offline tests use fakes.
+ * macOS selects engine/macos_variables.hpp for table/string ABI; the protocol,
+ * alphabet, invalid-value handling and RN1/faction encoding below remain shared.
  */
 #pragma once
+#if defined(__APPLE__)
+#include "../../engine/macos_variables.hpp"
+#else
 #include "../../core/game_layout.hpp"
+#endif
 #include "../../core/memory.hpp"
 #include "../editor/input_codes.hpp"
 #include "country_protocol.hpp"
@@ -105,6 +111,12 @@ constexpr std::uint32_t fnv1a(std::string_view name) noexcept {
     return hash;
 }
 
+#if defined(__APPLE__)
+using engine::macos::variables::Table;
+using engine::macos::variables::Lookup;
+using engine::macos::variables::read_table;
+using engine::macos::variables::find_variable;
+#else
 /// @brief The variable table of one container, copied out of game memory.
 struct Table {
     uptr entries{};         ///< First entry (0 = no variables).
@@ -237,6 +249,8 @@ Lookup find_variable(const M& mem, const Table& table, std::string_view name, st
     }
     return Lookup::unreadable;
 }
+
+#endif
 
 /// @brief Why a country has no usable layer.
 enum class Status : unsigned {
@@ -398,7 +412,12 @@ Status append_array(const M& mem, const Table& table, std::string_view array, Ke
 template <class M>
 void open_layer(const M& mem, uptr country, std::string_view version, Table& table, Layer& layer) noexcept {
     uptr container = 0;
-    if (!core::rd(mem, country, core::off::country_variables, container)) {
+#if defined(__APPLE__)
+    constexpr std::size_t variables_offset = core::macos::off::country_variables;
+#else
+    constexpr std::size_t variables_offset = core::off::country_variables;
+#endif
+    if (!core::rd(mem, country, variables_offset, container)) {
         layer.status = Status::unreadable;
         return;
     }

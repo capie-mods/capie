@@ -1,0 +1,101 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "results": [
+    {
+      "architecture": "arm64",
+      "mode": "clean",
+      "iteration": 0,
+      "exit": 0,
+      "stdout": "phase=initializer threads=1 kr=0 translated=0 sysctl=0\nphase=main threads=1 kr=0 translated=0 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "arm64",
+      "mode": "clean",
+      "iteration": 1,
+      "exit": 0,
+      "stdout": "phase=initializer threads=1 kr=0 translated=0 sysctl=0\nphase=main threads=1 kr=0 translated=0 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "arm64",
+      "mode": "clean",
+      "iteration": 2,
+      "exit": 0,
+      "stdout": "phase=initializer threads=1 kr=0 translated=0 sysctl=0\nphase=main threads=1 kr=0 translated=0 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "arm64",
+      "mode": "prior-worker",
+      "iteration": 0,
+      "exit": 0,
+      "stdout": "phase=initializer threads=2 kr=0 translated=0 sysctl=0\nphase=main threads=2 kr=0 translated=0 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "arm64",
+      "mode": "prior-worker",
+      "iteration": 1,
+      "exit": 0,
+      "stdout": "phase=initializer threads=2 kr=0 translated=0 sysctl=0\nphase=main threads=2 kr=0 translated=0 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "arm64",
+      "mode": "prior-worker",
+      "iteration": 2,
+      "exit": 0,
+      "stdout": "phase=initializer threads=2 kr=0 translated=0 sysctl=0\nphase=main threads=2 kr=0 translated=0 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "x86_64",
+      "mode": "clean",
+      "iteration": 0,
+      "exit": 0,
+      "stdout": "phase=initializer threads=2 kr=0 translated=1 sysctl=0\nphase=main threads=2 kr=0 translated=1 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "x86_64",
+      "mode": "clean",
+      "iteration": 1,
+      "exit": 0,
+      "stdout": "phase=initializer threads=2 kr=0 translated=1 sysctl=0\nphase=main threads=2 kr=0 translated=1 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "x86_64",
+      "mode": "clean",
+      "iteration": 2,
+      "exit": 0,
+      "stdout": "phase=initializer threads=2 kr=0 translated=1 sysctl=0\nphase=main threads=2 kr=0 translated=1 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "x86_64",
+      "mode": "prior-worker",
+      "iteration": 0,
+      "exit": 0,
+      "stdout": "phase=initializer threads=3 kr=0 translated=1 sysctl=0\nphase=main threads=3 kr=0 translated=1 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "x86_64",
+      "mode": "prior-worker",
+      "iteration": 1,
+      "exit": 0,
+      "stdout": "phase=initializer threads=3 kr=0 translated=1 sysctl=0\nphase=main threads=3 kr=0 translated=1 sysctl=0\n",
+      "stderr": ""
+    },
+    {
+      "architecture": "x86_64",
+      "mode": "prior-worker",
+      "iteration": 2,
+      "exit": 0,
+      "stdout": "phase=initializer threads=3 kr=0 translated=1 sysctl=0\nphase=main threads=3 kr=0 translated=1 sysctl=0\n",
+      "stderr": ""
+    }
+  ]
+}

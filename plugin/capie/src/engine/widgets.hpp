@@ -16,10 +16,15 @@
  * Thread: UI thread (the functions read GUI objects). No locks, no allocation.
  */
 #pragma once
-#include "../core/game_layout.hpp"
 #include "../core/memory.hpp"
+#include "../core/platform_game_layout.hpp"
 #include "game_calls.hpp"
+#if defined(__APPLE__)
+#include "macos_records.hpp"
+#include "macos_widgets.hpp"
+#else
 #include "msvc_string.hpp"
+#endif
 
 #include <cstddef>
 #include <cstdint>
@@ -28,7 +33,9 @@
 namespace capie::engine {
 
 using core::member;
+#if !defined(__APPLE__)
 using core::readable;
+#endif
 namespace rva = core::rva;
 namespace off = core::off;
 namespace flag = core::flag;
@@ -90,11 +97,25 @@ inline bool bounded_list(const void* container, std::size_t offset) noexcept {
     void* data = nullptr;
     int capacity = 0;
     int count = 0;
-    return member(container, offset + off::list_data, data) &&
-           member(container, offset + off::list_capacity, capacity) &&
-           member(container, offset + off::list_count, count) && count >= 0 && count <= max_list_count &&
-           capacity >= count && capacity <= max_list_capacity &&
-           readable(data, static_cast<std::size_t>(count) * sizeof(void*));
+    if (!member(container, offset + off::list_data, data) ||
+        !member(container, offset + off::list_capacity, capacity) ||
+        !member(container, offset + off::list_count, count) || count < 0 || count > max_list_count ||
+        capacity < count || capacity > max_list_capacity)
+        return false;
+#if defined(__APPLE__)
+    // Validate each pointer-sized slot by copying, without probing via a raw dereference.
+    const auto address = reinterpret_cast<core::uptr>(data);
+    if (count != 0 && !macos::detail::valid_range(address, static_cast<std::size_t>(count) * sizeof(void*)))
+        return false;
+    for (int index = 0; index < count; ++index) {
+        core::uptr ignored = 0;
+        if (!core::rd(core::ProcessMemory{}, address, static_cast<core::uptr>(index) * sizeof(void*), ignored))
+            return false;
+    }
+    return true;
+#else
+    return readable(data, static_cast<std::size_t>(count) * sizeof(void*));
+#endif
 }
 
 /**
@@ -186,6 +207,19 @@ inline bool edit_identity(void* edit, const void*& name_address) noexcept {
  * @return `false` on identity mismatch, oversize text or unreadable storage.
  */
 inline bool snapshot_edit(void* edit, const char* expected, InputSnapshot& result) noexcept {
+#if defined(__APPLE__)
+    if (!edit_named(edit, expected))
+        return false;
+    const auto address = reinterpret_cast<std::uintptr_t>(edit);
+    std::array<char32_t, max_codepoints + 1> points{};
+    std::size_t size = 0;
+    if (!macos::records::read_edit_text(core::ProcessMemory{}, address, std::span<char32_t>(points), size,
+                                        max_edit_capacity))
+        return false;
+    std::memcpy(result.points, points.data(), size * sizeof(char32_t));
+    result.size = size;
+    return true;
+#else
     std::uint64_t size = 0;
     std::uint64_t capacity = 0;
     if (!edit_named(edit, expected) || !member(edit, off::edit_size, size) ||
@@ -202,6 +236,7 @@ inline bool snapshot_edit(void* edit, const char* expected, InputSnapshot& resul
     }
     result.size = static_cast<std::size_t>(size);
     return true;
+#endif
 }
 
 /**
@@ -222,6 +257,48 @@ inline bool same_text(const InputSnapshot& a, const InputSnapshot& b) noexcept {
  * @note No trimming, normalization, substitution or truncation of the game name.
  */
 inline bool decode_utf8(Utf8Snapshot& value) noexcept {
+#if defined(__APPLE__)
+    if (value.size == 0 || value.size > max_utf8)
+        return false;
+    InputSnapshot decoded{};
+    std::size_t offset = 0;
+    while (offset < value.size) {
+        auto lead = static_cast<unsigned char>(value.bytes[offset++]);
+        std::uint32_t cp = lead;
+        unsigned extra = 0;
+        std::uint32_t minimum = 0;
+        if (lead < 0x80) {
+        } else if (lead >= 0xc2 && lead <= 0xdf) {
+            cp = lead & 0x1f;
+            extra = 1;
+            minimum = 0x80;
+        } else if (lead >= 0xe0 && lead <= 0xef) {
+            cp = lead & 0xf;
+            extra = 2;
+            minimum = 0x800;
+        } else if (lead >= 0xf0 && lead <= 0xf4) {
+            cp = lead & 7;
+            extra = 3;
+            minimum = 0x10000;
+        } else
+            return false;
+        if (extra > value.size - offset)
+            return false;
+        for (unsigned index = 0; index < extra; ++index) {
+            const auto next = static_cast<unsigned char>(value.bytes[offset++]);
+            if ((next & 0xc0) != 0x80)
+                return false;
+            cp = (cp << 6) | (next & 0x3f);
+        }
+        if (cp < minimum || cp > max_scalar || (cp >= high_surrogate_first && cp <= low_surrogate_last) ||
+            cp < first_printable || (cp >= delete_char && cp <= last_c1_control) || cp == '[' || cp == ']' ||
+            cp == '$' || cp == section_sign || cp == pound_sign || decoded.size == max_codepoints)
+            return false;
+        decoded.points[decoded.size++] = cp;
+    }
+    value.decoded = decoded;
+    return true;
+#else
     wchar_t utf16[max_utf8]{};
     if (value.size == 0 || value.size > max_utf8) {
         return false;
@@ -256,6 +333,7 @@ inline bool decode_utf8(Utf8Snapshot& value) noexcept {
         value.decoded.points[value.decoded.size++] = cp;
     }
     return true;
+#endif
 }
 
 /**

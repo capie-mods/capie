@@ -1,0 +1,29 @@
+{
+  "enabled": {
+    "pid": "56243",
+    "parent_pid": "56190",
+    "cwd": "/private/tmp/capie-launcher-child-fixture-20261016",
+    "dyld_present": "1",
+    "marker_pids": [
+      "56243"
+    ]
+  },
+  "disabled": {
+    "pid": "56357",
+    "parent_pid": "56291",
+    "cwd": "/private/tmp/capie-launcher-child-fixture-20261016",
+    "dyld_present": "0",
+    "marker_pids": []
+  },
+  "invalid": {
+    "pid": "56427",
+    "parent_pid": "56385",
+    "cwd": "/private/tmp/capie-launcher-child-fixture-20261016",
+    "dyld_present": "0",
+    "marker_pids": []
+  },
+  "identity": {
+    "MacOS/Paradox Launcher": "a8e5a46ebd46cdf112b568ac4fb4453dbf3fd1c16f183f2c92c529a11841fd55",
+    "Resources/app.asar": "31058575329dc9c798794f17e11ffe8abd769badef724ae1763164da15222a0e"
+  }
+}

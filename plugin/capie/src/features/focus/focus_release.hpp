@@ -24,10 +24,15 @@
  * game call. The template parameter `Env` lets tests run the same code on fake memory.
  */
 #pragma once
-#include "../../core/game_layout.hpp"
 #include "../../core/memory.hpp"
+#include "../../core/platform_game_layout.hpp"
+#if !defined(__APPLE__)
 #include "../../core/signature_table.hpp"
-#include "../../engine/msvc_string.hpp"
+#endif
+#include "../../engine/platform_string.hpp"
+#if defined(__APPLE__)
+#include "../../engine/macos_records.hpp"
+#endif
 #include "../editor/schema.hpp"
 
 #include <cstddef>
@@ -45,12 +50,15 @@ namespace rva = core::rva;
 namespace off = core::off;
 namespace flag = core::flag;
 
+#if !defined(__APPLE__)
 /// @brief Focus fingerprints (alias of the central table).
 inline constexpr const auto& focus_fingerprints = core::focus_signatures;
 /// @brief Number of focus fingerprints.
 inline constexpr std::size_t focus_fingerprint_count = core::focus_signature_count;
 /// @brief CEditBox slot pins (alias of the central table).
 inline constexpr const auto& focus_slot_pins = core::focus_slot_pins;
+
+#endif
 
 /// @brief One editor model and its field names.
 struct Editor {
@@ -114,6 +122,15 @@ struct Text {
  */
 template <class M>
 bool edit_text(const M& mem, uptr edit, Text& out) noexcept {
+#if defined(__APPLE__)
+    std::array<char32_t, max_text_points + 1> points{};
+    std::size_t size = 0;
+    if (!engine::macos::records::read_edit_text(mem, edit, std::span<char32_t>(points), size, max_text_capacity))
+        return false;
+    std::memcpy(out.points, points.data(), size * sizeof(char32_t));
+    out.size = size;
+    return true;
+#else
     u64 size = 0;
     u64 capacity = 0;
     uptr data = edit + off::edit_text;
@@ -126,6 +143,7 @@ bool edit_text(const M& mem, uptr edit, Text& out) noexcept {
     }
     out.size = size;
     return size == 0 || mem.read(data, out.points, static_cast<std::size_t>(size) * utf32_bytes);
+#endif
 }
 /**
  * @brief Compares two texts.

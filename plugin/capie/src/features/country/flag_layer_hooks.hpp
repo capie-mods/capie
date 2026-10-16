@@ -28,10 +28,16 @@
  * Logging is limited to the first lines of each kind (counts, the stem is a file name).
  */
 #pragma once
+#if !defined(__APPLE__)
 #include "../../core/game_layout.hpp"
+#endif
 #include "../../core/log.hpp"
 #include "../../core/memory.hpp"
+#if defined(__APPLE__)
+#include "../../engine/macos_owned_string.hpp"
+#else
 #include "../../engine/msvc_string.hpp"
+#endif
 #include "flag_layer.hpp"
 
 #include <array>
@@ -48,8 +54,19 @@
 
 namespace capie::country::flag {
 
-/// @brief `u64 UpdateFlagAtlas(atlas*, gfx*)`.
-using AtlasUpdateFn = std::uint64_t (*)(uptr, uptr);
+#if defined(__APPLE__)
+namespace layout_off = core::macos::off;
+namespace layout_rva = core::macos::rva;
+/// @brief Native atlas update has no result contract (0x10194a920).
+using AtlasResult = void;
+#else
+namespace layout_off = core::off;
+namespace layout_rva = core::rva;
+/// @brief Windows atlas update result.
+using AtlasResult = std::uint64_t;
+#endif
+/// @brief Platform-specific UpdateFlagAtlas(atlas*, gfx*).
+using AtlasUpdateFn = AtlasResult (*)(uptr, uptr);
 /// @brief `int LoadCountryFlag(atlas*, country*, dst*, int, int, int, int, void*)`.
 using LoadFlagFn = int (*)(uptr, uptr, void*, int, int, int, int, void*);
 /// @brief `vector* BuildFlagCandidates(vector* out, const string* tag, const string* cosmetic, group*)`.
@@ -100,6 +117,10 @@ public:
         AtlasUpdateFn atlas_update{};  ///< UpdateFlagAtlas.
         LoadFlagFn load_flag{};        ///< LoadCountryFlag.
         CandidatesFn candidates{};     ///< BuildFlagCandidates.
+#if defined(__APPLE__)
+        engine::macos::StringAllocate allocate{};  ///< Verified allocator for temporary native input.
+        void (*deallocate)(void*) noexcept {};     ///< Matching free after the synchronous builder returns.
+#endif
     };
 
     /**
@@ -123,7 +144,11 @@ public:
         image_ = image;
         log_ = log;
         enabled_.store(originals_.atlas_update != nullptr && originals_.load_flag != nullptr &&
-                       originals_.candidates != nullptr);
+                       originals_.candidates != nullptr
+#if defined(__APPLE__)
+                       && originals_.allocate != nullptr && originals_.deallocate != nullptr
+#endif
+        );
     }
 
     /// @brief Turns the layer off (hooks pass through).
@@ -181,7 +206,7 @@ public:
      * @param gfx Graphics object.
      * @return The original's result.
      */
-    std::uint64_t atlas_update(uptr atlas, uptr gfx) noexcept {
+    AtlasResult atlas_update(uptr atlas, uptr gfx) noexcept {
         if (enabled_.load()) {
             const auto now = generation_.load(std::memory_order_acquire);
             auto& seen = seen_slot(atlas);
@@ -231,10 +256,27 @@ public:
     void* candidates(void* out, const void* tag, const void* cosmetic, void* group) noexcept {
         const Frame* const frame = active_frame;
         if (frame != nullptr && frame->country != 0 &&
-            reinterpret_cast<uptr>(cosmetic) == frame->country + core::off::country_cosmetic_tag) {
+#if defined(__APPLE__)
+            frame->country <= core::uptr_max - layout_off::country_cosmetic_tag &&
+#endif
+            reinterpret_cast<uptr>(cosmetic) == frame->country + layout_off::country_cosmetic_tag) {
+#if defined(__APPLE__)
+            engine::macos::NativeString stem{}, empty{};
+            if (!engine::macos::construct_name(frame->stem, stem, originals_.allocate)) {
+                return originals_.candidates(out, tag, cosmetic, group);
+            }
+            void* result = originals_.candidates(out, &stem, &empty, nullptr);
+            if ((stem.bytes[0] & 1u) != 0) {
+                void* buffer = nullptr;
+                std::memcpy(&buffer, stem.bytes.data() + 16, sizeof(buffer));
+                originals_.deallocate(buffer);
+            }
+            return result;
+#else
             const auto stem = engine::borrowed_string(frame->stem.data(), frame->stem.size());
             const auto empty = engine::borrowed_string("", 0);
             return originals_.candidates(out, &stem, &empty, nullptr);
+#endif
         }
         return originals_.candidates(out, tag, cosmetic, group);
     }
@@ -271,9 +313,9 @@ private:
      */
     bool country_list(uptr& list, std::int32_t& count) const noexcept {
         uptr state = 0;
-        return core::rd(mem_, image_, core::rva::gamestate_global, state) && state != 0 &&
-               core::rd(mem_, state, core::off::gamestate_countries, list) &&
-               core::rd(mem_, state, core::off::gamestate_country_count, count) && list != 0 && count >= 0 &&
+        return core::rd(mem_, image_, layout_rva::gamestate_global, state) && state != 0 &&
+               core::rd(mem_, state, layout_off::gamestate_countries, list) &&
+               core::rd(mem_, state, layout_off::gamestate_country_count, count) && list != 0 && count >= 0 &&
                count <= max_countries;
     }
 
@@ -291,7 +333,7 @@ private:
         }
         std::int32_t tag = 0;
         uptr at = 0;
-        if (core::rd(mem_, country, core::off::country_tag, tag) && tag > 0 && tag < count &&
+        if (core::rd(mem_, country, layout_off::country_tag, tag) && tag > 0 && tag < count &&
             core::rd(mem_, list, static_cast<uptr>(tag) * sizeof(uptr), at) && at == country) {
             index = tag;
             return true;
@@ -422,8 +464,8 @@ private:
         std::int32_t slots = 0;
         uptr list = 0;
         std::int32_t count = 0;
-        if (!core::rd(mem_, atlas, core::off::flag_atlas_cosmetic_keys, keys) || keys == 0 ||
-            !core::rd(mem_, atlas, core::off::flag_atlas_cosmetic_count, slots) || !country_list(list, count)) {
+        if (!core::rd(mem_, atlas, layout_off::flag_atlas_cosmetic_keys, keys) || keys == 0 ||
+            !core::rd(mem_, atlas, layout_off::flag_atlas_cosmetic_count, slots) || !country_list(list, count)) {
             return;
         }
         for (const auto& [country, index] : changed) {
@@ -432,6 +474,13 @@ private:
                 !core::rd(mem_, list, static_cast<uptr>(index) * sizeof(uptr), at) || at != country) {
                 continue;
             }
+#if defined(__APPLE__)
+            const auto displacement = static_cast<uptr>(index) * sizeof(std::uint64_t);
+            if (displacement > core::uptr_max - keys ||
+                sizeof(std::uint64_t) > core::uptr_max - (keys + displacement)) {
+                continue;
+            }
+#endif
             const auto key = forced_key;
             const bool written =
                 mem_.write(keys + (static_cast<uptr>(index) * sizeof(std::uint64_t)), &key, sizeof(key));
@@ -477,13 +526,36 @@ private:
 };
 
 /**
- * @brief Writes bytes into a committed, writable page under an SEH guard.
+ * @brief Writes an atlas key into writable memory (Windows SEH; macOS bounded kernel copy).
  * @param target Address.
  * @param source Bytes.
  * @param size Byte count.
  * @return `true` when written.
  */
 inline bool guarded_write(uptr target, const void* source, std::size_t size) noexcept {
+#if defined(__APPLE__)
+    // Only the proven qword atlas key may be written. The kernel performs the copy
+    // without dereferencing potentially unmapped game addresses in this process.
+    if (target == 0 || source == nullptr || size != sizeof(std::uint64_t) || size > core::uptr_max - target) {
+        return false;
+    }
+    mach_vm_address_t start = target;
+    mach_vm_size_t extent = 0;
+    vm_region_basic_info_data_64_t info{};
+    mach_msg_type_number_t count = VM_REGION_BASIC_INFO_COUNT_64;
+    mach_port_t object = MACH_PORT_NULL;
+    const auto status = mach_vm_region(mach_task_self(), &start, &extent, VM_REGION_BASIC_INFO_64,
+                                       reinterpret_cast<vm_region_info_t>(&info), &count, &object);
+    if (object != MACH_PORT_NULL) {
+        mach_port_deallocate(mach_task_self(), object);
+    }
+    if (status != KERN_SUCCESS || start > target || target - start > extent || size > extent - (target - start) ||
+        (info.protection & VM_PROT_WRITE) == 0) {
+        return false;
+    }
+    return mach_vm_write(mach_task_self(), target, reinterpret_cast<vm_offset_t>(source),
+                         static_cast<mach_msg_type_number_t>(size)) == KERN_SUCCESS;
+#else
     MEMORY_BASIC_INFORMATION region{};
     if (target == 0 || VirtualQuery(reinterpret_cast<void*>(target), &region, sizeof(region)) == 0 ||
         region.State != MEM_COMMIT || (region.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0) {
@@ -503,6 +575,7 @@ inline bool guarded_write(uptr target, const void* source, std::size_t size) noe
     } __except (core::memory_exception(GetExceptionCode())) {
         return false;
     }
+#endif
 }
 
 /// @brief Memory policy of the flag layer in the game: guarded reads and the one guarded write.

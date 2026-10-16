@@ -38,10 +38,15 @@
  * counters stop at 999 per field and save (fail-safe).
  */
 #pragma once
-#include "../../core/game_layout.hpp"
 #include "../../core/memory.hpp"
+#include "../../core/platform_game_layout.hpp"
+#if !defined(__APPLE__)
 #include "../../core/signature_table.hpp"
-#include "../../engine/msvc_string.hpp"
+#endif
+#include "../../engine/platform_string.hpp"
+#if defined(__APPLE__)
+#include "../../engine/macos_records.hpp"
+#endif
 #include "../editor/schema.hpp"
 
 #include <algorithm>
@@ -73,6 +78,21 @@ inline constexpr int gui_view_limit = core::value::gui_view_limit;
 inline constexpr uptr gui_structural_offset = off::gui_structural;
 /// @brief RVA expected at that offset (diagnostic only, never a gate).
 inline constexpr uptr gui_structural_rva = rva::gui_structural;
+#if defined(__APPLE__)
+/// @brief Native slot triplet, independently mapped in editor-map.md and core-pins.json.
+struct NativeSlotPin {
+    uptr vtable;
+    uptr slot;
+    uptr target;
+};
+/// @brief Four native vtable checks retained by resolve_view; no Windows fingerprint reuse.
+inline constexpr NativeSlotPin slot_pins[] = {
+    {rva::vt_politics_view, off::slot_view_visible, rva::view_is_visible},
+    {rva::vt_politics_observer, off::slot_observer_frame, rva::observer_frame},
+    {rva::vt_politics_observer, off::slot_observer_refresh, rva::observer_refresh},
+    {rva::vt_ingame_idler, off::slot_idler_gui, rva::idler_gui_getter},
+};
+#else
 /// @brief The 25 caption fingerprints (alias of the central table).
 inline constexpr const auto& fingerprints = core::caption_signatures;
 /// @brief Number of caption fingerprints.
@@ -81,6 +101,8 @@ inline constexpr std::size_t fingerprint_count = core::caption_signature_count;
 inline constexpr const auto& slot_pins = core::caption_slot_pins;
 using core::decode_hex;
 using core::hex_nibble;
+
+#endif
 
 // ---------------------------------------------------------------------------------------------
 // Revision counters. HOI4 variables are fixed point; `[?var]` formatting of values >= 1000 is
@@ -582,12 +604,18 @@ Reject resolve_model(const M& mem, uptr image, uptr window, ResolveDiag* diag, u
     if (!rd(mem, model, off::model_parent_token, model_parent) || model_parent != politics_token) {
         return Reject::parent_token;
     }
+#if defined(__APPLE__)
+    if (!engine::macos::records::parent_names_empty(mem, model)) {
+        return Reject::parent_override;
+    }
+#else
     u64 parent_window_len = 1;
     u64 parent_sg_len = 1;
     if (!rd(mem, model, off::model_parent_window_len, parent_window_len) ||
         !rd(mem, model, off::model_parent_sg_len, parent_sg_len) || parent_window_len != 0 || parent_sg_len != 0) {
         return Reject::parent_override;
     }
+#endif
     uptr parent_sg = 1;
     if (!rd(mem, window, off::window_parent_sg, parent_sg) || parent_sg != 0) {
         return Reject::parent_sg_window;

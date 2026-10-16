@@ -47,6 +47,7 @@
 #include "../features/editor/lifecycle.hpp"
 #include "../features/editor/prefill.hpp"
 #include "../features/editor/public_editor.hpp"
+#include "../features/editor/release_pipeline.hpp"
 #include "../features/editor/transport.hpp"
 #include "../features/editor/window_view.hpp"
 #include "../features/focus/focus_adapter.hpp"
@@ -136,29 +137,8 @@ void __fastcall tick_observed(void* window, char force) noexcept {
  * @param window Scripted window.
  */
 void __fastcall bind_observed(void* window) noexcept {
-    // Native construction/rebind and recursive widget binding finish first. Forward once;
-    // do not access an old root or cache a window/widget pointer.
     original_bind(window);
-    if (!active.load(std::memory_order_acquire)) {
-        return;
-    }
-    caption_bind(window);
-    focus_bind(window);
-    public_bind(window);
-    View view{};
-    const auto result = inspect_window(window, view);
-    if (result == ViewResult::unrelated) {
-        return;
-    }
-    if (result == ViewResult::invalid) {
-        reset_model(view.model, false);
-        status_once(view.model, Status::bind_rejected, "bind-own-root-guard-rejected");
-        return;
-    }
-    // inspect_window verified exact own model + fresh context/window/root/lists. The newly bound
-    // root is normally hidden; its next visible tick prefills.
-    const auto generation = reset_bound_model(view.model);
-    diagnostic(next_observation_id(), "own-model-bound-readiness-reset", models[view.model].first, 0, generation);
+    after_bind_release(window);
 }
 
 /**
@@ -267,62 +247,12 @@ void __fastcall execute_observed(void* command) noexcept {
  * @param opaque_selector Selector string.
  */
 void __fastcall dispatch_observed(void* context, void* opaque_selector) noexcept {
-    const auto* selector = static_cast<const MsvcString*>(opaque_selector);
     if constexpr (debug_diagnostics) {
         if (active.load(std::memory_order_acquire)) {
-            debug_own_action(context, selector);
+            debug_own_action(context, static_cast<const MsvcString*>(opaque_selector));
         }
     }
-    const MsvcString* model_name = nullptr;
-    std::size_t model = model_count;
-    if (!active.load(std::memory_order_acquire)) {
-        original_dispatch(context, opaque_selector);
-        return;
-    }
-    if (!own_commit(context, selector, model_name, model)) {
-        // Grammar editors of other mods (public contract); anything else is forwarded unchanged.
-        if (!public_dispatch(context, opaque_selector)) {
-            original_dispatch(context, opaque_selector);
-        }
-        return;
-    }
-    const unsigned caption_code = caption_dispatch_verdict(context, model);
-    const bool caption_ok = caption_code == 0;
-    if (!caption_ok) {
-        bridge_rejected(next_observation_id(), "caption-seed-gate-apply-rejected");
-    }
-    Origin current{};
-    current.context = context;
-    current.model_name = model_name;
-    current.selector = selector;
-    current.model = model;
-    current.id = next_observation_id();
-    InputSnapshot snapshots[max_fields_per_model]{};
-    bool stale = !caption_ok;
-    if (!stale && original_ctor != nullptr && !capture_fields(current, snapshots)) {
-        stale = true;
-    }
-    if (stale) {
-        // RN6: never drop an own Apply silently while its own editor window is live.
-        if (stale_eligible(context, model) &&
-            dispatch_stale(current, opaque_selector,
-                           caption_ok ? static_cast<unsigned>(StaleCode::stale) : caption_code)) {
-            return;
-        }
-        bridge_rejected(current.id, "own-action-dropped-before-dispatch");
-        return;
-    }
-    if (original_ctor == nullptr || !prepare_transport(current, snapshots) || !still_current(current, snapshots)) {
-        bridge_rejected(current.id, "own-action-dropped-before-dispatch");
-        return;
-    }
-    {
-        const OriginFrame frame(&current);
-        original_dispatch(context, opaque_selector);
-    }
-    if (current.ctor_calls != 1) {
-        bridge_rejected(current.id, "unexpected-ctor-count-no-retry");
-    }
+    dispatch_release(context, opaque_selector);
 }
 
 /**

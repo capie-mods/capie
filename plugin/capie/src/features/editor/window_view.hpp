@@ -27,7 +27,9 @@
  */
 #pragma once
 #include "../../engine/game_calls.hpp"
+#if !defined(__APPLE__)
 #include "../../engine/msvc_string.hpp"
+#endif
 #include "../../engine/widgets.hpp"
 #include "public_names.hpp"
 #include "schema.hpp"
@@ -44,7 +46,9 @@ using engine::carrier;
 using engine::image_base;
 using engine::member;
 using engine::name_equals;
+#if !defined(__APPLE__)
 using engine::readable;
+#endif
 using engine::Utf8Snapshot;
 namespace rva = core::rva;
 namespace off = core::off;
@@ -90,8 +94,15 @@ inline ViewResult inspect_chain(void* window, void* model, View& out) noexcept {
         !member(context, off::context_root, ctx_root) || !member(window, off::window_root, out.root) ||
         ctx_root != out.root || !member(out.root, 0, root_vt) || root_vt != image_base + rva::vt_sg_root ||
         !member(out.root, off::root_flags, flags) || !member(window, off::window_desired, desired) ||
+#if defined(__APPLE__)
+        !engine::macos::root_guard(
+            core::ProcessMemory{}, reinterpret_cast<std::uintptr_t>(out.root),
+            {image_base + rva::vt_sg_root, image_base + rva::vt_edit, image_base + rva::vt_instant_text})
+#else
         !readable(out.root, off::root_readable_span) || !bounded_list(out.root, off::root_edit_list) ||
-        !bounded_list(out.root, off::root_instant_list) || !bounded_list(out.root, off::root_third_list)) {
+        !bounded_list(out.root, off::root_instant_list) || !bounded_list(out.root, off::root_third_list)
+#endif
+    ) {
         return ViewResult::invalid;
     }
     return desired != 0 && flag::shown_not_hidden(flags) ? ViewResult::visible : ViewResult::hidden;
@@ -196,6 +207,20 @@ inline bool window_may_be_own(void* window) noexcept {
         return true;  // let the observers' own guards decide
     }
     // Same acceptance rule as engine::string_equals, with the header and bytes read once.
+#if defined(__APPLE__)
+    engine::macos::detail::StringView header{};
+    if (!engine::macos::detail::decode<char>(core::ProcessMemory{}, model_address + off::model_name, header) ||
+        header.size > engine::macos::max_name_elements)
+        return false;
+    std::array<char, engine::macos::max_name_elements> bytes{};
+    if (!engine::macos::detail::copy(core::ProcessMemory{}, header, bytes.data(), false))
+        return false;
+    const std::string_view name(bytes.data(), header.size);
+    for (const char* candidate : tick_model_names)
+        if (name == candidate)
+            return true;
+    return grammar::may_be_model(name);
+#else
     engine::MsvcString header{};
     if (!engine::guarded_copy(&header, reinterpret_cast<const void*>(model_address + off::model_name),
                               sizeof(header)) ||
@@ -235,6 +260,7 @@ inline bool window_may_be_own(void* window) noexcept {
         }
     }
     return grammar::may_be_model(std::string_view(bytes, static_cast<std::size_t>(header.size)));
+#endif
 }
 
 }  // namespace capie::editor

@@ -48,8 +48,8 @@ namespace capie::editor {
 /// @brief Stack-bound state of one own dispatch; never stored in lifecycle/pending state.
 struct Origin {
     void* context{};                                             ///< Window context of the click.
-    const MsvcString* model_name{};                              ///< Model name inside the model object.
-    const MsvcString* selector{};                                ///< Selector passed to Dispatch.
+    const RecordString* model_name{};                            ///< Model name inside the model object.
+    const RecordString* selector{};                              ///< Selector passed to Dispatch.
     const void* scope{};                                         ///< context + 3C0 (constructor scope argument).
     const TempVector* source{};                                  ///< context + 470 (original record vector).
     Record records[max_original_records + max_frame_records]{};  ///< Substituted records.
@@ -92,7 +92,7 @@ inline constexpr std::size_t transport_line_capacity = 512;
  * @param index Receives the model index.
  * @return `true` for one of the three own Apply selectors on its own model.
  */
-inline bool own_commit(void* context, const MsvcString* selector, const MsvcString*& model_name,
+inline bool own_commit(void* context, const RecordString* selector, const RecordString*& model_name,
                        std::size_t& index) noexcept {
     std::uintptr_t context_vt = 0;
     std::uintptr_t model_vt = 0;
@@ -106,7 +106,7 @@ inline bool own_commit(void* context, const MsvcString* selector, const MsvcStri
     if (address > core::uptr_max - off::model_name) {
         return false;
     }
-    model_name = reinterpret_cast<const MsvcString*>(address + off::model_name);
+    model_name = reinterpret_cast<const RecordString*>(address + off::model_name);
     for (std::size_t i = 0; i < model_count; ++i) {
         if (name_equals(model_name, models[i].name) && name_equals(selector, models[i].apply)) {
             index = i;
@@ -185,7 +185,7 @@ inline bool capture_fields(Origin& current, InputSnapshot (&snapshots)[max_field
         }
         // A button click may release focus. Both fields belong to the same fresh View/epoch.
         diagnostic(current.id, "button-field-snapshot", field, current.epoch, current.generation, &snapshots[j],
-                   GetCurrentThreadId());
+                   core::platform::thread_id());
     }
     return true;
 }
@@ -194,6 +194,16 @@ inline bool capture_fields(Origin& current, InputSnapshot (&snapshots)[max_field
  * @brief Queries the capability export of `capie_core.dll` afresh.
  * @return The export's value, 0 when the module or export is missing or the call faults.
  */
+#if defined(__APPLE__)
+/// @brief Capability query installed only after native core verification; never resolved by symbol guessing.
+using CountryCapabilitiesQuery = std::uint32_t (*)() noexcept;
+/// @brief Null by default; no native country payload is authorized until explicitly bound.
+inline std::atomic<CountryCapabilitiesQuery> verified_country_capabilities{nullptr};
+inline std::uint32_t country_capabilities() noexcept {
+    const auto query = verified_country_capabilities.load(std::memory_order_acquire);
+    return query != nullptr ? query() : 0;
+}
+#else
 inline DWORD country_capabilities() noexcept {
     using Query = DWORD(WINAPI*)();
     auto* const module = GetModuleHandleW(core::core_dll_name);
@@ -210,6 +220,7 @@ inline DWORD country_capabilities() noexcept {
         return 0;
     }
 }
+#endif
 
 /**
  * @brief Whether a country Apply may run: `capie_core.dll` is initialized with the name layers.
@@ -325,11 +336,9 @@ inline bool transport_record(Record& record, const char* key, std::uint64_t valu
         return false;
     }
     record = {};
-    if (size != 0) {
-        std::memcpy(record.key.data.small, key, size);
+    if (!engine::inline_record_key(record, std::string_view(key, size))) {
+        return false;
     }
-    record.key.size = size;
-    record.key.capacity = engine::sso_capacity;
     record.raw_value = static_cast<std::int64_t>(value) * fixed_point;
     return true;
 }
@@ -353,7 +362,7 @@ inline CopyResult copy_original_records(Origin& current, TempVector& source, std
     if (!engine::guarded_copy(&source, current.source, sizeof(source)) || source.count < 0 ||
         std::cmp_greater(source.count, max_original_records) || source.capacity < source.count ||
         source.capacity > engine::max_vector_capacity ||
-        !readable(source.data, static_cast<std::size_t>(source.count) * sizeof(Record))) {
+        !core::readable(source.data, static_cast<std::size_t>(source.count) * sizeof(Record))) {
         return CopyResult::bad_vector;
     }
     kept = 0;
@@ -481,7 +490,7 @@ inline bool prepare_transport(Origin& current, const InputSnapshot (&snapshots)[
  * @param selector Selector argument.
  * @return `true` for the frame's own model and Apply selector (own or grammar editor).
  */
-inline bool frame_names(const Origin& current, const MsvcString* gui, const MsvcString* selector) noexcept {
+inline bool frame_names(const Origin& current, const RecordString* gui, const RecordString* selector) noexcept {
     if (current.public_model != nullptr) {
         return current.public_apply != nullptr && name_equals(gui, current.public_model) &&
                name_equals(selector, current.public_apply);
@@ -499,8 +508,12 @@ inline bool frame_names(const Origin& current, const MsvcString* gui, const Msvc
  * @param source Record vector argument.
  * @return The original constructor's result, unchanged.
  */
-inline void* __fastcall constructor_bridged(void* self, const MsvcString* gui, const MsvcString* selector,
-                                            const void* scope, const TempVector* source) noexcept {
+#if defined(__APPLE__)
+inline void constructor_bridged(void* self, const RecordString* gui, const RecordString* selector,
+#else
+inline void* __fastcall constructor_bridged(void* self, const RecordString* gui, const RecordString* selector,
+#endif
+                                const void* scope, const TempVector* source) noexcept {
     Origin* current = origin;
     if (!active.load(std::memory_order_acquire) || current == nullptr || gui != current->model_name ||
         selector != current->selector || scope != current->scope || source != current->source ||
@@ -510,18 +523,29 @@ inline void* __fastcall constructor_bridged(void* self, const MsvcString* gui, c
     ++current->ctor_calls;
     // The native constructor deep-copies the borrowed POD view. Exactly one call, no
     // cancellation/retry or engine-pointer lifetime extension after it starts.
+#if defined(__APPLE__)
+    original_ctor(self, gui, selector, scope, &current->view);
+    void* result = self;  // Native constructor is void; inspect the actual destination, never RAX.
+#else
     void* result = original_ctor(self, gui, selector, scope, &current->view);
+#endif
     TempVector copied{};
     const bool independent = member(result, off::effect_records, copied) && copied.count == current->view.count &&
                              copied.data != current->view.data &&
-                             readable(copied.data, static_cast<std::size_t>(copied.count) * sizeof(Record));
+                             core::readable(copied.data, static_cast<std::size_t>(copied.count) * sizeof(Record));
     char line[short_line_capacity]{};
     static_cast<void>(
         std::snprintf(line, sizeof(line),
+#if defined(__APPLE__)
+                      "RN_IEBR id=%lu ctor_calls=%u inspected_self=%u independent_record_storage=%u records=%d\r\n",
+#else
                       "RN_IEBR id=%lu ctor_calls=%u result_is_this=%u independent_record_storage=%u records=%d\r\n",
+#endif
                       current->id, current->ctor_calls, result == self ? 1U : 0U, independent ? 1U : 0U, copied.count));
     write_log(line);
+#if !defined(__APPLE__)
     return result;  // Preserve the native result even when post-ctor diagnostics fail.
+#endif
 }
 
 /**
@@ -574,9 +598,9 @@ inline bool dispatch_stale(Origin& current, void* opaque_selector, unsigned code
     }
     Record& epoch = current.records[kept++];
     epoch = {};
-    std::memcpy(epoch.key.data.small, command_epoch_key, sizeof(command_epoch_key) - 1);
-    epoch.key.size = sizeof(command_epoch_key) - 1;
-    epoch.key.capacity = engine::sso_capacity;
+    if (!engine::inline_record_key(epoch, std::string_view(command_epoch_key, sizeof(command_epoch_key) - 1))) {
+        return false;
+    }
     epoch.raw_value = -static_cast<std::int64_t>(code) * fixed_point;
     current.view = {current.records, static_cast<std::int32_t>(kept), static_cast<std::int32_t>(kept),
                     source.allocator};

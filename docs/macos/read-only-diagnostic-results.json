@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-16",
+  "game_pid": 62703,
+  "game_start_local": "2026-10-16 21:59:19 Europe/Warsaw",
+  "game_sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "library_sha256": "111730812b054b9665b02eb4792e1e5c098b0d9d53f70b6e538974b1bb6e5584",
+  "report_sha256": "34616fd41f19f279bcc5c213c3ce76d18243a1cb771608d8b3e94e851a09db04",
+  "report_mode": "0o600",
+  "report": {
+    "diagnostic_only": true,
+    "status": "static_subset_matches_not_activation",
+    "exact_sha": true,
+    "loaded_identity": true,
+    "lookup_prefix_matches": [
+      true,
+      true,
+      true
+    ],
+    "token_expected": "not_checked_after_init",
+    "token_reads": [
+      {
+        "read": true,
+        "value": 0
+      },
+      {
+        "read": true,
+        "value": 0
+      }
+    ]
+  },
+  "process_evidence": "ev_c823b71db355d1b3cd2f5ad90a81a9cc2a146dde49603be90ea3a02b02ad0069",
+  "launcher_version": "2026.12",
+  "launcher_diagnostic_arguments_observed": true,
+  "real_game_cwd_observed": true,
+  "diagnostic_dylib_in_lsof": true,
+  "libsteam_api_in_lsof": true,
+  "menu_confirmation": "user reported being in game; agent observed main menu Operation Postern v1.19.3.0.c01a (5632) (S)",
+  "playset": "temporary explicit diagnostic opt-in, not real mod playset",
+  "hooks_enabled": false,
+  "limitations": [
+    "Full Steam parent chain not observed; launcher started by open, Steam communication warning was displayed.",
+    "Game parent had exited before ps sample; PPID 1 does not establish original parent.",
+    "Only three localisation prefixes checked, no API 7 or feature behavior tested.",
+    "Both token values were 0 during constructor; post-initialization values not checked."
+  ]
+}

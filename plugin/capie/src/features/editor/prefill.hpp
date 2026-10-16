@@ -45,11 +45,11 @@ using engine::visible_edit;
  * @return `true` when visible, attempted and unchanged.
  */
 inline bool same_opening(std::size_t model, std::uint64_t epoch, std::uint64_t generation) noexcept {
-    AcquireSRWLockShared(&state_lock);
+    core::platform::lock_shared(&state_lock);
     const auto& current = lifecycle[model];
     const bool same =
         current.visible && current.attempted && current.epoch == epoch && current.generation == generation;
-    ReleaseSRWLockShared(&state_lock);
+    core::platform::unlock_shared(&state_lock);
     return same;
 }
 
@@ -160,13 +160,13 @@ inline void prefill_open(void* window, const View& view, std::uint64_t epoch, st
         diagnostic(id, "prefill-render-refresh-returned", field, epoch, generation);
         diagnostic(id, "prefill-readback-pass", field, epoch, generation, &check);
     }
-    AcquireSRWLockExclusive(&state_lock);
+    core::platform::lock(&state_lock);
     auto& state = lifecycle[view.model];
     const bool prefilled = state.visible && state.epoch == epoch && state.generation == generation;
     if (prefilled) {
         state.prefilled = true;
     }
-    ReleaseSRWLockExclusive(&state_lock);
+    core::platform::unlock(&state_lock);
     // Caption seed: only after this opening's one-shot prefill fully succeeded (no lock held).
     if (prefilled) {
         caption::caption_prefill(window, view.model);
@@ -184,16 +184,16 @@ inline void consume_diagnostic(const View& view, std::uint64_t epoch, std::uint6
                                unsigned long id) noexcept {
     for (std::size_t i = models[view.model].first; i < models[view.model].first + models[view.model].count; ++i) {
         Pending request{};
-        AcquireSRWLockExclusive(&state_lock);
+        core::platform::lock(&state_lock);
         request = pending[i];
         pending[i] = {};
-        ReleaseSRWLockExclusive(&state_lock);
+        core::platform::unlock(&state_lock);
         if (!request.valid) {
             continue;
         }
         void* edit = guarded_find(find_edit, view.root, fields[i].edit);
         InputSnapshot current{};
-        const auto age = GetTickCount64() - request.created;
+        const auto age = core::platform::monotonic_ms() - request.created;
         const bool valid = request.epoch == epoch && request.generation == generation && age <= enter_max_age_ms &&
                            edit_named(edit, fields[i].edit) && engine::input_active(edit) &&
                            snapshot_edit(edit, fields[i].edit, current) && same_text(request.text, current);
@@ -254,11 +254,11 @@ inline void observe_tick(void* window) noexcept {
     status_once(view.model, Status::visible_valid, "own-root-visible-epoch-valid");
     bool attempt = false;
     std::uint64_t generation = 0;
-    AcquireSRWLockExclusive(&state_lock);
+    core::platform::lock(&state_lock);
     if (see_visible(lifecycle[view.model], epoch, generation, attempt)) {
         clear_pending(view.model);
     }
-    ReleaseSRWLockExclusive(&state_lock);
+    core::platform::unlock(&state_lock);
     const auto id = next_observation_id();
     if (attempt) {
         prefill_open(window, view, epoch, generation, id);

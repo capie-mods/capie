@@ -12,15 +12,43 @@
  * which keys are reserved or what values mean; that is editor protocol.
  */
 #pragma once
+#if defined(__APPLE__)
+#include "macos_records.hpp"
+namespace capie::engine {
+/// @brief Platform record string; native libc++ on macOS.
+using RecordString = macos::NativeString;
+using Record = macos::records::Record;
+using TempVector = macos::records::TempVector;
+inline constexpr std::size_t record_bytes = sizeof(Record);
+inline constexpr std::size_t record_value_offset = offsetof(Record, raw_value);
+inline constexpr std::size_t vector_bytes = sizeof(TempVector);
+inline constexpr std::size_t vector_count_offset = offsetof(TempVector, count);
+inline constexpr std::size_t vector_allocator_offset = offsetof(TempVector, allocator);
+inline constexpr std::int32_t max_vector_capacity = macos::records::max_capacity;
+/// @brief Copies a strict native record key from a local record snapshot.
+inline bool record_key(const Record& record, char (&out)[129]) noexcept {
+    std::size_t length = 0;
+    return macos::records::read_key(core::ProcessMemory{}, record, out, length);
+}
+/// @brief Constructs a fresh inline key; source is trusted and bounded by the protocol.
+inline bool inline_record_key(Record& record, std::string_view key) noexcept {
+    return key.size() <= 22 && macos::construct_name(key, record.key, nullptr);
+}
+}  // namespace capie::engine
+#else
 #include "../core/memory.hpp"
 #include "msvc_string.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <string_view>
 #include <type_traits>
 
 namespace capie::engine {
+
+/// @brief Platform record string; MSVC on Windows.
+using RecordString = MsvcString;
 
 /// @brief One temp variable: name and fixed-point raw value.
 struct Record {
@@ -70,4 +98,13 @@ inline bool record_key(const Record& record, char (&out)[max_name_bytes + 1]) no
            std::memchr(out, '\0', static_cast<std::size_t>(key.size)) == nullptr;
 }
 
+/// @brief Constructs a fresh inline key; source is trusted and bounded by the protocol.
+inline bool inline_record_key(Record& record, std::string_view key) noexcept {
+    if (key.size() > sso_capacity || key.find('\0') != std::string_view::npos)
+        return false;
+    record.key = borrowed_string(key.data(), key.size());
+    return true;
+}
 }  // namespace capie::engine
+
+#endif

@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-16",
+  "status": "incomplete_ipc_transport",
+  "game_touched": false,
+  "code_writes": false,
+  "suspend_calls": 0,
+  "completed_cycles": 0,
+  "attempts": [
+    {"architecture": "arm64", "method": "task_for_pid_owned_child", "result": "KERN_FAILURE", "mach_error": 5},
+    {"architecture": "arm64", "method": "registered_port_transfer", "result": "MACH_RCV_TIMED_OUT", "mach_error": 268451843},
+    {"architecture": "arm64", "method": "registered_port_transfer_relaxed_count", "result": "MACH_RCV_TIMED_OUT", "mach_error": 268451843, "child_stage": 2, "send_result": 0},
+    {"architecture": "x86_64", "method": "registered_port_transfer", "result": "MACH_RCV_TIMED_OUT", "mach_error": 268451843},
+    {"architecture": "x86_64", "method": "registered_port_transfer_relaxed_count", "result": "MACH_RCV_TIMED_OUT", "mach_error": 268451843, "child_stage": 2, "send_result": 0}
+  ],
+  "limitation": "Successful child send plus parent timeout does not establish denial of task-port transfer. Registered-slot endpoint inheritance is unproven. Stopped after three failed arm64 attempts."
+}

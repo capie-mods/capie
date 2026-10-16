@@ -1,0 +1,134 @@
+{
+  "evidence_id": "ev_668dd201e4c3d1237b680843aa9b17569651039d436627d97e3645b2c88cafd7",
+  "subject": {
+    "name": "hoi4",
+    "digest": {
+      "sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb"
+    },
+    "local_path": "/Users/cyprian/Library/Application Support/Steam/steamapps/common/Hearts of Iron IV/hoi4.app/Contents/MacOS/hoi4",
+    "format": "mach-o",
+    "architecture": "x86_64"
+  },
+  "provider": {
+    "id": "rea-analysis-view",
+    "name": "REA analysis view projection",
+    "version": "1"
+  },
+  "analysis_profile": null,
+  "predicate_type": "rea.analysis-view",
+  "operation": "inspect_analysis_view",
+  "parameters": {
+    "parent_evidence_id": "ev_ee8addc5e5756683f5bc6ea65e084f39c94be34b3834cc77bfaf001205b96c23",
+    "view": {
+      "kind": "summary"
+    }
+  },
+  "raw_result": null,
+  "normalized_result": {
+    "kind": "summary",
+    "view": {
+      "kind": "summary"
+    },
+    "parent_evidence_id": "ev_ee8addc5e5756683f5bc6ea65e084f39c94be34b3834cc77bfaf001205b96c23",
+    "parent_operation": "inspect_macho",
+    "parent_digest": "ee8addc5e5756683f5bc6ea65e084f39c94be34b3834cc77bfaf001205b96c23",
+    "view_digest": "f91024e5b64f474df356e10d1af82825225c002cb230e7989e5b1f9e2d3c54a0",
+    "artifact": {
+      "path": "/Users/cyprian/Library/Application Support/Steam/steamapps/common/Hearts of Iron IV/hoi4.app/Contents/MacOS/hoi4",
+      "sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb"
+    },
+    "coverage": {
+      "status": "complete-within-view",
+      "examined": 46036,
+      "total": 46036,
+      "next_offset": null,
+      "exhausted": true
+    },
+    "limitations": [
+      "Imports and exports combine dyld_info and nm; stripped or toolchain-hidden symbols may be absent.",
+      "Merged nm/dyld_info results may be incomplete for stripped binaries.",
+      "dyld_info textual imports may omit chained or toolchain-unsupported metadata.",
+      "vtool output is retained as provenance but only otool build metadata is normalized."
+    ],
+    "unknowns": [
+      "Native tools did not report exhaustive imports, exports; page exhaustion does not establish absence of unreturned rows."
+    ],
+    "summary": {
+      "format": "mach-o",
+      "selected_architecture": {
+        "name": "x86_64",
+        "container_file_offset": 0
+      },
+      "endian": "little",
+      "word_size": 64,
+      "file_type": "2",
+      "flags": [
+        "0x00818085"
+      ],
+      "uuid": "089EA519-6780-353B-8E39-4E9309B444D4",
+      "collections": {
+        "entrypoints": {
+          "returned": 1,
+          "total": 1,
+          "exhaustive": true
+        },
+        "architectures": {
+          "returned": 1,
+          "total": 1,
+          "exhaustive": true
+        },
+        "build_metadata": {
+          "returned": 1,
+          "total": 1,
+          "exhaustive": true
+        },
+        "load_commands": {
+          "returned": 38,
+          "total": 38,
+          "exhaustive": true
+        },
+        "dependencies": {
+          "returned": 24,
+          "total": 24,
+          "exhaustive": true
+        },
+        "imports": {
+          "returned": 915,
+          "total": null,
+          "exhaustive": false
+        },
+        "exports": {
+          "returned": 45052,
+          "total": null,
+          "exhaustive": false
+        },
+        "segments": {
+          "returned": 4,
+          "total": 4,
+          "exhaustive": true
+        }
+      },
+      "provenance_count": 7,
+      "limitation_count": 4
+    }
+  },
+  "confidence": "derived",
+  "authority": "shipped-artifact",
+  "environment": null,
+  "limitations": [
+    "Imports and exports combine dyld_info and nm; stripped or toolchain-hidden symbols may be absent.",
+    "Merged nm/dyld_info results may be incomplete for stripped binaries.",
+    "dyld_info textual imports may omit chained or toolchain-unsupported metadata.",
+    "vtool output is retained as provenance but only otool build metadata is normalized."
+  ],
+  "relationship_coverage": null,
+  "locations": [
+    {
+      "kind": "artifact-path",
+      "path": "/Users/cyprian/Library/Application Support/Steam/steamapps/common/Hearts of Iron IV/hoi4.app/Contents/MacOS/hoi4"
+    }
+  ],
+  "evidence_links": [
+    "ev_ee8addc5e5756683f5bc6ea65e084f39c94be34b3834cc77bfaf001205b96c23"
+  ]
+}

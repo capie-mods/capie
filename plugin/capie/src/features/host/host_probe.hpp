@@ -32,6 +32,9 @@
  */
 #pragma once
 #include "../../core/memory.hpp"
+#if defined(__APPLE__)
+#include "../../engine/macos_string.hpp"
+#endif
 
 #include <array>
 #include <cstddef>
@@ -45,6 +48,45 @@ using core::uptr;
 
 /// @brief RVAs and offsets of the host chain (each one pinned in `host_pins.hpp`).
 namespace layout {
+#if defined(__APPLE__)
+/// @brief Native evidence: 0x102675944, 0x10060df09, 0x10060df10.
+inline constexpr uptr app_global = 0x3639ad8;
+/// @brief Native evidence: RTTI proof in layers-map.md.
+inline constexpr uptr vt_game_application = 0x32ff870;
+/// @brief Native evidence: RTTI proof in layers-map.md.
+inline constexpr uptr vt_session = 0x34a7710;
+/// @brief Native evidence: RTTI proof in layers-map.md.
+inline constexpr uptr vt_proxy_server = 0x34a71a0;
+/// @brief Native evidence: RTTI proof in layers-map.md.
+inline constexpr uptr vt_network_server = 0x34a7078;
+/// @brief Native evidence: RTTI proof in layers-map.md.
+inline constexpr uptr vt_dummy_server = 0x34a75d8;
+/// @brief Native evidence: RTTI proof in layers-map.md.
+inline constexpr uptr vt_human = 0x3308f18;
+/// @brief Native evidence: layers-map.json core::rva::gamestate_global.
+inline constexpr uptr gamestate_global = 0x3519740;
+/// @brief Native evidence: 0x10060e109, 0x10060e10e, 0x1026d4685, 0x10062e904.
+inline constexpr uptr app_session = 0x320;
+/// @brief Native evidence: 0x1026d3c6f.
+inline constexpr uptr session_mode = 0x4c;
+/// @brief Native evidence: 0x1026d3c57, 0x1026d3c5a, 0x1026d3c5d.
+inline constexpr uptr session_is_server = 0x54;
+/// @brief Native evidence: 0x1026d3c8f, 0x1026d4d08.
+inline constexpr uptr session_backend = 0x58;
+/// @brief Native evidence: 0x1026d5694, 0x1026d56b0.
+inline constexpr uptr session_machine_id = 0xa4;
+/// @brief Native evidence: 0x1006e7e93.
+inline constexpr uptr gamestate_humans = 0xe0;
+/// @brief Native evidence: 0x1006e7e89.
+inline constexpr uptr gamestate_human_count = 0xec;
+/// @brief Native evidence: 0x1006e7ea8.
+inline constexpr uptr human_stride = 0x90;
+/// @brief Native evidence: 0x100692988, 0x1006929a0, 0x1006929ba, 0x1006929be, 0x1006929e4, 0x1006929fd.
+inline constexpr uptr human_name = 0x20;
+/// @brief Native evidence: 0x1006e7ea0, 0x100757a28.
+inline constexpr uptr human_machine_id = 0x88;
+inline constexpr std::int32_t host_machine_id = 1;  ///< 2269C50: cmp dword [rcx+0C],1 = "from host".
+#else
 inline constexpr uptr app_global = 0x3452450;           ///< CApplication* (RIP target in 222BDB0).
 inline constexpr uptr vt_game_application = 0x27182E0;  ///< CGameApplication primary vtable.
 inline constexpr uptr vt_session = 0x2B3E9D8;           ///< CSession vtable.
@@ -66,15 +108,19 @@ inline constexpr uptr human_name = 0x20;              ///< 19A94BB: lea rdx,[rbx
 inline constexpr uptr human_machine_id = 0x98;        ///< 1DB91C / BBC6E3.
 inline constexpr std::int32_t host_machine_id = 1;    ///< 2269C50: cmp dword [rcx+0C],1 = "from host".
 
+#endif
+
 inline constexpr std::int32_t mode_client = 0;      ///< Session mode of an MP client.
 inline constexpr std::int32_t mode_mp_host = 1;     ///< Session mode of an MP host.
 inline constexpr std::int32_t mode_local = 2;       ///< Session mode of a local (SP) session.
 inline constexpr std::int32_t max_humans = 64;      ///< Sanity bound (HOI4 MP lobby is far smaller).
 inline constexpr std::size_t max_name_bytes = 128;  ///< Longer names = unreadable (fail-closed).
 inline constexpr std::uint8_t unread_flag = 0xFF;   ///< Server flag value before a read.
-inline constexpr std::uint64_t sso_capacity = 15;   ///< MSVC std::string inline capacity.
-inline constexpr uptr string_size = 0x10;           ///< MSVC std::string size field.
-inline constexpr uptr string_capacity = 0x18;       ///< MSVC std::string capacity field.
+#if !defined(__APPLE__)
+inline constexpr std::uint64_t sso_capacity = 15;  ///< MSVC std::string inline capacity.
+inline constexpr uptr string_size = 0x10;          ///< MSVC std::string size field.
+inline constexpr uptr string_capacity = 0x18;      ///< MSVC std::string capacity field.
+#endif
 }  // namespace layout
 
 /// @brief One player name copied out of the game (bytes, not NUL-terminated).
@@ -115,6 +161,15 @@ enum class Verdict : std::uint8_t {
  */
 template <class M>
 bool read_name(const M& mem, uptr string_address, Name& out) noexcept {
+#if defined(__APPLE__)
+    engine::macos::detail::StringView view{};
+    if (!engine::macos::detail::decode<char>(mem, string_address, view) || view.size == 0 ||
+        view.size > out.bytes.size() || !engine::macos::detail::copy(mem, view, out.bytes.data(), false))
+        return false;
+    out.size = view.size;
+    out.ok = true;
+    return true;
+#else
     std::uint64_t size = 0;
     std::uint64_t capacity = 0;
     if (!core::rd(mem, string_address, layout::string_size, size) ||
@@ -132,6 +187,7 @@ bool read_name(const M& mem, uptr string_address, Name& out) noexcept {
     out.size = static_cast<std::size_t>(size);
     out.ok = true;
     return true;
+#endif
 }
 
 /**
@@ -188,6 +244,10 @@ Snapshot read_snapshot(const M& mem, uptr image) noexcept {
         !core::rd(mem, gamestate, layout::gamestate_human_count, count) || count <= 0 || count > layout::max_humans) {
         return s;
     }
+#if defined(__APPLE__)
+    if (!engine::macos::detail::valid_range(humans, static_cast<std::size_t>(count) * layout::human_stride))
+        return s;
+#endif
     s.humans = count;
     int my_hits = 0;
     int host_hits = 0;

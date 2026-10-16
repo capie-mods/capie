@@ -1,0 +1,1326 @@
+{
+  "sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "scope": "Static file integrity and recorded targets only; no runtime ABI or hook safety. Runtime BSS token values excluded; initializer evidence retained.",
+  "source_manifests": [
+    "../editor-pins.json",
+    "../layers-pins.json",
+    "../core-pins.json",
+    "../host-pins.json"
+  ],
+  "runtime_value_exclusions": [
+    "core-pins/token.politics_tab",
+    "core-pins/token.player_context"
+  ],
+  "source_record_count": 222,
+  "validated_reference_count": 11,
+  "pins": [
+    {
+      "id": "editor-pins/editor.bind",
+      "file_offset": 11820736,
+      "hex": "554889e54157415641554154534883ec284989fc4c8b9fe0000000418b4b2485c90f8e440100004d8b8c24e8000000498b7978",
+      "va": "0x100b45ec0"
+    },
+    {
+      "id": "editor-pins/editor.tick",
+      "file_offset": 11812896,
+      "hex": "554889e54157415641554154534881ecd80000004189f64889fb488d7720488d7dc831d2b902000000e8b224f601488b83f0000000",
+      "va": "0x100b44020"
+    },
+    {
+      "id": "editor-pins/editor.key",
+      "file_offset": 42329808,
+      "hex": "554889e5415741564154534883ec204989f64889fb4889f7e823cee3ff84c00f8473020000488d05247e6900448b384c89f7",
+      "va": "0x10285e6d0"
+    },
+    {
+      "id": "editor-pins/editor.find_edit",
+      "file_offset": 41362128,
+      "hex": "554889e54157415641554154534883ec384189d64989f54889fb488db7980e0000488d97800e00004c89efe850b3ffff",
+      "va": "0x1027722d0"
+    },
+    {
+      "id": "editor-pins/editor.find_instant",
+      "file_offset": 41361648,
+      "hex": "554889e54157415641554154534883ec384189d64989f54889fb488db7380e0000488d97200e00004c89efe850b3ffff",
+      "va": "0x1027720f0"
+    },
+    {
+      "id": "editor-pins/editor.set_text",
+      "file_offset": 42329248,
+      "hex": "554889e5f60601740a488b76105de92dffffff48ffc65de924ffffff0f1f4000",
+      "va": "0x10285e4a0"
+    },
+    {
+      "id": "editor-pins/editor.refresh_edit",
+      "file_offset": 41500432,
+      "hex": "554889e54157415641554154534881ec980000004883bf90010000000f84c50200004889fb4883c770e8b2c60c004989c6",
+      "va": "0x102793f10"
+    },
+    {
+      "id": "editor-pins/editor.wrapper",
+      "file_offset": 41499344,
+      "hex": "554889e5415741565350f68739020000020f85f20000004889f34989fe4889f7e85b76f0ff85c075624c89f7e82f720300",
+      "va": "0x102793ad0"
+    },
+    {
+      "id": "editor-pins/editor.dispatch",
+      "file_offset": 11843552,
+      "hex": "554889e54157415641554154534883ec48488975c04889fb4c8db7c0030000488d7d984c89f631d2e81376e1ff48895dd0",
+      "va": "0x100b4b7e0"
+    },
+    {
+      "id": "editor-pins/editor.ctor",
+      "file_offset": 2144288,
+      "hex": "554889e55de986faffff",
+      "va": "0x10020b820"
+    },
+    {
+      "id": "editor-pins/editor.execute",
+      "file_offset": 2144304,
+      "hex": "554889e54157415641554154534883ec584889fb488d051e4e3d03803800744c4c8b354125090341803e00753f488b050cf30603",
+      "va": "0x10020b830"
+    },
+    {
+      "id": "editor-pins/editor.ctor_body",
+      "file_offset": 2142896,
+      "hex": "554889e54157415641554154534883ec584989cf4989d64989f44889fbc6470800b8ffffffff4889470cc747140000ffff",
+      "va": "0x10020b2b0"
+    },
+    {
+      "id": "layers-pins/name.update_names",
+      "file_offset": 18327440,
+      "hex": "554889e54157415641554154534881ec580400004889fb",
+      "va": "0x10117a790"
+    },
+    {
+      "id": "layers-pins/name.build_name_key",
+      "file_offset": 18317104,
+      "hex": "554889e54157415641554154534881ece80000004c89cb4d89c6",
+      "va": "0x101177f30"
+    },
+    {
+      "id": "layers-pins/name.set_variable_execute",
+      "file_offset": 17172464,
+      "hex": "554889e54157415653504989f64989ff4883c75031d2e8052290ff",
+      "va": "0x1010607f0"
+    },
+    {
+      "id": "layers-pins/name.variable_find",
+      "file_offset": 11547072,
+      "hex": "554889e54157415641554154534883ec184c8b7e08",
+      "va": "0x100b031c0"
+    },
+    {
+      "id": "layers-pins/name.variable_get",
+      "file_offset": 11547024,
+      "hex": "554889e54883ec10488955f84883c710",
+      "va": "0x100b03190"
+    },
+    {
+      "id": "layers-pins/faction.get_name",
+      "file_offset": 15017952,
+      "hex": "554889e5415741564154534889fb0fb64618",
+      "va": "0x100e527e0"
+    },
+    {
+      "id": "layers-pins/portrait.resolve",
+      "file_offset": 14089184,
+      "hex": "554889e54157415641554154534881ec880000004d89cc",
+      "va": "0x100d6fbe0"
+    },
+    {
+      "id": "layers-pins/portrait.valid",
+      "file_offset": 7700896,
+      "hex": "554889e5415741564154534883ec10803f000f84ce000000",
+      "va": "0x1007581a0"
+    },
+    {
+      "id": "layers-pins/flag.atlas_update",
+      "file_offset": 26519840,
+      "hex": "554889e54157415641554154534881ec880000004989f74989fe488d05285dc901",
+      "va": "0x10194a920"
+    },
+    {
+      "id": "layers-pins/flag.load_country_flag",
+      "file_offset": 26518624,
+      "hex": "554889e54157415641554154534881ec780200004589cd",
+      "va": "0x10194a460"
+    },
+    {
+      "id": "layers-pins/flag.build_candidates",
+      "file_offset": 2455376,
+      "hex": "554889e54157415641554154534883ec384989cf4989d44989f64889fb488d47180f57c00f110748894710488b05ee530303",
+      "va": "0x100257750"
+    },
+    {
+      "id": "layers-pins/country.variables",
+      "file_offset": 9814338,
+      "hex": "488b98d8010000",
+      "va": "0x10095c142"
+    },
+    {
+      "id": "layers-pins/country.variables2",
+      "file_offset": 9815485,
+      "hex": "488b98d8010000",
+      "va": "0x10095c5bd"
+    },
+    {
+      "id": "layers-pins/scoped_variable.name_size",
+      "file_offset": 9820662,
+      "hex": "4d8b6c2478",
+      "va": "0x10095d9f6"
+    },
+    {
+      "id": "layers-pins/scoped_variable.name_data",
+      "file_offset": 9820667,
+      "hex": "4d8bb42480000000",
+      "va": "0x10095d9fb"
+    },
+    {
+      "id": "layers-pins/scoped_variable.name_capacity",
+      "file_offset": 9820605,
+      "hex": "f6467001",
+      "va": "0x10095d9bd"
+    },
+    {
+      "id": "layers-pins/set_variable.scoped_variable",
+      "file_offset": 17172480,
+      "hex": "4883c750",
+      "va": "0x101060800"
+    },
+    {
+      "id": "layers-pins/update_names.tag_argument",
+      "file_offset": 18328545,
+      "hex": "4c8db300120000",
+      "va": "0x10117abe1"
+    },
+    {
+      "id": "layers-pins/gamestate.countries",
+      "file_offset": 18707024,
+      "hex": "498b8c24d8020000",
+      "va": "0x1011d7250"
+    },
+    {
+      "id": "layers-pins/gamestate.country_count",
+      "file_offset": 7267636,
+      "hex": "8b87e4020000",
+      "va": "0x1006ee534"
+    },
+    {
+      "id": "layers-pins/country_of.countries",
+      "file_offset": 18707024,
+      "hex": "498b8c24d8020000",
+      "va": "0x1011d7250"
+    },
+    {
+      "id": "layers-pins/faction.leader_first_member",
+      "file_offset": 14382176,
+      "hex": "498b4648",
+      "va": "0x100db7460"
+    },
+    {
+      "id": "layers-pins/faction.member_count",
+      "file_offset": 15008725,
+      "hex": "418b442454",
+      "va": "0x100e503d5"
+    },
+    {
+      "id": "layers-pins/resolve.character_argument",
+      "file_offset": 14089207,
+      "hex": "4d89c7",
+      "va": "0x100d6fbf7"
+    },
+    {
+      "id": "layers-pins/resolve.character_id",
+      "file_offset": 14089473,
+      "hex": "418b470c",
+      "va": "0x100d6fd01"
+    },
+    {
+      "id": "layers-pins/valid.flag_byte",
+      "file_offset": 7700911,
+      "hex": "803f00",
+      "va": "0x1007581af"
+    },
+    {
+      "id": "layers-pins/valid.kind",
+      "file_offset": 7700923,
+      "hex": "8b4704",
+      "va": "0x1007581bb"
+    },
+    {
+      "id": "layers-pins/valid.name",
+      "file_offset": 7700962,
+      "hex": "4883c608",
+      "va": "0x1007581e2"
+    },
+    {
+      "id": "layers-pins/character.write_portraits",
+      "file_offset": 14015777,
+      "hex": "498d5560",
+      "va": "0x100d5dd21"
+    },
+    {
+      "id": "layers-pins/character.write_variables",
+      "file_offset": 14016371,
+      "hex": "4d8dbdd0000000",
+      "va": "0x100d5df73"
+    },
+    {
+      "id": "layers-pins/leader.politics",
+      "file_offset": 18334772,
+      "hex": "488b87380d0000",
+      "va": "0x10117c434"
+    },
+    {
+      "id": "layers-pins/leader.ruling_party",
+      "file_offset": 16510749,
+      "hex": "488bb8d0000000",
+      "va": "0x100fbef1d"
+    },
+    {
+      "id": "layers-pins/leader.first_role",
+      "file_offset": 20343412,
+      "hex": "837f6c00",
+      "va": "0x101366a74"
+    },
+    {
+      "id": "layers-pins/leader.deref",
+      "file_offset": 14166276,
+      "hex": "488b075dc3",
+      "va": "0x100d82904"
+    },
+    {
+      "id": "layers-pins/leader.character",
+      "file_offset": 19926292,
+      "hex": "488b4708",
+      "va": "0x101300d14"
+    },
+    {
+      "id": "layers-pins/effect.civilian_large",
+      "file_offset": 16510823,
+      "hex": "31f6",
+      "va": "0x100fbef67"
+    },
+    {
+      "id": "layers-pins/atlas.cosmetic_keys",
+      "file_offset": 26520970,
+      "hex": "498b86c0000000",
+      "va": "0x10194ad8a"
+    },
+    {
+      "id": "layers-pins/atlas.cosmetic_key_qword",
+      "file_offset": 26520977,
+      "hex": "4a391cf8",
+      "va": "0x10194ad91"
+    },
+    {
+      "id": "layers-pins/atlas.cosmetic_count",
+      "file_offset": 26520192,
+      "hex": "413986cc000000",
+      "va": "0x10194aa80"
+    },
+    {
+      "id": "layers-pins/atlas.country_list",
+      "file_offset": 26520634,
+      "hex": "488b80d8020000",
+      "va": "0x10194ac3a"
+    },
+    {
+      "id": "layers-pins/atlas.slot_is_list_index",
+      "file_offset": 26520641,
+      "hex": "4e8b24f8",
+      "va": "0x10194ac41"
+    },
+    {
+      "id": "layers-pins/load.cosmetic_argument",
+      "file_offset": 26518700,
+      "hex": "4d8da600120000",
+      "va": "0x10194a4ac"
+    },
+    {
+      "id": "layers-pins/tag.index_is_int",
+      "file_offset": 18707015,
+      "hex": "8b0488",
+      "va": "0x1011d7247"
+    },
+    {
+      "id": "layers-pins/character.reader_this",
+      "file_offset": 14011879,
+      "hex": "4989fd",
+      "va": "0x100d5cde7"
+    },
+    {
+      "id": "layers-pins/ui.size_to_resolve",
+      "file_offset": 37565390,
+      "hex": "4489e1",
+      "va": "0x1023d33ce"
+    },
+    {
+      "id": "layers-pins/ui.out_to_resolve",
+      "file_offset": 37565381,
+      "hex": "4889df",
+      "va": "0x1023d33c5"
+    },
+    {
+      "id": "layers-pins/ui.unknown_choice",
+      "file_offset": 37565349,
+      "hex": "480f44f0",
+      "va": "0x1023d33a5"
+    },
+    {
+      "id": "layers-pins/leader.role_data",
+      "file_offset": 20343418,
+      "hex": "488b7f60",
+      "va": "0x101366a7a"
+    },
+    {
+      "id": "layers-pins/effect.large_size",
+      "file_offset": 16510825,
+      "hex": "ba01000000",
+      "va": "0x100fbef69"
+    },
+    {
+      "id": "layers-pins/faction.first_deref",
+      "file_offset": 14382180,
+      "hex": "488b38",
+      "va": "0x100db7464"
+    },
+    {
+      "id": "layers-pins/faction.first_tag",
+      "file_offset": 14382183,
+      "hex": "8b4708",
+      "va": "0x100db7467"
+    },
+    {
+      "id": "layers-pins/ui.size_small_is_zero",
+      "file_offset": 37565324,
+      "hex": "4585e4",
+      "va": "0x1023d338c"
+    },
+    {
+      "id": "layers-pins/ui.character_argument",
+      "file_offset": 37565393,
+      "hex": "4d89e8",
+      "va": "0x1023d33d1"
+    },
+    {
+      "id": "layers-pins/ui.out_buffer",
+      "file_offset": 37565377,
+      "hex": "488d5da8",
+      "va": "0x1023d33c1"
+    },
+    {
+      "id": "layers-pins/character.read_variables_token",
+      "file_offset": 14012126,
+      "hex": "81fa4a2a0000",
+      "va": "0x100d5cede"
+    },
+    {
+      "id": "layers-pins/character.read_variables",
+      "file_offset": 14012192,
+      "hex": "4981c5d0000000",
+      "va": "0x100d5cf20"
+    },
+    {
+      "id": "layers-pins/evidence.0x11d7240",
+      "file_offset": 18707008,
+      "hex": "488b8008030000",
+      "va": "0x1011d7240"
+    },
+    {
+      "id": "layers-pins/evidence.0xb063c9",
+      "file_offset": 11559881,
+      "hex": "488b0f",
+      "va": "0x100b063c9"
+    },
+    {
+      "id": "layers-pins/evidence.0xb063b6",
+      "file_offset": 11559862,
+      "hex": "448b670c",
+      "va": "0x100b063b6"
+    },
+    {
+      "id": "layers-pins/evidence.0xb063f7",
+      "file_offset": 11559927,
+      "hex": "4883c328",
+      "va": "0x100b063f7"
+    },
+    {
+      "id": "layers-pins/evidence.0xb063d6",
+      "file_offset": 11559894,
+      "hex": "807cc10400",
+      "va": "0x100b063d6"
+    },
+    {
+      "id": "layers-pins/evidence.0xb06400",
+      "file_offset": 11559936,
+      "hex": "0fb64308",
+      "va": "0x100b06400"
+    },
+    {
+      "id": "layers-pins/evidence.0xb03424",
+      "file_offset": 11547684,
+      "hex": "4883c020",
+      "va": "0x100b03424"
+    },
+    {
+      "id": "layers-pins/evidence.0x62e904",
+      "file_offset": 6482180,
+      "hex": "488b8720030000",
+      "va": "0x10062e904"
+    },
+    {
+      "id": "layers-pins/evidence.0x7581cb",
+      "file_offset": 7700939,
+      "hex": "48837e2000",
+      "va": "0x1007581cb"
+    },
+    {
+      "id": "layers-pins/evidence.0x7581d8",
+      "file_offset": 7700952,
+      "hex": "488d05493ee802",
+      "va": "0x1007581d8"
+    },
+    {
+      "id": "layers-pins/evidence.0x7581e6",
+      "file_offset": 7700966,
+      "hex": "e845f90502",
+      "va": "0x1007581e6"
+    },
+    {
+      "id": "layers-pins/evidence.0x23d33db",
+      "file_offset": 37565403,
+      "hex": "e800c899fe",
+      "va": "0x1023d33db"
+    },
+    {
+      "id": "layers-pins/evidence.0x23d33e3",
+      "file_offset": 37565411,
+      "hex": "e8b84d38fe",
+      "va": "0x1023d33e3"
+    },
+    {
+      "id": "layers-pins/evidence.0x194a4e2",
+      "file_offset": 26518754,
+      "hex": "e869d290fe",
+      "va": "0x10194a4e2"
+    },
+    {
+      "id": "layers-pins/evidence.0x194a1fd",
+      "file_offset": 26518013,
+      "hex": "e85e020000",
+      "va": "0x10194a1fd"
+    },
+    {
+      "id": "layers-pins/evidence.0x194bdc1",
+      "file_offset": 26525121,
+      "hex": "e89ae6ffff",
+      "va": "0x10194bdc1"
+    },
+    {
+      "id": "layers-pins/evidence.0x26d3c6f",
+      "file_offset": 40713327,
+      "hex": "89574c",
+      "va": "0x1026d3c6f"
+    },
+    {
+      "id": "layers-pins/evidence.0x26d3c5d",
+      "file_offset": 40713309,
+      "hex": "0f924754",
+      "va": "0x1026d3c5d"
+    },
+    {
+      "id": "layers-pins/evidence.0x26d3c8f",
+      "file_offset": 40713359,
+      "hex": "48897758",
+      "va": "0x1026d3c8f"
+    },
+    {
+      "id": "layers-pins/evidence.0x26d3c75",
+      "file_offset": 40713333,
+      "hex": "48b80200000001000000",
+      "va": "0x1026d3c75"
+    },
+    {
+      "id": "layers-pins/evidence.0x26d3c7f",
+      "file_offset": 40713343,
+      "hex": "488987a0000000",
+      "va": "0x1026d3c7f"
+    },
+    {
+      "id": "layers-pins/evidence.0x26d5694",
+      "file_offset": 40720020,
+      "hex": "8b87a4000000",
+      "va": "0x1026d5694"
+    },
+    {
+      "id": "layers-pins/evidence.0x6e7e93",
+      "file_offset": 7241363,
+      "hex": "488b8be0000000",
+      "va": "0x1006e7e93"
+    },
+    {
+      "id": "layers-pins/evidence.0x6e7e89",
+      "file_offset": 7241353,
+      "hex": "8b93ec000000",
+      "va": "0x1006e7e89"
+    },
+    {
+      "id": "layers-pins/evidence.0x6e7ea0",
+      "file_offset": 7241376,
+      "hex": "398188000000",
+      "va": "0x1006e7ea0"
+    },
+    {
+      "id": "layers-pins/evidence.0x6e7ea8",
+      "file_offset": 7241384,
+      "hex": "4881c190000000",
+      "va": "0x1006e7ea8"
+    },
+    {
+      "id": "layers-pins/evidence.0x11ca772",
+      "file_offset": 18655090,
+      "hex": "e81900fbff",
+      "va": "0x1011ca772"
+    },
+    {
+      "id": "layers-pins/evidence.0x117ac2a",
+      "file_offset": 18328618,
+      "hex": "4c89f6",
+      "va": "0x10117ac2a"
+    },
+    {
+      "id": "layers-pins/evidence.0x117ac2d",
+      "file_offset": 18328621,
+      "hex": "e8fed2ffff",
+      "va": "0x10117ac2d"
+    },
+    {
+      "id": "layers-pins/evidence.0xe527ee",
+      "file_offset": 15017966,
+      "hex": "0fb64618",
+      "va": "0x100e527ee"
+    },
+    {
+      "id": "layers-pins/evidence.0xe52832",
+      "file_offset": 15018034,
+      "hex": "488bb650040000",
+      "va": "0x100e52832"
+    },
+    {
+      "id": "layers-pins/evidence.0xb0319c",
+      "file_offset": 11547036,
+      "hex": "4883c710",
+      "va": "0x100b0319c"
+    },
+    {
+      "id": "layers-pins/evidence.0xb031a4",
+      "file_offset": 11547044,
+      "hex": "e817000000",
+      "va": "0x100b031a4"
+    },
+    {
+      "id": "layers-pins/evidence.0xb031a9",
+      "file_offset": 11547049,
+      "hex": "488b00",
+      "va": "0x100b031a9"
+    },
+    {
+      "id": "layers-pins/evidence.0xb03287",
+      "file_offset": 11547271,
+      "hex": "8b470c",
+      "va": "0x100b03287"
+    },
+    {
+      "id": "layers-pins/evidence.0xb03294",
+      "file_offset": 11547284,
+      "hex": "4c8b2f",
+      "va": "0x100b03294"
+    },
+    {
+      "id": "layers-pins/evidence.0xb03314",
+      "file_offset": 11547412,
+      "hex": "0fb64010",
+      "va": "0x100b03314"
+    },
+    {
+      "id": "layers-pins/evidence.0xb03354",
+      "file_offset": 11547476,
+      "hex": "498d4620",
+      "va": "0x100b03354"
+    },
+    {
+      "id": "layers-pins/evidence.0xb0335b",
+      "file_offset": 11547483,
+      "hex": "480f4445c0",
+      "va": "0x100b0335b"
+    },
+    {
+      "id": "layers-pins/evidence.0x60df09",
+      "file_offset": 6348553,
+      "hex": "488d056019cf02",
+      "va": "0x10060df09"
+    },
+    {
+      "id": "layers-pins/evidence.0x60df10",
+      "file_offset": 6348560,
+      "hex": "488903",
+      "va": "0x10060df10"
+    },
+    {
+      "id": "layers-pins/evidence.0x60e109",
+      "file_offset": 6349065,
+      "hex": "e872650c02",
+      "va": "0x10060e109"
+    },
+    {
+      "id": "layers-pins/evidence.0x60e10e",
+      "file_offset": 6349070,
+      "hex": "4c89bb20030000",
+      "va": "0x10060e10e"
+    },
+    {
+      "id": "layers-pins/evidence.0x26d4685",
+      "file_offset": 40715909,
+      "hex": "e9b6f6ffff",
+      "va": "0x1026d4685"
+    },
+    {
+      "id": "layers-pins/evidence.0x2675944",
+      "file_offset": 40327492,
+      "hex": "48893d8d41fc00",
+      "va": "0x102675944"
+    },
+    {
+      "id": "layers-pins/variable_get.find",
+      "file_offset": 11547044,
+      "hex": "e817000000",
+      "va": "0x100b031a4"
+    },
+    {
+      "id": "layers-pins/update_names.build_name_key",
+      "file_offset": 18328621,
+      "hex": "e8fed2ffff",
+      "va": "0x10117ac2d"
+    },
+    {
+      "id": "layers-pins/scope.country_of",
+      "file_offset": 9814333,
+      "hex": "e8ceaf8700",
+      "va": "0x10095c13d"
+    },
+    {
+      "id": "layers-pins/country_of.gamestate",
+      "file_offset": 18706548,
+      "hex": "4c8d2dc5263402",
+      "va": "0x1011d7074"
+    },
+    {
+      "id": "layers-pins/ui.calls_resolve",
+      "file_offset": 37565403,
+      "hex": "e800c899fe",
+      "va": "0x1023d33db"
+    },
+    {
+      "id": "layers-pins/ui.calls_valid",
+      "file_offset": 37565411,
+      "hex": "e8b84d38fe",
+      "va": "0x1023d33e3"
+    },
+    {
+      "id": "layers-pins/leader.calls_politics",
+      "file_offset": 16510744,
+      "hex": "e813d51b00",
+      "va": "0x100fbef18"
+    },
+    {
+      "id": "layers-pins/leader.calls_first_role",
+      "file_offset": 16510756,
+      "hex": "e8477b3a00",
+      "va": "0x100fbef24"
+    },
+    {
+      "id": "layers-pins/leader.first_role_jumps",
+      "file_offset": 20343423,
+      "hex": "e97cbea1ff",
+      "va": "0x101366a7f"
+    },
+    {
+      "id": "layers-pins/leader.calls_character",
+      "file_offset": 16510769,
+      "hex": "e8da1d3400",
+      "va": "0x100fbef31"
+    },
+    {
+      "id": "layers-pins/effect.writes_portrait",
+      "file_offset": 16510833,
+      "hex": "e80a08dbff",
+      "va": "0x100fbef71"
+    },
+    {
+      "id": "layers-pins/load.calls_candidates",
+      "file_offset": 26518754,
+      "hex": "e869d290fe",
+      "va": "0x10194a4e2"
+    },
+    {
+      "id": "layers-pins/incremental.calls_load",
+      "file_offset": 26518013,
+      "hex": "e85e020000",
+      "va": "0x10194a1fd"
+    },
+    {
+      "id": "layers-pins/threaded.calls_load",
+      "file_offset": 26525121,
+      "hex": "e89ae6ffff",
+      "va": "0x10194bdc1"
+    },
+    {
+      "id": "layers-pins/app.publish_global",
+      "file_offset": 40327492,
+      "hex": "48893d8d41fc00",
+      "va": "0x102675944"
+    },
+    {
+      "id": "layers-pins/app.session_constructor",
+      "file_offset": 6349065,
+      "hex": "e872650c02",
+      "va": "0x10060e109"
+    },
+    {
+      "id": "layers-pins/session.constructor_thunk",
+      "file_offset": 40715909,
+      "hex": "e9b6f6ffff",
+      "va": "0x1026d4685"
+    },
+    {
+      "id": "layers-pins/faction.fallback_localises",
+      "file_offset": 15018056,
+      "hex": "e8538a1400",
+      "va": "0x100e52848"
+    },
+    {
+      "id": "layers-pins/gamestate.global",
+      "file_offset": 18706548,
+      "hex": "4c8d2dc5263402",
+      "va": "0x1011d7074"
+    },
+    {
+      "id": "layers-pins/set_variable.execute/pointer",
+      "file_offset": 53898024,
+      "hex": "f007060101000000",
+      "va": "0x103366b28"
+    },
+    {
+      "id": "layers-pins/character.writer/pointer",
+      "file_offset": 53669880,
+      "hex": "d0dbd50001000000",
+      "va": "0x10332eff8"
+    },
+    {
+      "id": "layers-pins/character.reader/pointer",
+      "file_offset": 53669896,
+      "hex": "d0cdd50001000000",
+      "va": "0x10332f008"
+    },
+    {
+      "id": "layers-pins/application.publish/pointer",
+      "file_offset": 53475504,
+      "hex": "4059670201000000",
+      "va": "0x1032ff8b0"
+    },
+    {
+      "id": "layers-pins/application.session/pointer",
+      "file_offset": 53475584,
+      "hex": "00e9620001000000",
+      "va": "0x1032ff900"
+    },
+    {
+      "id": "layers-pins/faction.set_leader/pointer",
+      "file_offset": 53678704,
+      "hex": "3074db0001000000",
+      "va": "0x103331270"
+    },
+    {
+      "id": "layers-pins/portrait.effect/pointer",
+      "file_offset": 53798712,
+      "hex": "b0eefb0001000000",
+      "va": "0x10334e738"
+    },
+    {
+      "id": "core-pins/parent_token.parser_dispatch",
+      "file_offset": 11788148,
+      "hex": "4989f54989fe81fa6a3a00007e6c81fac53b00004c89ad70ffffff0f8f890000008d8295c5ffff83f85f0f873a170000488d0d111a0000486304814801c8ffe0",
+      "va": "0x100b3df74"
+    },
+    {
+      "id": "core-pins/parent_token.parser_case_entry",
+      "file_offset": 11794888,
+      "hex": "3ef3ffff",
+      "va": "0x100b3f9c8"
+    },
+    {
+      "id": "core-pins/parent_window.long_length",
+      "file_offset": 11821783,
+      "hex": "488b46484885c00f84af000000",
+      "va": "0x100b462d7"
+    },
+    {
+      "id": "core-pins/token.player_context_initializer",
+      "file_offset": 38628453,
+      "hex": "488d3d4c780d01488d159cddc9004889fbbe703a0000e8d0345a00",
+      "va": "0x1024d6c65"
+    },
+    {
+      "id": "core-pins/token.constructor_store",
+      "file_offset": 44540240,
+      "hex": "554889e5415741564155415453504889d34189f54989fec70700000000c6470400488d47200f57c00f11470848894718488b05a93681004883c01048894720488b3d3228820049897e40488b0731f6ff50184d8d66284d89660841c746101500000048895dd04889dfe858c40a004989c741c646040045892e",
+      "va": "0x102a7a150"
+    },
+    {
+      "id": "core-pins/token.player_context_literal",
+      "file_offset": 51857935,
+      "hex": "706c617965725f636f6e7465787400",
+      "va": "0x103174a0f"
+    },
+    {
+      "id": "core-pins/token.politics_tab_literal",
+      "file_offset": 51859167,
+      "hex": "706f6c69746963735f74616200",
+      "va": "0x103174edf"
+    },
+    {
+      "id": "core-pins/token.parent_window_literal",
+      "file_offset": 51857915,
+      "hex": "706172656e745f77696e646f775f746f6b656e00",
+      "va": "0x1031749fb"
+    },
+    {
+      "id": "core-pins/country.lookup_n",
+      "file_offset": 42523280,
+      "hex": "554889e549b825232284e49cf2cb488b0d33ead400488b0185f60f8e8900000048bab30100000001000083fe04724a4189f14183e1fc662e0f1f840000000000440fb6174d31c24c0fafd2440fb647014d31d04c0fafc2440fb657024d31c24c0fafd2440fb64703",
+      "va": "0x10288da90"
+    },
+    {
+      "id": "core-pins/country.lookup_z",
+      "file_offset": 42521632,
+      "hex": "554889e548be25232284e49cf2cb488b0da3f0d400488b11440fb60f4584c9742b48ffc749b8b3010000000100006690410fb6c14831f0490fafc0440fb60f48ffc74889c64584c975e6eb034889f0486372244885f6745a488b7a184889fa4989f14989f0",
+      "va": "0x10288d420"
+    },
+    {
+      "id": "core-pins/country.exists",
+      "file_offset": 42525888,
+      "hex": "554889e548be25232284e49cf2cb488b0503e0d400488b10440fb60f4584c9742b48ffc749b8b3010000000100006690410fb6c94831f1490fafc8440fb60f48ffc74889ce4584c975e6eb034889f1486372244885f6745a488b7a184889fa4989f14989f0",
+      "va": "0x10288e4c0"
+    },
+    {
+      "id": "core-pins/caption.DCCF30",
+      "file_offset": 7847168,
+      "hex": "554889e5488b87700600005dc30f1f00",
+      "va": "0x10077bd00"
+    },
+    {
+      "id": "core-pins/caption.B6E210",
+      "file_offset": 34530176,
+      "hex": "554889e541565383fe1774324889fb4189f64a8bbcf7c80000004885ff741f488b07ff503084c074154a8bbcf3c80000004883c7285b415e5de982ad29005b415e5dc3666666662e0f1f840000000000",
+      "va": "0x1020ee380"
+    },
+    {
+      "id": "core-pins/caption.1236950",
+      "file_offset": 37261632,
+      "hex": "554889e5c64714015dc3660f1f440000",
+      "va": "0x102389140"
+    },
+    {
+      "id": "core-pins/caption.1236980",
+      "file_offset": 37261648,
+      "hex": "554889e553504889fb488b07ff5050c64314004883c4085b5dc3909090909090",
+      "va": "0x102389150"
+    },
+    {
+      "id": "core-pins/caption.1237520",
+      "file_offset": 33328688,
+      "hex": "554889e553504889fb488bbf300400004885ff740d488b07ff900803000084c0740431c0eb13488b83300400000fb680950000002408c0e8034883c4085b5dc3",
+      "va": "0x101fc8e30"
+    },
+    {
+      "id": "core-pins/caption.12374F0",
+      "file_offset": 33328944,
+      "hex": "554889e5488b87300400005dc30f1f00",
+      "va": "0x101fc8f30"
+    },
+    {
+      "id": "core-pins/caption.12362A0",
+      "file_offset": 37258832,
+      "hex": "554889e5488d0515a2100148890748897708895710c64714005de95100000090",
+      "va": "0x102388650"
+    },
+    {
+      "id": "core-pins/caption.1237180",
+      "file_offset": 33327328,
+      "hex": "554889e54157415641554154534881ec480100004589c54989cc4989d74989f64889fb488bbec00400004889ce31d2e8ccd27f00488d70404889dfe8509e6f00488b0559012c014883c01048894320488d7b2848897dd04c89fe4489eae80efd3b00488d05dfdb4701",
+      "va": "0x101fc88e0"
+    },
+    {
+      "id": "core-pins/caption.12371DB",
+      "file_offset": 33327407,
+      "hex": "488d7b2848897dd04c89fe4489eae80efd3b00",
+      "va": "0x101fc892f"
+    },
+    {
+      "id": "core-pins/caption.1237358",
+      "file_offset": 33327785,
+      "hex": "4c89b32804000048c7833004000000000000",
+      "va": "0x101fc8aa9"
+    },
+    {
+      "id": "core-pins/caption.B62D52",
+      "file_offset": 34509717,
+      "hex": "488bb3800100004889c74889dae8f90bebff4c89bb28010000",
+      "va": "0x1020e9395"
+    },
+    {
+      "id": "core-pins/caption.B68C52",
+      "file_offset": 34526480,
+      "hex": "49ffc64983fe17741e4a8bbcf3c80000004885ff74ea807f3c0074e44883c728e81bbc2900ebd9",
+      "va": "0x1020ed510"
+    },
+    {
+      "id": "core-pins/caption.B88BEE",
+      "file_offset": 11813237,
+      "hex": "488bbbd8000000488b07ff90d80000004889c7",
+      "va": "0x100b44175"
+    },
+    {
+      "id": "core-pins/caption.B88B27",
+      "file_offset": 11813383,
+      "hex": "488b83e0000000817820703a0000",
+      "va": "0x100b44207"
+    },
+    {
+      "id": "core-pins/caption.B86346",
+      "file_offset": 11820756,
+      "hex": "4c8b9fe0000000418b4b2485c90f8e44010000",
+      "va": "0x100b45ed4"
+    },
+    {
+      "id": "core-pins/caption.B86350",
+      "file_offset": 11820763,
+      "hex": "418b4b2485c90f8e440100004d8b8c24e8000000498b7978",
+      "va": "0x100b45edb"
+    },
+    {
+      "id": "core-pins/caption.B8A1C0",
+      "file_offset": 11809552,
+      "hex": "554889e54157415641554154534883ec784989fe488b7f18488b07ff90d80000004989c7498d467048898578ffffff",
+      "va": "0x100b43310"
+    },
+    {
+      "id": "core-pins/caption.B86414",
+      "file_offset": 11821099,
+      "hex": "410fb64358a80175084889c148d1e9eb04498b4b604885c9",
+      "va": "0x100b4602b"
+    },
+    {
+      "id": "core-pins/caption.B863F9",
+      "file_offset": 11821084,
+      "hex": "4d8b4a184989db4d898c24f8000000",
+      "va": "0x100b4601c"
+    },
+    {
+      "id": "core-pins/caption.B8649E",
+      "file_offset": 11821357,
+      "hex": "4c8b65b849c784240001000000000000",
+      "va": "0x100b4612d"
+    },
+    {
+      "id": "core-pins/caption.B864F1",
+      "file_offset": 11821604,
+      "hex": "498bb424e00000000fb64640a8010f859f00000048d1e84885c00f85a0000000",
+      "va": "0x100b46224"
+    },
+    {
+      "id": "core-pins/caption.B8A660",
+      "file_offset": 11810730,
+      "hex": "4c89ffbe0c000000e8d9ed5a014889c7e8715748014d89fc4989c7c745a8b23a000048895dc0488d15de962302488d4dc04c8d6d884c8bb578ffffff4c89f74889de4d89e8e83c8700004c897818",
+      "va": "0x100b437aa"
+    },
+    {
+      "id": "core-pins/caption.F86CC",
+      "file_offset": 38630073,
+      "hex": "488d3dd8820d01488d1518dcc9004889fbbeb23a0000e87c2e5a00",
+      "va": "0x1024d72b9"
+    },
+    {
+      "id": "core-pins/caption.F78FE",
+      "file_offset": 38628399,
+      "hex": "488d3df2770d01488d15beddc9004889fbbe6e3a0000e806355a00",
+      "va": "0x1024d6c2f"
+    },
+    {
+      "id": "core-pins/caption.159F33D",
+      "file_offset": 11791610,
+      "hex": "418b85c000000041894624e9c2090000",
+      "va": "0x100b3ecfa"
+    },
+    {
+      "id": "core-pins/focus.225E320",
+      "file_offset": 41715392,
+      "hex": "554889e54156534889f34989fe488bbf380100004885ff7409488b07ff90c800000049899e380100004885db7410488b034889df5b415e5dffa0c00000005b415e5dc3666666662e0f1f840000000000",
+      "va": "0x1027c86c0"
+    },
+    {
+      "id": "core-pins/focus.22F4770",
+      "file_offset": 41503696,
+      "hex": "554889e553504889fb0fb6873902000089c180e1fe888f39020000a810741524ee888339020000488bbb98010000488b07ff5068488bbba00100004885ff7406488b07ff50688b4364a900040000750e488d7b7031f6e885eb0c008b4364a900040000750e",
+      "va": "0x102794bd0"
+    },
+    {
+      "id": "core-pins/focus.22F47F0",
+      "file_offset": 41503811,
+      "hex": "4881c3800100004889df4883c4085b5de9a8f20c00",
+      "va": "0x102794c43"
+    },
+    {
+      "id": "core-pins/focus.22FBEC0",
+      "file_offset": 42352384,
+      "hex": "554889e54889fe488d054a81d700488b385de94950f6ff660f1f840000000000",
+      "va": "0x102863f00"
+    },
+    {
+      "id": "core-pins/focus.225E3B0",
+      "file_offset": 41717600,
+      "hex": "554889e553504883bf1002000000741c4889fbe818cfeeff488b084889c7ff513848c78310020000000000004883c4085b5dc3666666662e0f1f840000000000",
+      "va": "0x1027c8f60"
+    },
+    {
+      "id": "core-pins/focus.B889AE",
+      "file_offset": 11812984,
+      "hex": "488b8bf80000004885c9742a8b8994000000f7c1000400007561",
+      "va": "0x100b44078"
+    },
+    {
+      "id": "core-pins/focus.B88A5B",
+      "file_offset": 11813019,
+      "hex": "f7c1000800000f85bc000000",
+      "va": "0x100b4409b"
+    },
+    {
+      "id": "core-pins/focus.B88AFF",
+      "file_offset": 11813361,
+      "hex": "3883500a00007525",
+      "va": "0x100b441f1"
+    },
+    {
+      "id": "core-pins/caption_slot_pins[0]/pointer",
+      "file_offset": 54805816,
+      "hex": "308efc0101000000",
+      "va": "0x103444538"
+    },
+    {
+      "id": "core-pins/caption_slot_pins[1]/pointer",
+      "file_offset": 54806080,
+      "hex": "2043fa0101000000",
+      "va": "0x103444640"
+    },
+    {
+      "id": "core-pins/caption_slot_pins[2]/pointer",
+      "file_offset": 54806096,
+      "hex": "10fcf90101000000",
+      "va": "0x103444650"
+    },
+    {
+      "id": "core-pins/caption_slot_pins[3]/pointer",
+      "file_offset": 53514344,
+      "hex": "00bd770001000000",
+      "va": "0x103309068"
+    },
+    {
+      "id": "core-pins/focus_slot_pins[0]/pointer",
+      "file_offset": 55238240,
+      "hex": "d04b790201000000",
+      "va": "0x1034ade60"
+    },
+    {
+      "id": "core-pins/focus_slot_pins[1]/pointer",
+      "file_offset": 55238232,
+      "hex": "f04a790201000000",
+      "va": "0x1034ade58"
+    },
+    {
+      "id": "core-pins/focus.manager_global/instruction",
+      "file_offset": 42352362,
+      "hex": "488d056781d700",
+      "va": "0x102863eea"
+    },
+    {
+      "id": "host-pins/host.get_local_human/evidence-0",
+      "file_offset": 7241312,
+      "hex": "554889e553504889fb488d055018e302488b38488b07ff90900000004885c074334889c7e807d8fe018b93ec00000085d27e21488b8be0000000660f1f44000039818800000074164881c19000000048ffca75ec4881c3f80000004889d94889c8",
+      "va": "0x1006e7e60"
+    },
+    {
+      "id": "host-pins/host.get_session/evidence-0",
+      "file_offset": 6482176,
+      "hex": "554889e5488b87200300005dc3",
+      "va": "0x10062e900"
+    },
+    {
+      "id": "host-pins/host.get_machine_id/evidence-0",
+      "file_offset": 40720016,
+      "hex": "554889e58b87a40000005dc3",
+      "va": "0x1026d5690"
+    },
+    {
+      "id": "host-pins/host.session_init/evidence-0",
+      "file_offset": 40713248,
+      "hex": "554889e54157415653504889fbc6878c06000000c687c00300000048c7878801000000000000c78760010000ffffffffc74748000000008d42ff83f8020f924754c7878000000000000000c647600089574c894f5048b80200000001000000488987a000000066c787f0060000000048897758",
+      "va": "0x1026d3c20"
+    },
+    {
+      "id": "host-pins/host.is_from_host/evidence-0",
+      "file_offset": 40583472,
+      "hex": "554889e5837f0c010f94c05dc3",
+      "va": "0x1026b4130"
+    },
+    {
+      "id": "host-pins/host.is_from_host/evidence-1",
+      "file_offset": 40492272,
+      "hex": "554889e54156534889f34989fee82e64010084c0741141837e3400745b41837e40ff0f95c0eb534885db744c0fb603a801750d3c02722d488d4b0148d1e8eb0d488b43084885c0741b488b4b10ffc84898803c010a740d4889dfbe0a000000e8bc7f4800488d35ffd3af00ba370000004889dfe87e7f480031c05b415e5dc3",
+      "va": "0x10269dcf0"
+    },
+    {
+      "id": "host-pins/session.is_server/evidence-0",
+      "file_offset": 40713303,
+      "hex": "8d42ff83f8020f924754",
+      "va": "0x1026d3c57"
+    },
+    {
+      "id": "host-pins/session.mode/evidence-0",
+      "file_offset": 40713327,
+      "hex": "89574c",
+      "va": "0x1026d3c6f"
+    },
+    {
+      "id": "host-pins/session.machine_id_1/evidence-0",
+      "file_offset": 40713333,
+      "hex": "48b80200000001000000488987a0000000",
+      "va": "0x1026d3c75"
+    },
+    {
+      "id": "host-pins/session.backend/evidence-0",
+      "file_offset": 40713359,
+      "hex": "48897758",
+      "va": "0x1026d3c8f"
+    },
+    {
+      "id": "host-pins/lobby.session_is_server/evidence-0",
+      "file_offset": 6953496,
+      "hex": "ff909000000080785400",
+      "va": "0x1006a1a18"
+    },
+    {
+      "id": "host-pins/lobby.session_is_server/evidence-1",
+      "file_offset": 6953242,
+      "hex": "488d15a6a49a02b96c01000041b801030000e85fc53e024c89e7488d35e5a49a02e8b0c53e024889c7",
+      "va": "0x1006a191a"
+    },
+    {
+      "id": "host-pins/lobby.session_is_server/evidence-2",
+      "file_offset": 6953486,
+      "hex": "488bbbf8030000488b07",
+      "va": "0x1006a1a0e"
+    },
+    {
+      "id": "host-pins/lobby.session_is_server/evidence-3",
+      "file_offset": 6953517,
+      "hex": "488d1593a39a02488d9d98feffff4889df4889c6b98401000041b801030000e83fc43e02488d350da49a024889dfe890c43e024889c7",
+      "va": "0x1006a1a2d"
+    },
+    {
+      "id": "host-pins/gamestate.human_count/evidence-0",
+      "file_offset": 7241353,
+      "hex": "8b93ec000000",
+      "va": "0x1006e7e89"
+    },
+    {
+      "id": "host-pins/gamestate.humans/evidence-0",
+      "file_offset": 7241363,
+      "hex": "488b8be0000000",
+      "va": "0x1006e7e93"
+    },
+    {
+      "id": "host-pins/human.machine_id/evidence-0",
+      "file_offset": 7241376,
+      "hex": "398188000000",
+      "va": "0x1006e7ea0"
+    },
+    {
+      "id": "host-pins/human.stride/evidence-0",
+      "file_offset": 7241384,
+      "hex": "4881c190000000",
+      "va": "0x1006e7ea8"
+    },
+    {
+      "id": "host-pins/human.name/evidence-0",
+      "file_offset": 6891966,
+      "hex": "4983c020",
+      "va": "0x1006929be"
+    },
+    {
+      "id": "host-pins/human.name/evidence-1",
+      "file_offset": 6891912,
+      "hex": "488b80e000000048c1e104488d14c931c90f1f80000000004439b40888000000",
+      "va": "0x100692988"
+    },
+    {
+      "id": "host-pins/human.name/evidence-2",
+      "file_offset": 6891962,
+      "hex": "4c8d04084983c020c74588000000000f57c00f1145900f1145a00f1145b00f1145c048c745d000000000488d1529caaa02488d0df7a58802488dbd70ffffff488d7588e8cec90000",
+      "va": "0x1006929ba"
+    },
+    {
+      "id": "host-pins/human.ctor_machine_id/evidence-0",
+      "file_offset": 7698513,
+      "hex": "8b45c4898388000000",
+      "va": "0x100757851"
+    },
+    {
+      "id": "host-pins/human.ctor_machine_id/evidence-1",
+      "file_offset": 7698096,
+      "hex": "554889e54157415641554154534883ec284589cd4989d74889fb488d054718bb024889070f57c00f114708488b05e652b40248894718488d5720f60601488955b8448945c47510488b461048894210",
+      "va": "0x1007576b0"
+    },
+    {
+      "id": "host-pins/app.global/evidence-0",
+      "file_offset": 40322132,
+      "hex": "488b057d56fc00",
+      "va": "0x102674454"
+    },
+    {
+      "id": "host-pins/app.get_session_slot/evidence-0",
+      "file_offset": 6482176,
+      "hex": "554889e5488b87200300005dc3",
+      "va": "0x10062e900"
+    },
+    {
+      "id": "host-pins/app.get_session_slot/pointer",
+      "file_offset": 53475584,
+      "hex": "00e9620001000000",
+      "va": "0x1032ff900"
+    },
+    {
+      "id": "host-pins/ingame_idler.session_slot/evidence-0",
+      "file_offset": 7738544,
+      "hex": "554889e5488bbff8040000488b075dffa090000000",
+      "va": "0x1007614b0"
+    },
+    {
+      "id": "host-pins/ingame_idler.session_slot/pointer",
+      "file_offset": 53514272,
+      "hex": "b014760001000000",
+      "va": "0x103309020"
+    }
+  ]
+}

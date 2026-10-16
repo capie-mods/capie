@@ -1,0 +1,624 @@
+{
+  "schema": 1,
+  "target_sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "address_convention": "RVA relative to 0x100000000. Evidence VA and RTTI VA are explicit unslid virtual addresses. Runtime vtable pointers need ASLR slide.",
+  "runtime_ready": false,
+  "coverage": {
+    "reference": "plugin/capie/src/features/host/host_pins.hpp",
+    "required": 19,
+    "statically_mapped": 19,
+    "missing_pin_ids": [],
+    "in_game_checked": false
+  },
+  "pins": [
+    {
+      "id": "host.get_local_human",
+      "kind": "signature",
+      "status": "statically_proven",
+      "rva": "0x6e7e60",
+      "evidence": [
+        {
+          "va": "0x1006e7e60",
+          "rva": "0x6e7e60",
+          "hex": "554889e553504889fb488d055018e302488b38488b07ff90900000004885c074334889c7e807d8fe018b93ec00000085d27e21488b8be0000000660f1f44000039818800000074164881c19000000048ffca75ec4881c3f80000004889d94889c8",
+          "length": 97,
+          "instructions": [
+            "1006e7e60:\tpush\trbp",
+            "1006e7e61:\tmov\trbp, rsp",
+            "1006e7e64:\tpush\trbx",
+            "1006e7e65:\tpush\trax",
+            "1006e7e66:\tmov\trbx, rdi",
+            "1006e7e69:\tlea\trax, [rip + 0x2e31850]",
+            "1006e7e70:\tmov\trdi, qword ptr [rax]",
+            "1006e7e73:\tmov\trax, qword ptr [rdi]",
+            "1006e7e76:\tcall\tqword ptr [rax + 0x90]",
+            "1006e7e7c:\ttest\trax, rax",
+            "1006e7e7f:\tje\t0x1006e7eb4",
+            "1006e7e81:\tmov\trdi, rax",
+            "1006e7e84:\tcall\t0x1026d5690",
+            "1006e7e89:\tmov\tedx, dword ptr [rbx + 0xec]",
+            "1006e7e8f:\ttest\tedx, edx",
+            "1006e7e91:\tjle\t0x1006e7eb4",
+            "1006e7e93:\tmov\trcx, qword ptr [rbx + 0xe0]",
+            "1006e7e9a:\tnop\tword ptr [rax + rax]",
+            "1006e7ea0:\tcmp\tdword ptr [rcx + 0x88], eax",
+            "1006e7ea6:\tje\t0x1006e7ebe",
+            "1006e7ea8:\tadd\trcx, 0x90",
+            "1006e7eaf:\tdec\trdx",
+            "1006e7eb2:\tjne\t0x1006e7ea0",
+            "1006e7eb4:\tadd\trbx, 0xf8",
+            "1006e7ebb:\tmov\trcx, rbx",
+            "1006e7ebe:\tmov\trax, rcx"
+          ]
+        }
+      ],
+      "interpretation": "Local-human lookup uses idler singleton 0x1035196c0, session virtual slot +0x90, machine-id accessor, human count +0xec, data +0xe0, machine id +0x88 and stride 0x90. No match returns embedded fallback at state+0xf8. This singleton is distinct from app.global."
+    },
+    {
+      "id": "host.get_session",
+      "kind": "signature",
+      "status": "statically_proven",
+      "rva": "0x62e900",
+      "evidence": [
+        {
+          "va": "0x10062e900",
+          "rva": "0x62e900",
+          "hex": "554889e5488b87200300005dc3",
+          "length": 13,
+          "instructions": [
+            "10062e900:\tpush\trbp",
+            "10062e901:\tmov\trbp, rsp",
+            "10062e904:\tmov\trax, qword ptr [rdi + 0x320]",
+            "10062e90b:\tpop\trbp",
+            "10062e90c:\tret"
+          ]
+        }
+      ],
+      "interpretation": "RDI=this application; returns [this+0x320] in RAX."
+    },
+    {
+      "id": "host.get_machine_id",
+      "kind": "signature",
+      "status": "statically_proven",
+      "rva": "0x26d5690",
+      "evidence": [
+        {
+          "va": "0x1026d5690",
+          "rva": "0x26d5690",
+          "hex": "554889e58b87a40000005dc3",
+          "length": 12,
+          "instructions": [
+            "1026d5690:\tpush\trbp",
+            "1026d5691:\tmov\trbp, rsp",
+            "1026d5694:\tmov\teax, dword ptr [rdi + 0xa4]",
+            "1026d569a:\tpop\trbp",
+            "1026d569b:\tret"
+          ]
+        }
+      ],
+      "interpretation": "RDI=this session; returns 32-bit [this+0xa4] in EAX. Signature uniqueness not assumed."
+    },
+    {
+      "id": "host.session_init",
+      "kind": "signature",
+      "status": "statically_proven",
+      "rva": "0x26d3c20",
+      "evidence": [
+        {
+          "va": "0x1026d3c20",
+          "rva": "0x26d3c20",
+          "hex": "554889e54157415653504889fbc6878c06000000c687c00300000048c7878801000000000000c78760010000ffffffffc74748000000008d42ff83f8020f924754c7878000000000000000c647600089574c894f5048b80200000001000000488987a000000066c787f0060000000048897758",
+          "length": 115,
+          "instructions": [
+            "1026d3c20:\tpush\trbp",
+            "1026d3c21:\tmov\trbp, rsp",
+            "1026d3c24:\tpush\tr15",
+            "1026d3c26:\tpush\tr14",
+            "1026d3c28:\tpush\trbx",
+            "1026d3c29:\tpush\trax",
+            "1026d3c2a:\tmov\trbx, rdi",
+            "1026d3c2d:\tmov\tbyte ptr [rdi + 0x68c], 0x0",
+            "1026d3c34:\tmov\tbyte ptr [rdi + 0x3c0], 0x0",
+            "1026d3c3b:\tmov\tqword ptr [rdi + 0x188], 0x0",
+            "1026d3c46:\tmov\tdword ptr [rdi + 0x160], 0xffffffff",
+            "1026d3c50:\tmov\tdword ptr [rdi + 0x48], 0x0",
+            "1026d3c57:\tlea\teax, [rdx - 0x1]",
+            "1026d3c5a:\tcmp\teax, 0x2",
+            "1026d3c5d:\tsetb\tbyte ptr [rdi + 0x54]",
+            "1026d3c61:\tmov\tdword ptr [rdi + 0x80], 0x0",
+            "1026d3c6b:\tmov\tbyte ptr [rdi + 0x60], 0x0",
+            "1026d3c6f:\tmov\tdword ptr [rdi + 0x4c], edx",
+            "1026d3c72:\tmov\tdword ptr [rdi + 0x50], ecx",
+            "1026d3c75:\tmovabs\trax, 0x100000002",
+            "1026d3c7f:\tmov\tqword ptr [rdi + 0xa0], rax",
+            "1026d3c86:\tmov\tword ptr [rdi + 0x6f0], 0x0",
+            "1026d3c8f:\tmov\tqword ptr [rdi + 0x58], rsi"
+          ]
+        }
+      ],
+      "interpretation": "SysV RDI=session, RSI=backend, EDX=mode. Unsigned (mode-1)<2 establishes server flag; named enum values need separate evidence."
+    },
+    {
+      "id": "host.is_from_host",
+      "kind": "signature",
+      "status": "statically_proven",
+      "rva": "0x26b4130",
+      "evidence": [
+        {
+          "va": "0x1026b4130",
+          "rva": "0x26b4130",
+          "hex": "554889e5837f0c010f94c05dc3",
+          "length": 13,
+          "instructions": [
+            "1026b4130:\tpush\trbp",
+            "1026b4131:\tmov\trbp, rsp",
+            "1026b4134:\tcmp\tdword ptr [rdi + 0xc], 0x1",
+            "1026b4138:\tsete\tal",
+            "1026b413b:\tpop\trbp",
+            "1026b413c:\tret"
+          ]
+        },
+        {
+          "va": "0x10269dcf0",
+          "rva": "0x269dcf0",
+          "hex": "554889e54156534889f34989fee82e64010084c0741141837e3400745b41837e40ff0f95c0eb534885db744c0fb603a801750d3c02722d488d4b0148d1e8eb0d488b43084885c0741b488b4b10ffc84898803c010a740d4889dfbe0a000000e8bc7f4800488d35ffd3af00ba370000004889dfe87e7f480031c05b415e5dc3",
+          "length": 127,
+          "instructions": [
+            "10269dcf0:\tpush\trbp",
+            "10269dcf1:\tmov\trbp, rsp",
+            "10269dcf4:\tpush\tr14",
+            "10269dcf6:\tpush\trbx",
+            "10269dcf7:\tmov\trbx, rsi",
+            "10269dcfa:\tmov\tr14, rdi",
+            "10269dcfd:\tcall\t0x1026b4130",
+            "10269dd02:\ttest\tal, al",
+            "10269dd04:\tje\t0x10269dd17",
+            "10269dd06:\tcmp\tdword ptr [r14 + 0x34], 0x0",
+            "10269dd0b:\tje\t0x10269dd68",
+            "10269dd0d:\tcmp\tdword ptr [r14 + 0x40], -0x1",
+            "10269dd12:\tsetne\tal",
+            "10269dd15:\tjmp\t0x10269dd6a",
+            "10269dd17:\ttest\trbx, rbx",
+            "10269dd1a:\tje\t0x10269dd68",
+            "10269dd1c:\tmovzx\teax, byte ptr [rbx]",
+            "10269dd1f:\ttest\tal, 0x1",
+            "10269dd21:\tjne\t0x10269dd30",
+            "10269dd23:\tcmp\tal, 0x2",
+            "10269dd25:\tjb\t0x10269dd54",
+            "10269dd27:\tlea\trcx, [rbx + 0x1]",
+            "10269dd2b:\tshr\trax",
+            "10269dd2e:\tjmp\t0x10269dd3d",
+            "10269dd30:\tmov\trax, qword ptr [rbx + 0x8]",
+            "10269dd34:\ttest\trax, rax",
+            "10269dd37:\tje\t0x10269dd54",
+            "10269dd39:\tmov\trcx, qword ptr [rbx + 0x10]",
+            "10269dd3d:\tdec\teax",
+            "10269dd3f:\tcdqe",
+            "10269dd41:\tcmp\tbyte ptr [rcx + rax], 0xa",
+            "10269dd45:\tje\t0x10269dd54",
+            "10269dd47:\tmov\trdi, rbx",
+            "10269dd4a:\tmov\tesi, 0xa",
+            "10269dd4f:\tcall\t0x102b25d10 ## symbol stub for: __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9push_backEc",
+            "10269dd54:\tlea\trsi, [rip + 0xafd3ff] ## literal pool for: \"CSendChunk rejected: only the host can send file chunks\"",
+            "10269dd5b:\tmov\tedx, 0x37",
+            "10269dd60:\tmov\trdi, rbx",
+            "10269dd63:\tcall\t0x102b25ce6 ## symbol stub for: __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm",
+            "10269dd68:\txor\teax, eax",
+            "10269dd6a:\tpop\trbx",
+            "10269dd6b:\tpop\tr14",
+            "10269dd6d:\tpop\trbp",
+            "10269dd6e:\tret"
+          ]
+        }
+      ],
+      "interpretation": "Returns command dword +0xc == 1. Caller rejects false with literal \"CSendChunk rejected: only the host can send file chunks\". Proves host-authority predicate in this command path; does not prove live session authority."
+    },
+    {
+      "id": "session.is_server",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x26d3c57",
+      "evidence": [
+        {
+          "va": "0x1026d3c57",
+          "rva": "0x26d3c57",
+          "hex": "8d42ff83f8020f924754",
+          "length": 10,
+          "instructions": [
+            "1026d3c57:\tlea\teax, [rdx - 0x1]",
+            "1026d3c5a:\tcmp\teax, 0x2",
+            "1026d3c5d:\tsetb\tbyte ptr [rdi + 0x54]"
+          ]
+        }
+      ],
+      "interpretation": "Byte session+0x54 = unsigned(mode-1)<2."
+    },
+    {
+      "id": "session.mode",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x26d3c6f",
+      "evidence": [
+        {
+          "va": "0x1026d3c6f",
+          "rva": "0x26d3c6f",
+          "hex": "89574c",
+          "length": 3,
+          "instructions": [
+            "1026d3c6f:\tmov\tdword ptr [rdi + 0x4c], edx"
+          ]
+        }
+      ],
+      "interpretation": "32-bit mode stored at session+0x4c."
+    },
+    {
+      "id": "session.machine_id_1",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x26d3c75",
+      "evidence": [
+        {
+          "va": "0x1026d3c75",
+          "rva": "0x26d3c75",
+          "hex": "48b80200000001000000488987a0000000",
+          "length": 17,
+          "instructions": [
+            "1026d3c75:\tmovabs\trax, 0x100000002",
+            "1026d3c7f:\tmov\tqword ptr [rdi + 0xa0], rax"
+          ]
+        }
+      ],
+      "interpretation": "64-bit constant 0x100000002 stored at +0xa0; little-endian upper dword initializes machine ID +0xa4 to 1."
+    },
+    {
+      "id": "session.backend",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x26d3c8f",
+      "evidence": [
+        {
+          "va": "0x1026d3c8f",
+          "rva": "0x26d3c8f",
+          "hex": "48897758",
+          "length": 4,
+          "instructions": [
+            "1026d3c8f:\tmov\tqword ptr [rdi + 0x58], rsi"
+          ]
+        }
+      ],
+      "interpretation": "Backend pointer RSI stored at session+0x58."
+    },
+    {
+      "id": "lobby.session_is_server",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x6a1a18",
+      "evidence": [
+        {
+          "va": "0x1006a1a18",
+          "rva": "0x6a1a18",
+          "hex": "ff909000000080785400",
+          "length": 10,
+          "instructions": [
+            "1006a1a18:\tcall\tqword ptr [rax + 0x90]",
+            "1006a1a1e:\tcmp\tbyte ptr [rax + 0x54], 0x0"
+          ]
+        },
+        {
+          "va": "0x1006a191a",
+          "rva": "0x6a191a",
+          "hex": "488d15a6a49a02b96c01000041b801030000e85fc53e024c89e7488d35e5a49a02e8b0c53e024889c7",
+          "length": 41,
+          "instructions": [
+            "1006a191a:\tlea\trdx, [rip + 0x29aa4a6] ## literal pool for: \"/Users/pdxadmin/builds/builds/9vFqpwqUr/0/gsg/hoi4/hoi4_merged/hoi4/source/gamelobby.cpp\"",
+            "1006a1921:\tmov\tecx, 0x16c",
+            "1006a1926:\tmov\tr8d, 0x301",
+            "1006a192c:\tcall\t0x102a8de90",
+            "1006a1931:\tmov\trdi, r12",
+            "1006a1934:\tlea\trsi, [rip + 0x29aa4e5] ## literal pool for: \"CGameLobby::IncomingFileChunkAck: Already found Human for \"",
+            "1006a193b:\tcall\t0x102a8def0",
+            "1006a1940:\tmov\trdi, rax"
+          ]
+        },
+        {
+          "va": "0x1006a1a0e",
+          "rva": "0x6a1a0e",
+          "hex": "488bbbf8030000488b07",
+          "length": 10,
+          "instructions": [
+            "1006a1a0e:\tmov\trdi, qword ptr [rbx + 0x3f8]",
+            "1006a1a15:\tmov\trax, qword ptr [rdi]"
+          ]
+        },
+        {
+          "va": "0x1006a1a2d",
+          "rva": "0x6a1a2d",
+          "hex": "488d1593a39a02488d9d98feffff4889df4889c6b98401000041b801030000e83fc43e02488d350da49a024889dfe890c43e024889c7",
+          "length": 54,
+          "instructions": [
+            "1006a1a2d:\tlea\trdx, [rip + 0x29aa393] ## literal pool for: \"/Users/pdxadmin/builds/builds/9vFqpwqUr/0/gsg/hoi4/hoi4_merged/hoi4/source/gamelobby.cpp\"",
+            "1006a1a34:\tlea\trbx, [rbp - 0x168]",
+            "1006a1a3b:\tmov\trdi, rbx",
+            "1006a1a3e:\tmov\trsi, rax",
+            "1006a1a41:\tmov\tecx, 0x184",
+            "1006a1a46:\tmov\tr8d, 0x301",
+            "1006a1a4c:\tcall\t0x102a8de90",
+            "1006a1a51:\tlea\trsi, [rip + 0x29aa40d] ## literal pool for: \"CGameLobby::IncomingFileChunkAck: Failed to find Human for \"",
+            "1006a1a58:\tmov\trdi, rbx",
+            "1006a1a5b:\tcall\t0x102a8def0",
+            "1006a1a60:\tmov\trdi, rax"
+          ]
+        }
+      ],
+      "interpretation": "Lobby IncomingFileChunkAck invokes +0x90 then reads server byte +0x54. Diagnostics identify gamelobby.cpp and CGameLobby::IncomingFileChunkAck."
+    },
+    {
+      "id": "gamestate.human_count",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x6e7e89",
+      "evidence": [
+        {
+          "va": "0x1006e7e89",
+          "rva": "0x6e7e89",
+          "hex": "8b93ec000000",
+          "length": 6,
+          "instructions": [
+            "1006e7e89:\tmov\tedx, dword ptr [rbx + 0xec]"
+          ]
+        }
+      ],
+      "interpretation": "32-bit human count at game state +0xec."
+    },
+    {
+      "id": "gamestate.humans",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x6e7e93",
+      "evidence": [
+        {
+          "va": "0x1006e7e93",
+          "rva": "0x6e7e93",
+          "hex": "488b8be0000000",
+          "length": 7,
+          "instructions": [
+            "1006e7e93:\tmov\trcx, qword ptr [rbx + 0xe0]"
+          ]
+        }
+      ],
+      "interpretation": "Human-array data pointer at game state +0xe0."
+    },
+    {
+      "id": "human.machine_id",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x6e7ea0",
+      "evidence": [
+        {
+          "va": "0x1006e7ea0",
+          "rva": "0x6e7ea0",
+          "hex": "398188000000",
+          "length": 6,
+          "instructions": [
+            "1006e7ea0:\tcmp\tdword ptr [rcx + 0x88], eax"
+          ]
+        }
+      ],
+      "interpretation": "Compare human +0x88 with local session machine ID EAX."
+    },
+    {
+      "id": "human.stride",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x6e7ea8",
+      "evidence": [
+        {
+          "va": "0x1006e7ea8",
+          "rva": "0x6e7ea8",
+          "hex": "4881c190000000",
+          "length": 7,
+          "instructions": [
+            "1006e7ea8:\tadd\trcx, 0x90"
+          ]
+        }
+      ],
+      "interpretation": "Advance array cursor by 0x90 bytes."
+    },
+    {
+      "id": "human.name",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x6929be",
+      "evidence": [
+        {
+          "va": "0x1006929be",
+          "rva": "0x6929be",
+          "hex": "4983c020",
+          "length": 4,
+          "instructions": [
+            "1006929be:\tadd\tr8, 0x20"
+          ]
+        },
+        {
+          "va": "0x100692988",
+          "rva": "0x692988",
+          "hex": "488b80e000000048c1e104488d14c931c90f1f80000000004439b40888000000",
+          "length": 32,
+          "instructions": [
+            "100692988:\tmov\trax, qword ptr [rax + 0xe0]",
+            "10069298f:\tshl\trcx, 0x4",
+            "100692993:\tlea\trdx, [rcx + 8*rcx]",
+            "100692997:\txor\tecx, ecx",
+            "100692999:\tnop\tdword ptr [rax]",
+            "1006929a0:\tcmp\tdword ptr [rax + rcx + 0x88], r14d"
+          ]
+        },
+        {
+          "va": "0x1006929ba",
+          "rva": "0x6929ba",
+          "hex": "4c8d04084983c020c74588000000000f57c00f1145900f1145a00f1145b00f1145c048c745d000000000488d1529caaa02488d0df7a58802488dbd70ffffff488d7588e8cec90000",
+          "length": 72,
+          "instructions": [
+            "1006929ba:\tlea\tr8, [rax + rcx]",
+            "1006929be:\tadd\tr8, 0x20",
+            "1006929c2:\tmov\tdword ptr [rbp - 0x78], 0x0",
+            "1006929c9:\txorps\txmm0, xmm0",
+            "1006929cc:\tmovups\txmmword ptr [rbp - 0x70], xmm0",
+            "1006929d0:\tmovups\txmmword ptr [rbp - 0x60], xmm0",
+            "1006929d4:\tmovups\txmmword ptr [rbp - 0x50], xmm0",
+            "1006929d8:\tmovups\txmmword ptr [rbp - 0x40], xmm0",
+            "1006929dc:\tmov\tqword ptr [rbp - 0x30], 0x0",
+            "1006929e4:\tlea\trdx, [rip + 0x2aaca29] ## literal pool for: \"USER_NAME\"",
+            "1006929eb:\tlea\trcx, [rip + 0x288a5f7] ## literal pool for: \"USER\"",
+            "1006929f2:\tlea\trdi, [rbp - 0x90]",
+            "1006929f9:\tlea\trsi, [rbp - 0x78]",
+            "1006929fd:\tcall\t0x10069f3d0"
+          ]
+        }
+      ],
+      "interpretation": "Human name string at +0x20; used with USER_NAME / USER literals."
+    },
+    {
+      "id": "human.ctor_machine_id",
+      "kind": "instruction",
+      "status": "statically_proven",
+      "rva": "0x757851",
+      "evidence": [
+        {
+          "va": "0x100757851",
+          "rva": "0x757851",
+          "hex": "8b45c4898388000000",
+          "length": 9,
+          "instructions": [
+            "100757851:\tmov\teax, dword ptr [rbp - 0x3c]",
+            "100757854:\tmov\tdword ptr [rbx + 0x88], eax"
+          ]
+        },
+        {
+          "va": "0x1007576b0",
+          "rva": "0x7576b0",
+          "hex": "554889e54157415641554154534883ec284589cd4989d74889fb488d054718bb024889070f57c00f114708488b05e652b40248894718488d5720f60601488955b8448945c47510488b461048894210",
+          "length": 79,
+          "instructions": [
+            "1007576b0:\tpush\trbp",
+            "1007576b1:\tmov\trbp, rsp",
+            "1007576b4:\tpush\tr15",
+            "1007576b6:\tpush\tr14",
+            "1007576b8:\tpush\tr13",
+            "1007576ba:\tpush\tr12",
+            "1007576bc:\tpush\trbx",
+            "1007576bd:\tsub\trsp, 0x28",
+            "1007576c1:\tmov\tr13d, r9d",
+            "1007576c4:\tmov\tr15, rdx",
+            "1007576c7:\tmov\trbx, rdi",
+            "1007576ca:\tlea\trax, [rip + 0x2bb1847]",
+            "1007576d1:\tmov\tqword ptr [rdi], rax",
+            "1007576d4:\txorps\txmm0, xmm0",
+            "1007576d7:\tmovups\txmmword ptr [rdi + 0x8], xmm0",
+            "1007576db:\tmov\trax, qword ptr [rip + 0x2b452e6] ## literal pool symbol address: __ZZ24PdxGetNewDeleteAllocatorvE5Alloc",
+            "1007576e2:\tmov\tqword ptr [rdi + 0x18], rax",
+            "1007576e6:\tlea\trdx, [rdi + 0x20]",
+            "1007576ea:\ttest\tbyte ptr [rsi], 0x1",
+            "1007576ed:\tmov\tqword ptr [rbp - 0x48], rdx",
+            "1007576f1:\tmov\tdword ptr [rbp - 0x3c], r8d",
+            "1007576f5:\tjne\t0x100757707",
+            "1007576f7:\tmov\trax, qword ptr [rsi + 0x10]",
+            "1007576fb:\tmov\tqword ptr [rdx + 0x10], rax"
+          ]
+        }
+      ],
+      "interpretation": "CHuman constructor stores saved R8D at +0x88. Constructor sets CHuman vtable 0x103308f18; SysV argument identity differs from Windows."
+    },
+    {
+      "id": "app.global",
+      "kind": "rip_target",
+      "status": "statically_proven",
+      "rva": "0x2674454",
+      "evidence": [
+        {
+          "va": "0x102674454",
+          "rva": "0x2674454",
+          "hex": "488b057d56fc00",
+          "length": 7,
+          "instructions": [
+            "102674454:\tmov\trax, qword ptr [rip + 0xfc567d]"
+          ]
+        }
+      ],
+      "interpretation": "GetApplication accessor loads global app pointer. Distinct from the idler singleton used by local-human lookup.",
+      "displacement_rva": "0x2674457",
+      "next_instruction_rva": "0x267445b",
+      "target_rva": "0x3639ad8"
+    },
+    {
+      "id": "app.get_session_slot",
+      "kind": "vtable_slot",
+      "status": "statically_proven",
+      "rva": "0x62e900",
+      "evidence": [
+        {
+          "va": "0x10062e900",
+          "rva": "0x62e900",
+          "hex": "554889e5488b87200300005dc3",
+          "length": 13,
+          "instructions": [
+            "10062e900:\tpush\trbp",
+            "10062e901:\tmov\trbp, rsp",
+            "10062e904:\tmov\trax, qword ptr [rdi + 0x320]",
+            "10062e90b:\tpop\trbp",
+            "10062e90c:\tret"
+          ]
+        }
+      ],
+      "interpretation": "Itanium vtable address point, slot +0x90. Returns application session +0x320.",
+      "vtable_rva": "0x32ff870",
+      "slot": "0x90",
+      "target_rva": "0x62e900",
+      "file_slot_hex": "00e9620001000000",
+      "rtti": {
+        "typeinfo_va": "0x1032ff948",
+        "name_va": "0x102d5d490",
+        "name": "16CGameApplication"
+      }
+    },
+    {
+      "id": "ingame_idler.session_slot",
+      "kind": "vtable_slot",
+      "status": "statically_proven",
+      "rva": "0x7614b0",
+      "evidence": [
+        {
+          "va": "0x1007614b0",
+          "rva": "0x7614b0",
+          "hex": "554889e5488bbff8040000488b075dffa090000000",
+          "length": 21,
+          "instructions": [
+            "1007614b0:\tpush\trbp",
+            "1007614b1:\tmov\trbp, rsp",
+            "1007614b4:\tmov\trdi, qword ptr [rdi + 0x4f8]",
+            "1007614bb:\tmov\trax, qword ptr [rdi]",
+            "1007614be:\tpop\trbp",
+            "1007614bf:\tjmp\tqword ptr [rax + 0x90]"
+          ]
+        }
+      ],
+      "interpretation": "Itanium vtable address point, slot +0x90. Delegates through pointer this+0x4f8 and its virtual slot +0x90. Exact lifecycle/delegate ownership remains unproven.",
+      "vtable_rva": "0x3308f90",
+      "slot": "0x90",
+      "target_rva": "0x7614b0",
+      "file_slot_hex": "b014760001000000",
+      "rtti": {
+        "typeinfo_va": "0x103309410",
+        "name_va": "0x102d6d109",
+        "name": "12CInGameIdler"
+      }
+    }
+  ],
+  "limitations": [
+    "Static correspondence covers the 19 Windows host pins, not every host_probe runtime dependency. No hooks, dylib, or runtime host probe is enabled by this document.",
+    "SysV register ABI and Itanium vtable +0x90 replace Windows calling convention and +0x88; no Windows offsets are reused by assumption.",
+    "Named mode enum semantics, backend vtable classifications, network/lobby transitions, object lifetime and multiplayer behavior still need separate evidence or in-game checks.",
+    "Signatures are exact file spans at pinned RVAs; uniqueness and relocation-free runtime safety are not asserted here. Each instruction span must be adapted to the actual runtime verification strategy.",
+    "Do not replace app.global by the idler singleton. They are distinct chains; idler delegate identity and ownership are not inferred from matching slot number."
+  ]
+}

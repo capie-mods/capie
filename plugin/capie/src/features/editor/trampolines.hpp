@@ -13,10 +13,27 @@
 
 namespace capie::editor {
 
+#if !defined(__APPLE__)
 using engine::MsvcString;
+#endif
 using engine::Record;
+using engine::RecordString;
 using engine::TempVector;
 
+#if defined(__APPLE__)
+/// @brief Native SysV tick window/force arguments.
+using Tick = void (*)(void*, char);
+/// @brief Native SysV bind window argument.
+using Bind = void (*)(void*);
+/// @brief Key handler return register forwarded opaquely.
+using HandleKey = std::uint64_t (*)(void*, void*);
+/// @brief Native context/selector dispatch.
+using Dispatch = void (*)(void*, void*);
+/// @brief Native command execution.
+using Execute = void (*)(void*);
+/// @brief Five-register native constructor boundary; see macos_records.hpp.
+using Constructor = engine::macos::records::Constructor;
+#else
 /// @brief `void Tick(window*, char force)`.
 using Tick = void(__fastcall*)(void*, char);
 /// @brief `void Bind(window*)`.
@@ -29,6 +46,8 @@ using Dispatch = void(__fastcall*)(void*, void*);
 using Execute = void(__fastcall*)(void*);
 /// @brief `effect* ctor(self*, gui name*, selector*, scope*, records*)`.
 using Constructor = void*(__fastcall*)(void*, const MsvcString*, const MsvcString*, const void*, const TempVector*);
+
+#endif
 
 /// @brief Original Tick.
 inline Tick original_tick = nullptr;

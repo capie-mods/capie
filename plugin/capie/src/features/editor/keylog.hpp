@@ -89,7 +89,7 @@ struct KeyRecord {
     unsigned mask{};                                     ///< `record_bit` mask.
     std::size_t field{field_count};                      ///< Own field index.
     bool wrapper{};                                      ///< Source is the wrapper.
-    DWORD thread{};                                      ///< Thread.
+    unsigned long thread{};                                      ///< Thread.
     KeyStatus status{};                                  ///< Status copy.
 };
 static_assert(std::is_trivially_copyable_v<KeyStatus> && std::is_trivially_copyable_v<KeyRecord>);
@@ -103,7 +103,7 @@ struct TickRecord {
 /// @brief Tick records: fields first, then models.
 inline TickRecord tick_records[field_count + model_count]{};
 /// @brief Guards `tick_records`. Never held across a game call.
-inline SRWLOCK logger_lock = SRWLOCK_INIT;
+inline core::platform::Lock logger_lock{};
 
 /// @brief Result of taking a budget slot.
 enum class LogSlot { record, cap, drop };
@@ -140,7 +140,7 @@ inline LogSlot take_key_slot(std::atomic<unsigned>& count, unsigned limit) noexc
  * @param out Status.
  */
 inline void copy_key_lifecycle(std::size_t field, KeyStatus& out) noexcept {
-    AcquireSRWLockShared(&state_lock);
+    core::platform::lock_shared(&state_lock);
     const auto& state = lifecycle[fields[field].model];
     out.visible = state.visible;
     out.attempted = state.attempted;
@@ -148,7 +148,7 @@ inline void copy_key_lifecycle(std::size_t field, KeyStatus& out) noexcept {
     out.epoch = state.epoch;
     out.generation = state.generation;
     out.mask |= status_bit::lifecycle;
-    ReleaseSRWLockShared(&state_lock);
+    core::platform::unlock_shared(&state_lock);
 }
 
 /**
@@ -219,7 +219,7 @@ inline bool make_key_record(void* edit, void* event, bool wrapper, KeyRecord& ou
         return false;
     }
     out.wrapper = wrapper;
-    out.thread = GetCurrentThreadId();
+    out.thread = core::platform::thread_id();
     if (engine::guarded_copy(out.values, event, sizeof(out.values))) {
         out.mask |= record_bit::event_words;
     }
@@ -329,7 +329,12 @@ inline void emit_key_record(const KeyRecord& value) noexcept {
  * @param event Key event.
  * @param wrapper Source is the wrapper.
  */
-__declspec(noinline) inline void key_prelog(void* edit, void* event, bool wrapper) noexcept {
+#if defined(__APPLE__)
+[[gnu::noinline]]
+#else
+__declspec(noinline)
+#endif
+inline void key_prelog(void* edit, void* event, bool wrapper) noexcept {
     if (!active.load(std::memory_order_acquire)) {
         return;
     }
@@ -365,7 +370,7 @@ inline void emit_tick_change(std::size_t slot, const char* name, ViewResult view
     bool cap = false;
     bool file_record = false;
     const auto semantic = routing_status(status);
-    AcquireSRWLockExclusive(&logger_lock);
+    core::platform::lock(&logger_lock);
     auto& previous = tick_records[slot];
     if (!previous.seen || previous.view != static_cast<unsigned>(view) || !(previous.status == semantic)) {
         previous.seen = true;
@@ -378,7 +383,7 @@ inline void emit_tick_change(std::size_t slot, const char* name, ViewResult view
             file_record = true;
         }
     }
-    ReleaseSRWLockExclusive(&logger_lock);
+    core::platform::unlock(&logger_lock);
     if (!changed) {
         return;
     }

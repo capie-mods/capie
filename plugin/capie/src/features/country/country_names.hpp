@@ -206,6 +206,20 @@ using LookupZ = const char* (*)(const char*);
 /// @brief `bool exists(const char* key)`.
 using Exists = bool (*)(const char*);
 
+/**
+ * @brief Measures a non-null key up to the inspection bound on the current platform.
+ * @param key Readable NUL-terminated key supplied by the native lookup caller.
+ * @return Length, capped at max_key_bytes + 1.
+ * @note Windows retains its existing CRT operation. macOS uses the bounded POSIX equivalent.
+ */
+inline std::size_t bounded_key_length(const char* key) noexcept {
+#if defined(__APPLE__)
+    return ::strnlen(key, max_key_bytes + 1);
+#else
+    return strnlen_s(key, max_key_bytes + 1);
+#endif
+}
+
 /// @brief Trampoline of `lookup_n`.
 inline LookupN original_n = nullptr;
 /// @brief Trampoline of `lookup_z`.
@@ -240,7 +254,7 @@ inline const char* lookup_n(const char* key, int length) noexcept {
 inline const char* lookup_z(const char* key) noexcept {
     try {
         if (key != nullptr && may_claim_z(key)) {
-            const auto n = strnlen_s(key, max_key_bytes + 1);
+            const auto n = bounded_key_length(key);
             if (n <= max_key_bytes) {
                 if (const auto* result = override_value(std::string_view(key, n))) {
                     return result;
@@ -260,7 +274,7 @@ inline const char* lookup_z(const char* key) noexcept {
 inline bool exists(const char* key) noexcept {
     try {
         if (key != nullptr && key[0] == claim_prefix[0] && key[1] == claim_prefix[1] && active.load()) {
-            const auto n = strnlen_s(key, max_key_bytes + 1);
+            const auto n = bounded_key_length(key);
             if (n <= max_key_bytes && country_value(std::string_view(key, n)) != nullptr) {
                 return true;
             }

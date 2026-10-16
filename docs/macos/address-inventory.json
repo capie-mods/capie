@@ -1,0 +1,5039 @@
+{
+  "schema": 1,
+  "target_sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "scope": "All constants in game_layout.hpp and all aggregate pin-table entries in signature_table.hpp and features/**/*_pins.hpp. Static mappings do not imply runtime compatibility; console has additional requirements in console-map.md.",
+  "runtime_ready": false,
+  "sources": [
+    {
+      "path": "plugin/capie/src/core/game_layout.hpp",
+      "sha256": "d0994fc441cf216bca36c3e64218f145234f2d3657916c96c52a1d74d3e399c2"
+    },
+    {
+      "path": "plugin/capie/src/core/signature_table.hpp",
+      "sha256": "49e3bdee6aba87d2357d214186a951de9c003695783fd1cf082681e90c31df70"
+    },
+    {
+      "path": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "sha256": "c33905e86cd8e12adad2d57539422bc0429c1131bdff829edad8ab94d9650b0a"
+    },
+    {
+      "path": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "sha256": "c1c32d4f6d83e32ca354c5bfa87c29570c40551010594bd45e57c8f84deac3ef"
+    },
+    {
+      "path": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "sha256": "5c3309f79f5989100d21be28814b1b5d2781f71ae06d1439abf7576ca3add06e"
+    },
+    {
+      "path": "plugin/capie/src/features/host/host_pins.hpp",
+      "sha256": "193528c50395d21b531ba940d4c5c9a73b3594d625e0df6b7e029ef3ea6c176a"
+    }
+  ],
+  "constants": [
+    {
+      "id": "core::rva::loc_lookup_n",
+      "windows_expression": "0x239EE20",
+      "macos": {
+        "value": "0x288da90",
+        "confidence": "proven",
+        "report": "localisation-coverage.md",
+        "instruction_evidence": [
+          "0x10288da90"
+        ],
+        "notes": "Static interface; full hook coverage and runtime verification pending."
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::loc_lookup_z",
+      "windows_expression": "0x239ED40",
+      "macos": {
+        "value": "0x288d420",
+        "confidence": "proven",
+        "report": "localisation-coverage.md",
+        "instruction_evidence": [
+          "0x10288d420"
+        ],
+        "notes": "Static interface; full hook coverage and runtime verification pending."
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::loc_exists",
+      "windows_expression": "0x239D0F0",
+      "macos": {
+        "value": "0x288e4c0",
+        "confidence": "proven",
+        "report": "localisation-coverage.md",
+        "instruction_evidence": [
+          "0x10288e4c0"
+        ],
+        "notes": "Static interface; full hook coverage and runtime verification pending."
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::update_names",
+      "windows_expression": "0x716580",
+      "macos": {
+        "id": "core::rva::update_names",
+        "value": "0x117a790",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1011ca76a",
+          "0x1011ca772",
+          "0x10117abe1",
+          "0x10117ac2d"
+        ],
+        "notes": "Called immediately after cosmetic-tag assignment; builds cached country names and _ADJ/_DEF/OVERLORD variants. Return ABI and complete writes require final review.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::build_name_key",
+      "windows_expression": "0x6ECFF0",
+      "macos": {
+        "id": "core::rva::build_name_key",
+        "value": "0x1177f30",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10117abe1",
+          "0x10117ac2a",
+          "0x10117ac2d"
+        ],
+        "notes": "Output rdi, cosmetic tag rsi. Other args rdx,rcx,r8,r9 plus stack pointer and byte. Behaviour has _subject/COUNTRY fallbacks; hook coverage requires call-site inventory.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::set_variable_execute",
+      "windows_expression": "0x364C60",
+      "macos": {
+        "id": "core::rva::set_variable_execute",
+        "value": "0x10607f0",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x101060800",
+          "0x101060844"
+        ],
+        "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::variable_find",
+      "windows_expression": "0xBC4960",
+      "macos": {
+        "id": "core::rva::variable_find",
+        "value": "0xb031c0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b031a4",
+          "0x100b03287",
+          "0x100b03294",
+          "0x100b03354",
+          "0x100b0335b"
+        ],
+        "notes": "Static evidence-only counterpart for Windows variable_find (game_layout.hpp: pinned, never called). Native lookup returns a value pointer or fallback pointer, not the Windows entry iterator. Exported prologue, caller rel32 and table/value-selection instructions establish the pin role; callable ABI compatibility and runtime integration are not established.",
+        "report": "layers-map.md",
+        "runtime_ready": false
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::variable_get",
+      "windows_expression": "0xBC7E80",
+      "macos": {
+        "id": "core::rva::variable_get",
+        "value": "0xb03190",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100b0319c",
+          "0x100b031a4",
+          "0x100b031a9"
+        ],
+        "notes": "SysV(container*,byte-span*,int64 fallback)->int64 rax. No output pointer parameter.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::country_of",
+      "windows_expression": "0xBB4390",
+      "macos": {
+        "id": "core::rva::country_of",
+        "value": "0x11d7110",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10095c13d",
+          "0x10095c142",
+          "0x1011d7250"
+        ],
+        "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::gamestate_global",
+      "windows_expression": "0x332F260",
+      "macos": {
+        "id": "core::rva::gamestate_global",
+        "value": "0x3519740",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1011d7074"
+        ],
+        "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::faction_get_name",
+      "windows_expression": "0xD8BB80",
+      "macos": {
+        "id": "core::rva::faction_get_name",
+        "value": "0xe527e0",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100e527ee",
+          "0x100e52832",
+          "0x100e52848",
+          "0x100db7a9e"
+        ],
+        "notes": "ABI rdi=out,rsi=faction. Named string+18 copied inline. Template+450, template+b8 LOCALIZED via100f9b2a0, not plain copied.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::flag_atlas_update",
+      "windows_expression": "0x123FE20",
+      "macos": {
+        "id": "core::rva::flag_atlas_update",
+        "value": "0x194a920",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10194ac3a",
+          "0x10194ad8a",
+          "0x10194ad91"
+        ],
+        "notes": "Selects changed slots then incremental or threaded rebuild; void return appears likely, not Windows u64.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::load_country_flag",
+      "windows_expression": "0x123F7E0",
+      "macos": {
+        "id": "core::rva::load_country_flag",
+        "value": "0x194a460",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10194a1fd",
+          "0x10194bdc1",
+          "0x10194a4e2"
+        ],
+        "notes": "Two direct callers in full dump; register and stack arguments require adapter.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::build_flag_candidates",
+      "windows_expression": "0x147D990",
+      "macos": {
+        "id": "core::rva::build_flag_candidates",
+        "value": "0x257750",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10194a4ac",
+          "0x10194a4d9",
+          "0x10194a4e2"
+        ],
+        "notes": "SysV out=rdi, tag=rsi, cosmetic=rdx, group=rcx; custom inline-buffer vector result layout must be adapted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::string_copy",
+      "windows_expression": "0x11E010",
+      "macos": {
+        "id": "core::rva::string_copy",
+        "value": null,
+        "confidence": "requires_adapter",
+        "instruction_evidence": [
+          "0x100e52865",
+          "0x100e52871",
+          "0x100e52881",
+          "0x100e52891"
+        ],
+        "notes": "No one-to-one native copy-constructor RVA is claimed. The implemented standalone construct_name adapter constructs fresh libc++ return storage; it does not assign a live owning string. Runtime integration and allocator verification remain required.",
+        "report": "layers-map.md",
+        "implementation": "plugin/capie/src/engine/macos_owned_string.hpp",
+        "runtime_ready": false
+      },
+      "status": "requires_adapter"
+    },
+    {
+      "id": "core::rva::portrait_resolve",
+      "windows_expression": "0x139DF20",
+      "macos": {
+        "id": "core::rva::portrait_resolve",
+        "value": "0xd6fbe0",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1023d33db",
+          "0x100d6fbf7",
+          "0x100d6fd01"
+        ],
+        "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::portrait_valid",
+      "windows_expression": "0x139D1E0",
+      "macos": {
+        "id": "core::rva::portrait_valid",
+        "value": "0x7581a0",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1023d33e3",
+          "0x1007581af",
+          "0x1007581bb"
+        ],
+        "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::sprite_find",
+      "windows_expression": "0x2238DF0",
+      "macos": {
+        "id": "core::rva::sprite_find",
+        "value": "0x27b7b30",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1007581e6"
+        ],
+        "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::sprite_database_global",
+      "windows_expression": "0x3453090",
+      "macos": {
+        "id": "core::rva::sprite_database_global",
+        "value": "0x35dc028",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1007581d8",
+          "0x1007581df"
+        ],
+        "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::vt_character",
+      "windows_expression": "0x297EA60",
+      "macos": {
+        "id": "core::rva::vt_character",
+        "value": "0x332efe0",
+        "confidence": "proven",
+        "instruction_evidence": [],
+        "notes": "Value is RVA; evidence addresses are unslid VA. Vtable identity from RTTI; interception coverage not asserted.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::rva::window_tick",
+      "windows_expression": "0xB88950",
+      "macos": {
+        "id": "core::rva::window_tick",
+        "value": "0xB44020",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b44034",
+          "0x100b443d5"
+        ],
+        "notes": "0x100b44034 saves `esi` force flag; +0xf0 root, +0xa50 parent-visible and +0xa51 visible-trigger result; 0x100b443d5 updates embedded context. Original map representation: 0xB44020",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::window_bind",
+      "windows_expression": "0xB86320",
+      "macos": {
+        "id": "core::rva::window_bind",
+        "value": "0xB45EC0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b45ed4",
+          "0x100b462a7",
+          "0x100b462af",
+          "0x100b463df"
+        ],
+        "notes": "0x100b45ed4 loads model; resolves parent, creates root at 0x100b462a7; stores root at 0x100b462af and binds context at 0x100b463df. Original map representation: 0xB45EC0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::window_dispatch",
+      "windows_expression": "0xB867D0",
+      "macos": {
+        "id": "core::rva::window_dispatch",
+        "value": "0xB4B7E0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b480f7",
+          "0x100b4b8ec",
+          "0x100b4bae5"
+        ],
+        "notes": "0x100b480f7 calls with GUI updater and selector; 0x100b4b8ec resolves selector; 0x100b4bae5 constructs effect. Original map representation: 0xB4B7E0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::effect_ctor",
+      "windows_expression": "0x1144840",
+      "macos": {
+        "id": "core::rva::effect_ctor",
+        "value": "0x20B820",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b2f6",
+          "0x10020b825",
+          "0x100b4bae5"
+        ],
+        "notes": "0x100b4bae5 calls thunk; 0x10020b825 jumps to body; body writes RTTI-backed effect vptr at 0x10020b2f6. Original map representation: 0x20B820 (thunk), 0x20B2B0 (body)",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::effect_execute",
+      "windows_expression": "0x1156950",
+      "macos": {
+        "id": "core::rva::effect_execute",
+        "value": "0x20B830",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b8a6",
+          "0x10020b98f",
+          "0x10020b9c4"
+        ],
+        "notes": "Effect vtable +0x58 points here; 0x10020b8a6 reads model +0x70; 0x10020b98f reads selector +0x58; 0x10020b9c4 executes resolved effect. Original map representation: 0x20B830",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::edit_key_handler",
+      "windows_expression": "0x22F1030",
+      "macos": {
+        "id": "core::rva::edit_key_handler",
+        "value": "0x285E6D0",
+        "confidence": "static",
+        "instruction_evidence": [],
+        "notes": "CEditBox secondary vtable +0x38 points here; receives key event in rsi, uses key helpers; not a Windows-handler ABI substitute. Original map representation: 0x285E6D0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::edit_key_wrapper",
+      "windows_expression": "0x22F4580",
+      "macos": {
+        "id": "core::rva::edit_key_wrapper",
+        "value": "0x2793AD0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102793b79",
+          "0x102793b8f"
+        ],
+        "notes": "CEditBox primary vtable +0x10; 0x102793b79 adjusts this by +0x70 and 0x102793b8f calls buffer slot +0x38. Original map representation: 0x2793AD0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::find_edit",
+      "windows_expression": "0x22BAD40",
+      "macos": {
+        "id": "core::rva::find_edit",
+        "value": "0x27722D0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10254881f",
+          "0x10254883a",
+          "0x1027722ea",
+          "0x102772309",
+          "0x10277240e",
+          "0x102772470"
+        ],
+        "notes": "CContainerWindow virtual +0xa0; previewer_editbox caller 0x10254881f passes root,name,bool then 0x10254883a adjusts result+0x70. Body 0x1027722ea / 2f1 searches name array/root child list. This is a THREE-argument lookup; Windows four-argument recursion/boolean behavior remains unverified. 0x102772309 tests report-error bool; failure path logs at 0x10277240e, returns dummy [root+0x88]+0x1b8 at 0x102772470/477. Native identity proven; ABI needs macOS adapter and explicit missing-widget guard. Original map representation: 0x27722D0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::find_instant",
+      "windows_expression": "0x22BC600",
+      "macos": {
+        "id": "core::rva::find_instant",
+        "value": "0x27720F0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10077aa63",
+          "0x10077aae1",
+          "0x102772129",
+          "0x10277222e",
+          "0x102772290"
+        ],
+        "notes": "CContainerWindow virtual +0x98; 0x10077aa63 resolves floating_number name, 0x10077aae1 passes result to CInstantTextBox string setter. Body uses root+0xe38 names and +0xe20 pointers. THREE-argument lookup; Windows fourth argument semantics unverified. 0x102772129 tests report-error bool; failure path logs at 0x10277222e, returns dummy [root+0x88]+0x1c0 at 0x102772290/297. Native identity proven; ABI needs macOS adapter and explicit missing-widget guard. Original map representation: 0x27720F0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::text_buffer_set",
+      "windows_expression": "0x22F27C0",
+      "macos": {
+        "id": "core::rva::text_buffer_set",
+        "value": "0x285E4A0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1000dfeb9",
+          "0x10285e3e0",
+          "0x10285e4a4"
+        ],
+        "notes": "0x10285e4a4 tests libc++ source mode and tails to 0x10285e3e0; body clears buffer+0x30 UTF-32 string and inserts converted text. 0x1000dfeb9 passes edit+0x70, then refreshes. Original map representation: 0x285E4A0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::edit_refresh",
+      "windows_expression": "0x22F4D80",
+      "macos": {
+        "id": "core::rva::edit_refresh",
+        "value": "0x2793F10",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1000dfec0",
+          "0x1000dfece",
+          "0x102793bd4"
+        ],
+        "notes": "0x1000dfec0 calls SetText with edit+0x70 and 0x1000dfece tails here with edit; wrapper 0x102793bd4 refreshes after key input. Original map representation: 0x2793F10",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::request_view_refresh",
+      "windows_expression": "0xB6E210",
+      "macos": {
+        "id": "core::rva::request_view_refresh",
+        "value": "0x20EE380",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020ee387",
+          "0x1020ee392",
+          "0x1020ee3a2",
+          "0x1020ee3b1"
+        ],
+        "notes": "0x1020ee387 rejects sentinel 0x17; 0x1020ee392 indexes gui+0xc8; 0x1020ee3a2 checks visible slot +0x30; 0x1020ee3b1 adds observer+0x28; tails to dirty mark. Original map representation: 0x20EE380",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::observer_mark_dirty",
+      "windows_expression": "0x1236950",
+      "macos": {
+        "id": "core::rva::observer_mark_dirty",
+        "value": "0x2389140",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102389144"
+        ],
+        "notes": "0x102389144 mov byte ptr [rdi+0x14],1. Original map representation: 0x2389140",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::observer_consume",
+      "windows_expression": "0x1236980",
+      "macos": {
+        "id": "core::rva::observer_consume",
+        "value": "0x2389150",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10238915c",
+          "0x10238915f"
+        ],
+        "notes": "0x10238915c invokes observer slot +0x50, 0x10238915f clears dirty byte +0x14. Runtime frame scheduling still unchecked. Original map representation: 0x2389150",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::idler_gui_getter",
+      "windows_expression": "0xDCCF30",
+      "macos": {
+        "id": "core::rva::idler_gui_getter",
+        "value": "0x77BD00",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10077bd04",
+          "0x1020f2590"
+        ],
+        "notes": "0x10077bd04 loads [rdi+0x670]; scripted-window tick calls idler slot +0xd8 then GUI view getter 0x1020f2590. Original map representation: 0x77BD00",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::view_is_visible",
+      "windows_expression": "0x1237520",
+      "macos": {
+        "id": "core::rva::view_is_visible",
+        "value": "0x1FC8E30",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101fc8e39",
+          "0x101fc8e5d"
+        ],
+        "notes": "Politics primary vtable +0x30; 0x101fc8e39 loads +0x430 root, 0x101fc8e5d reads root+0x95 shown bit. Original map representation: 0x1FC8E30",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::view_get_root",
+      "windows_expression": "0x12374F0",
+      "macos": {
+        "id": "core::rva::view_get_root",
+        "value": "0x1FC8F30",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101fc8f34"
+        ],
+        "notes": "0x101fc8f34 mov rax,[rdi+0x430]. Original map representation: 0x1FC8F30",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::observer_frame",
+      "windows_expression": "0x1582820",
+      "macos": {
+        "id": "core::rva::observer_frame",
+        "value": "0x1FA4320",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101fa3c10",
+          "0x101fa4324"
+        ],
+        "notes": "Politics observer address point +0x40; 0x101fa4324 adjusts -0x28 then jumps to 0x101fa3c10, which updates frame countdown using idler+0x18. Original map representation: 0x1FA4320 (thunk), 0x1FA3C10 (body)",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::observer_refresh",
+      "windows_expression": "0x15863F0",
+      "macos": {
+        "id": "core::rva::observer_refresh",
+        "value": "0x1F9FC10",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101f9d6c0",
+          "0x101f9fc14",
+          "0x10238915c"
+        ],
+        "notes": "Politics observer +0x50; 0x101f9fc14 adjusts -0x28 and tails to 0x101f9d6c0. Consumer 0x10238915c calls this slot. Detailed leader/party writer coverage not yet traced. Original map representation: 0x1F9FC10 (thunk), 0x1F9D6C0 (body)",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::focus_switch",
+      "windows_expression": "0x225E320",
+      "macos": {
+        "id": "core::rva::focus_switch",
+        "value": "0x27C86C0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1027c86cd",
+          "0x1027c86dc",
+          "0x1027c86e2",
+          "0x1027c86f8"
+        ],
+        "notes": "0x1027c86cd loads old focus +0x138, 0x1027c86dc calls unfocus +0xc8, 0x1027c86e2 stores new focus, 0x1027c86f8 calls focus +0xc0. Original map representation: 0x27C86C0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::edit_unfocus",
+      "windows_expression": "0x22F4770",
+      "macos": {
+        "id": "core::rva::edit_unfocus",
+        "value": "0x2794BD0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102794bd9",
+          "0x102794be2",
+          "0x102794c43"
+        ],
+        "notes": "0x102794bd9 reads +0x239; 0x102794be2 clears bit 0; 0x102794c43 adjusts +0x180 and tails to receiver unregistration. Original map representation: 0x2794BD0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::edit_focus",
+      "windows_expression": "0x22F3FB0",
+      "macos": {
+        "id": "core::rva::edit_focus",
+        "value": "0x2794AF0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102794afb",
+          "0x102794b0d",
+          "0x102794ba0"
+        ],
+        "notes": "0x102794afb reads +0x239, rejects bit 1; 0x102794b0d sets bit 0; 0x102794ba0 passes +0x180 to receiver registration. Original map representation: 0x2794AF0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::focus_manager_rip_displacement",
+      "windows_expression": "0x22FBEC6",
+      "macos": {
+        "id": "core::rva::focus_manager_rip_displacement",
+        "value": "0x2863EED",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102863eea",
+          "0x102863ef1"
+        ],
+        "notes": "Displacement bytes of LEA at 0x102863eea, unlike Windows MOV; dereference at 0x102863ef1. Adapter must understand two-step access. Original map representation: 0x2863EED",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::focus_manager_rip_next",
+      "windows_expression": "0x22FBECA",
+      "macos": {
+        "id": "core::rva::focus_manager_rip_next",
+        "value": "0x2863EF1",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102863eea"
+        ],
+        "notes": "Next RIP of LEA at 0x102863eea. Original map representation: 0x2863EF1",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_sg_model",
+      "windows_expression": "0x29DB558",
+      "macos": {
+        "id": "core::rva::vt_sg_model",
+        "value": "0x3326868",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x103326868",
+          "0x1033268b8"
+        ],
+        "notes": "RTTI CScriptedWindowTemplate: typeinfo 0x1033268b8; address point 0x103326868, offset-to-top 0.  Original map representation: 0x3326868",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_sg_context",
+      "windows_expression": "0x294E568",
+      "macos": {
+        "id": "core::rva::vt_sg_context",
+        "value": "0x33269b0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1033269b0",
+          "0x103326a18"
+        ],
+        "notes": "RTTI CScriptedWindowGUIUpdater: typeinfo 0x103326a18; address point 0x1033269b0, offset-to-top 0.  Original map representation: 0x33269b0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_sg_root",
+      "windows_expression": "0x2B45278",
+      "macos": {
+        "id": "core::rva::vt_sg_root",
+        "value": "0x34AC0B0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b46308",
+          "0x1027664c0",
+          "0x1034ac0b0",
+          "0x1034ac6a0"
+        ],
+        "notes": "0x100b46308 dynamic_cast target typeinfo 0x1034ac6a0 names 16CContainerWindow; RTTI primary address point 0x1034ac0b0. Constructor 0x1027664c0 / 4c7 writes it. Original map representation: 0x34AC0B0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_instant_text",
+      "windows_expression": "0x2B468C8",
+      "macos": {
+        "id": "core::rva::vt_instant_text",
+        "value": "0x34b1768",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1034b1768",
+          "0x1034b1a10"
+        ],
+        "notes": "RTTI CInstantTextBox: typeinfo 0x1034b1a10; address point 0x1034b1768, offset-to-top 0.  Original map representation: 0x34b1768",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_edit",
+      "windows_expression": "0x2B4A940",
+      "macos": {
+        "id": "core::rva::vt_edit",
+        "value": "0x34add98",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1034add98",
+          "0x1034ae0f8"
+        ],
+        "notes": "RTTI CEditBox: typeinfo 0x1034ae0f8; address point 0x1034add98, offset-to-top 0.  Original map representation: 0x34add98",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_text_buffer",
+      "windows_expression": "0x2B4ABD0",
+      "macos": {
+        "id": "core::rva::vt_text_buffer",
+        "value": "0x34ae058",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1034ae058",
+          "0x1034ae0f8"
+        ],
+        "notes": "RTTI CEditBox: typeinfo 0x1034ae0f8; address point 0x1034ae058, offset-to-top -112.  Original map representation: 0x34ae058",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_edit_definition",
+      "windows_expression": "0x2B54050",
+      "macos": {
+        "id": "core::rva::vt_edit_definition",
+        "value": "0x34AE3E0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1027cee90",
+          "0x102842ec4"
+        ],
+        "notes": "RTTI CEditBoxType; edit name accessor 0x102842ec4 loads definition+0x50, then virtual +0x50 -> 0x1027cee90 (name+0x28). Original map representation: 0x34AE3E0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_execute_effect",
+      "windows_expression": "0x2996ED0",
+      "macos": {
+        "id": "core::rva::vt_execute_effect",
+        "value": "0x32bcb18",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1032bcb18",
+          "0x1032be8f0"
+        ],
+        "notes": "RTTI CExecuteScriptedWindowEffect: typeinfo 0x1032be8f0; address point 0x1032bcb18, offset-to-top 0.  Original map representation: 0x32bcb18",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_politics_view",
+      "windows_expression": "0x29D9648",
+      "macos": {
+        "id": "core::rva::vt_politics_view",
+        "value": "0x3444508",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x103444508",
+          "0x103444658"
+        ],
+        "notes": "RTTI CCountryPoliticsView: typeinfo 0x103444658; address point 0x103444508, offset-to-top 0.  Original map representation: 0x3444508",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_politics_observer",
+      "windows_expression": "0x29D96F0",
+      "macos": {
+        "id": "core::rva::vt_politics_observer",
+        "value": "0x3444600",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020ee3b1",
+          "0x103444600"
+        ],
+        "notes": "RTTI CCountryPoliticsView address point 0x103444600 top=-40; 0x1020ee3b1 uses view+0x28 with observer dirty marker. Original map representation: 0x3444600",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::vt_ingame_idler",
+      "windows_expression": "0x2968FF0",
+      "macos": {
+        "id": "core::rva::vt_ingame_idler",
+        "value": "0x3308f90",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x103308f90",
+          "0x103309410"
+        ],
+        "notes": "RTTI CInGameIdler: typeinfo 0x103309410; address point 0x103308f90, offset-to-top 0.  Original map representation: 0x3308f90",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::manager_global",
+      "windows_expression": "0x3453230",
+      "macos": {
+        "id": "core::rva::manager_global",
+        "value": "0x35DC058",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1000e40b8",
+          "0x102863eea",
+          "0x102863ef1",
+          "0x102863f07",
+          "0x1035dc058"
+        ],
+        "notes": "0x102863eea lea rax,[rip+0xd78167], next RIP 0x102863ef1 => 0x1035dc058; 0x102863ef1 loads manager. Corroborated 0x102863f07 and focus-switch caller 0x1000e40b8. Original map representation: 0x35DC058",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::token_politics_tab",
+      "windows_expression": "0x294E4CC",
+      "macos": {
+        "id": "core::rva::token_politics_tab",
+        "value": "0x35AF598",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1024d72b9",
+          "0x1024d72c0",
+          "0x1024d72ca",
+          "0x102a7a1c6"
+        ],
+        "notes": "0x1024d72b9 LEA destination, 0x1024d72c0 string politics_tab, 0x1024d72ca token 0x3ab2, constructor 0x102a7a1c6 writes DWORD [this]. Runtime-initialized, not readonly constant. Original map representation: 0x35AF598",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::token_player_context",
+      "windows_expression": "0x2AECB3C",
+      "macos": {
+        "id": "core::rva::token_player_context",
+        "value": "0x35AE4B8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1024d6c65",
+          "0x1024d6c6c",
+          "0x1024d6c76",
+          "0x102a7a1c6"
+        ],
+        "notes": "0x1024d6c65 LEA destination, 0x1024d6c6c string player_context, 0x1024d6c76 token 0x3a70, constructor 0x102a7a1c6 writes DWORD [this]. Runtime-initialized. Original map representation: 0x35AE4B8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::rva::gui_structural",
+      "windows_expression": "0x3085170",
+      "macos": {
+        "id": "core::rva::gui_structural",
+        "value": "0x3505780",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020e84bd",
+          "0x10329c9c8",
+          "0x103505780"
+        ],
+        "notes": "0x1020e84bd loads GOT slot 0x10329c9c8, whose on-disk pointer is allocator object 0x103505780 (__ZZ24PdxGetNewDeleteAllocatorvE5Alloc). GUI+0xb8 stores object address, not GOT slot address; diagnostic only. Original map representation: 0x3505780",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::country_variables",
+      "windows_expression": "0x218",
+      "macos": {
+        "id": "core::off::country_variables",
+        "value": "0x1d8",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10095c142"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::variables_entries",
+      "windows_expression": "0x18",
+      "macos": {
+        "id": "core::off::variables_entries",
+        "value": "0x10",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100b063c9"
+        ],
+        "notes": "Variable table fields proven via insertion path; read-only accessors pending.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::variables_mask",
+      "windows_expression": "0x24",
+      "macos": {
+        "id": "core::off::variables_mask",
+        "value": "0x1c",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100b063b6"
+        ],
+        "notes": "Variable table fields proven via insertion path; read-only accessors pending.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::variables_extra",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::variables_extra",
+        "value": "0x20",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100b0319c",
+          "0x100b03314"
+        ],
+        "notes": "container+10 table, table+10 extra byte; end=(mask+extra+1)*0x28.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::variable_entry_size",
+      "windows_expression": "0x30",
+      "macos": {
+        "id": "core::off::variable_entry_size",
+        "value": "0x28",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100b063f7"
+        ],
+        "notes": "Variable table fields proven via insertion path; read-only accessors pending.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::variable_entry_probe",
+      "windows_expression": "0x4",
+      "macos": {
+        "id": "core::off::variable_entry_probe",
+        "value": "0x4",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100b063d6"
+        ],
+        "notes": "Variable table fields proven via insertion path; read-only accessors pending.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::variable_entry_key",
+      "windows_expression": "0x8",
+      "macos": {
+        "id": "core::off::variable_entry_key",
+        "value": "0x8",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100b06400"
+        ],
+        "notes": "Variable table fields proven via insertion path; read-only accessors pending.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::variable_entry_value",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::variable_entry_value",
+        "value": "0x20",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100b03424"
+        ],
+        "notes": "Variable table fields proven via insertion path; read-only accessors pending.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::set_variable_name",
+      "windows_expression": "0xC8",
+      "macos": {
+        "id": "core::off::set_variable_name",
+        "value": "0xc0",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x101060800",
+          "0x10095d9bd"
+        ],
+        "notes": "0x50 scoped-variable +0x70 string; libc++ representation.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::gamestate_countries",
+      "windows_expression": "0x310",
+      "macos": {
+        "id": "core::off::gamestate_countries",
+        "value": "0x2d8",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1011d7250"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::gamestate_country_count",
+      "windows_expression": "0x31C",
+      "macos": {
+        "id": "core::off::gamestate_country_count",
+        "value": "0x2e4",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1006ee534",
+          "0x10194aa63"
+        ],
+        "notes": "CGameState RTTI primary vtable0x103306308 slot68 points1006ee530, getter loads +2e4. Atlas calls this slot for count.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::flag_atlas_cosmetic_keys",
+      "windows_expression": "0xC0",
+      "macos": {
+        "id": "core::off::flag_atlas_cosmetic_keys",
+        "value": "0xc0",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10194ad8a",
+          "0x10194a146"
+        ],
+        "notes": "Qword per slot, compare at 0x10194ad91; write at 0x10194a14f.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::flag_atlas_cosmetic_count",
+      "windows_expression": "0xCC",
+      "macos": {
+        "id": "core::off::flag_atlas_cosmetic_count",
+        "value": "0xcc",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10194aa80"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::country_cosmetic_tag",
+      "windows_expression": "0x1488",
+      "macos": {
+        "id": "core::off::country_cosmetic_tag",
+        "value": "0x1200",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10194a4ac",
+          "0x10194acf1"
+        ],
+        "notes": "libc++ string, flag byte+0x1200, long len+0x1208 data+0x1210.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::country_tag",
+      "windows_expression": "0x8",
+      "macos": {
+        "id": "core::off::country_tag",
+        "value": "0x8",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10194ac45",
+          "0x10194ac51"
+        ],
+        "notes": "Tag value is remapped through gamestate+0x308; never assume raw tag == atlas index.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::faction_members",
+      "windows_expression": "0x58",
+      "macos": {
+        "id": "core::off::faction_members",
+        "value": "0x48",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100db7460",
+          "0x100db7464",
+          "0x100db7467"
+        ],
+        "notes": "CSetFactionLeaderEffect Execute (RTTI vtable103331200 slot70 ->100db7430) reads first member tag and compares before leader replacement.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::faction_member_count",
+      "windows_expression": "0x64",
+      "macos": {
+        "id": "core::off::faction_member_count",
+        "value": "0x54",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100e503d5",
+          "0x100e4f96a"
+        ],
+        "notes": "Member containment loop and serialization loop both use count54.",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::character_id",
+      "windows_expression": "0xC",
+      "macos": {
+        "id": "core::off::character_id",
+        "value": "0xc",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100d6fd01"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::character_variables",
+      "windows_expression": "0xD8",
+      "macos": {
+        "id": "core::off::character_variables",
+        "value": "0xd0",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100d5df73"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::country_politics",
+      "windows_expression": "0xF90",
+      "macos": {
+        "id": "core::off::country_politics",
+        "value": "0xd38",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x10117c434"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::politics_ruling_party",
+      "windows_expression": "0xD0",
+      "macos": {
+        "id": "core::off::politics_ruling_party",
+        "value": "0xd0",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x100fbef1d"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::party_leaders",
+      "windows_expression": "0x70",
+      "macos": {
+        "id": "core::off::party_leaders",
+        "value": "0x60",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x101366a7a"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::party_leader_count",
+      "windows_expression": "0x7C",
+      "macos": {
+        "id": "core::off::party_leader_count",
+        "value": "0x6c",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x101366a74"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::leader_role_character",
+      "windows_expression": "0x8",
+      "macos": {
+        "id": "core::off::leader_role_character",
+        "value": "0x8",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x101300d14"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::portrait_entry_kind",
+      "windows_expression": "0x4",
+      "macos": {
+        "id": "core::off::portrait_entry_kind",
+        "value": "0x4",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1007581bb"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::portrait_entry_name",
+      "windows_expression": "0x8",
+      "macos": {
+        "id": "core::off::portrait_entry_name",
+        "value": "0x8",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1007581e2",
+          "0x100d6fc21"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::portrait_entry_handle",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::portrait_entry_handle",
+        "value": "0x20",
+        "confidence": "proven",
+        "instruction_evidence": [
+          "0x1007581cb",
+          "0x100d6fcc2"
+        ],
+        "notes": "",
+        "report": "layers-map.md"
+      },
+      "status": "proven"
+    },
+    {
+      "id": "core::off::window_idler",
+      "windows_expression": "0xE0",
+      "macos": {
+        "id": "core::off::window_idler",
+        "value": "0xD8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b44175",
+          "0x100b45de9"
+        ],
+        "notes": "0x100b45de9 constructor stores idler; 0x100b44175 loads it and invokes GUI getter. Original map representation: 0xD8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::window_model",
+      "windows_expression": "0xE8",
+      "macos": {
+        "id": "core::off::window_model",
+        "value": "0xE0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b45df0",
+          "0x100b47d34"
+        ],
+        "notes": "0x100b45df0 constructor store; 0x100b47d34 loads model and returns model+8 name. Original map representation: 0xE0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::window_manager",
+      "windows_expression": "0xF0",
+      "macos": {
+        "id": "core::off::window_manager",
+        "value": "0xE8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b45df7",
+          "0x100b45ee7"
+        ],
+        "notes": "0x100b45df7 constructor store; bind 0x100b45ee7 reads token-map owner. Original map representation: 0xE8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::window_root",
+      "windows_expression": "0xF8",
+      "macos": {
+        "id": "core::off::window_root",
+        "value": "0xF0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b462af",
+          "0x100b46624"
+        ],
+        "notes": "0x100b462af stores created widget; 0x100b46624 getter. Original map representation: 0xF0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::window_parent",
+      "windows_expression": "0x100",
+      "macos": {
+        "id": "core::off::window_parent",
+        "value": "0xF8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b44078",
+          "0x100b46023"
+        ],
+        "notes": "0x100b46023 stores token lookup result; 0x100b44078 reads visibility flags. Original map representation: 0xF8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::window_parent_sg",
+      "windows_expression": "0x108",
+      "macos": {
+        "id": "core::off::window_parent_sg",
+        "value": "0x100",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b46123",
+          "0x100b46150"
+        ],
+        "notes": "0x100b46123 stores matching scripted parent; 0x100b46150 loads its root. Original map representation: 0x100",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::window_context",
+      "windows_expression": "0x110",
+      "macos": {
+        "id": "core::off::window_context",
+        "value": "0x110",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b443cb",
+          "0x100b45dfe",
+          "0x100b45e25"
+        ],
+        "notes": "0x100b45dfe / 0x100b45e25 constructs GUI updater; 0x100b443cb updates it. Original map representation: 0x110",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::window_parent_seen",
+      "windows_expression": "0xB78",
+      "macos": {
+        "id": "core::off::window_parent_seen",
+        "value": "0xA50",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b441f1",
+          "0x100b4421e"
+        ],
+        "notes": "0x100b441f1 compares and 0x100b4421e stores computed parent-visible state. Original map representation: 0xA50",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::window_desired",
+      "windows_expression": "0xB79",
+      "macos": {
+        "id": "core::off::window_desired",
+        "value": "0xA51",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b44307",
+          "0x100b44425"
+        ],
+        "notes": "0x100b44425 invokes model trigger; 0x100b44307 stores result. Original map representation: 0xA51",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::context_window",
+      "windows_expression": "0x10",
+      "macos": {
+        "id": "core::off::context_window",
+        "value": "0x10",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b45e20",
+          "0x100b47dc8"
+        ],
+        "notes": "0x100b45e20 supplies window as rdx; 0x100b47dc8 stores at +0x10. Original map representation: 0x10",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::context_model",
+      "windows_expression": "0x20",
+      "macos": {
+        "id": "core::off::context_model",
+        "value": "0x20",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b47f79",
+          "0x100b47f94"
+        ],
+        "notes": "0x100b47f79 loads window+0xe0; 0x100b47f94 stores model at context+0x20. Original map representation: 0x20",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::context_root",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::context_root",
+        "value": "0x28",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b463d7",
+          "0x100b46634"
+        ],
+        "notes": "0x100b463d7 stores window+0x138 = context+0x28; 0x100b46634 setter. Original map representation: 0x28",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::context_scope",
+      "windows_expression": "0x3C0",
+      "macos": {
+        "id": "core::off::context_scope",
+        "value": "0x3C0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b4b7f8",
+          "0x100b4bae1"
+        ],
+        "notes": "0x100b4b7f8 forms scope passed as rcx to effect constructor at 0x100b4bae1. Original map representation: 0x3C0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::context_records",
+      "windows_expression": "0x470",
+      "macos": {
+        "id": "core::off::context_records",
+        "value": "0x470",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b4b873",
+          "0x100b4bacf"
+        ],
+        "notes": "0x100b4b873 reads records data; 0x100b4bacf forms constructor r8 record-vector argument. Original map representation: 0x470",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::context_extent",
+      "windows_expression": "context_records",
+      "macos": {
+        "id": "core::off::context_extent",
+        "value": "0x470",
+        "confidence": "static",
+        "instruction_evidence": [],
+        "notes": "Derived maximum of currently retained context fields; validate readable span separately. Original map representation: 0x470",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::model_name",
+      "windows_expression": "0x8",
+      "macos": {
+        "id": "core::off::model_name",
+        "value": "0x8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b47d40"
+        ],
+        "notes": "0x100b47d40 tests libc++ mode at model+8, short data +9 / long pointer +0x18. Original map representation: 0x8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::model_context_token",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::model_context_token",
+        "value": "0x20",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b4420e",
+          "0x100b46739"
+        ],
+        "notes": "0x100b4420e compares to 0x3a70; 0x100b46739 switches context token. Original map representation: 0x20",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::model_parent_token",
+      "windows_expression": "0x2C",
+      "macos": {
+        "id": "core::off::model_parent_token",
+        "value": "0x24",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b45edb"
+        ],
+        "notes": "0x100b45edb token-map lookup key. Original map representation: 0x24",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::model_parent_window_len",
+      "windows_expression": "0x60",
+      "macos": {
+        "id": "core::off::model_parent_window_len",
+        "value": null,
+        "confidence": "requires_adapter",
+        "instruction_evidence": [
+          "0x100b4622c",
+          "0x100b462d7"
+        ],
+        "notes": "String at model+0x40; 0x100b4622c reads short tag/length, 0x100b462d7 reads long length +0x48. Windows direct length read invalid. Original map representation: not a fixed unconditional length field",
+        "report": "editor-map.md"
+      },
+      "status": "requires_adapter"
+    },
+    {
+      "id": "core::off::model_parent_sg_len",
+      "windows_expression": "0x80",
+      "macos": {
+        "id": "core::off::model_parent_sg_len",
+        "value": null,
+        "confidence": "requires_adapter",
+        "instruction_evidence": [
+          "0x100b4602b",
+          "0x100b4603c"
+        ],
+        "notes": "String at model+0x58; 0x100b4602b short mode, 0x100b4603c long length +0x60. Original map representation: not a fixed unconditional length field",
+        "report": "editor-map.md"
+      },
+      "status": "requires_adapter"
+    },
+    {
+      "id": "core::off::root_flags",
+      "windows_expression": "0xA5",
+      "macos": {
+        "id": "core::off::root_flags",
+        "value": "0x95",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b44092",
+          "0x100b443bc",
+          "0x101fc8e5d"
+        ],
+        "notes": "0x100b44092 tests bit 2; 0x100b443bc sets bit 4; 0x101fc8e5d reads bit 3. Original map representation: 0x95",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::root_instant_list",
+      "windows_expression": "0x11E0",
+      "macos": {
+        "id": "core::off::root_instant_list",
+        "value": "0xE20",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10077aa63",
+          "0x10077aae1",
+          "0x102772111"
+        ],
+        "notes": "0x102772111 supplies pointer vector; instant consumer 0x10077aa63 / 0x10077aae1. Original map representation: 0xE20",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::root_edit_list",
+      "windows_expression": "0x1240",
+      "macos": {
+        "id": "core::off::root_edit_list",
+        "value": "0xE80",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10276d7f3",
+          "0x1027722f1"
+        ],
+        "notes": "0x1027722f1 supplies pointer vector; 0x10276d7f3 / 7f6 index selected pointer after matching names at +0xe98. Original map representation: 0xE80",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::root_third_list",
+      "windows_expression": "0x1330",
+      "macos": {
+        "id": "core::off::root_third_list",
+        "value": null,
+        "confidence": "replaced_by_policy",
+        "instruction_evidence": [
+          "0x10277210a",
+          "0x102772111",
+          "0x1027722ea",
+          "0x1027722f1"
+        ],
+        "notes": "No one-to-one counterpart to the anonymous Windows third list is claimed. The implemented standalone root_guard validates the four actual pointer/name arrays and paired counts. Runtime integration remains disabled.",
+        "report": "editor-map.md",
+        "implementation": "plugin/capie/src/engine/macos_widgets.hpp",
+        "runtime_ready": false
+      },
+      "status": "replaced_by_policy"
+    },
+    {
+      "id": "core::off::root_readable_span",
+      "windows_expression": "0x1360",
+      "macos": {
+        "id": "core::off::root_readable_span",
+        "value": null,
+        "confidence": "replaced_by_policy",
+        "instruction_evidence": [
+          "0x1027668e7",
+          "0x102766934"
+        ],
+        "notes": "Not an engine ABI offset or object size. The implemented root_guard uses derived policy prefix0xeb0 through four 24-byte headers; the original Windows span has no one-to-one mapping. Runtime integration remains disabled.",
+        "report": "editor-map.md",
+        "implementation": "plugin/capie/src/engine/macos_widgets.hpp",
+        "runtime_ready": false
+      },
+      "status": "replaced_by_policy"
+    },
+    {
+      "id": "core::off::list_data",
+      "windows_expression": "0x0",
+      "macos": {
+        "id": "core::off::list_data",
+        "value": "0x0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b30f"
+        ],
+        "notes": "0x10020b30f reads input records data from [r8]. Original map representation: 0x0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::list_capacity",
+      "windows_expression": "0x8",
+      "macos": {
+        "id": "core::off::list_capacity",
+        "value": "0x8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b591"
+        ],
+        "notes": "Scope array begins +0x40, capacity loaded at 0x10020b591 from +0x48; child-list-specific verification still required. Original map representation: 0x8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::list_count",
+      "windows_expression": "0xC",
+      "macos": {
+        "id": "core::off::list_count",
+        "value": "0xC",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b312"
+        ],
+        "notes": "0x10020b312 reads input record count [r8+0xc]. Original map representation: 0xC",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::edit_definition",
+      "windows_expression": "0x60",
+      "macos": {
+        "id": "core::off::edit_definition",
+        "value": "0x50",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102842ec4",
+          "0x102842ecc"
+        ],
+        "notes": "0x102842ec4 loads definition, 0x102842ecc invokes name getter slot +0x50. Original map representation: 0x50",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::edit_visibility_flags",
+      "windows_expression": "0x75",
+      "macos": {
+        "id": "core::off::edit_visibility_flags",
+        "value": "0x65",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b46f50",
+          "0x102793b5b"
+        ],
+        "notes": "0x102793b5b tests shown bit 3; 0x100b46f50 clears hidden bit 4 on widget. Original map representation: 0x65",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::edit_buffer",
+      "windows_expression": "0x80",
+      "macos": {
+        "id": "core::off::edit_buffer",
+        "value": "0x70",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102793b79"
+        ],
+        "notes": "RTTI secondary top=-112; 0x102793b79 forms buffer this pointer. Original map representation: 0x70",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::edit_text",
+      "windows_expression": "0xB0",
+      "macos": {
+        "id": "core::off::edit_text",
+        "value": "0xA0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10285e4e3"
+        ],
+        "notes": "0x10285e4e3 tests buffer+0x30 mode, short data buffer+0x34, long pointer +0x40. Edit buffer +0x70 => string object +0xa0. Size/capacity are tagged, not MSVC fields. Original map representation: 0xA0 (libc++ UTF-32 object)",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::edit_size",
+      "windows_expression": "0xC0",
+      "macos": {
+        "id": "core::off::edit_size",
+        "value": null,
+        "confidence": "requires_adapter",
+        "instruction_evidence": [
+          "0x102793c4f",
+          "0x102793c73"
+        ],
+        "notes": "0x102793c4f short/long test at edit+0xa0; long size edit+0xa8 at 0x102793c73; short size encoded byte>>1. Requires new reader. Original map representation: libc++ tagged size; no single field",
+        "report": "editor-map.md"
+      },
+      "status": "requires_adapter"
+    },
+    {
+      "id": "core::off::edit_capacity",
+      "windows_expression": "0xC8",
+      "macos": {
+        "id": "core::off::edit_capacity",
+        "value": null,
+        "confidence": "requires_adapter",
+        "instruction_evidence": [
+          "0x102793ccf"
+        ],
+        "notes": "0x102793ccf..cd3 ORs capacity with 1 before storing first qword; inline/long layout must use libc++ reader. Original map representation: libc++ tagged capacity; no MSVC field",
+        "report": "editor-map.md"
+      },
+      "status": "requires_adapter"
+    },
+    {
+      "id": "core::off::edit_receiver",
+      "windows_expression": "0x1A0",
+      "macos": {
+        "id": "core::off::edit_receiver",
+        "value": "0x180",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102794ba0",
+          "0x102794c43",
+          "0x102794d94"
+        ],
+        "notes": "RTTI third top=-384; 0x102794d94 adjusts -0x180; focus 0x102794ba0 and unfocus 0x102794c43. Original map representation: 0x180",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::edit_flags",
+      "windows_expression": "0x271",
+      "macos": {
+        "id": "core::off::edit_flags",
+        "value": "0x239",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102794afb",
+          "0x102794b0f"
+        ],
+        "notes": "0x102794afb / 0x102794b0f focused bit 0, disabled bit 1. Original map representation: 0x239",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::definition_name",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::definition_name",
+        "value": "0x28",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1027cee90",
+          "0x1027cee94"
+        ],
+        "notes": "CEditBoxType vtable +0x50 => 0x1027cee90; 0x1027cee94 lea rax,[rdi+0x28]. libc++ string. Original map representation: 0x28",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::instant_text",
+      "windows_expression": "0x110",
+      "macos": {
+        "id": "core::off::instant_text",
+        "value": "0x100",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1027d0914",
+          "0x1027d0930",
+          "0x1027d094c",
+          "0x1027d096c"
+        ],
+        "notes": "0x1027d0930 forms destination; 0x1027d094c..958 moves 24-byte string; 0x1027d096c forwards to text renderer. Getter 0x1027d0914. Original map representation: 0x100",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::manager_focus",
+      "windows_expression": "0x158",
+      "macos": {
+        "id": "core::off::manager_focus",
+        "value": "0x138",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1027c86cd",
+          "0x1027c86e2"
+        ],
+        "notes": "0x1027c86cd read; 0x1027c86e2 write. Original map representation: 0x138",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::manager_receiver",
+      "windows_expression": "0x230",
+      "macos": {
+        "id": "core::off::manager_receiver",
+        "value": "0x210",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1027c6439",
+          "0x1027c8f39",
+          "0x1027c8f81"
+        ],
+        "notes": "0x1027c8f39 registers pointer passed by edit+0x180; 0x1027c8f81 clears it; 0x1027c6439 dispatches text event to it. Original map representation: 0x210",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::manager_idler",
+      "windows_expression": "0x18",
+      "macos": {
+        "id": "core::off::manager_idler",
+        "value": "0x18",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b429c0",
+          "0x100b429d1",
+          "0x100b429f9",
+          "0x100b429fc",
+          "0x1033268e0"
+        ],
+        "notes": "RTTI CScriptedWindowManager constructor 0x100b429c0 saves rsi at 0x100b429d1 and stores +0x18 at 0x100b429fc; vptr 0x1033268e0 installed 0x100b429f9. Original map representation: 0x18",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::key_event_words",
+      "windows_expression": "8",
+      "macos": {
+        "id": "core::off::key_event_words",
+        "value": "8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10269b1b7",
+          "0x10269b1bb",
+          "0x10269b1c5"
+        ],
+        "notes": "Diagnostic prefix length, not event sizeof: key base constructor 0x10269b1b7 and 0x10269b1bb initializes two 16-byte blocks at +0x10/+0. Next allocator field is +0x20 at 0x10269b1c5. First 32 bytes contain a dynamic-array header; do not interpret all eight words as Windows event payload. Original map representation: 8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::key_wrapper_type",
+      "windows_expression": "0x7C",
+      "macos": {
+        "id": "core::off::key_wrapper_type",
+        "value": "0x74",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10269b154",
+          "0x102793b74"
+        ],
+        "notes": "0x10269b154 loads type DWORD; wrapper 0x102793b74 compares to 1. Original map representation: 0x74",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::command_records",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::command_records",
+        "value": "0x28",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b2f9",
+          "0x10020b30f"
+        ],
+        "notes": "0x10020b2f9 destination vector; 0x10020b30f / 312 source data/count. Original map representation: 0x28",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::command_scope_capacity",
+      "windows_expression": "0x48",
+      "macos": {
+        "id": "core::off::command_scope_capacity",
+        "value": "0x48",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b591",
+          "0x10020b600"
+        ],
+        "notes": "0x10020b591 loads capacity; 0x10020b600 updates it. Original map representation: 0x48",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::command_scope_count",
+      "windows_expression": "0x4C",
+      "macos": {
+        "id": "core::off::command_scope_count",
+        "value": "0x4C",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b584",
+          "0x10020b649"
+        ],
+        "notes": "0x10020b584 reads count; 0x10020b649 writes it. Original map representation: 0x4C",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::command_selector",
+      "windows_expression": "0x58",
+      "macos": {
+        "id": "core::off::command_selector",
+        "value": "0x58",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b334",
+          "0x10020b98f"
+        ],
+        "notes": "0x10020b334 destination string; execute 0x10020b98f passes it to effect lookup. Original map representation: 0x58",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::command_model",
+      "windows_expression": "0x78",
+      "macos": {
+        "id": "core::off::command_model",
+        "value": "0x70",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b3b1",
+          "0x10020b8a6"
+        ],
+        "notes": "0x10020b3b1 destination string; execute 0x10020b8a6 passes to scripted-window database. Original map representation: 0x70",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::effect_records",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::effect_records",
+        "value": "0x28",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10020b91e"
+        ],
+        "notes": "Same constructed command; execute 0x10020b91e loads +0x28 records. Original map representation: 0x28",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::idler_gui",
+      "windows_expression": "0x6B8",
+      "macos": {
+        "id": "core::off::idler_gui",
+        "value": "0x670",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10077bd04",
+          "0x100b46782"
+        ],
+        "notes": "0x10077bd04 getter and 0x100b46782 idler slot +0xd8 consumer. Original map representation: 0x670",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::gui_idler",
+      "windows_expression": "0x180",
+      "macos": {
+        "id": "core::off::gui_idler",
+        "value": "0x180",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020ee932",
+          "0x1020ee946"
+        ],
+        "notes": "0x1020ee932 loads pointer; 0x1020ee946 assertion names _Idler.CanUpdateGui(). Original map representation: 0x180",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::gui_views",
+      "windows_expression": "0xC8",
+      "macos": {
+        "id": "core::off::gui_views",
+        "value": "0xC8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020f25f0"
+        ],
+        "notes": "0x1020f25f0 loads [rdi+8*rax+0xc8]. Original map representation: 0xC8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::gui_structural",
+      "windows_expression": "0xB8",
+      "macos": {
+        "id": "core::off::gui_structural",
+        "value": "0xB8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020e84bd",
+          "0x1020e8508",
+          "0x1020ef2eb",
+          "0x1020ef302"
+        ],
+        "notes": "GUI constructor loads allocator GOT at 0x1020e84bd and stores +0xb8 at 0x1020e8508; 0x1020ef2eb loads it and 0x1020ef302 invokes allocator virtual+0x10. Original map representation: 0xB8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::view_observer",
+      "windows_expression": "0x30",
+      "macos": {
+        "id": "core::off::view_observer",
+        "value": "0x28",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020ee3b1"
+        ],
+        "notes": "0x1020ee3b1 adjustment from view to dirty marker; RTTI offset-to-top=-40. Original map representation: 0x28",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::view_gui",
+      "windows_expression": "0x38",
+      "macos": {
+        "id": "core::off::view_gui",
+        "value": "0x30",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101fc88fa",
+          "0x101fc892f",
+          "0x101fc8937",
+          "0x1020e939f",
+          "0x10238865e"
+        ],
+        "notes": "Politics constructor rdx=GUI at 0x1020e939f. Common ctor 0x101fc88fa saves rdx, 0x101fc892f forms view+0x28, 0x101fc8937 passes GUI; observer ctor 0x10238865e stores +0x8 => view+0x30. Original map representation: 0x30",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::view_dirty",
+      "windows_expression": "0x44",
+      "macos": {
+        "id": "core::off::view_dirty",
+        "value": "0x3C",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102389144"
+        ],
+        "notes": "Observer+0x14, established by 0x102389144 and view observer+0x28. Original map representation: 0x3C",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::view_idler",
+      "windows_expression": "0x570",
+      "macos": {
+        "id": "core::off::view_idler",
+        "value": "0x428",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101f9824b",
+          "0x101fc88fd",
+          "0x101fc8aa9"
+        ],
+        "notes": "Politics ctor 0x101f9824b calls common ctor with idler rsi; 0x101fc88fd saves rsi, 0x101fc8aa9 stores at +0x428. Original map representation: 0x428",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::view_root",
+      "windows_expression": "0x578",
+      "macos": {
+        "id": "core::off::view_root",
+        "value": "0x430",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101fc8e39",
+          "0x101fc8e56"
+        ],
+        "notes": "0x101fc8e39 and 0x101fc8e56 politics visibility root loads. Original map representation: 0x430",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::slot_view_visible",
+      "windows_expression": "0x28",
+      "macos": {
+        "id": "core::off::slot_view_visible",
+        "value": "0x30",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101fc8e30"
+        ],
+        "notes": "RTTI politics primary address point +0x30 = 0x101fc8e30. Original map representation: 0x30",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::slot_observer_frame",
+      "windows_expression": "0x38",
+      "macos": {
+        "id": "core::off::slot_observer_frame",
+        "value": "0x40",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101fa4320"
+        ],
+        "notes": "RTTI politics observer +0x40 points to 0x101fa4320 adjustment thunk. Original map representation: 0x40",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::slot_observer_refresh",
+      "windows_expression": "0x48",
+      "macos": {
+        "id": "core::off::slot_observer_refresh",
+        "value": "0x50",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101f9fc10",
+          "0x10238915c"
+        ],
+        "notes": "0x10238915c invocation; RTTI politics observer slot points to 0x101f9fc10. Original map representation: 0x50",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::slot_idler_gui",
+      "windows_expression": "0xB8",
+      "macos": {
+        "id": "core::off::slot_idler_gui",
+        "value": "0xD8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10077bd00",
+          "0x100b4417f"
+        ],
+        "notes": "RTTI CInGameIdler +0xd8 = 0x10077bd00; consumer 0x100b4417f. Original map representation: 0xD8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::slot_edit_focus",
+      "windows_expression": "0xC0",
+      "macos": {
+        "id": "core::off::slot_edit_focus",
+        "value": "0xC0",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102794af0"
+        ],
+        "notes": "RTTI CEditBox primary +0xc0 = 0x102794af0. Original map representation: 0xC0",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::slot_edit_unfocus",
+      "windows_expression": "0xC8",
+      "macos": {
+        "id": "core::off::slot_edit_unfocus",
+        "value": "0xC8",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102794bd0"
+        ],
+        "notes": "RTTI CEditBox primary +0xc8 = 0x102794bd0. Original map representation: 0xC8",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::off::parent_flags",
+      "windows_expression": "root_flags",
+      "macos": {
+        "id": "core::off::parent_flags",
+        "value": "0x95",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b44084"
+        ],
+        "notes": "0x100b44084 reads parent DWORD +0x94, tests 0x400/0x800, corresponding byte +0x95 bits 2/3. Original map representation: 0x95",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::flag::hidden_a",
+      "windows_expression": "0x04",
+      "macos": {
+        "id": "core::flag::hidden_a",
+        "value": "0x04",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b44092"
+        ],
+        "notes": "0x100b44092 Original map representation: 0x04",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::flag::shown",
+      "windows_expression": "0x08",
+      "macos": {
+        "id": "core::flag::shown",
+        "value": "0x08",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x101fc8e64",
+          "0x102793b5b"
+        ],
+        "notes": "0x101fc8e64 and 0x102793b5b Original map representation: 0x08",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::flag::hidden_b",
+      "windows_expression": "0x10",
+      "macos": {
+        "id": "core::flag::hidden_b",
+        "value": "0x10",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x100b443bc"
+        ],
+        "notes": "0x100b443bc Original map representation: 0x10",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::flag::hidden_any",
+      "windows_expression": "hidden_a | hidden_b",
+      "macos": {
+        "id": "core::flag::hidden_any",
+        "value": "0x14",
+        "confidence": "static",
+        "instruction_evidence": [],
+        "notes": "Derived OR of two independently observed flags. Original map representation: 0x14",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::flag::edit_active",
+      "windows_expression": "0x01",
+      "macos": {
+        "id": "core::flag::edit_active",
+        "value": "0x01",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102794b0d"
+        ],
+        "notes": "0x102794b0d Original map representation: 0x01",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::flag::edit_disabled",
+      "windows_expression": "0x02",
+      "macos": {
+        "id": "core::flag::edit_disabled",
+        "value": "0x02",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102794b02"
+        ],
+        "notes": "0x102794b02 Original map representation: 0x02",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::value::token_politics_tab",
+      "windows_expression": "0x3AB2",
+      "macos": {
+        "id": "core::value::token_politics_tab",
+        "value": "0x3AB2",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1024d72ca"
+        ],
+        "notes": "0x1024d72ca token registry init associated with politics_tab string. Original map representation: 0x3AB2",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::value::token_player_context",
+      "windows_expression": "0x3A70",
+      "macos": {
+        "id": "core::value::token_player_context",
+        "value": "0x3A70",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1024d6c76"
+        ],
+        "notes": "0x1024d6c76 token registry init associated with player_context string. Original map representation: 0x3A70",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::value::politics_view_index",
+      "windows_expression": "12",
+      "macos": {
+        "id": "core::value::politics_view_index",
+        "value": "12",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020e93a2",
+          "0x1020e93a7"
+        ],
+        "notes": "0x1020e93a2 constructs RTTI-backed politics view; 0x1020e93a7 stores gui+0x128. (0x128-0xc8)/8=12. Original map representation: 12",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::value::gui_view_limit",
+      "windows_expression": "0x17",
+      "macos": {
+        "id": "core::value::gui_view_limit",
+        "value": "0x17",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x1020ee387"
+        ],
+        "notes": "0x1020ee387 exact sentinel check in refresh request; it is not a full range guard. Original map representation: 0x17",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::value::key_enter",
+      "windows_expression": "0x0D",
+      "macos": {
+        "id": "core::value::key_enter",
+        "value": "0xD",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10285e7cb",
+          "0x10285e7d9",
+          "0x10285e89a",
+          "0x102ef654c"
+        ],
+        "notes": "0x10285e7cb loads key constant from 0x102ef654c (DWORD 13), 0x10285e7d9 matches event first word; successful branch reaches newline insertion 0x10285e89a / 8b3 or submit observers. Original map representation: 0xD",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::value::wrapper_type_key",
+      "windows_expression": "1",
+      "macos": {
+        "id": "core::value::wrapper_type_key",
+        "value": "1",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x10269b150",
+          "0x102793b74"
+        ],
+        "notes": "0x102793b74 compare after type accessor 0x10269b150 Original map representation: 1",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    },
+    {
+      "id": "core::value::inline_utf32_capacity",
+      "windows_expression": "3",
+      "macos": {
+        "id": "core::value::inline_utf32_capacity",
+        "value": "4",
+        "confidence": "static",
+        "instruction_evidence": [
+          "0x102793c81",
+          "0x102793cdb"
+        ],
+        "notes": "0x102793c81 compares source length to 4; copy uses inline branch through 0x102793cdb. This differs from Windows capacity=3. Original map representation: 4",
+        "report": "editor-map.md"
+      },
+      "status": "static"
+    }
+  ],
+  "pins": [
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "country_signatures",
+      "id": "country.lookup_n",
+      "windows_initializer": "{\"country.lookup_n\", SignatureGroup::country_hook, rva::loc_lookup_n, \"488b05????????49b825232284e49cf2cb\", \"lookup(key,len): mov rax,[rip]; movabs r8,FNV basis\"}",
+      "status": "static_counterpart",
+      "note": "FNV lookup_n, see localisation-coverage.md",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "country.lookup_n"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "country_signatures",
+      "id": "country.lookup_z",
+      "windows_initializer": "{\"country.lookup_z\", SignatureGroup::country_hook, rva::loc_lookup_z, \"488b05????????48ba25232284e49cf2cb4c8b000fb60184c0742a49b9b301000000010000\", \"lookup(key): FNV basis, NUL loop, FNV prime\"}",
+      "status": "static_counterpart",
+      "note": "FNV lookup_z, see localisation-coverage.md",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "country.lookup_z"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "country_signatures",
+      "id": "country.exists",
+      "windows_initializer": "{\"country.exists\", SignatureGroup::country_hook, rva::loc_exists, \"4883ec28488b05????????48ba25232284e49cf2cb\", \"exists(key): frame, mov rax,[rip], FNV basis\"}",
+      "status": "static_counterpart",
+      "note": "FNV exists, see localisation-coverage.md",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "country.exists"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.bind",
+      "windows_initializer": "{\"editor.bind\", SignatureGroup::editor_hook, rva::window_bind, \"488bc44889581048896818488970205741544155415641574883ec50488bf9c7400800000000488db1e80000004c8b2e418b452c\", \"Bind void(window*): fresh-create and rebind callers\"}",
+      "status": "static_counterpart",
+      "note": "0x100b45ed4 loads model; resolves parent, creates root at 0x100b462a7; stores root at 0x100b462af and binds context at 0x100b463df. Original map representation: 0xB45EC0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.bind"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.bind"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.tick",
+      "windows_initializer": "{\"editor.tick\", SignatureGroup::editor_hook, rva::window_tick, \"48895c2410555657415641574881ec20010000440fb6f2488bd9488d512833ff4885c9480f44d741b902000000\", \"Tick void(window*,char)\"}",
+      "status": "static_counterpart",
+      "note": "0x100b44034 saves `esi` force flag; +0xf0 root, +0xa50 parent-visible and +0xa51 visible-trigger result; 0x100b443d5 updates embedded context. Original map representation: 0xB44020",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.tick"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.tick"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.key",
+      "windows_initializer": "{\"editor.key\", SignatureGroup::editor_hook, rva::edit_key_handler, \"48895c240848896c241048897424205741544155415641574883ec40488bda488bf9488bcae8c622f8ff\", \"text-buffer key handler (edit+80 subobject)\"}",
+      "status": "static_counterpart",
+      "note": "CEditBox secondary vtable +0x38 points here; receives key event in rsi, uses key helpers; not a Windows-handler ABI substitute. Original map representation: 0x285E6D0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.key"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.key"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.find_edit",
+      "windows_initializer": "{\"editor.find_edit\", SignatureGroup::editor_callee, rva::find_edit, \"48895c241048896c241856574154415641574883ec60450fb6e1450fb6f04c8bfa488be94c8d8140120000488d9158120000498bcf\", \"FindEdit: list displacements +1240/+1258 (twin of find_instant)\"}",
+      "status": "static_counterpart",
+      "note": "CContainerWindow virtual +0xa0; previewer_editbox caller 0x10254881f passes root,name,bool then 0x10254883a adjusts result+0x70. Body 0x1027722ea / 2f1 searches name array/root child list. This is a THREE-argument lookup; Windows four-argument recursion/boolean behavior remains unverified. 0x102772309 tests report-error bool; failure path logs at 0x10277240e, returns dummy [root+0x88]+0x1b8 at 0x102772470/477. Native identity proven; ABI needs macOS adapter and explicit missing-widget guard. Original map representation: 0x27722D0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.find_edit"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.find_edit"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.find_instant",
+      "windows_initializer": "{\"editor.find_instant\", SignatureGroup::editor_callee, rva::find_instant, \"48895c241048896c241856574154415641574883ec60450fb6e1450fb6f04c8bfa488be94c8d81e0110000\", \"FindInstantText: list displacement +11E0\"}",
+      "status": "static_counterpart",
+      "note": "CContainerWindow virtual +0x98; 0x10077aa63 resolves floating_number name, 0x10077aae1 passes result to CInstantTextBox string setter. Body uses root+0xe38 names and +0xe20 pointers. THREE-argument lookup; Windows fourth argument semantics unverified. 0x102772129 tests report-error bool; failure path logs at 0x10277222e, returns dummy [root+0x88]+0x1c0 at 0x102772290/297. Native identity proven; ABI needs macOS adapter and explicit missing-widget guard. Original map representation: 0x27720F0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.find_instant"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.find_instant"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.set_text",
+      "windows_initializer": "{\"editor.set_text\", SignatureGroup::editor_callee, rva::text_buffer_set, \"48837a180f7603488b12e901000000cc48895c2410574883ec40488bd90f57c00f11442420660f6f0dc3f68400\", \"SetText SSO thunk (capacity > 15 -> heap pointer)\"}",
+      "status": "static_counterpart",
+      "note": "0x10285e4a4 tests libc++ source mode and tails to 0x10285e3e0; body clears buffer+0x30 UTF-32 string and inserts converted text. 0x1000dfeb9 passes edit+0x70, then refreshes. Original map representation: 0x285E4A0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.set_text"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.set_text"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.refresh_edit",
+      "windows_initializer": "{\"editor.refresh_edit\", SignatureGroup::editor_callee, rva::edit_refresh, \"48895c2410488974241848897c24205541564157488d6c24b94881ecd0000000488bf14533ff44897d674c39b9b00100000f84bd030000\", \"void(CEditBox*) refresh; complete 55-byte prefix ends at 22F4DB7\"}",
+      "status": "static_counterpart",
+      "note": "0x1000dfec0 calls SetText with edit+0x70 and 0x1000dfece tails here with edit; wrapper 0x102793bd4 refreshes after key input. Original map representation: 0x2793F10",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.refresh_edit"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.refresh_edit"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.wrapper",
+      "windows_initializer": "{\"editor.wrapper\", SignatureGroup::editor_hook, rva::edit_key_wrapper, \"48895c24105556574883ec40488bea488bf1f68171020000020f85c4010000488bcae88915f8ff85c0\", \"CEditBox key wrapper: edit+271 bit1 disabled test\"}",
+      "status": "static_counterpart",
+      "note": "CEditBox primary vtable +0x10; 0x102793b79 adjusts this by +0x70 and 0x102793b8f calls buffer slot +0x38. Original map representation: 0x2793AD0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.wrapper"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.wrapper"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.dispatch",
+      "windows_initializer": "{\"editor.dispatch\", SignatureGroup::editor_hook, rva::window_dispatch, \"48895c241048896c2418488974242057415641574883ec604c8bfa488bf9488d99c00300004533c0\", \"Dispatch(context*, selector*): context+3C0 scope\"}",
+      "status": "static_counterpart",
+      "note": "0x100b480f7 calls with GUI updater and selector; 0x100b4b8ec resolves selector; 0x100b4bae5 constructs effect. Original map representation: 0xB4B7E0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.dispatch"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.dispatch"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.ctor",
+      "windows_initializer": "{\"editor.ctor\", SignatureGroup::editor_hook, rva::effect_ctor, \"48895c241848894c240855565741544155415641574883ec600f297424504d8bf1498bf8488bf24c8be1\", \"CExecuteScriptedWindowEffect ctor\"}",
+      "status": "static_counterpart",
+      "note": "0x100b4bae5 calls thunk; 0x10020b825 jumps to body; body writes RTTI-backed effect vptr at 0x10020b2f6. Original map representation: 0x20B820 (thunk), 0x20B2B0 (body)",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.ctor"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.ctor"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "editor_signatures",
+      "id": "editor.execute",
+      "windows_initializer": "{\"editor.execute\", SignatureGroup::editor_hook, rva::effect_execute, \"48895c240848896c2410488974241857415641574883ec604c8bf1e840c295ff498d5678488bc8e8742e96ff4c8bf84885c0\", \"Execute void(command*): vtable 2996ED0 slot 50, whole-instruction 50-byte prefix\"}",
+      "status": "static_counterpart",
+      "note": "Effect vtable +0x58 points here; 0x10020b8a6 reads model +0x70; 0x10020b98f reads selector +0x58; 0x10020b9c4 executes resolved effect. Original map representation: 0x20B830",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "editor.execute"
+      },
+      "additional_manifest_reference": {
+        "file": "editor-pins.json",
+        "id": "editor.execute"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.DCCF30",
+      "windows_initializer": "{\"caption.DCCF30\", SignatureGroup::caption, 0xDCCF30, \"488b81b8060000c3\", \"idler slot B8 getter returns [idler+6B8]\"}",
+      "status": "static_counterpart",
+      "note": "GUI getter returns idler+670",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.DCCF30"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B6E210",
+      "windows_initializer": "{\"caption.B6E210\", SignatureGroup::caption, 0xB6E210, \"4883ec2883fa1774404863c248895c2420488d1cc1488b8bc80000004885c97423488b01ff502884c07419488b8bc80000004883c130488b5c24204883c428e9fc866c00488b5c24204883c428c3\", \"void(gui,int) index!=23, gui+C8+8i, view slot28, tail 1236950(view+30)\"}",
+      "status": "static_counterpart",
+      "note": "Request refresh: index17 sentinel, view C8+8i, visibility30, observer28",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B6E210"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.1236950",
+      "windows_initializer": "{\"caption.1236950\", SignatureGroup::caption, 0x1236950, \"c6411401c3\", \"observer+14=1 (view+44 dirty)\"}",
+      "status": "static_counterpart",
+      "note": "Set observer+14 dirty",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.1236950"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.1236980",
+      "windows_initializer": "{\"caption.1236980\", SignatureGroup::caption, 0x1236980, \"40534883ec20488b01488bd9ff5048c64314004883c4205bc3\", \"consume: observer slot48 then +14=0\"}",
+      "status": "static_counterpart",
+      "note": "Observer slot50 then clear+14",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.1236980"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.1237520",
+      "windows_initializer": "{\"caption.1237520\", SignatureGroup::caption, 0x1237520, \"40534883ec20488bd9488b89780500004885c97426488b01ff904802000084c07519488b83780500000fb680a5000000c0e80324014883c4205bc3\", \"politics view visibility (slot28) reads view+578\"}",
+      "status": "static_counterpart",
+      "note": "Visibility from view+430 root and root+95",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.1237520"
+      },
+      "required_identity_companions": [
+        "caption_slot_pins[0]"
+      ]
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.12374F0",
+      "windows_initializer": "{\"caption.12374F0\", SignatureGroup::caption, 0x12374F0, \"488b8178050000c3\", \"view root = [view+578]\"}",
+      "status": "static_counterpart",
+      "note": "Root getter view+430",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.12374F0"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.12362A0",
+      "windows_initializer": "{\"caption.12362A0\", SignatureGroup::caption, 0x12362A0, \"40534883ec20488d0553db760148895108488901488bd944894110c6411400e85c050000\", \"observer bind: [obs+8]=rdx, [obs+14]=0\"}",
+      "status": "static_counterpart",
+      "note": "Observer ctor stores GUI at+8",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.12362A0"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.1237180",
+      "windows_initializer": "{\"caption.1237180\", SignatureGroup::caption, 0x1237180, \"48895c2410488974241848897c242048894c24085541564157488d6c24d04881ec30010000498bf1498bf84c8bf24c8bf9\", \"view base ctor prologue: rsi=param_4, rdi=param_3, r14=param_2, r15=this\"}",
+      "status": "static_counterpart",
+      "note": "View ctor SysV param tracking: rsi idler, rdx GUI",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.1237180"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.12371DB",
+      "windows_initializer": "{\"caption.12371DB\", SignatureGroup::caption, 0x12371DB, \"448b4570488bd7498d4f30e8b5f0ffff90\", \"observer bind(view+30, param_3=gui)\"}",
+      "status": "static_counterpart",
+      "note": "Observer(view+28,GUI) construction",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.12371DB"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.1237358",
+      "windows_initializer": "{\"caption.1237358\", SignatureGroup::caption, 0x1237358, \"4d89b77005000049899f78050000\", \"view+570=param_2, view+578 init\"}",
+      "status": "static_counterpart",
+      "note": "View+428 idler, +430 root clear",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.1237358"
+      },
+      "required_identity_companions": [
+        "caption.1237180"
+      ]
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B62D52",
+      "windows_initializer": "{\"caption.B62D52\", SignatureGroup::caption, 0xB62D52, \"4c8bc6488b9680010000488bc8e89c98a100eb03498bc748898628010000\", \"politics ctor(gui+180, gui); gui+128=view\"}",
+      "status": "static_counterpart",
+      "note": "Politics constructor(idler,GUI) then GUI+128 store => index12",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B62D52"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B68C52",
+      "windows_initializer": "{\"caption.B68C52\", SignatureGroup::caption, 0xB68C52, \"488d9fc80000000f1f8000000000488b0b4885c9740f4438714474094883c130e809dd6c004883c3084883ed0175df\", \"frame loop consumes view+44 via 1236980(view+30)\"}",
+      "status": "static_counterpart",
+      "note": "Frame loops23 views, dirty+3c, consume(view+28)",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B68C52"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B88BEE",
+      "windows_initializer": "{\"caption.B88BEE\", SignatureGroup::caption, 0xB88BEE, \"488b8be0000000488b01ff90b8000000488bc8\", \"tick: window+E0 idler, vslot B8 -> gui\"}",
+      "status": "static_counterpart",
+      "note": "Window+d8 idler getter virtual+d8",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B88BEE"
+      },
+      "required_identity_companions": [
+        "editor.tick"
+      ]
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B88B27",
+      "windows_initializer": "{\"caption.B88B27\", SignatureGroup::caption, 0xB88B27, \"488b83e8000000400fb6ff817828703a0000\", \"model+28 == 3A70 player_context\"}",
+      "status": "static_counterpart",
+      "note": "Model+20 context token compare3a70",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B88B27"
+      },
+      "required_identity_companions": [
+        "editor.tick"
+      ]
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B86346",
+      "windows_initializer": "{\"caption.B86346\", SignatureGroup::caption, 0xB86346, \"488db1e80000004c8b2e418b452c85c0\", \"bind: model=[window+E8], model+2C token\"}",
+      "status": "static_counterpart",
+      "note": "Model+24 parent token",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B86346"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B86350",
+      "windows_initializer": "{\"caption.B86350\", SignatureGroup::caption, 0xB86350, \"418b452c85c00f8eb80000004c8b99f0000000\", \"bind: eax=[model+2C]; r11=[window+F0] (token map owner)\"}",
+      "status": "static_counterpart",
+      "note": "Token and window+e8 manager",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B86350"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B8A1C0",
+      "windows_initializer": "{\"caption.B8A1C0\", SignatureGroup::caption, 0xB8A1C0, \"48895c24185556574154415541564157488d6c24d94881ecc00000000f29b424b0000000488bf1488b4918488b01ff90b80000004c8bf0488d4e70e8f0490000\", \"manager: rsi=this, [this+18] vslot B8 -> gui (r14), map at this+70\"}",
+      "status": "static_counterpart",
+      "note": "Manager+18 idler, virtual+d8 GUI, +70 map",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B8A1C0"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B86414",
+      "windows_initializer": "{\"caption.B86414\", SignatureGroup::caption, 0xB86414, \"4983bd80000000000f84cf000000\", \"bind: parent_scripted_gui length model+80\"}",
+      "status": "static_counterpart",
+      "note": "libc++ parent SG length short/long; adapter replaces unconditional offset",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B86414"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B863F9",
+      "windows_initializer": "{\"caption.B863F9\", SignatureGroup::caption, 0xB863F9, \"493bd07406488b4218eb0233c048898700010000\", \"bind: window+100 = token-map entry+18\"}",
+      "status": "static_counterpart",
+      "note": "Map entry+18 -> window+f8 parent",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B863F9"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B8649E",
+      "windows_initializer": "{\"caption.B8649E\", SignatureGroup::caption, 0xB8649E, \"488db7e800000048c7870801000000000000\", \"bind: window+108 = 0\"}",
+      "status": "static_counterpart",
+      "note": "Clear parent SG window+100",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B8649E"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B864F1",
+      "windows_initializer": "{\"caption.B864F1\", SignatureGroup::caption, 0xB864F1, \"4883bf00010000000f858a000000488b164883c25048837a1000747c\", \"bind: parent_window_window length model+60\"}",
+      "status": "static_counterpart",
+      "note": "libc++ parent window short length, long branch100b462d7",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B864F1"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.B8A660",
+      "windows_initializer": "{\"caption.B8A660\", SignatureGroup::caption, 0xB8A660, \"ba0c000000498bcee883cefdff488bc8e87bce6a00488bd8c74567b23a00004c8d4567488d5597488d4e70e8709dffff488b0848895918\", \"token 3AB2 -> GetRoot(GetView(gui,12))\"}",
+      "status": "static_counterpart",
+      "note": "GUI index12 root lookup then token3ab2 map entry+18",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.B8A660"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.F86CC",
+      "windows_initializer": "{\"caption.F86CC\", SignatureGroup::caption, 0xF86CC, \"8b15fa5d8502488b8c24d0af0100e8713605004c8d05da079f028b10488d0db98d3203e87cc43c02\", \"politics_tab literal <- DWORD 294E4CC\"}",
+      "status": "static_counterpart",
+      "note": "Registry initializer associates politics_tab with3ab2; replacement identity evidence, not Windows instruction-level equivalent",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.F86CC"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.F78FE",
+      "windows_initializer": "{\"caption.F78FE\", SignatureGroup::caption, 0xF78FE, \"8b15e4519f02488b8c24e0ad0100e83f4405004c8d05f80b9f028b10488d0d178a3203e84ad23c02\", \"parent_window_token literal <- DWORD 2AECAE8 (=3A6E)\"}",
+      "status": "static_counterpart",
+      "note": "Registry initializer associates parent_window_token with3a6e",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.F78FE"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_signatures",
+      "id": "caption.159F33D",
+      "windows_initializer": "{\"caption.159F33D\", SignatureGroup::caption, 0x159F33D, \"8b86c00000004189452ce9d6090000\", \"parser copies token to model+2C\"}",
+      "status": "static_counterpart",
+      "note": "CScriptedWindowTemplate parser slot28; jump table0x100b3f9bc indexed by token-3a6b; parser+C0 -> model+24",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption.159F33D"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_signatures",
+      "id": "focus.225E320",
+      "windows_initializer": "{\"focus.225E320\", SignatureGroup::focus, 0x225E320, \"48895c2408574883ec20488bf9488bda488b89580100004885c97409488b01ff90c800000048899f580100004885db740c488b03488bcbff90c0000000488b5c24304883c4205fc3\", \"focus switch: old->C8, [m+158]=new, new->C0 if non-null (whole function)\"}",
+      "status": "static_counterpart",
+      "note": "Focus switch old virtualc8, manager138=new, new virtualc0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.225E320"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_signatures",
+      "id": "focus.22F4770",
+      "windows_initializer": "{\"focus.22F4770\", SignatureGroup::focus, 0x22F4770, \"48895c2408574883ec200fb68171020000488bd924fe888171020000a8107415\", \"edit unfocus: clear +271 bit0\"}",
+      "status": "static_counterpart",
+      "note": "Unfocus clears edit239 bit0",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.22F4770"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_signatures",
+      "id": "focus.22F47F0",
+      "windows_initializer": "{\"focus.22F47F0\", SignatureGroup::focus, 0x22F47F0, \"488d8ba0010000488b5c24304883c4205fe9ba760000\", \"edit unfocus tail: 22FBEC0(edit+1A0)\"}",
+      "status": "static_counterpart",
+      "note": "Receiver subobject edit+180 and unregister tail",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.22F47F0"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_signatures",
+      "id": "focus.22FBEC0",
+      "windows_initializer": "{\"focus.22FBEC0\", SignatureGroup::focus, 0x22FBEC0, \"488bd1488b0d66731501e9e124f6ff\", \"receiver release via manager global 3453230\"}",
+      "status": "static_counterpart",
+      "note": "Receiver release trampoline through global35dc058",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.22FBEC0"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_signatures",
+      "id": "focus.225E3B0",
+      "windows_initializer": "{\"focus.225E3B0\", SignatureGroup::focus, 0x225E3B0, \"40534883ec204883b93002000000488bd97419e838fdfeff488bc8488b10ff523048c78330020000000000004883c4205bc3\", \"manager: release [m+230] and zero it (whole function)\"}",
+      "status": "static_counterpart",
+      "note": "Manager receiver+210 clear",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.225E3B0"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_signatures",
+      "id": "focus.B889AE",
+      "windows_initializer": "{\"focus.B889AE\", SignatureGroup::focus, 0xB889AE, \"488b83000100004885c07444f680a500000004743b\", \"tick: parent=[w+100]; parent+A5 bit4\"}",
+      "status": "static_counterpart",
+      "note": "Parent window+f8, flags DWORD+94 mask400 == byte95 mask4",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.B889AE"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_signatures",
+      "id": "focus.B88A5B",
+      "windows_initializer": "{\"focus.B88A5B\", SignatureGroup::focus, 0xB88A5B, \"4885c00f84ae0000000fb688a5000000c0e90380e1010f8488000000\", \"tick: parent+A5 bit3 visible\"}",
+      "status": "static_counterpart",
+      "note": "Parent flags DWORD+94 mask800 == byte95 mask8",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.B88A5B"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_signatures",
+      "id": "focus.B88AFF",
+      "windows_initializer": "{\"focus.B88AFF\", SignatureGroup::focus, 0xB88AFF, \"3a8b780b0000\", \"tick: cmp cl,[window+B78] parent-visible cache (diagnostic)\"}",
+      "status": "static_counterpart",
+      "note": "Parent visibility cache window+a50",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.B88AFF"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_slot_pins",
+      "id": "caption_slot_pins[0]",
+      "windows_initializer": "{rva::vt_politics_view, off::slot_view_visible, rva::view_is_visible}",
+      "status": "static_counterpart",
+      "note": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption_slot_pins[0]"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_slot_pins",
+      "id": "caption_slot_pins[1]",
+      "windows_initializer": "{rva::vt_politics_observer, off::slot_observer_frame, rva::observer_frame}",
+      "status": "static_counterpart",
+      "note": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption_slot_pins[1]"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_slot_pins",
+      "id": "caption_slot_pins[2]",
+      "windows_initializer": "{rva::vt_politics_observer, off::slot_observer_refresh, rva::observer_refresh}",
+      "status": "static_counterpart",
+      "note": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption_slot_pins[2]"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_slot_pins",
+      "id": "caption_slot_pins[3]",
+      "windows_initializer": "{rva::vt_ingame_idler, off::slot_idler_gui, rva::idler_gui_getter}",
+      "status": "static_counterpart",
+      "note": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "caption_slot_pins[3]"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_token_pins",
+      "id": "token.politics_tab",
+      "windows_initializer": "{\"token.politics_tab\", rva::token_politics_tab, value::token_politics_tab}",
+      "status": "static_counterpart",
+      "note": "0x1024d72b9 LEA destination, 0x1024d72c0 string politics_tab, 0x1024d72ca token 0x3ab2, constructor 0x102a7a1c6 writes DWORD [this]. Runtime-initialized, not readonly constant. Original map representation: 0x35AF598",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "token.politics_tab"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "caption_token_pins",
+      "id": "token.player_context",
+      "windows_initializer": "{\"token.player_context\", rva::token_player_context, value::token_player_context}",
+      "status": "static_counterpart",
+      "note": "0x1024d6c65 LEA destination, 0x1024d6c6c string player_context, 0x1024d6c76 token 0x3a70, constructor 0x102a7a1c6 writes DWORD [this]. Runtime-initialized. Original map representation: 0x35AE4B8",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "token.player_context"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_slot_pins",
+      "id": "focus_slot_pins[0]",
+      "windows_initializer": "{rva::vt_edit, off::slot_edit_unfocus, rva::edit_unfocus}",
+      "status": "static_counterpart",
+      "note": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus_slot_pins[0]"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_slot_pins",
+      "id": "focus_slot_pins[1]",
+      "windows_initializer": "{rva::vt_edit, off::slot_edit_focus, rva::edit_focus}",
+      "status": "static_counterpart",
+      "note": "Runtime pointer must equal target VA + actual image slide, not raw disk bytes.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus_slot_pins[1]"
+      }
+    },
+    {
+      "source": "plugin/capie/src/core/signature_table.hpp",
+      "table": "focus_manager_rip_pin",
+      "id": "focus.manager_global",
+      "windows_initializer": "{\"focus.manager_global\", rva::focus_manager_rip_displacement, rva::focus_manager_rip_next, rva::manager_global}",
+      "status": "static_counterpart",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "core-pins.json",
+        "section": "coverage",
+        "id": "focus.manager_global"
+      },
+      "note": "LEA then dereference, not Windows MOV; checks global address only, not current manager pointee."
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "signatures",
+      "id": "flag.atlas_update",
+      "windows_initializer": "{\"flag.atlas_update\", core::SignatureGroup::country_hook, core::rva::flag_atlas_update, \"488bc448895808488950105556574154415541564157488d68a14881ecd00000000f2970b84c8bfa\", \"UpdateFlagAtlas prologue (design 1.2, review 1.5)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "flag.atlas_update",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "signatures",
+      "id": "flag.load_country_flag",
+      "windows_initializer": "{\"flag.load_country_flag\", core::SignatureGroup::country_hook, core::rva::load_country_flag, \"44894c242048894c2408555356574154\", \"LoadCountryFlag prologue (design 1.3, review 1.4)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "flag.load_country_flag",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "signatures",
+      "id": "flag.build_candidates",
+      "windows_initializer": "{\"flag.build_candidates\", core::SignatureGroup::country_hook, core::rva::build_flag_candidates, \"48895c241048896c2418488974242048894c2408574883ec50498bf9498bf0\", \"BuildFlagCandidates prologue: rdx tag, r8 cosmetic, r9 group (review 1.3)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "flag.build_candidates",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "atlas.cosmetic_keys",
+      "windows_initializer": "{\"atlas.cosmetic_keys\", 0x12403C0, \"498b86c0000000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "atlas.cosmetic_keys",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "atlas.cosmetic_key_qword",
+      "windows_initializer": "{\"atlas.cosmetic_key_qword\", 0x12403C7, \"4a393cf8\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "atlas.cosmetic_key_qword",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "atlas.cosmetic_count",
+      "windows_initializer": "{\"atlas.cosmetic_count\", 0x124008A, \"413986cc000000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "atlas.cosmetic_count",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "atlas.country_list",
+      "windows_initializer": "{\"atlas.country_list\", 0x12401B2, \"488b8010030000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "atlas.country_list",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "atlas.slot_is_list_index",
+      "windows_initializer": "{\"atlas.slot_is_list_index\", 0x12401B9, \"4e8b2cf8\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "atlas.slot_is_list_index",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "load.cosmetic_argument",
+      "windows_initializer": "{\"load.cosmetic_argument\", 0x123F84D, \"4c8d8688140000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "load.cosmetic_argument",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "tag.index_is_int",
+      "windows_initializer": "{\"tag.index_is_int\", 0xBB54A3, \"8b01\"}",
+      "status": "replaced_by_remapping",
+      "note": "Tag maps through gamestate+308 before array indexing; identity assumption invalid.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "tag.index_is_int",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "load.calls_candidates",
+      "windows_initializer": "{\"load.calls_candidates\", 0x123F85C, 0x123F860, core::rva::build_flag_candidates}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "load.calls_candidates",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "incremental.calls_load",
+      "windows_initializer": "{\"incremental.calls_load\", 0x1240A71, 0x1240A75, core::rva::load_country_flag}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "incremental.calls_load",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/flag_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "threaded.calls_load",
+      "windows_initializer": "{\"threaded.calls_load\", 0x123D77C, 0x123D780, core::rva::load_country_flag}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "threaded.calls_load",
+        "file": "flag_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "signatures",
+      "id": "name.update_names",
+      "windows_initializer": "{\"name.update_names\", core::SignatureGroup::country_hook, core::rva::update_names, \"48895c24185556574154415541564157488dac2410feffff\", \"CCountry_UpdateNames prologue (report 1.1)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "name.update_names",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "signatures",
+      "id": "name.build_name_key",
+      "windows_initializer": "{\"name.build_name_key\", core::SignatureGroup::country_hook, core::rva::build_name_key, \"488bc4488958084c8948204c8940185556574154415541564157488da8e8feffff\", \"CCountry_BuildNameKey prologue (1.2)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "name.build_name_key",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "signatures",
+      "id": "name.set_variable_execute",
+      "windows_initializer": "{\"name.set_variable_execute\", core::SignatureGroup::country_hook, core::rva::set_variable_execute, \"48895c24104889742418574883ec30488bd94533c04883c158488bfae8????????488d8b28010000488bf04885c9741880b9d0000000\" \"01750f4c8bc7488d542440e8????????eb1e80b9d000000000752d\", \"CSetVariableEffect::Execute: scoped variable at effect+0x58 (1.5)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "name.set_variable_execute",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "signatures",
+      "id": "name.variable_find",
+      "windows_initializer": "{\"name.variable_find\", core::SignatureGroup::country_hook, core::rva::variable_find, \"48895c241848897c24204154415641574883ec30418b40084c8bf24d8b084c8bf941bbc59d1c8185c07e1d448bd06690410fb611\" \"4d8d49014133d34469da930100014983ea0175e84c63611440b701498bcc4963c34823c848896c24504889742458488d1c4948c1e3\" \"0449035f0840387b047251\", \"variable find: FNV-1a, mask +14, entries +8, stride 0x30, probe byte +4 (1.4)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "Integrated value/fallback-pointer lookup. Only evidence pin; no Windows iterator ABI.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "name.variable_find",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "signatures",
+      "id": "name.variable_get",
+      "windows_initializer": "{\"name.variable_get\", core::SignatureGroup::country_hook, core::rva::variable_get, \"48895c24104c894c2420574883ec20488d5910488bfa488bcb488d542430e8????????0fb64b188b4314ffc103c14898488d0c40488b\" \"44243048c1e10448034b08483bc174064883c028eb05488d442448488b00488b5c2438488907488bc74883c4205fc3\", \"variable get: table at container+0x10, end = (mask+extra+1)*0x30, value at entry+0x28 (1.4)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "name.variable_get",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "signatures",
+      "id": "faction.get_name",
+      "windows_initializer": "{\"faction.get_name\", core::SignatureGroup::country_hook, core::rva::faction_get_name, \"40534883ec3033c0488bda483941287415488d5118488bcbe8????????488bc34883c4305bc3488b89680500004885c974154881c1\" \"d0000000e8????????488bc34883c4305bc30f57c00f1142100f11024889421048c742180f0000008802488bc34883c4305bc3\", \"CFaction::GetName (whole function): +0x18 text when +0x28 size != 0, else template +0x568 (API 5)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "faction.get_name",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "signatures",
+      "id": "faction.string_copy",
+      "windows_initializer": "{\"faction.string_copy\", core::SignatureGroup::country_hook, core::rva::string_copy, \"48895c2408488974241048897c241841564883ec2033c00f57c00f1101488941\", \"MSVC string copy-construct on the game heap (called by GetName at D8BB98)\"}",
+      "status": "replaced_by_adapter",
+      "note": "Inline libc++ copy; engine/macos_owned_string.hpp adapter replaces Windows callable copy constructor. No 1:1 native RVA.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "faction.string_copy",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "country.variables",
+      "windows_initializer": "{\"country.variables\", 0x54265B, \"488b9818020000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "country.variables",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "country.variables2",
+      "windows_initializer": "{\"country.variables2\", 0x542922, \"488b9818020000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "country.variables2",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "scoped_variable.name_size",
+      "windows_initializer": "{\"scoped_variable.name_size\", 0x545029, \"8b8780000000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "Replacement libc++ flag/size/pointer instruction, not MSVC size/capacity semantics.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "scoped_variable.name_size",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "scoped_variable.name_data",
+      "windows_initializer": "{\"scoped_variable.name_data\", 0x54502F, \"488d5770\"}",
+      "status": "static_equivalent_evidence",
+      "note": "Replacement libc++ flag/size/pointer instruction, not MSVC size/capacity semantics.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "scoped_variable.name_data",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "scoped_variable.name_capacity",
+      "windows_initializer": "{\"scoped_variable.name_capacity\", 0x545033, \"4883bf880000000f\"}",
+      "status": "static_equivalent_evidence",
+      "note": "Replacement libc++ flag/size/pointer instruction, not MSVC size/capacity semantics.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "scoped_variable.name_capacity",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "set_variable.scoped_variable",
+      "windows_initializer": "{\"set_variable.scoped_variable\", 0x364C75, \"4883c158\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "set_variable.scoped_variable",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "update_names.tag_argument",
+      "windows_initializer": "{\"update_names.tag_argument\", 0x716937, \"488d9788140000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "update_names.tag_argument",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "gamestate.countries",
+      "windows_initializer": "{\"gamestate.countries\", 0x1A645B, \"488b9810030000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "gamestate.countries",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "gamestate.country_count",
+      "windows_initializer": "{\"gamestate.country_count\", 0x1A6462, \"4863801c030000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "gamestate.country_count",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "country_of.countries",
+      "windows_initializer": "{\"country_of.countries\", 0xBB44A7, \"488b8710030000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "country_of.countries",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "faction.leader_first_member",
+      "windows_initializer": "{\"faction.leader_first_member\", 0x4ABB81, \"488b47588b13488b088b4108\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "faction.leader_first_member",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "faction.member_count",
+      "windows_initializer": "{\"faction.member_count\", 0xC5E2EF, \"4d637d64\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "faction.member_count",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "variable_get.find",
+      "windows_initializer": "{\"variable_get.find\", 0xBC7E9F, 0xBC7EA3, core::rva::variable_find}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "variable_get.find",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "update_names.build_name_key",
+      "windows_initializer": "{\"update_names.build_name_key\", 0x716943, 0x716947, core::rva::build_name_key}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "update_names.build_name_key",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "scope.country_of",
+      "windows_initializer": "{\"scope.country_of\", 0x542657, 0x54265B, core::rva::country_of}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "scope.country_of",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "gamestate.global",
+      "windows_initializer": "{\"gamestate.global\", 0x1A6457, 0x1A645B, core::rva::gamestate_global}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "gamestate.global",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "country_of.gamestate",
+      "windows_initializer": "{\"country_of.gamestate\", 0xBB448D, 0xBB4491, core::rva::gamestate_global}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "country_of.gamestate",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/name_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "faction.get_name_copy",
+      "windows_initializer": "{\"faction.get_name_copy\", 0xD8BB99, 0xD8BB9D, core::rva::string_copy}",
+      "status": "replaced_by_adapter",
+      "note": "Inline libc++ copy; engine/macos_owned_string.hpp adapter replaces Windows callable copy constructor. No 1:1 native RVA.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "faction.get_name_copy",
+        "file": "name_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "signatures",
+      "id": "portrait.resolve",
+      "windows_initializer": "{\"portrait.resolve\", core::SignatureGroup::country_hook, core::rva::portrait_resolve, \"48895C2408488974241848895424105557415441564157488D6C24D9\", \"ResolvePortrait prologue: map, out, type, size, character (review 1.4)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "portrait.resolve",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "signatures",
+      "id": "portrait.valid",
+      "windows_initializer": "{\"portrait.valid\", core::SignatureGroup::country_hook, core::rva::portrait_valid, \"40574883EC308039000F84????????8B4104\", \"PortraitEntryValid prologue: flag byte, kind (review 1.4)\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "portrait.valid",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "ui.size_small_is_zero",
+      "windows_initializer": "{\"ui.size_small_is_zero\", 0xB444C7, \"83bc249000000000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "ui.size_small_is_zero",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "ui.character_argument",
+      "windows_initializer": "{\"ui.character_argument\", 0xB44508, \"48897c2420\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "ui.character_argument",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "ui.out_buffer",
+      "windows_initializer": "{\"ui.out_buffer\", 0xB44518, \"488d542430\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "ui.out_buffer",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "resolve.character_argument",
+      "windows_initializer": "{\"resolve.character_argument\", 0x139DFAD, \"488b5d77\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "resolve.character_argument",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "resolve.character_id",
+      "windows_initializer": "{\"resolve.character_id\", 0x139DFC9, \"448b430c\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "resolve.character_id",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "valid.flag_byte",
+      "windows_initializer": "{\"valid.flag_byte\", 0x139D1E6, \"803900\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "valid.flag_byte",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "valid.kind",
+      "windows_initializer": "{\"valid.kind\", 0x139D1EF, \"8b4104\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "valid.kind",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "valid.name",
+      "windows_initializer": "{\"valid.name\", 0x139D20D, \"488d5108\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "valid.name",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "character.write_portraits",
+      "windows_initializer": "{\"character.write_portraits\", 0xFA6605, \"4c8d4678ba294c0000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "character.write_portraits",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "character.write_variables",
+      "windows_initializer": "{\"character.write_variables\", 0xFA688B, \"4c8d86d8000000ba4a2a0000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "character.write_variables",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "character.read_variables_token",
+      "windows_initializer": "{\"character.read_variables_token\", 0xFA5127, \"4181f84a2a0000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "character.read_variables_token",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "character.read_variables",
+      "windows_initializer": "{\"character.read_variables\", 0xFA5246, \"498d97d8000000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "character.read_variables",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "leader.politics",
+      "windows_initializer": "{\"leader.politics\", 0x6CF890, \"488b81900f0000c3\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.politics",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "leader.ruling_party",
+      "windows_initializer": "{\"leader.ruling_party\", 0x2E56B7, \"488b80d0000000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.ruling_party",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "leader.first_role",
+      "windows_initializer": "{\"leader.first_role\", 0x11A3300, \"83797c00750333c0c3488b4970\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.first_role",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "leader.deref",
+      "windows_initializer": "{\"leader.deref\", 0x1AD6E0, \"488b01c3\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.deref",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "leader.character",
+      "windows_initializer": "{\"leader.character\", 0x2AA270, \"488b4108c3\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.character",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "instruction_pins",
+      "id": "effect.civilian_large",
+      "windows_initializer": "{\"effect.civilian_large\", 0x2E5734, \"33d241b801000000\"}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "effect.civilian_large",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "ui.calls_resolve",
+      "windows_initializer": "{\"ui.calls_resolve\", 0xB44521, 0xB44525, core::rva::portrait_resolve}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "ui.calls_resolve",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "ui.calls_valid",
+      "windows_initializer": "{\"ui.calls_valid\", 0xB4452C, 0xB44530, core::rva::portrait_valid}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "ui.calls_valid",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "leader.calls_politics",
+      "windows_initializer": "{\"leader.calls_politics\", 0x2E56B3, 0x2E56B7, 0x6CF890}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.calls_politics",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "leader.calls_first_role",
+      "windows_initializer": "{\"leader.calls_first_role\", 0x2E56F1, 0x2E56F5, 0x11A3300}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.calls_first_role",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "leader.first_role_jumps",
+      "windows_initializer": "{\"leader.first_role_jumps\", 0x11A330E, 0x11A3312, 0x1AD6E0}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.first_role_jumps",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "leader.calls_character",
+      "windows_initializer": "{\"leader.calls_character\", 0x2E5702, 0x2E5706, 0x2AA270}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "leader.calls_character",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/country/portrait_layer_pins.hpp",
+      "table": "target_pins",
+      "id": "effect.writes_portrait",
+      "windows_initializer": "{\"effect.writes_portrait\", 0x2E5740, 0x2E5744, 0x139F140}",
+      "status": "static_equivalent_evidence",
+      "note": "See same-id macOS record. ABI/representation differs; this is not hook readiness.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "layers-pins.json",
+        "section": "windows_coverage",
+        "id": "effect.writes_portrait",
+        "file": "portrait_layer_pins.hpp"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "signatures",
+      "id": "host.get_local_human",
+      "windows_initializer": "{\"host.get_local_human\", core::SignatureGroup::editor_callee, 0x1DB8E0, \"40534883EC20488BD9488B0D????????488B01FF9088000000488BC8E8????????48638B04010000\", \"CGameState::GetLocalHuman: session vslot 0x88, humans +0x104 (report 1.4)\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "host.get_local_human"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "signatures",
+      "id": "host.get_session",
+      "windows_initializer": "{\"host.get_session\", core::SignatureGroup::editor_callee, 0x1776E0, \"488B8180030000C3\", \"CGameApplication::GetSession: mov rax,[rcx+380h] (report 1.1)\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "host.get_session"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "signatures",
+      "id": "host.get_machine_id",
+      "windows_initializer": "{\"host.get_machine_id\", core::SignatureGroup::editor_callee, 0xB5418F, \"CC8B81A4000000C3\", \"CSession::GetMachineId: mov eax,[rcx+0A4h] (report 1.2; padding byte for uniqueness)\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "host.get_machine_id"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "signatures",
+      "id": "host.session_init",
+      "windows_initializer": "{\"host.session_init\", core::SignatureGroup::editor_callee, 0x2250890, \"40534883EC204889742438418D40FF33F6\", \"CSession::Init prologue: is_server = (mode-1) <= 1 (report 1.2)\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "host.session_init"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "signatures",
+      "id": "host.is_from_host",
+      "windows_initializer": "{\"host.is_from_host\", core::SignatureGroup::editor_callee, 0x2269C50, \"83790C010F94C0C3\", \"host-only command check: machine id 1 is the host (report 1.4)\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "host.is_from_host"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "session.is_server",
+      "windows_initializer": "{\"session.is_server\", 0x22508D5, \"884154\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "session.is_server"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "session.mode",
+      "windows_initializer": "{\"session.mode\", 0x22508E2, \"4489414C\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "session.mode"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "session.machine_id_1",
+      "windows_initializer": "{\"session.machine_id_1\", 0x22508EA, \"C781A400000001000000\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "session.machine_id_1"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "session.backend",
+      "windows_initializer": "{\"session.backend\", 0x22508FE, \"48895158\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "session.backend"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "lobby.session_is_server",
+      "windows_initializer": "{\"lobby.session_is_server\", 0x1CD5694, \"FF908800000080785400\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "lobby.session_is_server"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "gamestate.human_count",
+      "windows_initializer": "{\"gamestate.human_count\", 0x1DB901, \"48638B04010000\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "gamestate.human_count"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "gamestate.humans",
+      "windows_initializer": "{\"gamestate.humans\", 0x1DB90F, \"4C8B93F8000000\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "gamestate.humans"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "human.machine_id",
+      "windows_initializer": "{\"human.machine_id\", 0x1DB91C, \"498D8A98000000\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "human.machine_id"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "human.stride",
+      "windows_initializer": "{\"human.stride\", 0x1DB92D, \"4881C1A0000000\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "human.stride"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "human.name",
+      "windows_initializer": "{\"human.name\", 0x19A94BB, \"488D5320\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "human.name"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "instruction_pins",
+      "id": "human.ctor_machine_id",
+      "windows_initializer": "{\"human.ctor_machine_id\", 0xBBC6E3, \"41898698000000\"}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "human.ctor_machine_id"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "target_pins",
+      "id": "app.global",
+      "windows_initializer": "{\"app.global\", 0x222BDB3, 0x222BDB7, layout::app_global}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "app.global"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "slot_pins",
+      "id": "app.get_session_slot",
+      "windows_initializer": "{\"app.get_session_slot\", {layout::vt_game_application, 0x88, 0x1776E0}}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "app.get_session_slot"
+      }
+    },
+    {
+      "source": "plugin/capie/src/features/host/host_pins.hpp",
+      "table": "slot_pins",
+      "id": "ingame_idler.session_slot",
+      "windows_initializer": "{\"ingame_idler.session_slot\", {0x2968FF0, 0x88, 0xB3C4A0}}",
+      "status": "statically_proven",
+      "note": "Static counterpart evidence only; not a runtime activation or in-game validation claim.",
+      "runtime_ready": false,
+      "macos_evidence": {
+        "manifest": "host-pins.json",
+        "section": "pins",
+        "id": "ingame_idler.session_slot"
+      }
+    }
+  ],
+  "additional_dependencies": [
+    {
+      "id": "host::layout::app_session",
+      "value": "0x320",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x10060e109",
+        "0x10060e10e",
+        "0x1026d4685",
+        "0x10062e904"
+      ],
+      "notes": "CGameApplication constructor stores newly constructed CSession at+320; thunk1026d4680 jumps RTTI-established constructor1026d3d40. Primary vslot+90 returns this field.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::vt_game_application",
+      "value": "0x32ff870",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::vt_session",
+      "value": "0x34a7710",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::vt_proxy_server",
+      "value": "0x34a71a0",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::vt_network_server",
+      "value": "0x34a7078",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::vt_dummy_server",
+      "value": "0x34a75d8",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::vt_human",
+      "value": "0x3308f18",
+      "confidence": "proven",
+      "instruction_evidence": [],
+      "notes": "RVA; RTTI type name and offset-to-top=0 verified; see markdown.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::session_mode",
+      "value": "0x4c",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1026d3c6f"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::session_is_server",
+      "value": "0x54",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1026d3c57",
+        "0x1026d3c5a",
+        "0x1026d3c5d"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::session_backend",
+      "value": "0x58",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1026d3c8f",
+        "0x1026d4d08"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::session_machine_id",
+      "value": "0xa4",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1026d5694",
+        "0x1026d56b0"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::gamestate_humans",
+      "value": "0xe0",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006e7e93"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::gamestate_human_count",
+      "value": "0xec",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006e7e89"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::human_stride",
+      "value": "0x90",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006e7ea8"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::human_machine_id",
+      "value": "0x88",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x1006e7ea0",
+        "0x100757a28"
+      ],
+      "notes": "Static instruction/call-chain proof; runtime multiplayer semantics not checked.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::human_name",
+      "value": "0x20",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x100692988",
+        "0x1006929a0",
+        "0x1006929ba",
+        "0x1006929be",
+        "0x1006929e4",
+        "0x1006929fd"
+      ],
+      "notes": "Game humans array +e0, match machine id+88, selected human+20 passed as USER value to USER_NAME formatter; independently CHuman writer token0xe2.",
+      "report": "layers-map.md"
+    },
+    {
+      "id": "host::layout::app_global",
+      "value": "0x3639ad8",
+      "confidence": "proven",
+      "instruction_evidence": [
+        "0x102675944",
+        "0x10060df09",
+        "0x10060df10"
+      ],
+      "notes": "RTTI CGameApplication primary vtable+0x40 =102675940 publishes unadjusted this to103639ad8. Static identity proven; startup/shutdown lifetime and host authorization not runtime checked.",
+      "report": "layers-map.md"
+    }
+  ],
+  "replacement_policies": [
+    {
+      "legacy_fields": [
+        "core::off::root_third_list",
+        "core::off::root_readable_span"
+      ],
+      "decision": "replace anonymous Windows third-list/prefix guards with four typed array guards; no claimed 1:1 ABI mapping",
+      "root_header_prefix": "0xeb0",
+      "root_header_prefix_confidence": "derived_policy_not_engine_size",
+      "arrays": [
+        {
+          "name": "instant_pointers",
+          "offset": "0xe20",
+          "stride": 8
+        },
+        {
+          "name": "instant_names",
+          "offset": "0xe38",
+          "stride": 24
+        },
+        {
+          "name": "edit_pointers",
+          "offset": "0xe80",
+          "stride": 8
+        },
+        {
+          "name": "edit_names",
+          "offset": "0xe98",
+          "stride": 24
+        }
+      ],
+      "requirements": [
+        "signed count/capacity bounds",
+        "matching paired counts",
+        "checked multiplication and address arithmetic",
+        "guarded copies of count*stride bytes",
+        "GUI thread only; validate returned widget vtable"
+      ],
+      "evidence": [
+        "0x10277210a",
+        "0x102772111",
+        "0x1027722ea",
+        "0x1027722f1",
+        "0x1027668e7",
+        "0x102766934",
+        "0x10276b813",
+        "0x10276ba23"
+      ]
+    },
+    {
+      "legacy_fields": [
+        "core::rva::string_copy"
+      ],
+      "decision": "Use explicit fresh-return libc++ construction in engine/macos_owned_string.hpp; no native callable RVA claimed.",
+      "evidence": [
+        "0x100e52865",
+        "0x100e52871",
+        "0x100e52881",
+        "0x100e52891"
+      ]
+    },
+    {
+      "legacy_fields": [
+        "core::rva::variable_find"
+      ],
+      "decision": "Use proven table layout for bounded memory reads, not a call to the Windows iterator ABI.",
+      "evidence_report": "layers-map.md"
+    }
+  ],
+  "candidate_pin_manifests": [
+    "editor-pins.json",
+    "layers-pins.json",
+    "core-pins.json",
+    "host-pins.json"
+  ],
+  "pin_coverage_summary": {
+    "total_reference_roles": 140,
+    "core": 56,
+    "layers": 65,
+    "host": 19,
+    "roles_with_static_evidence_or_explicit_replacement": 140,
+    "unmatched_reference_roles": 0,
+    "static_counterpart_roles": 137,
+    "explicit_replacement_roles": 3,
+    "runtime_ready": false,
+    "note": "Role accounting is separate from the 164 constant records and does not establish all constants, ABI equivalence, hook safety or in-game support."
+  },
+  "supplemental_evidence": [
+    {
+      "manifest": "core-pins.json",
+      "section": "supplemental",
+      "count": 8,
+      "note": "Additional instruction and target evidence; excluded from the 56 reference-role count."
+    },
+    {
+      "manifest": "editor-pins.json",
+      "id": "editor.ctor_body",
+      "note": "Required companion of the 10-byte constructor thunk; excluded from reference-role totals."
+    },
+    {
+      "manifest": "layers-pins.json",
+      "sections": [
+        "signatures",
+        "instruction_pins",
+        "target_pins",
+        "vtable_pins"
+      ],
+      "note": "Additional evidence records are preserved in the source manifest; windows_coverage alone supplies the 65-role count."
+    }
+  ]
+}

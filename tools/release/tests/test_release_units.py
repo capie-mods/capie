@@ -55,7 +55,7 @@ def test_real_config_loads_and_targets_the_split_repository() -> None:
     assert config.root == REPO
     assert config.github.repo == "capie-mods/capie"
     assert config.workshop.app_id == 394360  # noqa: PLR2004 - HOI4's Steam app ID
-    assert {item.key for item in config.workshop.items} == {"rename-anything", "capie-switch"}
+    assert {item.key for item in config.workshop.items} == {"capie-switch"}
     assert VISIBILITY_VALUES["hidden"] == HIDDEN_VISIBILITY
     for spec in config.preflight:
         assert spec.argv, spec.name

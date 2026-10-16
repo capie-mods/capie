@@ -56,9 +56,9 @@ inline bool same_lifecycle(const Lifecycle& a, const Lifecycle& b) noexcept {
  * @return Copy.
  */
 inline Lifecycle lifecycle_copy(std::size_t model) noexcept {
-    AcquireSRWLockShared(&state_lock);
+    core::platform::lock_shared(&state_lock);
     const Lifecycle copy = lifecycle[model];
-    ReleaseSRWLockShared(&state_lock);
+    core::platform::unlock_shared(&state_lock);
     return copy;
 }
 
@@ -163,7 +163,7 @@ inline void debug_snapshot(void* window, const View& view, ViewResult result, st
             s.receiver_is_edit ? 1U : 0U));
         write_log(line);
         diagnostic(next_observation_id(), "debug-request-field-snapshot", field, epoch, opening.generation, &texts[j],
-                   GetCurrentThreadId());
+                   core::platform::thread_id());
     }
 }
 
@@ -174,7 +174,8 @@ inline void debug_snapshot(void* window, const View& view, ViewResult result, st
 inline void service_debug(void* window) noexcept {
     View view{};
     const auto result = inspect_window(window, view);
-    const auto work = debug_control.take(GetTickCount64(), result == ViewResult::unrelated ? 0U : 1U << view.model);
+    const auto work =
+        debug_control.take(core::platform::monotonic_ms(), result == ViewResult::unrelated ? 0U : 1U << view.model);
     char line[request_line_capacity]{};
     if (work.changed || work.expired != 0) {
         static_cast<void>(
@@ -198,7 +199,7 @@ inline void service_debug(void* window) noexcept {
  * @param context Window context of the click.
  * @param selector Selector string.
  */
-inline void debug_own_action(void* context, const MsvcString* selector) noexcept {
+inline void debug_own_action(void* context, const RecordString* selector) noexcept {
     std::uintptr_t context_vt = 0;
     std::uintptr_t model_vt = 0;
     void* model = nullptr;
@@ -232,8 +233,14 @@ inline void debug_own_action(void* context, const MsvcString* selector) noexcept
             member(context, off::context_root, context_root) && member(window, off::window_root, root) &&
             root == context_root && member(root, 0, root_vt) && root_vt == image_base + rva::vt_sg_root &&
             member(root, off::root_flags, flags) && member(window, off::window_desired, desired) &&
+#if defined(__APPLE__)
+            engine::macos::root_guard(
+                core::ProcessMemory{}, reinterpret_cast<std::uintptr_t>(root),
+                {image_base + rva::vt_sg_root, image_base + rva::vt_edit, image_base + rva::vt_instant_text});
+#else
             readable(root, off::root_readable_span) && bounded_list(root, off::root_edit_list) &&
             bounded_list(root, off::root_instant_list) && bounded_list(root, off::root_third_list);
+#endif
         char line[request_line_capacity]{};
         static_cast<void>(std::snprintf(
             line, sizeof(line),
@@ -295,7 +302,7 @@ inline ExecuteObservation debug_execute_command(void* command) noexcept {
         const bool vector_read = member(command, off::command_records, vector) && vector.count >= 0 &&
                                  std::cmp_less_equal(vector.count, max_original_records + max_transport_records) &&
                                  vector.capacity >= vector.count && vector.capacity <= engine::max_vector_capacity &&
-                                 readable(vector.data, static_cast<std::size_t>(vector.count) * sizeof(Record));
+                                 core::readable(vector.data, static_cast<std::size_t>(vector.count) * sizeof(Record));
         unsigned header_mask = 0;
         std::int64_t epoch = 0;
         std::int64_t a_ok = 0;

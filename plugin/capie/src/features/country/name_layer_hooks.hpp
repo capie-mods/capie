@@ -41,10 +41,16 @@
  * No line ever contains the text of a name.
  */
 #pragma once
+#if defined(__APPLE__)
+#include "../../core/macos_game_layout.hpp"
+#include "../../engine/macos_owned_string.hpp"
+#include "../../engine/macos_string.hpp"
+#else
 #include "../../core/game_layout.hpp"
+#include "../../engine/msvc_string.hpp"
+#endif
 #include "../../core/log.hpp"
 #include "../../core/memory.hpp"
-#include "../../engine/msvc_string.hpp"
 #include "name_layer.hpp"
 
 #include <algorithm>
@@ -61,6 +67,13 @@
 #include <unordered_map>
 
 namespace capie::country::layer {
+#if defined(__APPLE__)
+namespace name_off = core::macos::off;
+namespace name_rva = core::macos::rva;
+#else
+namespace name_off = core::off;
+namespace name_rva = core::rva;
+#endif
 
 /// @brief `u64 UpdateNames(CCountry*)`.
 using UpdateNamesFn = std::uint64_t (*)(uptr);
@@ -69,7 +82,11 @@ using BuildNameKeyFn = void* (*)(void*, const void*, void*, void*, void*, void*,
 /// @brief `void Execute(effect*, context*)`.
 using SetVariableFn = void (*)(uptr, uptr);
 /// @brief `string* CFaction::GetName(faction*, string* out)`.
+#if defined(__APPLE__)
+using FactionNameFn = void* (*)(void*, uptr); // SysV hidden result precedes the faction receiver.
+#else
 using FactionNameFn = void* (*)(uptr, void*);
+#endif
 /// @brief `string* copy(string* out, const string* source)` (game heap).
 using StringCopyFn = void* (*)(void*, const void*);
 /// @brief Log sink: one NUL-terminated line without line break.
@@ -124,6 +141,18 @@ public:
      * @param log Log sink (may be null).
      * @param copy The game's string copy (pinned 11E010).
      */
+#if defined(__APPLE__)
+    void activate(uptr image, LogFn log, engine::macos::StringAllocate allocate,
+                  void (*release)(void*) noexcept) noexcept {
+        image_ = image;
+        log_ = log;
+        allocate_ = allocate;
+        release_ = release;
+        enabled_.store(originals_.update != nullptr && originals_.build != nullptr &&
+                       originals_.set_variable != nullptr && originals_.faction_name != nullptr &&
+                       allocate != nullptr && release != nullptr);
+    }
+#else
     void activate(uptr image, LogFn log, StringCopyFn copy) noexcept {
         image_ = image;
         log_ = log;
@@ -131,6 +160,7 @@ public:
         enabled_.store(originals_.update != nullptr && originals_.build != nullptr &&
                        originals_.set_variable != nullptr && originals_.faction_name != nullptr && copy != nullptr);
     }
+#endif
 
     /// @brief Turns the layer off (hooks then pass everything through). Used by tests and on failure.
     void deactivate() noexcept { enabled_.store(false); }
@@ -151,13 +181,19 @@ public:
             update_faction(country);
             if (!first_update_logged_.exchange(true)) {
                 note(core::logging::Channel::debug, "CAPIE_NAME first UpdateNames on thread %lu",
-                     static_cast<unsigned long>(GetCurrentThreadId()));
+                     static_cast<unsigned long>(core::platform::thread_id()));
             }
         }
         Frame* const previous = active_frame;
         active_frame = &frame;
         const auto result = originals_.update(country);
         active_frame = previous;
+#if defined(__APPLE__)
+        if (frame.construction_failed) {
+            Layer missing{};
+            remember(country, missing); // Allocation fallback must not suppress the next refresh.
+        }
+#endif
         return result;
     }
 
@@ -175,11 +211,25 @@ public:
      */
     void* build_name_key(void* out, const void* tag, void* a3, void* a4, void* a5, void* a6, void* a7,
                          char a8) noexcept {
-        const Frame* const frame = active_frame;
+        Frame* const frame = active_frame;
         if (frame != nullptr && frame->layer.status == Status::valid && enabled_.load()) {
             const auto key = frame->layer.view();
+#if defined(__APPLE__)
+            engine::macos::NativeString temporary;
+            if (engine::macos::construct_name<max_key_size>(key, temporary, allocate_)) {
+                const auto result = originals_.build(out, &temporary, a3, a4, a5, a6, a7, a8);
+                if ((temporary.bytes[0] & 1) != 0) {
+                    void* buffer = nullptr;
+                    std::memcpy(&buffer, temporary.bytes.data() + 16, sizeof(buffer));
+                    release_(buffer);
+                }
+                return result;
+            }
+            frame->construction_failed = true;
+#else
             const auto borrowed = engine::borrowed_string(key.data(), key.size());
             return originals_.build(out, &borrowed, a3, a4, a5, a6, a7, a8);
+#endif
         }
         return originals_.build(out, tag, a3, a4, a5, a6, a7, a8);
     }
@@ -196,15 +246,15 @@ public:
         }
         if (!first_set_logged_.exchange(true)) {
             note(core::logging::Channel::debug, "CAPIE_NAME first set_variable observed on thread %lu",
-                 static_cast<unsigned long>(GetCurrentThreadId()));
+                 static_cast<unsigned long>(core::platform::thread_id()));
         }
-        if (engine::string_equals(mem_, effect + core::off::set_variable_name, faction_commit_variable)) {
+        if (variable_named(effect, faction_commit_variable)) {
             const auto factions = refresh_factions();
             note(core::logging::Channel::lifecycle, "CAPIE_FACTION commit list_ok=%u countries=%d layers=%d",
                  factions.list_ok ? 1U : 0U, factions.countries, factions.layers);
             return;
         }
-        if (!engine::string_equals(mem_, effect + core::off::set_variable_name, commit_variable)) {
+        if (!variable_named(effect, commit_variable)) {
             return;
         }
         if (!first_commit_logged_.exchange(true)) {
@@ -285,12 +335,28 @@ public:
             std::array<char, max_field_bytes> text{};
             std::size_t size = 0;
             if (faction_text(faction, text, size)) {
+#if defined(__APPLE__)
+                engine::macos::NativeString result;
+                if (out != nullptr && engine::macos::construct_name({text.data(), size}, result, allocate_)) {
+                    std::memcpy(out, &result, sizeof(result));
+                    return out;
+                }
+#else
                 const auto borrowed = engine::borrowed_string(text.data(), size);
                 return copy_(out, &borrowed);
+#endif
             }
         }
+#if defined(__APPLE__)
+        return originals_.faction_name(out, faction);
+#else
         return originals_.faction_name(faction, out);
+#endif
     }
+#if defined(__APPLE__)
+    /// @brief SysV entry: hidden string result in RDI, faction receiver in RSI.
+    void* faction_name_sysv(void* out, uptr faction) noexcept { return faction_name(faction, out); }
+#endif
 
     /**
      * @brief The faction name a leader's layer gives (tests and diagnostics).
@@ -321,12 +387,25 @@ public:
     }
 
 private:
+    /// @brief Match the commit name using the platform's native string layout.
+    bool variable_named(uptr effect, const char* expected) const noexcept {
+#if defined(__APPLE__)
+        uptr address = 0;
+        return effect != 0 && core::add_offset(effect, name_off::set_variable_name, address) &&
+               engine::macos::string_equals(mem_, address, std::string_view(expected));
+#else
+        return engine::string_equals(mem_, effect + core::off::set_variable_name, expected);
+#endif
+    }
     /// @brief Country -> the key it shows (absent = no layer).
     using ShownMap = std::unordered_map<uptr, std::string>;
 
     /// @brief The layer of the UpdateNames call running on this thread.
     struct Frame {
         Layer layer;  ///< Layer read at the start of the call.
+#if defined(__APPLE__)
+        bool construction_failed = false;
+#endif
     };
 
     /**
@@ -382,9 +461,9 @@ private:
      */
     bool country_list(uptr& list, std::int32_t& count) const noexcept {
         uptr state = 0;
-        return core::rd(mem_, image_, core::rva::gamestate_global, state) && state != 0 &&
-               core::rd(mem_, state, core::off::gamestate_countries, list) &&
-               core::rd(mem_, state, core::off::gamestate_country_count, count) && list != 0 && count >= 0 &&
+        return core::rd(mem_, image_, name_rva::gamestate_global, state) && state != 0 &&
+               core::rd(mem_, state, name_off::gamestate_countries, list) &&
+               core::rd(mem_, state, name_off::gamestate_country_count, count) && list != 0 && count >= 0 &&
                count <= max_countries;
     }
 
@@ -425,8 +504,8 @@ private:
         std::int32_t members = 0;
         uptr array = 0;
         uptr leader = 0;
-        if (!core::rd(mem_, faction, core::off::faction_member_count, members) || members <= 0 ||
-            !core::rd(mem_, faction, core::off::faction_members, array) || array == 0 ||
+        if (!core::rd(mem_, faction, name_off::faction_member_count, members) || members <= 0 ||
+            !core::rd(mem_, faction, name_off::faction_members, array) || array == 0 ||
             !core::rd(mem_, array, 0, leader) || leader == 0) {
             return false;
         }
@@ -469,7 +548,12 @@ private:
     Originals originals_{};                         ///< Trampolines.
     uptr image_{};                                  ///< Image base.
     LogFn log_{};                                   ///< Log sink.
+#if defined(__APPLE__)
+    engine::macos::StringAllocate allocate_{};
+    void (*release_)(void*) noexcept {};
+#else
     StringCopyFn copy_{};                           ///< The game's string copy.
+#endif
     std::atomic<bool> enabled_{false};              ///< Layer active.
     std::atomic<bool> first_update_logged_{false};  ///< Debug line written.
     std::atomic<bool> first_set_logged_{false};     ///< Debug line written.

@@ -21,7 +21,12 @@
  * Pure functions templated over the memory policy; no writes, no game calls.
  */
 #pragma once
+#if defined(__APPLE__)
+#include "../../core/macos_game_layout.hpp"
+#include "../../engine/macos_string.hpp"
+#else
 #include "../../core/game_layout.hpp"
+#endif
 #include "../../core/memory.hpp"
 #include "name_layer.hpp"
 
@@ -204,7 +209,12 @@ template <class M>
 Layer read_flag_layer(const M& mem, uptr country) noexcept {
     Layer out{};
     uptr container = 0;
-    if (!core::rd(mem, country, core::off::country_variables, container)) {
+#if defined(__APPLE__)
+    constexpr auto variables_offset = core::macos::off::country_variables;
+#else
+    constexpr auto variables_offset = core::off::country_variables;
+#endif
+    if (!core::rd(mem, country, variables_offset, container)) {
         out.status = Status::unreadable;
         return out;
     }
@@ -257,6 +267,25 @@ Layer read_flag_layer(const M& mem, uptr country) noexcept {
  */
 template <class M>
 bool read_cosmetic(const M& mem, uptr country, Text& out, bool& too_long) noexcept {
+#if defined(__APPLE__)
+    out = Text{};
+    too_long = false;
+    uptr address = 0;
+    engine::macos::detail::StringView view{};
+    if (country == 0 || !core::add_offset(country, core::macos::off::country_cosmetic_tag, address) ||
+        !engine::macos::detail::decode<char>(mem, address, view)) {
+        return false;
+    }
+    if (view.size > max_chars) {
+        too_long = true;
+        return true;
+    }
+    if (!engine::macos::detail::copy<char>(mem, view, out.bytes.data(), false)) {
+        return false;
+    }
+    out.size = view.size;
+    return true;
+#else
     struct Raw {
         union {
             std::array<char, 16> small;
@@ -281,6 +310,7 @@ bool read_cosmetic(const M& mem, uptr country, Text& out, bool& too_long) noexce
     }
     out.size = static_cast<std::size_t>(raw.size);
     return true;
+#endif
 }
 
 /**

@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-16",
+  "game_pid": 66226,
+  "observed_initial_parent_pid": 65928,
+  "parent_identity": "installed Paradox Launcher 2026.12 with verified full-profile staging arguments",
+  "game_sha256": "09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb",
+  "library_sha256": "6b60cca7ce0020dd1c175338af696bfff5a60826ff0fd588144f545f47e3e4d1",
+  "report_sha256": "197e5cc8fcc27b8451eebf2f371dae97718c73a06320df47ef196616a6fcdf2e",
+  "report_mode": "0o600",
+  "report": {
+    "diagnostic_only": true,
+    "status": "full_static_profile_matches_not_activation",
+    "exact_sha": true,
+    "loaded_identity": true,
+    "lookup_prefix_matches": [
+      true,
+      true,
+      true
+    ],
+    "token_expected": "not_checked_after_init",
+    "profile_checks": 240,
+    "profile_matches": 240,
+    "profile_first_failure": -1,
+    "token_reads": [
+      {
+        "read": true,
+        "value": 0
+      },
+      {
+        "read": true,
+        "value": 0
+      }
+    ]
+  },
+  "process_evidence": "ev_27aaced39e7e0146d8d50361f510293d763b921a051989442b90b9f93a7ffeba",
+  "real_game_cwd_observed": true,
+  "diagnostic_dylib_in_lsof": true,
+  "libsteam_api_in_lsof": true,
+  "hooks_enabled": false,
+  "scope": "218 source ranges plus 22 derived relative-target checks; not ABI or feature acceptance",
+  "menu_observed": true,
+  "limitations": [
+    "Temporary explicit opt-in; not real mod playset gating.",
+    "Launcher started with open, not by Steam; Steam warning displayed.",
+    "Token values 0 at initializer, not post-init validation.",
+    "No safe hook activation point or API7 feature behavior tested."
+  ],
+  "menu_version": "Operation Postern v1.19.3.0.c01a (5632) (S)"
+}

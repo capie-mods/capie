@@ -21,8 +21,13 @@
  * Risks: there is still a time-of-check/time-of-use gap between `VirtualQuery` and the
  * copy; the SEH handler covers access violations in that gap. SEH is used only in
  * functions without C++ objects that need unwinding.
+ * On macOS, guarded_copy instead uses macos_memory.hpp's complete kernel-mediated
+ * read. readable() probes copies only; it cannot guarantee later object lifetime.
  */
 #pragma once
+#if defined(__APPLE__)
+#include "macos_memory.hpp"
+#else
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -30,6 +35,7 @@
 #define NOMINMAX  // std::numeric_limits<T>::max() must not hit the windows.h macro
 #endif
 #include <windows.h>
+#endif
 
 #include <cstddef>
 #include <cstdint>
@@ -46,6 +52,7 @@ using u64 = std::uint64_t;
 
 /// @brief Largest representable address; used for overflow checks before `base + offset`.
 inline constexpr uptr uptr_max = std::numeric_limits<uptr>::max();
+#if !defined(__APPLE__)
 /// @brief Mask selecting the basic page-protection value from `MEMORY_BASIC_INFORMATION::Protect`.
 inline constexpr DWORD page_access_mask = 0xFF;
 
@@ -121,6 +128,27 @@ inline bool guarded_copy(void* target, const void* source, std::size_t size) noe
         return false;
     }
 }
+#else
+/** @brief Probe a complete range through the kernel; callers must still guard every later read. */
+[[nodiscard]] inline bool readable(const void* source, std::size_t size) noexcept {
+    if (size == 0) return true;
+    auto cursor = reinterpret_cast<uptr>(source);
+    if (cursor == 0 || size > uptr_max - cursor) return false;
+    unsigned char scratch[4096];
+    while (size != 0) {
+        const auto chunk = size < sizeof(scratch) ? size : sizeof(scratch);
+        if (!macos::ProcessMemory::read(cursor, scratch, chunk)) return false;
+        cursor += chunk;
+        size -= chunk;
+    }
+    return true;
+}
+
+/** @brief Copy through the kernel; no Windows readability/SEH assumptions on macOS. */
+inline bool guarded_copy(void* target, const void* source, std::size_t size) noexcept {
+    return macos::ProcessMemory::read(reinterpret_cast<uptr>(source), target, size);
+}
+#endif
 
 /**
  * @brief Reads one trivially copyable member at `object + offset`.

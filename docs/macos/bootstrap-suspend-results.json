@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-16",
+  "scope": "owned forked fixture only; no game, hooks, code writes or security changes",
+  "registered_nonce_control": {"receive": 268451843, "send": 0, "nonce_matches": false},
+  "bootstrap_nonce": {"arm64": "PASS", "x86_64": "PASS", "cleanup_lookup": 1102},
+  "bootstrap_owned_task_transfer": {"arm64": "PASS", "x86_64": "PASS", "pid_for_task": 0, "owned_child_matches": true},
+  "suspension": [
+    {"architecture": "arm64", "access": "granted", "status": "pass", "cycles": 100, "requested_hold_ms": 10, "maximum_hold_ns": 16971834},
+    {"architecture": "x86_64", "access": "granted", "status": "pass", "cycles": 100, "requested_hold_ms": 10, "maximum_hold_ns": 18010083}
+  ],
+  "runtime_ready": false
+}

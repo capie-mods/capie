@@ -158,6 +158,22 @@ More detail: [architecture](docs/contributing/architecture.md),
 
 ## Building and testing
 
+### macOS port (in progress)
+
+The completed macOS port will share one versioned release with Windows, retaining
+the Windows configuration and adding macOS configuration with separate installation instructions.
+
+There is no working macOS CAPIE release or native installer yet. Static mapping targets
+Steam HOI4 1.19.3.0, x86_64, SHA-256
+`09419b087f8b4656c00df337bf838ff34c9b1d816b76cef5383ae6a4ac15b1fb`.
+A read-only diagnostic library loaded in a controlled macOS game launch; three
+localisation entry prefixes matched. A subsequent diagnostic launch passed all
+240 static-profile checks. CAPIE gameplay was not checked. The Windows in-game results above do not apply to
+macOS. See [macOS build, installation and verification status](docs/macos/install-and-test.md)
+for the evidence maps, current offline tests and remaining requirements.
+
+### Windows
+
 You need Windows 10 or 11, Visual Studio 2022 with the C++ x64 tools and a Windows SDK, a local
 checkout of MinHook, [uv](https://docs.astral.sh/uv/) for Python, and HOI4 1.19.3.0 on disk for
 the pin checks.

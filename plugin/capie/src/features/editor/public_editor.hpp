@@ -78,7 +78,7 @@ inline PublicEditor public_editors[max_public_editors]{};
 /// @brief Number of published slots (release store after a slot is complete).
 inline std::atomic<std::size_t> public_editor_count{0};
 /// @brief Serializes registrations (never held across a game call).
-inline SRWLOCK public_registry_lock = SRWLOCK_INIT;
+inline core::platform::Lock public_registry_lock{};
 /// @brief Set once the "registry full" line was logged.
 inline std::atomic<bool> public_full_logged{false};
 /// @brief Lifecycle per slot; guarded by `state_lock`.
@@ -191,7 +191,7 @@ inline Registration register_public(std::string_view model, std::size_t& index) 
         return Registration::invalid;
     }
     Registration result = Registration::full;
-    AcquireSRWLockExclusive(&public_registry_lock);
+    core::platform::lock(&public_registry_lock);
     const auto count = public_editor_count.load(std::memory_order_relaxed);
     std::size_t same_mod = 0;
     for (std::size_t i = 0; i < count; ++i) {
@@ -208,7 +208,7 @@ inline Registration register_public(std::string_view model, std::size_t& index) 
         public_editor_count.store(count + 1, std::memory_order_release);
         result = Registration::added;
     }
-    ReleaseSRWLockExclusive(&public_registry_lock);
+    core::platform::unlock(&public_registry_lock);
     if (result == Registration::added) {
         public_log("registered", public_editors[index].model.c_str(), "", index);
     } else if (result == Registration::full && !public_full_logged.exchange(true)) {
@@ -313,11 +313,11 @@ inline bool same_public_view(void* window, const View& view, std::uint64_t epoch
  * @return `true` when visible, attempted and unchanged.
  */
 inline bool same_public_opening(std::size_t slot, std::uint64_t epoch, std::uint64_t generation) noexcept {
-    AcquireSRWLockShared(&state_lock);
+    core::platform::lock_shared(&state_lock);
     const auto& current = public_lifecycle[slot];
     const bool same =
         current.visible && current.attempted && current.epoch == epoch && current.generation == generation;
-    ReleaseSRWLockShared(&state_lock);
+    core::platform::unlock_shared(&state_lock);
     return same;
 }
 
@@ -406,7 +406,7 @@ inline void open_public(void* window, const View& view, std::uint64_t epoch, std
     } else {
         outcome = "layout-invalid";
     }
-    AcquireSRWLockExclusive(&state_lock);
+    core::platform::lock(&state_lock);
     auto& state = public_lifecycle[view.model];
     const bool same = state.visible && state.epoch == epoch && state.generation == generation;
     if (same) {
@@ -416,7 +416,7 @@ inline void open_public(void* window, const View& view, std::uint64_t epoch, std
         public_previous_ok[view.model] = previous_ok;
         public_previous[view.model] = previous_ok ? previous.decoded : InputSnapshot{};
     }
-    ReleaseSRWLockExclusive(&state_lock);
+    core::platform::unlock(&state_lock);
     char detail[public_detail_capacity]{};
     static_cast<void>(std::snprintf(detail, sizeof(detail), "fields=%zu,prefilled=%zu", count, written));
     public_log(same ? outcome : "opening-changed", editor.model.c_str(), detail, epoch);
@@ -434,26 +434,26 @@ inline void public_observe_tick(void* window) noexcept {
         return;
     }
     if (result != ViewResult::visible) {
-        AcquireSRWLockExclusive(&state_lock);
+        core::platform::lock(&state_lock);
         end_opening(public_lifecycle[view.model], result == ViewResult::hidden);
-        ReleaseSRWLockExclusive(&state_lock);
+        core::platform::unlock(&state_lock);
         return;
     }
     std::uint64_t epoch = 0;
     if (!read_epoch_carrier(view.root, public_editors[view.model].epoch.c_str(), epoch)) {
-        AcquireSRWLockExclusive(&state_lock);
+        core::platform::lock(&state_lock);
         end_opening(public_lifecycle[view.model], false);
-        ReleaseSRWLockExclusive(&state_lock);
+        core::platform::unlock(&state_lock);
         return;
     }
     bool attempt = false;
     std::uint64_t generation = 0;
-    AcquireSRWLockExclusive(&state_lock);
+    core::platform::lock(&state_lock);
     if (see_visible(public_lifecycle[view.model], epoch, generation, attempt)) {
         public_layout[view.model] = Layout::unknown;
         public_field_count[view.model] = 0;
     }
-    ReleaseSRWLockExclusive(&state_lock);
+    core::platform::unlock(&state_lock);
     if (attempt) {
         open_public(window, view, epoch, generation);
     }
@@ -470,7 +470,7 @@ inline void public_bind(void* window) noexcept {
     if (result == ViewResult::unrelated) {
         return;
     }
-    AcquireSRWLockExclusive(&state_lock);
+    core::platform::lock(&state_lock);
     if (result == ViewResult::invalid) {
         end_opening(public_lifecycle[view.model], false);
     } else {
@@ -478,13 +478,13 @@ inline void public_bind(void* window) noexcept {
     }
     public_layout[view.model] = Layout::unknown;
     public_field_count[view.model] = 0;
-    ReleaseSRWLockExclusive(&state_lock);
+    core::platform::unlock(&state_lock);
 }
 
 /// @brief A grammar Apply recognised at Dispatch.
 struct PublicCommit {
     void* model{};                         ///< Model object of the click's context.
-    const MsvcString* model_name{};        ///< Model name inside the model object.
+    const RecordString* model_name{};      ///< Model name inside the model object.
     char name[public_name_buffer]{};       ///< Copied model name.
     std::size_t size{};                    ///< Its length.
     std::size_t slot{max_public_editors};  ///< Registry slot (when registered).
@@ -498,7 +498,7 @@ struct PublicCommit {
  * @param commit Receives the model and slot.
  * @return `true` for a grammar Apply (registered or not).
  */
-inline bool public_commit(void* context, const MsvcString* selector, PublicCommit& commit) noexcept {
+inline bool public_commit(void* context, const RecordString* selector, PublicCommit& commit) noexcept {
     std::uintptr_t context_vt = 0;
     if (!member(context, 0, context_vt) || context_vt != image_base + rva::vt_sg_context ||
         !member(context, off::context_model, commit.model) ||
@@ -510,7 +510,7 @@ inline bool public_commit(void* context, const MsvcString* selector, PublicCommi
         return false;
     }
     commit.model_name =
-        reinterpret_cast<const MsvcString*>(reinterpret_cast<std::uintptr_t>(commit.model) + off::model_name);
+        reinterpret_cast<const RecordString*>(reinterpret_cast<std::uintptr_t>(commit.model) + off::model_name);
     commit.registration = register_public(std::string_view(commit.name, commit.size), commit.slot);
     return true;
 }
@@ -573,12 +573,12 @@ inline unsigned capture_public(const PublicCommit& commit, const View& view, Pub
         !opening_ready(public_lifecycle[commit.slot], snapshot.epoch, snapshot.generation, false)) {
         return static_cast<unsigned>(PublicSentinel::stale);
     }
-    AcquireSRWLockShared(&state_lock);
+    core::platform::lock_shared(&state_lock);
     const auto layout = public_layout[commit.slot];
     const auto expected = public_field_count[commit.slot];
     snapshot.has_previous = public_previous_ok[commit.slot];
     snapshot.previous = public_previous[commit.slot];
-    ReleaseSRWLockShared(&state_lock);
+    core::platform::unlock_shared(&state_lock);
     if (layout == Layout::invalid) {
         return static_cast<unsigned>(PublicSentinel::layout_invalid);
     }
@@ -801,7 +801,7 @@ inline bool public_still_current(const Origin& current, const PublicCommit& comm
  *         `true` when it was dispatched once, forwarded as a sentinel or dropped (logged).
  */
 inline bool public_dispatch(void* context, void* opaque_selector) noexcept {
-    const auto* selector = static_cast<const MsvcString*>(opaque_selector);
+    const auto* selector = static_cast<const RecordString*>(opaque_selector);
     PublicCommit commit{};
     if (!public_commit(context, selector, commit)) {
         return false;
