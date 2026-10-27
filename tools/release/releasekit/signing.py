@@ -253,7 +253,7 @@ def render_pinned_block(pinned: PinnedRelease) -> str:
             "    }",
             (
                 "    # hoi4.exe builds this release's DLLs support "
-                "(for -CheckUpdate messages; the launcher enforces it)."
+                "(install notice, -Update, -CheckUpdate; the launcher enforces it)."
             ),
             f"    SupportedGameSha256 = @({games})",
             "}",

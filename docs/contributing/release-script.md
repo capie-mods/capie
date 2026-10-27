@@ -104,6 +104,27 @@ launcher and, when present, `proxy/version.dll`) contains `game_exe_sha256` (eit
 `1.5.10`). A binary without them was built from another header: rebuild it, re-pin
 `bundle-inputs.json`, commit, and run `build` again.
 
+### Installer pins
+
+`install.ps1 -Install` (without `-Latest`) installs the release pinned in
+`tools/bootstrap/src/Shared/Configuration.ps1` (`$script:RaPinnedRelease`): version, ZIP name
+and SHA-256, every file hash and `SupportedGameSha256`. After every install the installer
+compares the player's `hoi4.exe` with that list and prints a clear notice, with the release page
+and the update command, when it is not supported. So the list must be the one the binaries
+accept. Never edit the block by hand; the build step writes it:
+
+1. `python tools/release/release.py build --signing-key <key outside the repo> --write-pins`
+   builds and signs the bundle, renders the block from it (`SupportedGameSha256` =
+   `game_exe_sha256` of `game_build.hpp`, already checked inside every shipped PE file) into
+   `installer-pins.ps1.txt` and `Configuration.ps1`, and rebuilds `install.ps1`.
+2. Run the installer Pester suite, commit `Configuration.ps1` and `install.ps1`.
+3. Run `release` from that commit (it refuses when the pins do not name this ZIP).
+
+Without `--write-pins` the step only writes `installer-pins.ps1.txt` and warns. Until CAPIE
+1.5.1 is released, the block still names CAPIE 1.5.0 for HOI4 1.19.3.0 (`hoi4.exe`
+`7DC947BE...`); on HOI4 1.19.4.0 a pinned install therefore ends with the "does NOT support"
+notice instead of a silent success.
+
 The signing key path is a command-line option only. The script refuses a key inside the
 repository and reads nothing from the key file except the public modulus and exponent (for the
 signature check).

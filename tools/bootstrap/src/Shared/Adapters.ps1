@@ -17,12 +17,15 @@ $script:RaAssumeYes = $false    # -Yes: never prompt
 $script:RaQuiet = $false        # tests: no console output
 $script:RaAfterWriteHook = $null # tests: simulate a bad write before verification
 $script:RaBeforeOwnedRemove = $null # tests: simulate a replacement after ownership verification
+$script:RaBeforeCurrentSwap = $null # tests: runs (with the aside path) after the old 'current' was renamed aside
 $script:RaLogSink = $null       # terminal interface: receives (Level, Message) of console log lines
 $script:RaMpWarningShown = $false # terminal interface already showed the multiplayer note
 $script:RaCloseSteam = $false   # -CloseSteam: with -Yes the script may close and restart Steam
 $script:RaSteamClosedByUs = $false # this run closed Steam (or planned to, in dry-run mode)
 $script:RaSteamRestartExe = $null  # steam.exe to start again after the change
 $script:RaReleaseCache = $null  # releases listed in this run (one GitHub request per run)
+$script:RaForce = $false        # -Force: -Update may install a release that does not support the game; -Uninstall without Steam
+$script:RaUpdateHeldBack = $false # -Update kept the installed version because the newest does not support the game
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -58,6 +61,8 @@ $script:RaSleep = { param([int]$Milliseconds) Start-Sleep -Milliseconds $Millise
 $script:RaGetSteamProcess = { @(Get-Process -Name $script:RaSteamProcessName -ErrorAction SilentlyContinue) }
 # GetSteamHelperProcess() -> array of steamwebhelper processes (they outlive steam.exe briefly)
 $script:RaGetSteamHelperProcess = { @(Get-Process -Name $script:RaSteamHelperProcessName -ErrorAction SilentlyContinue) }
+# GetGameProcess() -> array of running hoi4.exe / dowser.exe processes (objects with a Name); empty when none
+$script:RaGetGameProcess = { @(Get-Process -Name $script:RaGameProcessNames -ErrorAction SilentlyContinue) }
 # StartProcess(FilePath, Arguments) -> nothing; starts a program without waiting (Steam shutdown/start only)
 $script:RaStartProcess = {
     param([string]$FilePath, [string[]]$Arguments)

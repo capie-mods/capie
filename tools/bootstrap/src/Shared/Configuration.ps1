@@ -14,6 +14,17 @@ $script:RaUpdatePublicKeyXml = '<RSAKeyValue><Modulus>21/rZrMx9hLPYwh/QMiCnXaOUe
 # extra file aborts the install (fail-closed). File hashes below are the current
 # reviewed launcher-candidate bundle; ZipSha256 must be filled when the release ZIP
 # is built. Until then the installer refuses to install anything.
+#
+# Never edit this block by hand. The release step writes all of it, SupportedGameSha256
+# included, from the bundle it just built and signed (tools/release/release.py build
+# --write-pins; SupportedGameSha256 = game_exe_sha256 of plugin/capie/src/core/game_build.hpp,
+# which the build step checks inside every shipped binary), then rebuilds install.ps1.
+# See docs/contributing/release-script.md, "Installer pins".
+#
+# The values below are still those of CAPIE 1.5.0 for HOI4 1.19.3.0 (hoi4.exe 7DC947BE...).
+# On HOI4 1.19.4.0 an install of this pinned release therefore ends with the clear
+# "does NOT support your Hearts of Iron IV build" notice (and the release page and update
+# command), never a silent success. CAPIE 1.5.1 replaces them when it is released.
 $script:RaPinnedRelease = [ordered]@{
     Version             = '1.5.0'
     ZipName             = 'CAPIE-1.5.0-win64.zip'
@@ -34,6 +45,6 @@ $script:RaPinnedRelease = [ordered]@{
         'mod/capie/localisation/polish/capie_switch_l_polish.yml'   = 'E59AF5200E9D539A9AD36AC8A6EDEDD1D589C55FC176236B9498DB92C0182CA9'
         'mod/capie/thumbnail.png'                                   = 'D4BB22A36F572D354E49DCFB54DCF03F03BF844517F261FF2B9BC2D94CFD66FE'
     }
-    # hoi4.exe builds this release's DLLs support (for -CheckUpdate messages; the launcher enforces it).
+    # hoi4.exe builds this release's DLLs support (install notice, -Update, -CheckUpdate; the launcher enforces it).
     SupportedGameSha256 = @('7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5')
 }

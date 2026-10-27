@@ -643,12 +643,15 @@ function Remove-RaSteamLaunchOption {
         Removes our wrapper from every Steam account that has it.
     .DESCRIPTION
         Accounts without our fragment are not touched (no backup either). Unreadable
-        accounts are logged and skipped. Returns $false when Steam is running and the
-        user did not close it.
+        accounts are logged and skipped, or with -Strict (uninstall: the files are about to be
+        deleted) make it throw before anything is changed. Returns $false when Steam is running
+        and the user did not close it.
     .PARAMETER State
         State object (modified; the caller saves it).
     .PARAMETER SteamRootPath
         Steam folder.
+    .PARAMETER Strict
+        Throw when an account's localconfig.vdf cannot be read (its option may still point at us).
     .OUTPUTS
         System.Boolean
     .EXAMPLE
@@ -658,7 +661,8 @@ function Remove-RaSteamLaunchOption {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory, Position = 0)][psobject]$State,
-        [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$SteamRootPath
+        [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$SteamRootPath,
+        [switch]$Strict
     )
     $accounts = @(Get-RaSteamAccount $SteamRootPath)
     $targets = @()
@@ -666,7 +670,10 @@ function Remove-RaSteamLaunchOption {
         try {
             $info = Get-RaAppLaunchInfo (Read-RaTextFile $acc.ConfigPath).Text
             if ((Test-RaHasWrapper $info.Value) -or (Test-RaHasCapieFlag $info.Value)) { $targets += $acc }
-        } catch { Write-RaLog "Account $($acc.Id): cannot read localconfig.vdf ($($_.Exception.Message)); skipped." -Level WARN }
+        } catch {
+            if ($Strict) { throw (Get-RaText 'SteamConfigUnreadable' @($acc.Id, $_.Exception.Message)) }
+            Write-RaLog "Account $($acc.Id): cannot read localconfig.vdf ($($_.Exception.Message)); skipped." -Level WARN
+        }
     }
     if ($targets.Count -eq 0) {
         Write-RaLog 'No Steam launch option with Rename Anything found.'

@@ -343,6 +343,11 @@ function Reset-Env {
     $script:RaQuiet = $true
     $script:RaAfterWriteHook = $null
     $script:RaBeforeOwnedRemove = $null
+    $script:RaBeforeCurrentSwap = $null
+    $script:RaForce = $false
+    $script:RaUpdateHeldBack = $false
+    # The real machine may run HOI4: tests never look at real processes.
+    $script:RaGetGameProcess = { @() }
     $script:RaGetSteamProcess = { @() }
     $script:RaGetSteamHelperProcess = { @() }
     $script:started = New-Object System.Collections.ArrayList
@@ -2482,5 +2487,300 @@ Describe 'Older versions (-ListVersions, -Version, menu item 2)' {
         $script:keyQueue.Count | Should Be 0
         Get-CurrentTargetName | Should Be '0.1.5'
         (Get-PlainOutput) | Should Match 'Install CAPIE 0\.1\.5\?'
+    }
+}
+
+function New-LeftoverName {
+    <#
+    .SYNOPSIS
+        A leftover name exactly like New-RaUniqueName makes them (32 lower-case hex digits).
+    .DESCRIPTION
+        Fixture helper for the leftover sweep tests.
+    .PARAMETER Format
+        Name with {0} where the id goes.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        New-LeftoverName 'download-{0}.zip'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][string]$Format)
+    return ($Format -f [guid]::NewGuid().ToString('N'))
+}
+
+function Set-ItemAge {
+    <#
+    .SYNOPSIS
+        Sets creation and last write time of a file or folder (not a junction).
+    .DESCRIPTION
+        Fixture helper: the sweep only removes leftovers older than RaLeftoverMinAgeMinutes.
+    .PARAMETER Path
+        File or folder.
+    .PARAMETER When
+        Time to set.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Set-ItemAge $p (Get-Date).AddHours(-2)
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][string]$Path, [Parameter(Mandatory, Position = 1)][datetime]$When)
+    if (Test-Path -LiteralPath $Path -PathType Container) {
+        [IO.Directory]::SetCreationTime($Path, $When)
+        [IO.Directory]::SetLastWriteTime($Path, $When)
+    } else {
+        [IO.File]::SetCreationTime($Path, $When)
+        [IO.File]::SetLastWriteTime($Path, $When)
+    }
+}
+
+Describe 'Delivery safety (game build notice, running game, Steam before files, current swap, leftovers)' {
+    It 'an install whose package does not support the installed hoi4.exe ends with a clear notice: page and full command' {
+        $dir = Reset-Env 'safe-notice'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match 'CAPIE 0\.1\.0 does NOT support your Hearts of Iron IV build'
+        $log | Should Match ([regex]::Escape('https://github.com/capie-mods/capie/releases/latest'))
+        $command = '& ([scriptblock]::Create((irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1))) -Update'
+        $log | Should Match ([regex]::Escape($command))
+        $log | Should Match 'WARN'
+    }
+    It 'an install that supports the installed hoi4.exe says so and shows no notice; without Steam the check is reported as not done' {
+        $dir = Reset-Env 'safe-notice-ok'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $pkg.Manifest.SupportedGameSha256 = @((Get-FileHash (Join-Path $steam 'steamapps\common\Hearts of Iron IV\hoi4.exe')).Hash.ToLowerInvariant())
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match 'The installed version supports your hoi4.exe build'
+        $log | Should Not Match 'does NOT support'
+        $dir = Reset-Env 'safe-notice-nosteam'
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; PackagePath = $pkg.Zip; LoadMethod = 'Launcher' }) | Should Be 0
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'hoi4.exe was not found through Steam'
+    }
+    It 'refuses install, update, rollback and uninstall while hoi4.exe or dowser.exe runs; nothing changes; -Disable still works' {
+        $dir = Reset-Env 'safe-running'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        $script:RaGetGameProcess = { @([pscustomobject]@{ Name = 'dowser' }) }
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 1
+        Test-Path (Join-Path $script:RaRoot '0.1.0') | Should Be $false
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'dowser\.exe\)\. Close the game and the launcher completely'
+        $script:RaGetGameProcess = { @() }
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        $before = @(Get-TreeHash $dir | Where-Object { $_ -notmatch 'bootstrap\.log=' })
+        $script:RaGetGameProcess = { @([pscustomobject]@{ Name = 'hoi4' }, [pscustomobject]@{ Name = 'dowser' }) }
+        foreach ($o in @(@{ Uninstall = $true }, @{ Update = $true }, @{ Rollback = $true }, @{ Install = $true; PackagePath = $pkg.Zip })) {
+            $o.Yes = $true
+            $o.SteamRoot = $steam
+            (Invoke-RaMain $o) | Should Be 1
+        }
+        @(Get-TreeHash $dir | Where-Object { $_ -notmatch 'bootstrap\.log=' }) -join '|' | Should Be ($before -join '|')
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'dowser\.exe, hoi4\.exe'
+        (Invoke-RaMain @{ Uninstall = $true; DryRun = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        (Invoke-RaMain @{ Disable = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+    }
+    It 'uninstall without Steam refuses while a recorded launch option may point at the bundle; -Force after clearing it by hand' {
+        $dir = Reset-Env 'safe-uninstall-nosteam'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        @((Read-RaState).SteamEntries).Count | Should Be 1
+        $launcher = Get-RaLauncherPath
+        # No -SteamRoot and no registry value: Steam is not found.
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true }) | Should Be 1
+        Test-Path -LiteralPath $launcher | Should Be $true
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match 'Steam was not found, but the HOI4 Steam launch options may still start'
+        $log | Should Match 'Properties > General > Launch Options'
+        $log | Should Match '-Uninstall -Force'
+        (Invoke-RaMain @{ Uninstall = $true; Force = $true; Yes = $true }) | Should Be 0
+        Test-Path -LiteralPath $launcher | Should Be $false
+    }
+    It 'uninstall without Steam goes ahead when this setup never set a launch option' {
+        $dir = Reset-Env 'safe-uninstall-norecord'
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ Install = $true; Yes = $true; PackagePath = $pkg.Zip; LoadMethod = 'Launcher' }) | Should Be 0
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true }) | Should Be 0
+        Test-Path -LiteralPath (Get-RaLauncherPath) | Should Be $false
+    }
+    It 'uninstall refuses (and removes nothing) when an account''s localconfig.vdf cannot be read' {
+        $dir = Reset-Env 'safe-uninstall-unreadable'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock '"LaunchOptions"		"-debug_mode"')) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        $script:RaReadAllBytes = { param($p) if ($p -like '*localconfig.vdf') { throw 'locked by another program' } , [IO.File]::ReadAllBytes($p) }
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 1
+        Test-Path -LiteralPath (Get-RaLauncherPath) | Should Be $true
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'Account 111: localconfig.vdf cannot be read'
+        $script:RaReadAllBytes = $origAdapters.ReadAllBytes
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        Test-Path -LiteralPath (Get-RaLauncherPath) | Should Be $false
+    }
+    It 'switching current keeps the old link (renamed aside) until the new one is in place, and restores it on failure' {
+        $e = Initialize-UpdateEnv 'safe-swap'
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
+        [void](Install-RaVersion -Manifest (Get-RaRemoteRelease $null).Manifest -LocalZip $null -ZipUrl "$fakeGitHubAssetHost/v0.2.0/RA-0.2.0-none.zip")
+        $script:seenAside = $null
+        $script:RaBeforeCurrentSwap = {
+            param($aside)
+            $script:seenAside = $aside
+            # The old link still exists, under its aside name, while the new one is not in place yet.
+            (Get-RaJunctionTarget $aside) | Should Be ([IO.Path]::GetFullPath((Get-RaVersionDir '0.1.0')))
+            throw 'simulated failure between the renames'
+        }
+        Assert-RaThrow { Switch-RaCurrent '0.2.0' } 'simulated failure'
+        $script:seenAside | Should Match 'current\.old-[0-9a-f]{32}$'
+        Get-CurrentTargetName | Should Be '0.1.0'
+        @(Get-ChildItem $script:RaRoot -Force | Where-Object { $_.Name -match '^current\.' }).Count | Should Be 0
+        $script:RaBeforeCurrentSwap = $null
+        Switch-RaCurrent '0.2.0'
+        Get-CurrentTargetName | Should Be '0.2.0'
+        @(Get-ChildItem $script:RaRoot -Force | Where-Object { $_.Name -match '^current\.' }).Count | Should Be 0
+        Test-Path (Join-Path $script:RaRoot '0.1.0\RenameAnythingLauncher.exe') | Should Be $true
+    }
+    It 'a current that is not a junction is refused, never deleted' {
+        $dir = Reset-Env 'safe-swap-dir'
+        New-Item -ItemType Directory -Force -Path (Join-Path $script:RaRoot '0.1.0'), (Join-Path $script:RaRoot 'current') | Out-Null
+        Write-Utf8 (Join-Path $script:RaRoot 'current\keep.txt') 'user data'
+        Assert-RaThrow { Switch-RaCurrent '0.1.0' } 'not a junction'
+        Test-Path (Join-Path $script:RaRoot 'current\keep.txt') | Should Be $true
+        @(Get-ChildItem $script:RaRoot -Force | Where-Object { $_.Name -match '^current\.' }).Count | Should Be 0
+        [void]$dir
+    }
+    It '-Update keeps a version that supports the installed game instead of one that does not, unless -Force' {
+        $e = Initialize-UpdateEnv 'safe-update-hold'
+        $script:RaPinnedRelease.SupportedGameSha256 = @($e.GameSha)
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -GameSha @('A' * 64))
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.1.0'
+        Test-Path (Join-Path $script:RaRoot '0.2.0') | Should Be $false
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match 'CAPIE 0\.2\.0 is available but does not support your hoi4.exe build'
+        $log | Should Match '-Update -Force'
+        $log | Should Not Match 'already up to date'
+        (Invoke-RaMain @{ Update = $true; Force = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'CAPIE 0\.2\.0 does NOT support your Hearts of Iron IV build'
+    }
+    It '-Update still updates when the installed version does not support the game either' {
+        $e = Initialize-UpdateEnv 'safe-update-both-unsupported'
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -GameSha @('A' * 64))
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+    }
+    It 'sweeps only proven leftovers of an interrupted run, and only old ones' {
+        $dir = Reset-Env 'safe-sweep'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $game = Join-Path $steam 'steamapps\common\Hearts of Iron IV'
+        $pkg = New-TestPackage (Join-Path $dir 'pkg') -WithProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        $root = $script:RaRoot
+        New-Item -ItemType Directory -Force -Path (Join-Path $root '0.1.0') | Out-Null
+        # The clock runs two hours ahead, so everything made now is old, except what is set to "now".
+        $script:sweepNow = (Get-Date).AddHours(2)
+        $script:RaNow = { $script:sweepNow }
+        $old = (Get-Date).AddHours(-2)
+        $gone = @()
+        $kept = @()
+        # Root folder: our names, old -> removed.
+        $p = Join-Path $root (New-LeftoverName 'download-{0}.zip'); Write-Utf8 $p 'partial'; Set-ItemAge $p $old; $gone += $p
+        $p = Join-Path $root (New-LeftoverName '.staging-{0}'); New-Item -ItemType Directory -Path (Join-Path $p 'runtime') | Out-Null
+        Write-Utf8 (Join-Path $p 'runtime\a.dll') 'x'; Set-ItemAge $p $old; $gone += $p
+        $p = Join-Path $root (New-LeftoverName 'current.old-{0}')
+        New-Item -ItemType Junction -Path $p -Target (Join-Path $root '0.1.0') | Out-Null; $gone += $p
+        $p = Join-Path $root (New-LeftoverName 'proxy.enabled.{0}.remove')
+        [IO.File]::WriteAllText($p, $script:RaProxyConfigContent); Set-ItemAge $p $old; $gone += $p
+        # Root folder: kept (foreign name, too young, foreign content, link inside, link out of the root).
+        $p = Join-Path $root 'download-mine.zip'; Write-Utf8 $p 'user file'; Set-ItemAge $p $old; $kept += $p
+        $p = Join-Path $root (New-LeftoverName 'download-{0}.zip'); Write-Utf8 $p 'another setup window'; Set-ItemAge $p $script:sweepNow; $kept += $p
+        $p = Join-Path $root (New-LeftoverName 'proxy.enabled.{0}.remove'); Write-Utf8 $p 'not our marker'; Set-ItemAge $p $old; $kept += $p
+        $outside = Join-Path $dir 'outside'; New-Item -ItemType Directory -Path $outside | Out-Null; Write-Utf8 (Join-Path $outside 'precious.txt') 'keep'
+        $p = Join-Path $root (New-LeftoverName '.staging-{0}'); New-Item -ItemType Directory -Path $p | Out-Null
+        New-Item -ItemType Junction -Path (Join-Path $p 'link') -Target $outside | Out-Null; Set-ItemAge $p $old; $kept += $p
+        $p = Join-Path $root (New-LeftoverName 'current.new-{0}'); New-Item -ItemType Junction -Path $p -Target $outside | Out-Null; $kept += $p
+        # Game folder: copies of a signed proxy -> removed; anything else -> kept.
+        $proxyBytes = $utf8.GetBytes('proxy-0.1.0')
+        [IO.File]::WriteAllBytes((Join-Path $game 'version.dll'), $proxyBytes)
+        foreach ($suffix in 'tmp', 'remove', 'bak') {
+            $p = Join-Path $game (New-LeftoverName ('version.dll.{0}.' + $suffix)); [IO.File]::WriteAllBytes($p, $proxyBytes); Set-ItemAge $p $old; $gone += $p
+        }
+        $p = Join-Path $game (New-LeftoverName 'version.dll.{0}.bak'); Write-Utf8 $p 'foreign dll'; Set-ItemAge $p $old; $kept += $p
+        $p = Join-Path $game 'version.dll.bak'; [IO.File]::WriteAllBytes($p, $proxyBytes); Set-ItemAge $p $old; $kept += $p
+        $state = New-RaState
+        # Dry run lists, removes nothing.
+        $script:RaDry = $true
+        (Clear-RaLeftover $state $game) | Should Be $gone.Count
+        foreach ($p in $gone + $kept) { Test-Path -LiteralPath $p | Should Be $true }
+        $script:RaDry = $false
+        (Clear-RaLeftover $state $game) | Should Be $gone.Count
+        foreach ($p in $gone) { Test-Path -LiteralPath $p | Should Be $false }
+        foreach ($p in $kept) { Test-Path -LiteralPath $p | Should Be $true }
+        Test-Path (Join-Path $outside 'precious.txt') | Should Be $true
+        Test-Path (Join-Path $root '0.1.0') | Should Be $true
+        # A .bak without a version.dll next to it may be the only copy: kept.
+        Remove-Item -LiteralPath (Join-Path $game 'version.dll')
+        $p = Join-Path $game (New-LeftoverName 'version.dll.{0}.bak'); [IO.File]::WriteAllBytes($p, $proxyBytes); Set-ItemAge $p $old
+        (Clear-RaLeftover $state $game) | Should Be 0
+        Test-Path -LiteralPath $p | Should Be $true
+    }
+    It 'a run sweeps old leftovers before it installs' {
+        $dir = Reset-Env 'safe-sweep-run'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        New-Item -ItemType Directory -Force -Path $script:RaRoot | Out-Null
+        $p = Join-Path $script:RaRoot (New-LeftoverName 'download-{0}.zip'); Write-Utf8 $p 'partial'; Set-ItemAge $p (Get-Date).AddHours(-2)
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        Test-Path -LiteralPath $p | Should Be $false
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'Removed leftover of an interrupted run'
+    }
+    It 'cleanup in finally blocks logs a locked temporary file instead of failing the finished step' {
+        $dir = Reset-Env 'safe-cleanup'
+        New-Item -ItemType Directory -Force -Path $script:RaRoot | Out-Null
+        $p = Join-Path $dir 'locked.tmp'
+        Write-Utf8 $p 'x'
+        $handle = [IO.File]::Open($p, 'Open', 'Read', 'None')
+        try { Remove-RaTempItem $p } finally { $handle.Dispose() }
+        Test-Path -LiteralPath $p | Should Be $true
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'Could not delete temporary'
+        Remove-RaTempItem $p
+        Test-Path -LiteralPath $p | Should Be $false
+        Remove-RaTempItem (Join-Path $dir 'missing.tmp')
+        Remove-RaTempItem ''
+        $folder = Join-Path $dir 'folder'
+        New-Item -ItemType Directory -Path $folder | Out-Null
+        Remove-RaTempItem $folder
+        Test-Path -LiteralPath $folder | Should Be $true
+    }
+    It 'an old version folder that a recorded Steam option starts directly is not pruned' {
+        $dir = Reset-Env 'safe-prune'
+        foreach ($v in '0.1.0', '0.2.0', '0.3.0', '0.4.0') { New-Item -ItemType Directory -Force -Path (Join-Path $script:RaRoot $v) | Out-Null }
+        $state = New-RaState
+        $state.InstalledVersion = '0.4.0'
+        $state.PreviousVersion = '0.3.0'
+        $state.SteamEntries = @([pscustomobject]@{ AccountId = '111'; LauncherPath = (Join-Path $script:RaRoot '0.1.0\RenameAnythingLauncher.exe') })
+        Remove-RaUnusedVersion $state
+        @(Get-ChildItem $script:RaRoot -Directory | ForEach-Object Name | Sort-Object) -join ',' | Should Be '0.1.0,0.3.0,0.4.0'
+        [void]$dir
     }
 }
