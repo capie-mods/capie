@@ -162,8 +162,9 @@ public:
                 creation_time(game_.process.get()).value_or(0) != game_.stamp.created || !game_pin_.still_same_path()) {
                 return false;
             }
-            const Handle image(CreateFileW(image_path(game_.process.get()).c_str(), GENERIC_READ, FILE_SHARE_READ,
-                                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
+            const Handle image(CreateFileW(image_path(game_.process.get()).c_str(), GENERIC_READ,
+                                           FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+                                           FILE_ATTRIBUTE_NORMAL, nullptr));
             return image && file_id(image.get()) == game_pin_.identity &&
                    std::ranges::all_of(bundle_, [](const PinnedFile& file) { return file.still_same_path(); });
         } catch (...) {

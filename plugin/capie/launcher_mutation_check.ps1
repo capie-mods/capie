@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Mutation check of the CAPIE launcher (tests/launcher/mutants.json, 37 mutants).
+    Mutation check of the CAPIE launcher (tests/launcher/mutants.json, 49 mutants).
 
 .DESCRIPTION
     Each mutant is one exact, unique textual replacement in one launcher source plus the

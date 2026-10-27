@@ -26,6 +26,19 @@ Support for Hearts of Iron IV 1.19.4.0 ("Operation Postern" update). The script 
 ### Fixed
 
 - CAPIE no longer refuses to start after the 1.19.4.0 game update.
+- The launcher always starts the game. If Steam's command names a program the launcher does not
+  know (in the game folder), the program needs administrator rights, or the launcher hits an
+  internal error before the start, the game now starts unchanged without CAPIE and a notice says
+  why. Only a missing program is still refused.
+- Steam can update `hoi4.exe` while the launcher waits for the game; with CAPIE off the launcher
+  holds no file open at all.
+- Launcher notices now appear on top of the Paradox Launcher and the game. The "unsupported game
+  version" notice says that CAPIE needs an update and where to get it. The outcome of the last
+  run is written to `%LOCALAPPDATA%\RenameAnything\last-status.txt`.
+- Crash-loop breaker: if a start ended while CAPIE was loading (launcher or proxy), the next start
+  runs without CAPIE once, says so, and the start after it tries again.
+- The proxy `version.dll` pins the same CAPIE DLLs as the launcher (one list,
+  `deploy/bundle-inputs.json`); before, it could pin an older build and refuse the shipped DLLs.
 
 ## [1.5.0] - unreleased
 

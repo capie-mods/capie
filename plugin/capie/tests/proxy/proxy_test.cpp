@@ -201,7 +201,15 @@ void payload_tests(const std::wstring& scratch, const std::wstring& fixtures, st
     }
     std::array<wchar_t, 32768> exe{};
     const DWORD size = GetModuleFileNameW(nullptr, exe.data(), static_cast<DWORD>(exe.size()));
-    cp::Policy policy{{exe.data(), size}, current.wstring(), capie::core::sha256_file(exe.data()), hashes};
+    const auto sentinel = fs::path(scratch) / cp::init_sentinel_file;
+    cp::Policy policy{{exe.data(), size}, current.wstring(), capie::core::sha256_file(exe.data()), hashes,
+                      sentinel.wstring()};
+    // Crash-loop breaker: a sentinel from a start that died inside RNInitialize skips CAPIE once.
+    check(capie::launcher::arm_sentinel(policy.sentinel, "previous start"), "plant proxy sentinel");
+    check(cp::load_payload(policy).result == cp::LoadResult::crash_guard_skipped, "sentinel left behind skips CAPIE");
+    check(!fs::exists(sentinel), "skipped start removes the sentinel");
+    check(GetModuleHandleW(names[0]) == nullptr && GetModuleHandleW(names[1]) == nullptr,
+          "skipped start maps no CAPIE DLL");
     auto invalid = policy;
     invalid.game_hash = std::string(64, '0');
     check(cp::load_payload(invalid).result == cp::LoadResult::unsupported_game, "unknown executable rejected");
@@ -221,14 +229,18 @@ void payload_tests(const std::wstring& scratch, const std::wstring& fixtures, st
         if (writer != INVALID_HANDLE_VALUE) { CloseHandle(writer); }
         check(verified.dlls[0].still_same_path(), "resolved path identity is stable");
     }
+    check(!fs::exists(sentinel), "refused verification never writes the sentinel");
     const auto trace = fs::path(scratch) / L"initialization-order.txt";
     check(SetEnvironmentVariableW(L"CAPIE_PROXY_TEST_TRACE", trace.c_str()) != 0, "set fixture trace");
+    // The fixture fails (code 80) unless the sentinel exists while RNInitialize runs.
+    check(SetEnvironmentVariableW(L"CAPIE_PROXY_TEST_SENTINEL", sentinel.c_str()) != 0, "set fixture sentinel");
     const auto outcome = cp::load_payload(policy);
     const auto expected = mode == L"core_failure" ? cp::LoadResult::core_init_failed
                          : mode == L"editor_failure" ? cp::LoadResult::editor_init_failed
                          : mode == L"missing_export" ? cp::LoadResult::initializer_missing : cp::LoadResult::loaded;
     const DWORD expected_code = mode == L"core_failure" ? 31 : mode == L"editor_failure" ? 32 : 0;
     check(outcome.result == expected && outcome.init_code == expected_code, "local ABI initialization result and code");
+    check(!fs::exists(sentinel), "initializers returned: sentinel removed");
     std::ifstream input(trace, std::ios::binary);
     const std::string order((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
     check(order == (mode == L"missing_export" ? "" : mode == L"core_failure" ? "C" : "CE"),
