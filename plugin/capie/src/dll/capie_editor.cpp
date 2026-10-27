@@ -420,8 +420,8 @@ void write_init_line() noexcept {
             line, sizeof(line),
             "RN_DEBUG initialized format=1 ring=%zu ttl_ms=%llu models=%zu selectors=%zu fields=%zu; exact image + %zu "
             "bridge + %zu caption + %zu focus unique fingerprints; %zu shared hooks; caption refresh armed (%zu caption "
-            "FP, %zu slot pins, %zu tokens, B6E210(gui,%d) only, seed gate on leader/party Apply); focus release on "
-            "politics hide (%zu FP, %zu slot pins, 225E320(manager,null) once per transition); own copied history, "
+            "FP, %zu slot pins, %zu tokens, RequestViewRefresh(gui,%d) only, seed gate on leader/party Apply); focus release on "
+            "politics hide (%zu FP, %zu slot pins, FocusSwitch(manager,null) once per transition); own copied history, "
             "scalar remote requests, fresh post-Tick snapshots, observed Execute; dispatch is not execution and Execute "
             "is not effect success; no auto-Apply, no synthetic input, focus only released (never set) on politics hide, "
             "Escape not handled; stale Apply -> epoch -1 sentinel; invalid field -> rn_native(b)_err; CAPIE %s "
@@ -435,8 +435,8 @@ void write_init_line() noexcept {
         count = std::snprintf(
             line, sizeof(line),
             "RN_LIFECYCLE initialized; exact image + %zu bridge + %zu caption + %zu focus unique fingerprints; %zu hooks "
-            "(Tick, Bind, Dispatch, effect ctor); caption refresh armed (B6E210(gui,%d) only, seed gate on leader/party "
-            "Apply); focus release on politics hide (225E320(manager,null) once per transition); no auto-Apply, no "
+            "(Tick, Bind, Dispatch, effect ctor); caption refresh armed (RequestViewRefresh(gui,%d) only, seed gate on leader/party "
+            "Apply); focus release on politics hide (FocusSwitch(manager,null) once per transition); no auto-Apply, no "
             "synthetic input, Escape not handled; stale Apply -> epoch -code sentinel; invalid field -> rn_native(b)_err; "
             "log channels error+lifecycle; CAPIE %s capie_editor flavor=release\r\n",
             core::editor_signature_count, core::caption_signature_count, core::focus_signature_count,

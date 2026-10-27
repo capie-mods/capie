@@ -1,11 +1,18 @@
-"""Compare the CAPIE signature table with the values in the accepted sources.
+"""Compare the CAPIE signature table with the accepted 1.19.4.0 table.
 
-The accepted sources are pinned by SHA-256 (country 689924A8..., caption bridge rev7
-CD440557..., caption core 25529648..., focus 5D622B58...). Their byte arrays, hex
-fingerprints, hook RVAs, slot pins, tokens and the RIP pin are extracted with regular
-expressions and compared field by field (RVA, length, bytes, wildcard positions) with
-``plugin/capie/src/core/signature_table.hpp`` and ``game_layout.hpp``. Any difference
-fails.
+The accepted table is ``tools/port/accepted-1.19.4.0.json``, pinned by SHA-256 (26AB6BC6...).
+It was generated from ``hoi4.exe`` 1.19.4.0 (SHA-256 B6650C85...) by
+``tools/port/gen_tables.py`` during the port documented in
+``docs/research/port-1.19.4.0.md``: whole instructions, the same RIP/rel32 fields masked as in
+the 1.19.3.0 table, unique in ``.text`` and free of DIR64 relocations. Every entry's id, RVA,
+length, bytes and wildcard positions are compared with
+``plugin/capie/src/core/signature_table.hpp`` and ``game_layout.hpp``, and the named slot pins,
+tokens, RIP pin and hook RVAs with ``game_layout.hpp``. Any difference fails.
+``signature_exe_test.exe`` checks the same table against the executable itself.
+
+Up to CAPIE 1.5.0 (HOI4 1.19.3.0) this script compared the table with the runtime-accepted
+prototype sources (``plugin/src/country.cpp`` and the caption refresh candidate); that version
+is in the git history.
 
 Usage::
 
@@ -13,6 +20,7 @@ Usage::
 """
 
 import hashlib
+import json
 import pathlib
 import re
 import sys
@@ -23,19 +31,14 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 """Repository root."""
 
-ACCEPTED = {
-    "plugin/src/country.cpp": "689924a8faa5ec24e3f66c1bdf119e358f9eefa4da2ca815f5b7b3cb27e71ccf",
-    "plugin/probes/caption_refresh_candidate/caption_refresh_bridge.cpp": (
-        "cd440557ce198717cf28cbac1fa5335f2951aeed69f6a783a6ea5f8387baac7c"
-    ),
-    "plugin/probes/caption_refresh_candidate/caption_refresh_core.hpp": (
-        "25529648962bebfcf4e294c6094faa54d59b45d89f3c9a18df7603c8fc8aab5f"
-    ),
-    "plugin/probes/caption_refresh_candidate/focus_release.hpp": (
-        "5d622b5870b2a80e437a922613448b0c009ae28d393fae2dd09ec9eaf49813c0"
-    ),
-}
-"""Accepted source files and their pinned SHA-256."""
+ACCEPTED = "tools/port/accepted-1.19.4.0.json"
+"""Accepted table, repository-relative."""
+
+ACCEPTED_SHA256 = "26ab6bc6ecb3f5bdd049fce9721c44fbac5ffc932e1f032fcfb66207e9c96655"
+"""Pinned SHA-256 of the accepted table."""
+
+GAME_EXE_SHA256 = "b6650c85002374218e60598bd04aaa26cbad996fedce77126fcf92fc6bd6d888"
+"""The executable the accepted table was generated from (must match game_build.hpp)."""
 
 TABLE = REPO / "plugin/capie/src/core/signature_table.hpp"
 """The CAPIE signature table."""
@@ -43,73 +46,11 @@ TABLE = REPO / "plugin/capie/src/core/signature_table.hpp"
 LAYOUT = REPO / "plugin/capie/src/core/game_layout.hpp"
 """The CAPIE layout constants."""
 
-CAPTION_SOURCE = "plugin/probes/caption_refresh_candidate/caption_refresh_core.hpp"
-"""Accepted caption core."""
-
-FOCUS_SOURCE = "plugin/probes/caption_refresh_candidate/focus_release.hpp"
-"""Accepted focus release."""
-
-BRIDGE_SOURCE = "plugin/probes/caption_refresh_candidate/caption_refresh_bridge.cpp"
-"""Accepted rev7 bridge."""
-
-CAPTION_COUNT = 25
-"""Number of caption fingerprints in the accepted core."""
-
-FOCUS_COUNT = 8
-"""Number of focus fingerprints in the accepted focus release."""
+BUILD = REPO / "plugin/capie/src/core/game_build.hpp"
+"""The pinned game build."""
 
 TABLE_SIZE = 47
-"""Expected number of entries in the new table (3 + 11 + 25 + 8)."""
-
-MIN_COMPARED = 10
-"""Fewest named constants a source must contribute (guards against a broken regex)."""
-
-EXPECTED_LAYOUT = {
-    "rva::view_is_visible": 0x1237520,
-    "rva::observer_frame": 0x1582820,
-    "rva::observer_refresh": 0x15863F0,
-    "rva::idler_gui_getter": 0xDCCF30,
-    "rva::vt_politics_view": 0x29D9648,
-    "rva::vt_politics_observer": 0x29D96F0,
-    "rva::vt_ingame_idler": 0x2968FF0,
-    "rva::edit_unfocus": 0x22F4770,
-    "rva::edit_focus": 0x22F3FB0,
-    "rva::vt_edit": 0x2B4A940,
-    "rva::token_politics_tab": 0x294E4CC,
-    "rva::token_player_context": 0x2AECB3C,
-    "rva::manager_global": 0x3453230,
-    "rva::focus_manager_rip_displacement": 0x22FBEC6,
-    "rva::focus_manager_rip_next": 0x22FBECA,
-    "rva::request_view_refresh": 0xB6E210,
-    "rva::focus_switch": 0x225E320,
-    "off::slot_view_visible": 0x28,
-    "off::slot_observer_frame": 0x38,
-    "off::slot_observer_refresh": 0x48,
-    "off::slot_idler_gui": 0xB8,
-    "off::slot_edit_focus": 0xC0,
-    "off::slot_edit_unfocus": 0xC8,
-    "value::token_politics_tab": 0x3AB2,
-    "value::token_player_context": 0x3A70,
-}
-"""Slot pins, tokens and the RIP pin as written in the accepted core, focus and bridge sources."""
-
-RENAMED = {"off::slot_focus": "off::slot_edit_focus", "off::slot_unfocus": "off::slot_edit_unfocus"}
-"""Accepted constant names that were renamed in game_layout.hpp."""
-
-EDITOR_RVAS = {
-    "tick": "rva::window_tick",
-    "bind": "rva::window_bind",
-    "dispatch": "rva::window_dispatch",
-    "ctor": "rva::effect_ctor",
-    "execute": "rva::effect_execute",
-    "key": "rva::edit_key_handler",
-    "wrapper": "rva::edit_key_wrapper",
-    "find_edit": "rva::find_edit",
-    "find_instant": "rva::find_instant",
-    "set_text": "rva::text_buffer_set",
-    "refresh_edit": "rva::edit_refresh",
-}
-"""Accepted ``<name>_rva`` constants of the bridge and their game_layout.hpp names."""
+"""Expected number of entries in the table (3 + 11 + 25 + 8)."""
 
 
 class Results:
@@ -133,22 +74,19 @@ class Results:
             print("FAIL", label)
 
 
-def read(results: Results, relative: str) -> str:
-    """Return a pinned accepted source after verifying its SHA-256.
+def accepted(results: Results) -> dict:
+    """Return the accepted table after verifying its SHA-256.
 
     Args:
         results: Check recorder.
-        relative: Repository-relative path.
 
     Returns:
-        File text.
+        Parsed accepted table.
     """
-    path = REPO / relative
+    path = REPO / ACCEPTED
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    results.check(
-        f"{relative} is the accepted version ({digest[:8]})", ok=digest == ACCEPTED[relative]
-    )
-    return path.read_text(encoding="utf-8")
+    results.check(f"{ACCEPTED} is the accepted version ({digest[:8]})", ok=digest == ACCEPTED_SHA256)
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def layout_values() -> dict[str, int]:
@@ -174,8 +112,8 @@ def layout_values() -> dict[str, int]:
     return values
 
 
-def new_table(layout: dict[str, int]) -> dict[str, tuple[int, str]]:
-    """Return the new signature entries keyed by id.
+def table_entries(layout: dict[str, int]) -> dict[str, tuple[int, str]]:
+    """Return the signature entries keyed by id.
 
     Args:
         layout: Constants of game_layout.hpp.
@@ -184,105 +122,12 @@ def new_table(layout: dict[str, int]) -> dict[str, tuple[int, str]]:
         Mapping of id to (RVA, lower-case pattern with ``??`` wildcards).
     """
     text = TABLE.read_text(encoding="utf-8")
-    pattern = r'\{"([\w.]+)", SignatureGroup::\w+, (rva::\w+|0x[0-9A-Fa-f]+),\s*"([0-9a-f?]+)"'
+    pattern = r'\{"([\w.]+)", SignatureGroup::\w+, (rva::\w+|0x[0-9A-Fa-f]+),\s*"([0-9a-fA-F?]+)"'
     entries: dict[str, tuple[int, str]] = {}
     for identifier, rva, hexbytes in (match.groups() for match in re.finditer(pattern, text)):
         value = layout[rva] if rva.startswith("rva::") else int(rva, 16)
-        entries[identifier] = (value, hexbytes)
+        entries[identifier] = (value, hexbytes.lower())
     return entries
-
-
-def check_country(results: Results, entries: dict[str, tuple[int, str]]) -> None:
-    """Compare the three masked country patterns.
-
-    Args:
-        results: Check recorder.
-        entries: New table.
-    """
-    country = read(results, "plugin/src/country.cpp")
-    for rva, body in re.findall(r"\{(0x239\w+),\s*\{(.*?)\}", country, re.DOTALL):
-        tokens = [t.strip() for t in body.split(",")]
-        expected = "".join("??" if t == "-1" else f"{int(t, 16):02x}" for t in tokens)
-        found = [k for k, v in entries.items() if v[0] == int(rva, 16)]
-        ok = len(found) == 1 and entries[found[0]][1] == expected
-        results.check(f"country hook {rva} bytes/mask/length", ok=ok)
-
-
-def check_editor(
-    results: Results, entries: dict[str, tuple[int, str]], layout: dict[str, int]
-) -> None:
-    """Compare the eleven editor byte arrays and hook/callee RVAs.
-
-    Args:
-        results: Check recorder.
-        entries: New table.
-        layout: Constants of game_layout.hpp.
-    """
-    bridge = read(results, BRIDGE_SOURCE)
-    rvas = {
-        name: int(value, 16)
-        for name, value in re.findall(r"(\w+)_rva\s*=\s*(0x[0-9A-Fa-f]+)", bridge)
-    }
-    arrays = re.findall(
-        r"constexpr unsigned char (\w+)_bytes\[\]\s*=\s*\{(.*?)\};", bridge, re.DOTALL
-    )
-    for name, body in arrays:
-        expected = "".join(f"{int(b, 16):02x}" for b in re.findall(r"0x([0-9a-fA-F]{2})", body))
-        entry = entries.get(f"editor.{name}")
-        ok = entry is not None and entry[0] == rvas[name] and entry[1] == expected
-        results.check(f"editor {name} rva/bytes/length", ok=ok)
-    for old, new in EDITOR_RVAS.items():
-        results.check(f"{new} == accepted {old}_rva", ok=layout.get(new) == rvas[old])
-
-
-def check_fingerprints(results: Results, entries: dict[str, tuple[int, str]]) -> None:
-    """Compare the 25 caption and 8 focus fingerprints.
-
-    Args:
-        results: Check recorder.
-        entries: New table.
-    """
-    for relative, prefix, array, count in (
-        (CAPTION_SOURCE, "caption", "Fingerprint fingerprints[]", CAPTION_COUNT),
-        (FOCUS_SOURCE, "focus", "focus_fingerprints[]", FOCUS_COUNT),
-    ):
-        source = read(results, relative)
-        block = source[source.index(array) :]
-        block = block[: block.index("};")]
-        old = re.findall(r'\{(0x[0-9A-Fa-f]+),\s*"([0-9a-f]+)"', block)
-        results.check(f"{prefix} accepted count", ok=len(old) == count)
-        for rva, hexbytes in old:
-            entry = entries.get(f"{prefix}.{rva[2:].upper()}")
-            ok = entry is not None and entry[0] == int(rva, 16) and entry[1] == hexbytes
-            results.check(f"{prefix} {rva}", ok=ok)
-
-
-def check_named_constants(results: Results, layout: dict[str, int]) -> None:
-    """Require every named RVA/offset of the accepted core and focus to exist with the same value.
-
-    Args:
-        results: Check recorder.
-        layout: Constants of game_layout.hpp.
-    """
-    for name, value in EXPECTED_LAYOUT.items():
-        results.check(f"{name} == {value:#x}", ok=layout.get(name) == value)
-    for relative in (CAPTION_SOURCE, FOCUS_SOURCE):
-        namespace = ""
-        compared = 0
-        for line in read(results, relative).splitlines():
-            found = re.match(r"namespace (\w+) \{", line)
-            if found:
-                namespace = found.group(1)
-            if line.startswith("}"):
-                namespace = ""
-            if namespace not in {"rva", "off"}:
-                continue
-            for name, value in re.findall(r"(\w+) = (0x[0-9A-Fa-f]+)", line):
-                key = RENAMED.get(f"{namespace}::{name}", f"{namespace}::{name}")
-                file_name = relative.rsplit("/", 1)[-1]
-                results.check(f"{file_name} {key} == {value}", ok=layout.get(key) == int(value, 16))
-                compared += 1
-        results.check(f"{relative} constants compared ({compared})", ok=compared >= MIN_COMPARED)
 
 
 def main() -> int:
@@ -292,16 +137,23 @@ def main() -> int:
         Process exit code (0 when equal).
     """
     results = Results()
+    reference = accepted(results)
     layout = layout_values()
-    entries = new_table(layout)
-    results.check(
-        f"{TABLE_SIZE} entries in the new table (found {len(entries)})",
-        ok=len(entries) == TABLE_SIZE,
-    )
-    check_country(results, entries)
-    check_editor(results, entries, layout)
-    check_fingerprints(results, entries)
-    check_named_constants(results, layout)
+    entries = table_entries(layout)
+    results.check(f"{TABLE_SIZE} entries in the table (found {len(entries)})", ok=len(entries) == TABLE_SIZE)
+    expected = reference["entries"]
+    results.check(f"{TABLE_SIZE} accepted entries (found {len(expected)})", ok=len(expected) == TABLE_SIZE)
+    for identifier, want in expected.items():
+        entry = entries.get(identifier)
+        ok = entry is not None and entry[0] == int(want["rva"], 16) and entry[1] == want["hex"]
+        results.check(f"{identifier} rva/bytes/length/mask", ok=ok)
+    for identifier in entries.keys() - expected.keys():
+        results.check(f"{identifier} is not in the accepted table", ok=False)
+    for name, value in reference["constants"].items():
+        results.check(f"{name} == {value}", ok=layout.get(name) == int(value, 16))
+    results.check("accepted table names the pinned executable", ok=reference["game_exe_sha256"] == GAME_EXE_SHA256)
+    build = BUILD.read_text(encoding="utf-8")
+    results.check("game_build.hpp pins the same executable", ok=f'"{GAME_EXE_SHA256}"' in build)
     print(f"signature table equivalence: {results.checks} checks, {results.failures} failures")
     return 1 if results.failures else 0
 

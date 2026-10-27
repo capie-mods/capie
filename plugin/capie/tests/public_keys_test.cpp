@@ -80,12 +80,12 @@ int main() {
     active.store(true);
     check(is(override_value("CAPIE_STATUS"), "CAPIE 1.5"), "CAPIE_STATUS");
     check(is(override_value("CAPIE_API"), "7"), "CAPIE_API");
-    check(is(override_value("CAPIE_BUILD"), "1.5.0"), "CAPIE_BUILD");
+    check(is(override_value("CAPIE_BUILD"), "1.5.1"), "CAPIE_BUILD");
     forwarded = 0;
     check(is(lookup_z("CAPIE_STATUS"), "CAPIE 1.5") && is(lookup_z("CAPIE_API"), "7") &&
-              is(lookup_z("CAPIE_BUILD"), "1.5.0"),
+              is(lookup_z("CAPIE_BUILD"), "1.5.1"),
           "lookup_z answers the public keys");
-    check(is(lookup_n("CAPIE_BUILD", 11), "1.5.0") && is(lookup_n("CAPIE_STATUSXYZ", 12), "CAPIE 1.5"),
+    check(is(lookup_n("CAPIE_BUILD", 11), "1.5.1") && is(lookup_n("CAPIE_STATUSXYZ", 12), "CAPIE 1.5"),
           "lookup_n uses the explicit length");
     check(forwarded == 0, "answered keys never reach the game");
 

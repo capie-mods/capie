@@ -75,13 +75,22 @@ double measure(unsigned iterations, const Body& body) {
 #endif
 
 namespace {
+/// @brief Shared empty bucket of a child name map (the game points empty maps at a static one).
+alignas(8) std::array<unsigned char, capie::core::off::map_entry_size> empty_map_bucket{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief Gives a fixture root the two empty child name maps a 1.19.4.0 CContainerWindow has.
+void put_empty_maps(void* root) {
+    for (const auto map : {capie::core::off::root_edit_map, capie::core::off::root_instant_map}) {
+        void* bucket = empty_map_bucket.data();
+        std::memcpy(static_cast<unsigned char*>(root) + map + capie::core::off::map_entries, &bucket, sizeof(bucket));
+    }
+}
 template <class T>
 void put(void* object, std::size_t offset, const T& value) {
     std::memcpy(static_cast<unsigned char*>(object) + offset, static_cast<const void*>(&value), sizeof(value));
 }
 struct Own {
     alignas(8) std::array<unsigned char, 0xC00> window{};
-    alignas(8) std::array<unsigned char, 0x1360> root{};
+    alignas(8) std::array<unsigned char, off::root_readable_span> root{};
     alignas(8) std::array<unsigned char, 0x100> model{};
     alignas(8) std::array<unsigned char, 0x140> revision{};
 };
@@ -93,7 +102,7 @@ struct World {
     alignas(8) std::array<unsigned char, 0x100> manager{};
     Own editor{}, launcher{}, foreign{};
     alignas(8) std::array<unsigned char, 0xC00> plain{};
-    alignas(8) std::array<unsigned char, 0x280> edit{};
+    alignas(8) std::array<unsigned char, 0x290> edit{};
     alignas(8) std::array<unsigned char, 0x50> definition{};
     alignas(8) std::array<unsigned char, 0x238> focus_manager{};
     alignas(8) std::array<unsigned char, 0x140> prefill{};
@@ -101,7 +110,9 @@ struct World {
     std::uint32_t text[64]{};
 };
 World* world = nullptr;
-void* __fastcall fake_instant(void* root, const MsvcString* name, bool, bool) {
+void* __fastcall fake_instant(void* root, const capie::engine::NameView* view, bool, bool) {
+    const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
+    const MsvcString* name = &name_text;
     if (root == world->editor.root.data() && name_equals(name, "rn_ip_leader_prefill")) {
         return world->prefill.data();
     }
@@ -116,7 +127,9 @@ void* __fastcall fake_instant(void* root, const MsvcString* name, bool, bool) {
     }
     return nullptr;
 }
-void* __fastcall fake_edit(void* root, const MsvcString* name, bool, bool) {
+void* __fastcall fake_edit(void* root, const capie::engine::NameView* view, bool, bool) {
+    const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
+    const MsvcString* name = &name_text;
     return root == world->editor.root.data() && name_equals(name, "rn_ip_leader_edit") ? world->edit.data() : nullptr;
 }
 void __fastcall fake_set_text(void* tb, const MsvcString* text) {
@@ -138,30 +151,31 @@ void __fastcall fake_refresh(void* gui, int) {
 void __fastcall fake_focus(void*, void*) {}
 void make_own(Own& o, const char* name, World& w) {
     const auto base = image_base;
-    put(o.model.data(), 0, base + 0x29DB558);
+    put(o.model.data(), 0, base + 0x2A54398);
     put(o.model.data(), 8, borrowed_string(name, std::strlen(name)));
     put(o.model.data(), 0x28, std::uint32_t{0x3A70});
     put(o.model.data(), 0x2C, std::uint32_t{0x3AB2});
     auto* win = o.window.data();
     put(win, 0xE8, static_cast<void*>(o.model.data()));
     put(win, 0xF8, static_cast<void*>(o.root.data()));
-    put(win, 0x110, base + 0x294E568);
+    put(win, 0x110, base + 0x29CB310);
     put(win, 0x120, static_cast<void*>(win));
     put(win, 0x130, static_cast<void*>(o.model.data()));
     put(win, 0x138, static_cast<void*>(o.root.data()));
     put(win, 0xE0, static_cast<void*>(w.idler.data()));
     put(win, 0xF0, static_cast<void*>(w.manager.data()));
     put(win, 0x100, static_cast<void*>(w.politics_root.data()));
-    put(win, 0xB79, static_cast<unsigned char>(1));
-    put(o.root.data(), 0, base + 0x2B45278);
+    put(win, 0xBF9, static_cast<unsigned char>(1));
+    put(o.root.data(), 0, base + 0x2BB9FE0);
+    put_empty_maps(o.root.data());
     put(o.root.data(), 0xA5, static_cast<unsigned char>(8));
-    put(o.revision.data(), 0, base + 0x2B468C8);
+    put(o.revision.data(), 0, base + 0x2BBB568);
     put(o.revision.data(), 0x110, borrowed_string("3", 1));
 }
 }  // namespace
 
 int main() {
-    void* memory = VirtualAlloc(nullptr, 0x3454000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    void* memory = VirtualAlloc(nullptr, 0x3502000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     image_base = reinterpret_cast<std::uintptr_t>(memory);
     log_file = CreateFileW(L"bench_editor.log", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
                            FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -169,39 +183,39 @@ int main() {
     auto* w = owned.get();
     world = w;
     auto* img = reinterpret_cast<unsigned char*>(image_base);
-    put(img, 0x294E4CC, std::uint32_t{0x3AB2});
-    put(img, 0x2AECB3C, std::uint32_t{0x3A70});
-    put(img, 0x29D9648 + 0x28, image_base + 0x1237520);
-    put(img, 0x29D96F0 + 0x38, image_base + 0x1582820);
-    put(img, 0x29D96F0 + 0x48, image_base + 0x15863F0);
-    put(img, 0x2968FF0 + 0xB8, image_base + 0xDCCF30);
-    put(w->idler.data(), 0, image_base + 0x2968FF0);
+    put(img, 0x29CB040, std::uint32_t{0x3AB2});
+    put(img, 0x2B3025C, std::uint32_t{0x3A70});
+    put(img, 0x2A524D0 + 0x28, image_base + 0x12C4EA0);
+    put(img, 0x2A52580 + 0x38, image_base + 0x161DB40);
+    put(img, 0x2A52580 + 0x48, image_base + 0x1620890);
+    put(img, 0x29E5828 + 0xB8, image_base + 0xE3A930);
+    put(w->idler.data(), 0, image_base + 0x29E5828);
     put(w->idler.data(), 0x6B8, static_cast<void*>(w->gui.data()));
     put(w->gui.data(), 0x180, static_cast<void*>(w->idler.data()));
     put(w->gui.data(), 0xC8 + (8 * 12), static_cast<void*>(w->view.data()));
-    put(w->view.data(), 0, image_base + 0x29D9648);
-    put(w->view.data(), 0x30, image_base + 0x29D96F0);
+    put(w->view.data(), 0, image_base + 0x2A524D0);
+    put(w->view.data(), 0x30, image_base + 0x2A52580);
     put(w->view.data(), 0x38, static_cast<void*>(w->gui.data()));
-    put(w->view.data(), 0x570, static_cast<void*>(w->idler.data()));
-    put(w->view.data(), 0x578, static_cast<void*>(w->politics_root.data()));
+    put(w->view.data(), 0x5F0, static_cast<void*>(w->idler.data()));
+    put(w->view.data(), 0x5F8, static_cast<void*>(w->politics_root.data()));
     put(w->manager.data(), 0x18, static_cast<void*>(w->idler.data()));
     put(w->politics_root.data(), 0xA5, static_cast<unsigned char>(8));
     make_own(w->editor, "rn_ip_leader_gui", *w);
     make_own(w->launcher, "rn_ip_leader_launcher_gui", *w);
     make_own(w->foreign, "vanilla_politics_gui", *w);
     auto* edit = w->edit.data();
-    put(edit, 0, image_base + 0x2B4A940);
-    put(edit, 0x80, image_base + 0x2B4ABD0);
+    put(edit, 0, image_base + 0x2BBF068);
+    put(edit, 0x80, image_base + 0x2BBF308);
     put(edit, 0x60, static_cast<void*>(w->definition.data()));
-    put(w->definition.data(), 0, image_base + 0x2B54050);
+    put(w->definition.data(), 0, image_base + 0x2BC6978);
     put(w->definition.data(), 0x28, borrowed_string("rn_ip_leader_edit", 17));
     put(edit, 0x75, static_cast<unsigned char>(8));
     put(edit, 0xB0, static_cast<void*>(w->text));
     put(edit, 0xC8, std::uint64_t{64});
-    put(img, 0x3453230, static_cast<void*>(w->focus_manager.data()));
-    put(w->prefill.data(), 0, image_base + 0x2B468C8);
+    put(img, 0x3500FC0, static_cast<void*>(w->focus_manager.data()));
+    put(w->prefill.data(), 0, image_base + 0x2BBB568);
     put(w->prefill.data(), 0x110, borrowed_string("Jan", 3));
-    put(w->epoch.data(), 0, image_base + 0x2B468C8);
+    put(w->epoch.data(), 0, image_base + 0x2BBB568);
     put(w->epoch.data(), 0x110, borrowed_string("7", 1));
     find_instant = fake_instant;
     find_edit = fake_edit;

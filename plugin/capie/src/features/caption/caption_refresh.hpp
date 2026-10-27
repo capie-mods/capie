@@ -7,7 +7,7 @@
  * a plain success counter (`rn_ip_lui_rev` leader, `rn_ip_pui_rev` party) that is shown in
  * a hidden carrier text of the editor and launcher windows. When the counter goes up,
  * this module asks the game once to redraw the politics view with its own native request
- * `B6E210(gui, 12)`. That call only marks the view dirty; the normal frame loop then runs
+ * `RequestViewRefresh(gui, 12)`. That call only marks the view dirty; the normal frame loop then runs
  * the view's observer, which reads current data and rewrites the caption and rows with
  * native formatting. CAPIE never writes a caption, runs a command or rebuilds a widget.
  *

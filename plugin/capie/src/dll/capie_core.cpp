@@ -5,7 +5,7 @@
  * This DLL hooks the three localisation lookups of the pinned `hoi4.exe` so that RN1 keys
  * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.5
  * loaded" / "CAPIE 1.5 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
- * `CAPIE_BUILD` answer "CAPIE 1.5", "7" and "1.5.0" (`features/country/country_names.hpp`).
+ * `CAPIE_BUILD` answer "CAPIE 1.5", "7" and "1.5.1" (`features/country/country_names.hpp`).
  *
  * Name layers (API levels 4 and 5, `features/country/name_layer*.hpp`): four more hooks
  * (`UpdateNames`, `BuildNameKey`, `SetVariable::Execute`, `CFaction::GetName`) show a country
@@ -25,8 +25,10 @@
  *
  * `RNInitialize` (remote thread from the injector): SHA-256 of the executable (10), PE
  * headers (11), `.text` (12), the three masked signatures (20), the layer pins (layer off on
- * failure), MinHook (30/31/32), then `active`. A repeated call after success returns 0; after
- * a failure it runs again (as the accepted country DLL did). If activation fails after
+ * failure), MinHook (30/31/32), then `active`. A copy loaded under another file name is refused
+ * (40) and the module is pinned before the first hook (14). A repeated call after success returns
+ * 0; a call while another one runs returns 33; after a failure it runs again (as the accepted
+ * country DLL did). If activation fails after
  * enabling some hooks, every hook is disabled and the trampolines are kept until process exit,
  * because a callback may be in flight; residual hooks forward to the game while `active` is
  * false.
@@ -55,6 +57,7 @@
 #include "../features/country/portrait_layer_hooks.hpp"
 #include "../features/country/portrait_layer_pins.hpp"
 
+#include <atomic>
 #include <MinHook.h>
 
 #include <cstdio>
@@ -69,7 +72,7 @@ using core::InitCode;
 /// @brief Longest path buffer for the executable path.
 constexpr DWORD max_path_chars = 32768;
 /// @brief Debugger message after a successful initialization.
-constexpr char initialized_message[] = "CAPIE 1.5: country hooks initialized (capie_core, pinned 1.19.3.0)\n";
+constexpr char initialized_message[] = "CAPIE 1.5: country hooks initialized (capie_core, pinned 1.19.4.0)\n";
 /// @brief Size of a lifecycle line buffer.
 constexpr std::size_t line_bytes = 200;
 /// @brief Number of localisation hooks (always installed).
@@ -245,6 +248,13 @@ InitCode initialize() {
     if (active.load()) {
         return InitCode::ok;
     }
+    // Refuse a copy loaded under another name (a second set of hooks on the same functions).
+    HMODULE self = nullptr;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           reinterpret_cast<LPCWSTR>(&open_log), &self) == 0 ||
+        GetModuleHandleW(core::core_dll_name) != self) {
+        return InitCode::co_load_refused;
+    }
     wchar_t path[max_path_chars]{};
     if (GetModuleFileNameW(nullptr, path, max_path_chars) == 0 || core::sha256_file(path) != core::game_exe_sha256) {
         return InitCode::unsupported_executable;
@@ -304,6 +314,13 @@ InitCode initialize() {
         hooks[hook_count++] = all_hooks[index];
     }
     char line[line_bytes]{};
+    // Trampolines must outlive any unload attempt: pin the module before the first hook.
+    HMODULE pinned = nullptr;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+                           reinterpret_cast<LPCWSTR>(&open_log), &pinned) == 0) {
+        write_line(core::logging::Channel::error, "CAPIE_CORE init failed code=14 (module pin)");
+        return InitCode::module_pin_failed;
+    }
     if (const auto installed = core::install_all_at_once(base, hooks, hook_count); installed != InitCode::ok) {
         active.store(false);
         static_cast<void>(std::snprintf(line, sizeof(line), "CAPIE_CORE init failed code=%u",
@@ -361,11 +378,23 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
 // NOLINTNEXTLINE(readability-identifier-naming): exported ABI name
 extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void* unused) {
     static_cast<void>(unused);
-    try {
-        return capie::core::to_exit_code(capie::country::initialize());
-    } catch (...) {
-        return capie::core::to_exit_code(capie::core::InitCode::unexpected_exception);
+    using capie::core::InitCode;
+    using capie::core::to_exit_code;
+    // 0 idle, 1 running, 2 done. Two concurrent calls never initialize at the same time; a failed
+    // attempt returns to idle so a later call may retry (the documented behaviour of this DLL).
+    static std::atomic<unsigned> state{0};
+    unsigned expected = 0;
+    if (!state.compare_exchange_strong(expected, 1)) {
+        return expected == 2 ? to_exit_code(InitCode::ok) : to_exit_code(InitCode::retry_refused);
     }
+    InitCode result = InitCode::unexpected_exception;
+    try {
+        result = capie::country::initialize();
+    } catch (...) {
+        result = InitCode::unexpected_exception;
+    }
+    state.store(result == InitCode::ok ? 2U : 0U);
+    return to_exit_code(result);
 }
 
 /**

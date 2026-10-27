@@ -41,20 +41,20 @@ inline constexpr core::Signature signatures[] = {
 
 /// @brief Offsets and call shapes, pinned in the game's own instructions.
 inline constexpr layer::pins::InstructionPin instruction_pins[] = {
-    {"atlas.cosmetic_keys", 0x12403C0, "498b86c0000000"},     // mov rax,[r14+C0]
-    {"atlas.cosmetic_key_qword", 0x12403C7, "4a393cf8"},      // cmp [rax+r15*8],rdi (int64 per slot)
-    {"atlas.cosmetic_count", 0x124008A, "413986cc000000"},    // cmp [r14+CC],eax (slot count)
-    {"atlas.country_list", 0x12401B2, "488b8010030000"},      // mov rax,[rax+310]
-    {"atlas.slot_is_list_index", 0x12401B9, "4e8b2cf8"},      // mov r13,[rax+r15*8]: slot r15 = list index
-    {"load.cosmetic_argument", 0x123F84D, "4c8d8688140000"},  // lea r8,[rsi+1488] before the candidate call
-    {"tag.index_is_int", 0xBB54A3, "8b01"},                   // tag -> index: mov eax,[rcx]
+    {"atlas.cosmetic_keys", 0x12CE550, "498b86c0000000"},     // mov rax,[r14+C0]
+    {"atlas.cosmetic_key_qword", 0x12CE557, "4a393cf8"},      // cmp [rax+r15*8],rdi (int64 per slot)
+    {"atlas.cosmetic_count", 0x12CE21A, "413986cc000000"},    // cmp [r14+CC],eax (slot count)
+    {"atlas.country_list", 0x12CE342, "488b8010030000"},      // mov rax,[rax+310]
+    {"atlas.slot_is_list_index", 0x12CE349, "4e8b2cf8"},      // mov r13,[rax+r15*8]: slot r15 = list index
+    {"load.cosmetic_argument", 0x12CD9DD, "4c8d8688140000"},  // lea r8,[rsi+1488] before the candidate call
+    {"tag.index_is_int", 0xC08733, "8b01"},                   // tag -> index: mov eax,[rcx]
 };
 
 /// @brief Call targets (rel32 displacement RVA, next instruction RVA, target RVA).
 inline constexpr core::RipPin target_pins[] = {
-    {"load.calls_candidates", 0x123F85C, 0x123F860, core::rva::build_flag_candidates},
-    {"incremental.calls_load", 0x1240A71, 0x1240A75, core::rva::load_country_flag},
-    {"threaded.calls_load", 0x123D77C, 0x123D780, core::rva::load_country_flag},
+    {"load.calls_candidates", 0x12CD9EC, 0x12CD9F0, core::rva::build_flag_candidates},
+    {"incremental.calls_load", 0x12CEC01, 0x12CEC05, core::rva::load_country_flag},
+    {"threaded.calls_load", 0x12CB87F, 0x12CB883, core::rva::load_country_flag},
 };
 
 /// @brief Expected table sizes.

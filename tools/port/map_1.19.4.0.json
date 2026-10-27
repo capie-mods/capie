@@ -1,0 +1,434 @@
+{
+  "_doc": "Old (1.19.3.0) -> new (1.19.4.0) RVA of every pinned item, by pin id. Evidence: docs/research/port-1.19.4.0.md.",
+  "signatures": {
+    "country.lookup_n": "0x241ECE0",
+    "country.lookup_z": "0x241EC00",
+    "country.exists": "0x241CFB0",
+    "editor.bind": "0xBD8ED0",
+    "editor.tick": "0xBDB500",
+    "editor.key": "0x236E2A0",
+    "editor.find_edit": "0x23331C0",
+    "editor.find_instant": "0x2334D40",
+    "editor.set_text": "0x236FB60",
+    "editor.refresh_edit": "0x2372230",
+    "editor.wrapper": "0x23717E0",
+    "editor.dispatch": "0xBD9380",
+    "editor.ctor": "0x11CE6B0",
+    "editor.execute": "0x11E0700",
+    "caption.DCCF30": "0xE3A930",
+    "caption.B6E210": "0xBC1690",
+    "caption.1236950": "0x12C4200",
+    "caption.1236980": "0x12C4230",
+    "caption.1237520": "0x12C4EA0",
+    "caption.12374F0": "0x12C4E70",
+    "caption.12362A0": "0x12C3B50",
+    "caption.1237180": "0x12C4AD0",
+    "caption.12371DB": "0x12C4B4B",
+    "caption.1237358": "0x12C4CDF",
+    "caption.B62D52": "0xBB6085",
+    "caption.B68C52": "0xBBC112",
+    "caption.B88BEE": "0xBDB79E",
+    "caption.B88B27": "0xBDB6D7",
+    "caption.B86346": "0xBD8EF6",
+    "caption.B86350": "0xBD8F00",
+    "caption.B8A1C0": "0xBDCDB0",
+    "caption.B86414": "0xBD8FC4",
+    "caption.B863F9": "0xBD8FA9",
+    "caption.B8649E": "0xBD904E",
+    "caption.B864F1": "0xBD90A1",
+    "caption.B8A660": "0xBDD0C6",
+    "caption.F86CC": "0xF8915",
+    "caption.F78FE": "0xF7B47",
+    "caption.159F33D": "0x163B7BD",
+    "focus.225E320": "0x22BD0E0",
+    "focus.22F4770": "0x2371A40",
+    "focus.22F47F0": "0x2371AC0",
+    "focus.22FBEC0": "0x2379B70",
+    "focus.225E3B0": "0x22BD170",
+    "focus.B889AE": "0xBDB55E",
+    "focus.B88A5B": "0xBDB60B",
+    "focus.B88AFF": "0xBDB6AF",
+    "name.update_names": "0x75E660",
+    "name.build_name_key": "0x734B60",
+    "name.set_variable_execute": "0x37D1C0",
+    "name.variable_find": "0xC1A2A0",
+    "name.variable_get": "0xC1D7C0",
+    "faction.get_name": "0xDF6370",
+    "faction.string_copy": "0x11F770",
+    "flag.load_country_flag": "0x12CD970",
+    "flag.atlas_update": "0x12CDFB0",
+    "flag.build_candidates": "0x1518DE0",
+    "portrait.resolve": "0x1439B80",
+    "portrait.valid": "0x1438E40",
+    "host.get_local_human": "0x1F1A40",
+    "host.get_session": "0x17F880",
+    "host.get_machine_id": "0x148D5EF",
+    "host.session_init": "0x22C3760",
+    "host.is_from_host": "0x22D8B40",
+    "console.add_or_replace": "0x2536F00",
+    "console.string_assign": "0x12B3C0",
+    "console.singleton_create": "0x2537220",
+    "console.dispatch": "0x2537340",
+    "console.lookup": "0x2537AA0",
+    "console.set_cosmetic_tag": "0x299AC0",
+    "console.drop_cosmetic_tag": "0x26A6E0",
+    "console.eval_effect": "0x27A8C0",
+    "console.tag_parse": "0x1168A70",
+    "console.country_of": "0xC07620",
+    "console.country_set_cosmetic": "0x759370",
+    "console.restore_device_objects": "0x2B9D00",
+    "console.sprite_find": "0x22A0B80"
+  },
+  "instruction_pins": {
+    "country.variables": "0x589A8B",
+    "country.variables2": "0x589D52",
+    "scoped_variable.name_size": "0x58C463",
+    "scoped_variable.name_data": "0x58C469",
+    "scoped_variable.name_capacity": "0x58C46D",
+    "set_variable.scoped_variable": "0x37D1D5",
+    "update_names.tag_argument": "0x75EA17",
+    "gamestate.countries": "0x1AF4EB",
+    "gamestate.country_count": "0x1AF4F2",
+    "country_of.countries": "0xC07737",
+    "faction.leader_first_member": "0x4C9568",
+    "faction.member_count": "0xCBB05F",
+    "atlas.cosmetic_keys": "0x12CE550",
+    "atlas.cosmetic_key_qword": "0x12CE557",
+    "atlas.cosmetic_count": "0x12CE21A",
+    "atlas.country_list": "0x12CE342",
+    "atlas.slot_is_list_index": "0x12CE349",
+    "load.cosmetic_argument": "0x12CD9DD",
+    "tag.index_is_int": "0xC08733",
+    "ui.size_small_is_zero": "0xB96487",
+    "ui.character_argument": "0xB964C8",
+    "ui.out_buffer": "0xB964D8",
+    "resolve.character_argument": "0x1439C0D",
+    "resolve.character_id": "0x1439C29",
+    "valid.flag_byte": "0x1438E46",
+    "valid.kind": "0x1438E4F",
+    "valid.name": "0x1438E6D",
+    "character.write_portraits": "0x102AB25",
+    "character.write_variables": "0x102ADAB",
+    "character.read_variables_token": "0x102964B",
+    "character.read_variables": "0x1029766",
+    "leader.politics": "0x717370",
+    "leader.ruling_party": "0x2FDC37",
+    "leader.first_role": "0x1230500",
+    "leader.deref": "0x1B6B80",
+    "leader.character": "0x2C1410",
+    "effect.civilian_large": "0x2FDCB4",
+    "session.is_server": "0x22C3794",
+    "session.mode": "0x22C379A",
+    "session.machine_id_1": "0x22C37A2",
+    "session.backend": "0x22C37B6",
+    "lobby.session_is_server": "0x1D635BF",
+    "gamestate.human_count": "0x1F1A61",
+    "gamestate.humans": "0x1F1A6F",
+    "human.machine_id": "0x1F1A7C",
+    "human.stride": "0x1F1A8D",
+    "human.name": "0x1A413EB",
+    "human.ctor_machine_id": "0xC101D3",
+    "entry.name": "0x2537AE9",
+    "entry.alias_count": "0x2537AFD",
+    "entry.aliases": "0x2537B02",
+    "entry.stride": "0x2537B2D",
+    "console.entry_count": "0x2537AC7",
+    "entry.flag": "0x2537441",
+    "entry.action_present": "0x2537461",
+    "entry.action": "0x253756A",
+    "entry.context": "0x253756F",
+    "argv.count": "0x253747F",
+    "result.message": "0x2537584",
+    "console.gate_a": "0x2537397",
+    "console.gate_c": "0x25373AE",
+    "console.gate_b": "0x25373C8",
+    "entry.alias_count_assign": "0x25370B3",
+    "entry.description": "0x25370AF",
+    "entry.action_assign": "0x25370F5",
+    "entry.context_assign": "0x253710A",
+    "entry.arg_name_count": "0x2537111",
+    "entry.arg_name_slots": "0x25370F9",
+    "console.allocator": "0x2536FC4",
+    "entry.size": "0x2536FE7",
+    "country.cosmetic_tag": "0x759389",
+    "set_cosmetic_tag.argc": "0x299B00",
+    "drop_cosmetic_tag.argc": "0x26A734"
+  },
+  "rip_pins": {
+    "variable_get.find": [
+      "0xC1D7DF",
+      "0xC1D7E3",
+      "variable_find"
+    ],
+    "update_names.build_name_key": [
+      "0x75EA23",
+      "0x75EA27",
+      "build_name_key"
+    ],
+    "scope.country_of": [
+      "0x589A87",
+      "0x589A8B",
+      "country_of"
+    ],
+    "gamestate.global": [
+      "0x1AF4E7",
+      "0x1AF4EB",
+      "gamestate_global"
+    ],
+    "country_of.gamestate": [
+      "0xC0771D",
+      "0xC07721",
+      "gamestate_global"
+    ],
+    "faction.get_name_copy": [
+      "0xDF6389",
+      "0xDF638D",
+      "string_copy"
+    ],
+    "load.calls_candidates": [
+      "0x12CD9EC",
+      "0x12CD9F0",
+      "build_flag_candidates"
+    ],
+    "incremental.calls_load": [
+      "0x12CEC01",
+      "0x12CEC05",
+      "load_country_flag"
+    ],
+    "threaded.calls_load": [
+      "0x12CB87F",
+      "0x12CB883",
+      "load_country_flag"
+    ],
+    "ui.calls_resolve": [
+      "0xB964E1",
+      "0xB964E5",
+      "portrait_resolve"
+    ],
+    "ui.calls_valid": [
+      "0xB964EC",
+      "0xB964F0",
+      "portrait_valid"
+    ],
+    "leader.calls_politics": [
+      "0x2FDC33",
+      "0x2FDC37",
+      "0x717370"
+    ],
+    "leader.calls_first_role": [
+      "0x2FDC71",
+      "0x2FDC75",
+      "0x1230500"
+    ],
+    "leader.first_role_jumps": [
+      "0x123050E",
+      "0x1230512",
+      "0x1B6B80"
+    ],
+    "leader.calls_character": [
+      "0x2FDC82",
+      "0x2FDC86",
+      "0x2C1410"
+    ],
+    "effect.writes_portrait": [
+      "0x2FDCC0",
+      "0x2FDCC4",
+      "0x143ADA0"
+    ],
+    "app.global": [
+      "0x19A5F73",
+      "0x19A5F77",
+      "app_global"
+    ],
+    "focus.manager_global": [
+      "0x2379B76",
+      "0x2379B7A",
+      "manager_global"
+    ],
+    "console.singleton_store": [
+      "0x25372C7",
+      "0x25372CB",
+      "console_slot_rva"
+    ],
+    "console.singleton_store2": [
+      "0x25372DE",
+      "0x25372E2",
+      "console_slot_rva"
+    ],
+    "set_cosmetic_tag.assign": [
+      "0x299B65",
+      "0x299B69",
+      "string_assign_rva"
+    ],
+    "set_cosmetic_tag.tag_parse": [
+      "0x299B0F",
+      "0x299B13",
+      "tag_parse_rva"
+    ],
+    "set_cosmetic_tag.country_of": [
+      "0x299B23",
+      "0x299B27",
+      "country_of_rva"
+    ],
+    "set_cosmetic_tag.setter": [
+      "0x299B2F",
+      "0x299B33",
+      "0x759370"
+    ],
+    "dispatch.gate_message": [
+      "0x25373EF",
+      "0x25373F3",
+      "0x2C03C50"
+    ],
+    "dispatch.lookup_after_gate": [
+      "0x2537431",
+      "0x2537435",
+      "0x2537AA0"
+    ],
+    "restore_device_objects.add": [
+      "0x2B9EDF",
+      "0x2B9EE3",
+      "add_or_replace_rva"
+    ],
+    "portrait_valid.sprite_database": [
+      "0x1438E74",
+      "0x1438E78",
+      "sprite_database_rva"
+    ],
+    "portrait_valid.sprite_find": [
+      "0x1438E79",
+      "0x1438E7D",
+      "sprite_find_rva"
+    ]
+  },
+  "rva": {
+    "loc_lookup_n": "0x241ECE0",
+    "loc_lookup_z": "0x241EC00",
+    "loc_exists": "0x241CFB0",
+    "update_names": "0x75E660",
+    "build_name_key": "0x734B60",
+    "set_variable_execute": "0x37D1C0",
+    "variable_find": "0xC1A2A0",
+    "variable_get": "0xC1D7C0",
+    "country_of": "0xC07620",
+    "gamestate_global": "0x33DD6B0",
+    "faction_get_name": "0xDF6370",
+    "flag_atlas_update": "0x12CDFB0",
+    "load_country_flag": "0x12CD970",
+    "build_flag_candidates": "0x1518DE0",
+    "string_copy": "0x11F770",
+    "portrait_resolve": "0x1439B80",
+    "portrait_valid": "0x1438E40",
+    "sprite_find": "0x22A0B80",
+    "sprite_database_global": "0x3500ED0",
+    "vt_character": "0x29FAF30",
+    "window_tick": "0xBDB500",
+    "window_bind": "0xBD8ED0",
+    "window_dispatch": "0xBD9380",
+    "effect_ctor": "0x11CE6B0",
+    "effect_execute": "0x11E0700",
+    "edit_key_handler": "0x236E2A0",
+    "edit_key_wrapper": "0x23717E0",
+    "find_edit": "0x23331C0",
+    "find_instant": "0x2334D40",
+    "text_buffer_set": "0x236FB60",
+    "edit_refresh": "0x2372230",
+    "request_view_refresh": "0xBC1690",
+    "observer_mark_dirty": "0x12C4200",
+    "observer_consume": "0x12C4230",
+    "idler_gui_getter": "0xE3A930",
+    "view_is_visible": "0x12C4EA0",
+    "view_get_root": "0x12C4E70",
+    "observer_frame": "0x161DB40",
+    "observer_refresh": "0x1620890",
+    "focus_switch": "0x22BD0E0",
+    "edit_unfocus": "0x2371A40",
+    "edit_focus": "0x2371210",
+    "focus_manager_rip_displacement": "0x2379B76",
+    "focus_manager_rip_next": "0x2379B7A",
+    "vt_sg_model": "0x2A54398",
+    "vt_sg_context": "0x29CB310",
+    "vt_sg_root": "0x2BB9FE0",
+    "vt_instant_text": "0x2BBB568",
+    "vt_edit": "0x2BBF068",
+    "vt_text_buffer": "0x2BBF308",
+    "vt_edit_definition": "0x2BC6978",
+    "vt_execute_effect": "0x2A12ED0",
+    "vt_politics_view": "0x2A524D0",
+    "vt_politics_observer": "0x2A52580",
+    "vt_ingame_idler": "0x29E5828",
+    "manager_global": "0x3500FC0",
+    "token_politics_tab": "0x29CB040",
+    "token_player_context": "0x2B3025C",
+    "gui_structural": "0x30FD000"
+  },
+  "off": {
+    "edit_flags": [
+      "0x271",
+      "0x281"
+    ],
+    "view_idler": [
+      "0x570",
+      "0x5F0"
+    ],
+    "view_root": [
+      "0x578",
+      "0x5F8"
+    ],
+    "window_parent_seen": [
+      "0xB78",
+      "0xBF8"
+    ],
+    "window_desired": [
+      "0xB79",
+      "0xBF9"
+    ],
+    "manager_focus": [
+      "0x158",
+      "0x138"
+    ],
+    "manager_receiver": [
+      "0x230",
+      "0x210"
+    ],
+    "session_mode": [
+      "0x4C",
+      "0x34"
+    ],
+    "session_is_server": [
+      "0x54",
+      "0x3C"
+    ],
+    "session_backend": [
+      "0x58",
+      "0x40"
+    ],
+    "session_machine_id": [
+      "0xA4",
+      "0x84"
+    ]
+  },
+  "host": {
+    "app_global": "0x33DDB08",
+    "vt_game_application": "0x2796308",
+    "vt_session": "0x2BB4548",
+    "vt_proxy_server": "0x2BCBA08",
+    "vt_network_server": "0x2BCB310",
+    "vt_dummy_server": "0x2BCB020",
+    "vt_human": "0x279EDB8",
+    "gamestate_global": "0x33DD6B0",
+    "ingame_idler_session_slot_target": "0xB8E390"
+  },
+  "console": {
+    "console_slot_rva": "0x368F540",
+    "add_or_replace_rva": "0x2536F00",
+    "string_assign_rva": "0x12B3C0",
+    "set_cosmetic_tag_rva": "0x299AC0",
+    "drop_cosmetic_tag_rva": "0x26A6E0",
+    "eval_effect_rva": "0x27A8C0",
+    "sprite_find_rva": "0x22A0B80",
+    "sprite_database_rva": "0x3500ED0",
+    "tag_parse_rva": "0x1168A70",
+    "country_of_rva": "0xC07620"
+  }
+}

@@ -40,6 +40,7 @@
 namespace capie::editor {
 
 using engine::bounded_list;
+using engine::bounded_map;
 using engine::carrier;
 using engine::image_base;
 using engine::member;
@@ -90,8 +91,8 @@ inline ViewResult inspect_chain(void* window, void* model, View& out) noexcept {
         !member(context, off::context_root, ctx_root) || !member(window, off::window_root, out.root) ||
         ctx_root != out.root || !member(out.root, 0, root_vt) || root_vt != image_base + rva::vt_sg_root ||
         !member(out.root, off::root_flags, flags) || !member(window, off::window_desired, desired) ||
-        !readable(out.root, off::root_readable_span) || !bounded_list(out.root, off::root_edit_list) ||
-        !bounded_list(out.root, off::root_instant_list) || !bounded_list(out.root, off::root_third_list)) {
+        !readable(out.root, off::root_readable_span) || !bounded_list(out.root, off::root_children) ||
+        !bounded_map(out.root, off::root_edit_map) || !bounded_map(out.root, off::root_instant_map)) {
         return ViewResult::invalid;
     }
     return desired != 0 && flag::shown_not_hidden(flags) ? ViewResult::visible : ViewResult::hidden;

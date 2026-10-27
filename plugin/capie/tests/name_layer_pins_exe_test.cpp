@@ -113,21 +113,21 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0x716580 + 2, "name.update_names");
-    flip(0x6ECFF0 + 4, "name.build_name_key");
-    flip(0x364C75 + 3, "name.set_variable_execute");    // the +0x58 displacement is in the signature
-    flip(0xBC49A8 + 3, "name.variable_find");           // mask displacement +0x14
-    flip(0xBC7EC6 + 3, "name.variable_get");            // value offset +0x28
-    flip(0x54265B + 3, "country.variables");            // displacement 0x218
-    flip(0x54502F + 3, "scoped_variable.name_data");    // displacement 0x70
-    flip(0x1A6462 + 3, "gamestate.country_count");      // displacement 0x31C
-    flip(0x716943, "update_names.build_name_key");      // rel32 to BuildNameKey
-    flip(0x1A6457, "gamestate.global");                 // RIP displacement to 332F260
-    flip(0xD8BB80 + 4, "faction.get_name");             // GetName prologue
-    flip(0x11E010 + 3, "faction.string_copy");          // string copy prologue
-    flip(0x4ABB81 + 3, "faction.leader_first_member");  // members displacement 0x58
-    flip(0xC5E2EF + 3, "faction.member_count");         // count displacement 0x64
-    flip(0xD8BB99, "faction.get_name_copy");            // rel32 to the string copy (masked in the signature)
+    flip(0x75E660 + 2, "name.update_names");
+    flip(0x734B60 + 4, "name.build_name_key");
+    flip(0x37D1D5 + 3, "name.set_variable_execute");    // the +0x58 displacement is in the signature
+    flip(0xC1A2E8 + 3, "name.variable_find");           // mask displacement +0x14
+    flip(0xC1D806 + 3, "name.variable_get");            // value offset +0x28
+    flip(0x589A8B + 3, "country.variables");            // displacement 0x218
+    flip(0x58C469 + 3, "scoped_variable.name_data");    // displacement 0x70
+    flip(0x1AF4F2 + 3, "gamestate.country_count");      // displacement 0x31C
+    flip(0x75EA23, "update_names.build_name_key");      // rel32 to BuildNameKey
+    flip(0x1AF4E7, "gamestate.global");                 // RIP displacement to 33DD6B0
+    flip(0xDF6370 + 4, "faction.get_name");             // GetName prologue
+    flip(0x11F770 + 3, "faction.string_copy");          // string copy prologue
+    flip(0x4C9568 + 3, "faction.leader_first_member");  // members displacement 0x58
+    flip(0xCBB05F + 3, "faction.member_count");         // count displacement 0x64
+    flip(0xDF6389, "faction.get_name_copy");            // rel32 to the string copy (masked in the signature)
     check(pins::first_failed_pin(text) == nullptr, "restored image passes again");
 }
 

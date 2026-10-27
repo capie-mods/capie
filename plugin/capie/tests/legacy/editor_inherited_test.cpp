@@ -34,51 +34,61 @@ Origin command(FakeContext& context,std::size_t model) {
     Origin result{}; result.context=&context; result.model=model; result.epoch=7;
     return result;
 }
+/// @brief Shared empty bucket of a child name map (the game points empty maps at a static one).
+alignas(8) std::array<unsigned char, capie::core::off::map_entry_size> empty_map_bucket{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief Gives a fixture root the two empty child name maps a 1.19.4.0 CContainerWindow has.
+void put_empty_maps(void* root) {
+    for (const auto map : {capie::core::off::root_edit_map, capie::core::off::root_instant_map}) {
+        void* bucket = empty_map_bucket.data();
+        std::memcpy(static_cast<unsigned char*>(root) + map + capie::core::off::map_entries, &bucket, sizeof(bucket));
+    }
+}
 template<class T> void put(void* object,std::size_t offset,const T& value) {
     std::memcpy(static_cast<unsigned char*>(object)+offset,&value,sizeof(value));
 }
 struct LoggerFixture {
-    alignas(8) std::array<unsigned char,0xB80> window{};
-    alignas(8) std::array<unsigned char,0x1360> root{};
+    alignas(8) std::array<unsigned char,0xC00> window{};
+    alignas(8) std::array<unsigned char, off::root_readable_span> root{};
     alignas(8) std::array<unsigned char,0x30> model{};
     alignas(8) std::array<unsigned char,0x238> manager{};
-    alignas(8) std::array<std::array<unsigned char,0x280>,field_count> edit{};
+    alignas(8) std::array<std::array<unsigned char,0x290>,field_count> edit{};
     alignas(8) std::array<std::array<unsigned char,0x50>,field_count> definition{};
     alignas(8) std::array<unsigned char,0x80> event{};
     std::uint32_t words[8]={13,0x76543210,0,0xFFFFFFFE,4,5,6,0};
     LoggerFixture() {
-        put(model.data(),0,image_base+0x29DB558);
+        put(model.data(),0,image_base+0x2A54398);
         put(model.data(),8,borrowed_string(models[0].name,std::strlen(models[0].name)));
         put(window.data(),0xE8,static_cast<void*>(model.data()));
         put(window.data(),0xF8,static_cast<void*>(root.data()));
-        put(window.data(),0x110,image_base+0x294E568);
+        put(window.data(),0x110,image_base+0x29CB310);
         put(window.data(),0x120,static_cast<void*>(window.data()));
         put(window.data(),0x130,static_cast<void*>(model.data()));
         put(window.data(),0x138,static_cast<void*>(root.data()));
-        put(window.data(),0xB79,static_cast<unsigned char>(1));
-        put(root.data(),0,image_base+0x2B45278);
+        put(window.data(),0xBF9,static_cast<unsigned char>(1));
+        put(root.data(),0,image_base+0x2BB9FE0);
+        put_empty_maps(root.data());
         put(root.data(),0xA5,static_cast<unsigned char>(8));
         for(std::size_t field=0;field<field_count;++field) {
-            put(edit[field].data(),0,image_base+0x2B4A940);
-            put(edit[field].data(),0x80,image_base+0x2B4ABD0);
+            put(edit[field].data(),0,image_base+0x2BBF068);
+            put(edit[field].data(),0x80,image_base+0x2BBF308);
             put(edit[field].data(),0x60,static_cast<void*>(definition[field].data()));
-            put(definition[field].data(),0,image_base+0x2B54050);
+            put(definition[field].data(),0,image_base+0x2BC6978);
             put(definition[field].data(),0x28,borrowed_string(fields[field].edit,std::strlen(fields[field].edit)));
             put(edit[field].data(),0x75,static_cast<unsigned char>(8));
-            put(edit[field].data(),0x271,static_cast<unsigned char>(1));
+            put(edit[field].data(),0x281,static_cast<unsigned char>(1));
             // Text is intentionally unreadable; the added reader must never use it.
             put(edit[field].data(),0xB0,reinterpret_cast<void*>(1));
             put(edit[field].data(),0xC0,std::uint64_t{128});
             put(edit[field].data(),0xC8,std::uint64_t{128});
         }
         std::memcpy(event.data(),words,sizeof(words)); put(event.data(),0x7C,std::uint32_t{1});
-        put(reinterpret_cast<void*>(image_base),0x3453230,static_cast<void*>(manager.data()));
+        put(reinterpret_cast<void*>(image_base),0x3500FC0,static_cast<void*>(manager.data()));
         focus(0);
         for(auto& state:lifecycle) state={false,false,false,7,11,0};
     }
     void focus(std::size_t field) {
-        put(manager.data(),0x158,static_cast<void*>(edit[field].data()));
-        put(manager.data(),0x230,static_cast<void*>(edit[field].data()+0x1A0));
+        put(manager.data(),0x138,static_cast<void*>(edit[field].data()));
+        put(manager.data(),0x210,static_cast<void*>(edit[field].data()+0x1A0));
     }
 };
 LoggerFixture* current_fixture=nullptr;
@@ -114,7 +124,9 @@ std::uint64_t __fastcall fake_original(void* first,void* second) {
     if(logger_unlocked) ReleaseSRWLockExclusive(&logger_lock);
     return opaque_result;
 }
-void* __fastcall fake_find(void*,const MsvcString* name,bool,bool) {
+void* __fastcall fake_find(void*, const capie::engine::NameView* view,bool,bool) {
+    const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
+    const MsvcString* name = &name_text;
     for(std::size_t field=0;field<field_count;++field)
         if(name_equals(name,fields[field].edit)) {
             ++debug_edit_lookups;
@@ -124,7 +136,9 @@ void* __fastcall fake_find(void*,const MsvcString* name,bool,bool) {
         }
     return nullptr;
 }
-void* __fastcall fake_instant(void*,const MsvcString* name,bool,bool) {
+void* __fastcall fake_instant(void*, const capie::engine::NameView* view,bool,bool) {
+    const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
+    const MsvcString* name = &name_text;
     for(const auto& model:models) if(name_equals(name,model.epoch)) return debug_epoch_widget.data();
     return nullptr;
 }
@@ -155,7 +169,7 @@ void forwarded(bool wrapper,void* first,void* event) {
     check(result==opaque_result,"full opaque RAX preserved");
 }
 void logger_tests() {
-    void* memory=VirtualAlloc(nullptr,0x3454000,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+    void* memory=VirtualAlloc(nullptr,0x3502000,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
     check(memory!=nullptr,"owned image allocation"); image_base=reinterpret_cast<std::uintptr_t>(memory);
     LoggerFixture f; current_fixture=&f; find_edit=fake_find;
     original_wrapper=fake_original; original_key=fake_original;
@@ -177,15 +191,15 @@ void logger_tests() {
     put(f.edit[0].data(),0,std::uintptr_t{0});
     check(!make_key_record(f.edit[0].data(),f.event.data(),true,r),"wrong primary type rejected before payload");
     forwarded(true,f.edit[0].data(),f.event.data()); forwarded(false,f.edit[0].data()+0x80,f.event.data());
-    put(f.edit[0].data(),0,image_base+0x2B4A940);
+    put(f.edit[0].data(),0,image_base+0x2BBF068);
     put(f.edit[0].data(),0x80,std::uintptr_t{0});
     check(!make_key_record(f.edit[0].data(),f.event.data(),true,r),"wrong TB type rejected before payload");
     forwarded(true,f.edit[0].data(),f.event.data()); forwarded(false,f.edit[0].data()+0x80,f.event.data());
-    put(f.edit[0].data(),0x80,image_base+0x2B4ABD0);
+    put(f.edit[0].data(),0x80,image_base+0x2BBF308);
     put(f.definition[0].data(),0,std::uintptr_t{0});
     check(!make_key_record(f.edit[0].data(),f.event.data(),true,r),"wrong definition type rejected before payload");
     forwarded(true,f.edit[0].data(),f.event.data()); forwarded(false,f.edit[0].data()+0x80,f.event.data());
-    put(f.definition[0].data(),0,image_base+0x2B54050);
+    put(f.definition[0].data(),0,image_base+0x2BC6978);
     put(f.definition[0].data(),0x28,borrowed_string("foreign",7));
     check(!make_key_record(f.edit[0].data(),f.event.data(),true,r),"foreign name rejected");
     reset_logs(); forwarded(true,f.edit[0].data(),f.event.data()); forwarded(false,f.edit[0].data()+0x80,f.event.data());
@@ -193,13 +207,13 @@ void logger_tests() {
     put(f.definition[0].data(),0x28,borrowed_string(fields[0].edit,std::strlen(fields[0].edit)));
     forwarded(false,reinterpret_cast<void*>(0x7F),f.event.data());
     put(f.edit[0].data(),0x75,static_cast<unsigned char>(0));
-    put(f.edit[0].data(),0x271,static_cast<unsigned char>(2));
-    put(reinterpret_cast<void*>(image_base),0x3453230,static_cast<void*>(nullptr));
+    put(f.edit[0].data(),0x281,static_cast<unsigned char>(2));
+    put(reinterpret_cast<void*>(image_base),0x3500FC0,static_cast<void*>(nullptr));
     check(make_key_record(f.edit[0].data(),f.event.data(),true,r) && !r.status.manager_present &&
           r.status.flags75==0 && r.status.flags271==2,"false visibility/disabled/focus separately observable");
     forwarded(true,f.edit[0].data(),f.event.data());
-    put(f.edit[0].data(),0x75,static_cast<unsigned char>(8)); put(f.edit[0].data(),0x271,static_cast<unsigned char>(1));
-    put(reinterpret_cast<void*>(image_base),0x3453230,static_cast<void*>(f.manager.data())); f.focus(0);
+    put(f.edit[0].data(),0x75,static_cast<unsigned char>(8)); put(f.edit[0].data(),0x281,static_cast<unsigned char>(1));
+    put(reinterpret_cast<void*>(image_base),0x3500FC0,static_cast<void*>(f.manager.data())); f.focus(0);
     void* guarded=VirtualAlloc(nullptr,8192,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE); check(guarded!=nullptr,"owned guarded event allocation");
     DWORD old_protection=0;
     check(VirtualProtect(static_cast<unsigned char*>(guarded)+4096,4096,PAGE_NOACCESS,&old_protection)!=0,"guard event boundary");
@@ -254,19 +268,19 @@ void logger_tests() {
     forwarded(true,f.edit[1].data(),f.event.data()); forwarded(false,f.edit[1].data()+0x80,f.event.data());
     check(key_record_counts[0][1][0].load()==1 && key_record_counts[1][1][0].load()==1,"other own field/source retains its budget");
     put(f.edit[0].data(),0x75,static_cast<unsigned char>(0xE8));
-    put(f.edit[0].data(),0x271,static_cast<unsigned char>(0x91));
+    put(f.edit[0].data(),0x281,static_cast<unsigned char>(0x91));
     reset_logs(); observe_key_tick(f.window.data());
     for(unsigned i=0;i<100;++i) observe_key_tick(f.window.data());
     check(occurrences(logs(),"RN_KEYTICK ")==2,"one fresh model+field observation; no heartbeat");
     check(logs().find("flags75=0xE8 flags271=0x91 routing75=0x08 routing271=0x01")!=std::string::npos,"first full flags retained alongside documented routing masks");
     for(unsigned i=0;i<2000;++i) {
         put(f.edit[0].data(),0x75,static_cast<unsigned char>(i%2?0xE8:0xA8));
-        put(f.edit[0].data(),0x271,static_cast<unsigned char>(i%2?0x91:0x81));
+        put(f.edit[0].data(),0x281,static_cast<unsigned char>(i%2?0x91:0x81));
         observe_key_tick(f.window.data());
     }
     check(occurrences(logs(),"RN_KEYTICK ")==2 && tick_records[0].count==1,"unknown raw bit changes do not consume semantic tick budget");
 
-    put(f.edit[0].data(),0x271,static_cast<unsigned char>(0)); observe_key_tick(f.window.data());
+    put(f.edit[0].data(),0x281,static_cast<unsigned char>(0)); observe_key_tick(f.window.data());
     check(occurrences(logs(),"RN_KEYTICK ")==3,"focus transition emitted");
     ++lifecycle[0].generation; observe_key_tick(f.window.data());
     check(occurrences(logs(),"RN_KEYTICK ")==5,"bind/open generation transition emitted");
@@ -278,15 +292,15 @@ void logger_tests() {
     reset_logs(); observe_key_tick(f.window.data());
     put(f.edit[0].data(),0x75,static_cast<unsigned char>(0)); observe_key_tick(f.window.data());
     check(occurrences(logs(),"RN_KEYTICK ")==3,"documented visible08 routing transition retained");
-    put(f.edit[0].data(),0x271,static_cast<unsigned char>(2)); observe_key_tick(f.window.data());
+    put(f.edit[0].data(),0x281,static_cast<unsigned char>(2)); observe_key_tick(f.window.data());
     check(occurrences(logs(),"RN_KEYTICK ")==4,"documented disabled02 routing transition retained");
     f.focus(1); observe_key_tick(f.window.data());
     check(occurrences(logs(),"RN_KEYTICK ")==5,"manager widget/receiver relation transition retained");
     lifecycle[0].attempted=true; lifecycle[0].prefilled=true; observe_key_tick(f.window.data());
     check(occurrences(logs(),"RN_KEYTICK ")==7,"readiness change retained in field and model status");
-    put(reinterpret_cast<void*>(image_base),0x3453230,static_cast<void*>(nullptr)); observe_key_tick(f.window.data());
+    put(reinterpret_cast<void*>(image_base),0x3500FC0,static_cast<void*>(nullptr)); observe_key_tick(f.window.data());
     check(occurrences(logs(),"RN_KEYTICK ")==8,"manager read/presence change retained");
-    put(reinterpret_cast<void*>(image_base),0x3453230,static_cast<void*>(f.manager.data())); f.focus(0);
+    put(reinterpret_cast<void*>(image_base),0x3500FC0,static_cast<void*>(f.manager.data())); f.focus(0);
     reset_logs();
     for(unsigned i=0;i<200;++i) { ++lifecycle[0].generation; observe_key_tick(f.window.data()); }
     check(occurrences(logs(),"cap=64")==2 && tick_records[0].count==65 && tick_records[field_count].count==65,"tick transitions bounded per field/model");
@@ -317,7 +331,7 @@ void logger_tests() {
     debug_own_action(f.window.data()+0x110,&selector);
     check(logs().find("reason=context_guard_failed")!=std::string::npos,"recognized action with stale context reports refusal observation");
     put(f.window.data(),0x138,static_cast<void*>(f.root.data()));
-    put(debug_epoch_widget.data(),0,image_base+0x2B468C8);
+    put(debug_epoch_widget.data(),0,image_base+0x2BBB568);
     put(debug_epoch_widget.data(),0x110,borrowed_string("7",1)); find_instant=fake_instant;
     for(std::size_t field=0;field<field_count;++field) {
         put(f.edit[field].data(),0x75,static_cast<unsigned char>(8));
@@ -358,7 +372,7 @@ void logger_tests() {
     transport_record(headers[0],command_epoch_key,7); transport_record(headers[1],"rn_native_ok",1);
     transport_record(headers[2],"rn_native_len",9);
     const TempVector command_vector{headers.data(),3,3,nullptr};
-    put(queued_command,0,image_base+0x2996ED0); put(queued_command,0x28,command_vector);
+    put(queued_command,0,image_base+0x2A12ED0); put(queued_command,0x28,command_vector);
     put(queued_command,0x48,1); put(queued_command,0x4C,1);
     for(const auto& model:models) {
         put(queued_command,0x78,borrowed_string(model.name,std::strlen(model.name)));
@@ -371,7 +385,7 @@ void logger_tests() {
     reset_logs(); put(queued_command,0,std::uintptr_t{0});
     auto before=execute_calls; execute_observed(queued_command);
     check(execute_calls==before+1 && logs().empty(),"foreign command forwarded without diagnostic capture");
-    put(queued_command,0,image_base+0x2996ED0);
+    put(queued_command,0,image_base+0x2A12ED0);
     const TempVector invalid_vector{reinterpret_cast<Record*>(1),1,1,nullptr}; put(queued_command,0x28,invalid_vector);
     reset_logs(); before=execute_calls; execute_observed(queued_command);
     check(execute_calls==before+1 && logs().find("reason=record_guard_failed")!=std::string::npos,"malformed own command is observed and always forwarded");

@@ -11,18 +11,19 @@
  * `get_host_username`; is_host = both equal. Names are compared as the SAME element of the human
  * list (machine id), so two players with the same display name never make a client the host.
  *
- * Engine chain (hoi4.exe 1.19.3.0, static evidence in the report):
- *   app      = [image + 0x3452450]                 GetApplication() 222BDB0; vtable CGameApplication 27182E0
- *   session  = [app + 0x380]                       CGameApplication::GetSession 1776E0 (vslot 0x88)
- *              vtable CSession 2B3E9D8
- *   mode     = dword [session + 0x4C]              CSession::Init 2250890: 0 client, 1 MP host, 2 local/SP
- *   server   = byte  [session + 0x54]              Init: (mode-1) <= 1; rehost 22502F0 sets 1
- *   backend  = vtable of [session + 0x58]          CProxyServer 2B53598 / CNetworkServer 2B53020 / CDummyServer 2B52C28
- *   my_id    = dword [session + 0xA4]              GetMachineId B54190; Init sets 1, clients get SetMachineId 2252480
- *   humans   = [gamestate + 0xF8], count [gamestate + 0x104], stride 0xA0, element vtable CHuman 2720DA8
- *              (GetLocalHuman 1DB8E0 matches element+0x98 against my_id)
- *   name     = MSVC std::string at human + 0x20   (USER_NAME tooltip 19A94BB, "Added player" log 1997E65)
- *   host id  = 1                                   (host-only command check 2269C50: cmd+0xC == 1)
+ * Engine chain (hoi4.exe 1.19.4.0; 1.19.3.0 values in docs/research/port-1.19.4.0.md):
+ *   app      = [image + 0x33DDB08]                 getter 19A5F70; GetLocalHuman 1F1A49 loads it and calls vslot 0x88;
+ *              vtable CGameApplication 2796308
+ *   session  = [app + 0x380]                       CGameApplication::GetSession 17F880 (vslot 0x88)
+ *              vtable CSession 2BB4548
+ *   mode     = dword [session + 0x34]              CSession::Init 22C3760: 0 client, 1 MP host, 2 local/SP
+ *   server   = byte  [session + 0x3C]              Init: (mode-1) <= 1
+ *   backend  = vtable of [session + 0x40]          CProxyServer 2BCBA08 / CNetworkServer 2BCB310 / CDummyServer 2BCB020
+ *   my_id    = dword [session + 0x84]              GetMachineId 148D5F0; Init sets 1
+ *   humans   = [gamestate + 0xF8], count [gamestate + 0x104], stride 0xA0, element vtable CHuman 279EDB8
+ *              (GetLocalHuman 1F1A40 matches element+0x98 against my_id)
+ *   name     = MSVC std::string at human + 0x20   (USER_NAME tooltip 1A413EB)
+ *   host id  = 1                                   (host-only command check 22D8B40: cmd+0xC == 1)
  *
  * Privacy: names are copied into fixed buffers inside the snapshot, compared and dropped. The
  * log line carries only lengths and "equal/different", never the text.
@@ -45,20 +46,20 @@ using core::uptr;
 
 /// @brief RVAs and offsets of the host chain (each one pinned in `host_pins.hpp`).
 namespace layout {
-inline constexpr uptr app_global = 0x3452450;           ///< CApplication* (RIP target in 222BDB0).
-inline constexpr uptr vt_game_application = 0x27182E0;  ///< CGameApplication primary vtable.
-inline constexpr uptr vt_session = 0x2B3E9D8;           ///< CSession vtable.
-inline constexpr uptr vt_proxy_server = 0x2B53598;      ///< Client backend.
-inline constexpr uptr vt_network_server = 0x2B53020;    ///< MP host backend.
-inline constexpr uptr vt_dummy_server = 0x2B52C28;      ///< Local (single player) backend.
-inline constexpr uptr vt_human = 0x2720DA8;             ///< CHuman vtable.
-inline constexpr uptr gamestate_global = 0x332F260;     ///< CGameState* (also pinned by the name layer).
+inline constexpr uptr app_global = 0x33DDB08;           ///< CApplication* (RIP target in 222BDB0).
+inline constexpr uptr vt_game_application = 0x2796308;  ///< CGameApplication primary vtable.
+inline constexpr uptr vt_session = 0x2BB4548;           ///< CSession vtable.
+inline constexpr uptr vt_proxy_server = 0x2BCBA08;      ///< Client backend.
+inline constexpr uptr vt_network_server = 0x2BCB310;    ///< MP host backend.
+inline constexpr uptr vt_dummy_server = 0x2BCB020;      ///< Local (single player) backend.
+inline constexpr uptr vt_human = 0x279EDB8;             ///< CHuman vtable.
+inline constexpr uptr gamestate_global = 0x33DD6B0;     ///< CGameState* (also pinned by the name layer).
 
 inline constexpr uptr app_session = 0x380;            ///< 1776E0: mov rax,[rcx+380].
-inline constexpr uptr session_mode = 0x4C;            ///< 22508E2: mov [rcx+4C],r8d.
-inline constexpr uptr session_is_server = 0x54;       ///< 22508D5: mov [rcx+54],al.
-inline constexpr uptr session_backend = 0x58;         ///< 22508FE: mov [rcx+58],rdx.
-inline constexpr uptr session_machine_id = 0xA4;      ///< B54190: mov eax,[rcx+A4].
+inline constexpr uptr session_mode = 0x34;            ///< 22508E2: mov [rcx+4C],r8d.
+inline constexpr uptr session_is_server = 0x3C;       ///< 22508D5: mov [rcx+54],al.
+inline constexpr uptr session_backend = 0x40;         ///< 22508FE: mov [rcx+58],rdx.
+inline constexpr uptr session_machine_id = 0x84;      ///< B54190: mov eax,[rcx+A4].
 inline constexpr uptr gamestate_humans = 0xF8;        ///< 1DB90F: mov r10,[rbx+F8].
 inline constexpr uptr gamestate_human_count = 0x104;  ///< 1DB901: movsxd rcx,[rbx+104].
 inline constexpr uptr human_stride = 0xA0;            ///< 1DB92D: add rcx,0A0.
@@ -87,10 +88,10 @@ struct Name {
 /// @brief Everything the decision needs, read in one pass; no pointers kept.
 struct Snapshot {
     bool chain_ok{};                              ///< app, session, backend vtables matched.
-    std::int32_t mode{-1};                        ///< session+0x4C.
-    std::uint8_t is_server{layout::unread_flag};  ///< session+0x54.
-    uptr backend_vtable_rva{};                    ///< vtable of session+0x58, as RVA.
-    std::int32_t my_id{-1};                       ///< session+0xA4.
+    std::int32_t mode{-1};                        ///< session+0x34.
+    std::uint8_t is_server{layout::unread_flag};  ///< session+0x3C.
+    uptr backend_vtable_rva{};                    ///< vtable of session+0x40, as RVA.
+    std::int32_t my_id{-1};                       ///< session+0x84.
     std::int32_t humans{-1};                      ///< Human count read (-1 = unreadable).
     std::int32_t my_index{-1};                    ///< Index of the human whose +0x98 == my_id (unique), else -1.
     std::int32_t host_index{-1};                  ///< Index of the human whose +0x98 == 1 (unique), else -1.

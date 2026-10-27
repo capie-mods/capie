@@ -1,6 +1,6 @@
 /**
  * @file console_layout.hpp
- * @brief Byte layouts of the game's console objects (HOI4 1.19.3.0, SHA 7DC947BE...).
+ * @brief Byte layouts of the game's console objects (HOI4 1.19.4.0, SHA B6650C85...; ported in docs/research/port-1.19.4.0.md).
  *
  * Every offset is proven by one instruction in monorepo archive: `docs/evidence/session-20261011/
  * claude-console/re-evidence.md` (sections 1 to 3; `raw/console_audit.txt` checks them):
@@ -33,17 +33,17 @@ using core::uptr;
 using engine::MsvcString;
 
 /// @brief RVA of the console singleton slot (`24B4C40` stores it at `24B4CE4`/`24B4CFB`).
-inline constexpr uptr console_slot_rva = 0x35E1A80;
+inline constexpr uptr console_slot_rva = 0x368F540;
 /// @brief RVA of the add-or-replace function (`24B4920`, masked hash CB12AC9E...AF36E).
-inline constexpr uptr add_or_replace_rva = 0x24B4920;
+inline constexpr uptr add_or_replace_rva = 0x2536F00;
 /// @brief RVA of MSVC `std::string::assign(const char*, size_t)` (callee at 2825E4).
-inline constexpr uptr string_assign_rva = 0x129CA0;
+inline constexpr uptr string_assign_rva = 0x12B3C0;
 /// @brief RVA of the vanilla `set_cosmetic_tag` console action.
-inline constexpr uptr set_cosmetic_tag_rva = 0x282540;
+inline constexpr uptr set_cosmetic_tag_rva = 0x299AC0;
 /// @brief RVA of the vanilla `drop_cosmetic_tag` console action.
-inline constexpr uptr drop_cosmetic_tag_rva = 0x253220;
+inline constexpr uptr drop_cosmetic_tag_rva = 0x26A6E0;
 /// @brief RVA of the vanilla `eval_effect` console action.
-inline constexpr uptr eval_effect_rva = 0x263690;
+inline constexpr uptr eval_effect_rva = 0x27A8C0;
 
 /// @brief Offset of the entry array data pointer in the console.
 inline constexpr uptr console_entries = 0x00;
@@ -143,13 +143,13 @@ using ThreadIdFn = std::uint32_t (*)();
 using LogFn = void (*)(const char* line);
 
 /// @brief RVA of the sprite lookup (called by the portrait validity check at 139D218).
-inline constexpr uptr sprite_find_rva = 0x2238DF0;
+inline constexpr uptr sprite_find_rva = 0x22A0B80;
 /// @brief RVA of the global sprite database pointer (read at 139D211).
-inline constexpr uptr sprite_database_rva = 0x3453090;
+inline constexpr uptr sprite_database_rva = 0x3500ED0;
 /// @brief RVA of the tag parser called by `set_cosmetic_tag` at 28258E.
-inline constexpr uptr tag_parse_rva = 0x10E10C0;
+inline constexpr uptr tag_parse_rva = 0x1168A70;
 /// @brief RVA of the country lookup called by `set_cosmetic_tag` at 2825A2.
-inline constexpr uptr country_of_rva = 0xBB4390;
+inline constexpr uptr country_of_rva = 0xC07620;
 /// @brief Offset of the cosmetic tag string in a country (`711279 lea rsi,[rcx+1488]`).
 inline constexpr uptr country_cosmetic_tag = 0x1488;
 

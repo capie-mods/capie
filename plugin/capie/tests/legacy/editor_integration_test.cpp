@@ -11,6 +11,15 @@ void check(bool value, const char* label) {
     ++checks;
     if (!value) { ++failures; std::printf("FAIL %s\n", label); }
 }
+/// @brief Shared empty bucket of a child name map (the game points empty maps at a static one).
+alignas(8) std::array<unsigned char, capie::core::off::map_entry_size> empty_map_bucket{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief Gives a fixture root the two empty child name maps a 1.19.4.0 CContainerWindow has.
+void put_empty_maps(void* root) {
+    for (const auto map : {capie::core::off::root_edit_map, capie::core::off::root_instant_map}) {
+        void* bucket = empty_map_bucket.data();
+        std::memcpy(static_cast<unsigned char*>(root) + map + capie::core::off::map_entries, &bucket, sizeof(bucket));
+    }
+}
 template <class T> void put(void* object, std::size_t offset, const T& value) {
     std::memcpy(static_cast<unsigned char*>(object) + offset, &value, sizeof(value));
 }
@@ -20,7 +29,7 @@ namespace crva = rn::caption::rva;
 
 struct OwnWindow {
     alignas(8) std::array<unsigned char, 0xC00> window{};
-    alignas(8) std::array<unsigned char, 0x1360> root{};
+    alignas(8) std::array<unsigned char, off::root_readable_span> root{};
     alignas(8) std::array<unsigned char, 0x100> model{};
     alignas(8) std::array<unsigned char, 0x140> revision{};  // instantTextBox carrier
 };
@@ -32,7 +41,7 @@ struct World {
     alignas(8) std::array<unsigned char, 0x100> manager{};
     std::array<OwnWindow, rn::caption::model_count> own{};
     std::array<std::string, rn::caption::model_count> rev{};
-    alignas(8) std::array<unsigned char, 0x280> leader_edit{};
+    alignas(8) std::array<unsigned char, 0x290> leader_edit{};
     alignas(8) std::array<unsigned char, 0x50> leader_definition{};
     alignas(8) std::array<unsigned char, 0x238> focus_manager{};
     alignas(8) std::array<unsigned char, 0x140> leader_prefill{};
@@ -53,7 +62,7 @@ void set_rev(std::size_t m, const std::string& value) {
 }
 void show(std::size_t m, bool visible) {
     put(world->own[m].root.data(), 0xA5, static_cast<unsigned char>(visible ? 8 : 0));
-    put(world->own[m].window.data(), 0xB79, static_cast<unsigned char>(visible ? 1 : 0));
+    put(world->own[m].window.data(), 0xBF9, static_cast<unsigned char>(visible ? 1 : 0));
 }
 void build_world(World& w) {
     const auto img = reinterpret_cast<unsigned char*>(image_base);
@@ -69,24 +78,27 @@ void build_world(World& w) {
     put(w.manager.data(), off::manager_idler, static_cast<void*>(w.idler.data()));
     for (std::size_t m = 0; m < rn::caption::model_count; ++m) {
         auto& o = w.own[m]; auto* win = o.window.data();
-        put(o.model.data(), 0, image_base + 0x29DB558);
+        put(o.model.data(), 0, image_base + 0x2A54398);
         put(o.model.data(), 8, borrowed_string(rn::caption::model_specs[m].name, std::strlen(rn::caption::model_specs[m].name)));
         put(o.model.data(), off::model_context_token, rn::caption::token_player_context_value);
         put(o.model.data(), off::model_parent_token, rn::caption::token_politics_tab_value);
         put(win, 0xE8, static_cast<void*>(o.model.data())); put(win, 0xF8, static_cast<void*>(o.root.data()));
-        put(win, 0x110, image_base + 0x294E568); put(win, 0x120, static_cast<void*>(win));
+        put(win, 0x110, image_base + 0x29CB310); put(win, 0x120, static_cast<void*>(win));
         put(win, 0x130, static_cast<void*>(o.model.data())); put(win, 0x138, static_cast<void*>(o.root.data()));
         put(win, off::window_idler, static_cast<void*>(w.idler.data())); put(win, off::window_manager, static_cast<void*>(w.manager.data()));
         put(win, off::window_parent, static_cast<void*>(w.politics_root.data()));
-        put(o.root.data(), 0, image_base + 0x2B45278);
-        put(o.revision.data(), 0, image_base + 0x2B468C8);
+        put(o.root.data(), 0, image_base + 0x2BB9FE0);
+        put_empty_maps(o.root.data());
+        put(o.revision.data(), 0, image_base + 0x2BBB568);
     }
 }
 std::size_t own_index_of_root(void* root) {
     for (std::size_t m = 0; m < rn::caption::model_count; ++m) if (root == world->own[m].root.data()) return m;
     return rn::caption::model_count;
 }
-void* __fastcall fake_instant(void* root, const MsvcString* name, bool, bool) {
+void* __fastcall fake_instant(void* root, const capie::engine::NameView* view, bool, bool) {
+    const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
+    const MsvcString* name = &name_text;
     const auto m = own_index_of_root(root);
     if (m == 0 && name_equals(name, "rn_ip_leader_prefill")) return world->leader_prefill.data();
     if (m == 0 && name_equals(name, "rn_ip_leader_epoch")) return world->leader_epoch.data();
@@ -95,7 +107,9 @@ void* __fastcall fake_instant(void* root, const MsvcString* name, bool, bool) {
     return nullptr;
 }
 unsigned leader_lookups = 0, bump_generation_on_lookup = 0;
-void* __fastcall fake_edit(void* root, const MsvcString* name, bool, bool) {
+void* __fastcall fake_edit(void* root, const capie::engine::NameView* view, bool, bool) {
+    const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
+    const MsvcString* name = &name_text;
     if (own_index_of_root(root) == 0 && name_equals(name, "rn_ip_leader_edit")) {
         // B02: simulate a lifecycle change (e.g. a concurrent rebind) on a chosen lookup, AFTER the
         // prefill's last same-opening check, so prefill completes but readiness is not committed.
@@ -117,15 +131,15 @@ void __fastcall fake_set_text(void* tb, const MsvcString* text) {
 void __fastcall fake_refresh_edit(void*) {}
 void prepare_leader_prefill(World& w) {
     auto* edit = w.leader_edit.data();
-    put(edit, 0, image_base + 0x2B4A940); put(edit, 0x80, image_base + 0x2B4ABD0);
+    put(edit, 0, image_base + 0x2BBF068); put(edit, 0x80, image_base + 0x2BBF308);
     put(edit, 0x60, static_cast<void*>(w.leader_definition.data()));
-    put(w.leader_definition.data(), 0, image_base + 0x2B54050);
+    put(w.leader_definition.data(), 0, image_base + 0x2BC6978);
     put(w.leader_definition.data(), 0x28, borrowed_string("rn_ip_leader_edit", 17));
-    put(edit, 0x75, static_cast<unsigned char>(8)); put(edit, 0x271, static_cast<unsigned char>(0));
+    put(edit, 0x75, static_cast<unsigned char>(8)); put(edit, 0x281, static_cast<unsigned char>(0));
     put(edit, 0xB0, static_cast<void*>(w.leader_text)); put(edit, 0xC0, std::uint64_t{0}); put(edit, 0xC8, std::uint64_t{64});
-    put(reinterpret_cast<void*>(image_base), 0x3453230, static_cast<void*>(w.focus_manager.data()));
-    put(w.leader_prefill.data(), 0, image_base + 0x2B468C8); put(w.leader_prefill.data(), 0x110, borrowed_string("Jan", 3));
-    put(w.leader_epoch.data(), 0, image_base + 0x2B468C8); put(w.leader_epoch.data(), 0x110, borrowed_string("7", 1));
+    put(reinterpret_cast<void*>(image_base), 0x3500FC0, static_cast<void*>(w.focus_manager.data()));
+    put(w.leader_prefill.data(), 0, image_base + 0x2BBB568); put(w.leader_prefill.data(), 0x110, borrowed_string("Jan", 3));
+    put(w.leader_epoch.data(), 0, image_base + 0x2BBB568); put(w.leader_epoch.data(), 0x110, borrowed_string("7", 1));
     set_text = fake_set_text; refresh_edit = fake_refresh_edit;
 }
 void __fastcall fake_tick(void*, char) { ++tick_originals; }
@@ -178,13 +192,13 @@ void __fastcall fake_focus_switch(void* manager, void* widget) {
     ++focus_calls;
     if (manager != world->focus_manager.data() || widget != nullptr) ++focus_bad;
     auto* m = world->focus_manager.data();
-    void* old = nullptr; std::memcpy(&old, m + 0x158, sizeof(old));
+    void* old = nullptr; std::memcpy(&old, m + 0x138, sizeof(old));
     if (old) {
         auto* edit = static_cast<unsigned char*>(old);
-        edit[0x271] = static_cast<unsigned char>(edit[0x271] & 0xFE);
-        put(m, 0x230, static_cast<void*>(nullptr));
+        edit[0x281] = static_cast<unsigned char>(edit[0x281] & 0xFE);
+        put(m, 0x210, static_cast<void*>(nullptr));
     }
-    put(m, 0x158, static_cast<void*>(nullptr));
+    put(m, 0x138, static_cast<void*>(nullptr));
 }
 std::string logs() {
     LARGE_INTEGER size{}, zero{};
@@ -204,7 +218,7 @@ MsvcString selector(const char* name) { return borrowed_string(name, std::strlen
 
 int main() {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
-    void* memory = VirtualAlloc(nullptr, 0x3454000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    void* memory = VirtualAlloc(nullptr, 0x3502000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     check(memory != nullptr, "owned fake image");
     image_base = reinterpret_cast<std::uintptr_t>(memory);
     log_file = CreateFileW(L"caption_refresh_bridge_test.log", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
@@ -251,7 +265,7 @@ int main() {
     check(caption_service.snapshot().counters().seeds == 1 && !caption_service.snapshot().state(rn::caption::Field::party).seeded,
           "country prefill never seeds");
 
-    // 4. Success counter rises: one tick on the shared hook issues exactly one B6E210(gui,12).
+    // 4. Success counter rises: one tick on the shared hook issues exactly one RequestViewRefresh(gui,12).
     set_rev(LE, "1"); show(LE, false); tick_observed(le, 0);
     set_rev(LL, "1"); show(LL, true);
     const auto before = tick_originals;
@@ -277,12 +291,12 @@ int main() {
     check(!caption_service.snapshot().state(rn::caption::Field::leader).seeded, "bind resets leader baseline");
 
     // 7. Focus release on the shared Tick: politics root visible -> hidden while OUR leader
-    //    field holds focus => exactly one 225E320(manager, nullptr); then never again.
+    //    field holds focus => exactly one FocusSwitch(manager, nullptr); then never again.
     focus_switch = fake_focus_switch; focus_armed.store(true);
     put(w->politics_root.data(), 0xA5, static_cast<unsigned char>(8));
-    put(w->focus_manager.data(), 0x158, static_cast<void*>(w->leader_edit.data()));
-    put(w->focus_manager.data(), 0x230, static_cast<void*>(w->leader_edit.data() + 0x1A0));
-    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(1));
+    put(w->focus_manager.data(), 0x138, static_cast<void*>(w->leader_edit.data()));
+    put(w->focus_manager.data(), 0x210, static_cast<void*>(w->leader_edit.data() + 0x1A0));
+    put(w->leader_edit.data(), 0x281, static_cast<unsigned char>(1));
     show(LE, true); tick_observed(le, 0);
     check(focus_calls == 0, "no release while politics visible");
     put(w->politics_root.data(), 0xA5, static_cast<unsigned char>(0));
@@ -290,7 +304,7 @@ int main() {
     tick_observed(le, 0);
     check(tick_originals == focus_ticks + 1, "focus tick forwards original exactly once");
     check(focus_calls == 1 && focus_bad == 0, "exactly one focus release with (manager, nullptr)");
-    check((w->leader_edit[0x271] & 1) == 0 && count(logs(), "RN_FOCUS event=parent-hidden model=rn_ip_leader_gui field=rn_ip_leader_edit") == 1,
+    check((w->leader_edit[0x281] & 1) == 0 && count(logs(), "RN_FOCUS event=parent-hidden model=rn_ip_leader_gui field=rn_ip_leader_edit") == 1,
           "release verified and logged");
     check(count(logs(), "draft=unchanged") == 1, "draft text untouched");
     for (int i = 0; i < 20; ++i) tick_observed(le, 0);
@@ -331,16 +345,16 @@ int main() {
     // 12. B02: a FAILED prefill never seeds the caption baseline.
     bind_observed(le);                                                     // caption + base reset
     check(!caption_service.snapshot().state(rn::caption::Field::leader).seeded, "bind cleared leader seed");
-    put(w->focus_manager.data(), 0x230, static_cast<void*>(w->leader_edit.data() + 0x1A0));
-    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(1));     // our field holds a draft
+    put(w->focus_manager.data(), 0x210, static_cast<void*>(w->leader_edit.data() + 0x1A0));
+    put(w->leader_edit.data(), 0x281, static_cast<unsigned char>(1));     // our field holds a draft
     show(LE, false); tick_observed(le, 0); show(LE, true); tick_observed(le, 0);
     check(count(logs(), "prefill-focused-draft-preserved") >= 1, "prefill refused over a focused draft");
     check(!caption_service.snapshot().state(rn::caption::Field::leader).seeded, "failed prefill does not seed");
 
     // 12b. B02: prefill reached its end but the lifecycle changed => readiness NOT committed and the
     //      caption baseline NOT seeded (seed only after a committed prefill).
-    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(0));
-    put(w->focus_manager.data(), 0x230, static_cast<void*>(nullptr));
+    put(w->leader_edit.data(), 0x281, static_cast<unsigned char>(0));
+    put(w->focus_manager.data(), 0x210, static_cast<void*>(nullptr));
     show(LE, false); tick_observed(le, 0);
     leader_lookups = 0; bump_generation_on_lookup = 3;      // edits[0], fresh_edit, rendered_edit
     show(LE, true); tick_observed(le, 0);
@@ -348,8 +362,8 @@ int main() {
     check(!lifecycle[0].prefilled, "lifecycle change at the end of prefill: readiness not committed");
     check(!caption_service.snapshot().state(rn::caption::Field::leader).seeded, "uncommitted prefill never seeds");
     // restore the focused-draft state expected by step 13 (field still unseeded)
-    put(w->focus_manager.data(), 0x230, static_cast<void*>(w->leader_edit.data() + 0x1A0));
-    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(1));
+    put(w->focus_manager.data(), 0x210, static_cast<void*>(w->leader_edit.data() + 0x1A0));
+    put(w->leader_edit.data(), 0x281, static_cast<unsigned char>(1));
 
     // 13. RN6 stale sentinel for an unseeded field + spoof protection: forwarded with ONLY the
     //     non-reserved originals and rn_ip_cmd_epoch=-1; spoofed reserved keys are removed.
@@ -368,12 +382,12 @@ int main() {
 
     // 14. PID3044 scenario: seeded field, but the reopened editor failed its re-prefill
     //     (prefilled=false) -> capture fails -> sentinel instead of a silent drop.
-    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(0));
-    put(w->focus_manager.data(), 0x230, static_cast<void*>(nullptr));
+    put(w->leader_edit.data(), 0x281, static_cast<unsigned char>(0));
+    put(w->focus_manager.data(), 0x210, static_cast<void*>(nullptr));
     show(LE, false); tick_observed(le, 0); show(LE, true); tick_observed(le, 0);  // successful prefill seeds
     check(caption_service.snapshot().state(rn::caption::Field::leader).seeded && lifecycle[0].prefilled, "reopen re-prefilled");
-    put(w->focus_manager.data(), 0x230, static_cast<void*>(w->leader_edit.data() + 0x1A0));
-    put(w->leader_edit.data(), 0x271, static_cast<unsigned char>(1));
+    put(w->focus_manager.data(), 0x210, static_cast<void*>(w->leader_edit.data() + 0x1A0));
+    put(w->leader_edit.data(), 0x281, static_cast<unsigned char>(1));
     show(LE, false); tick_observed(le, 0); show(LE, true); tick_observed(le, 0);  // re-prefill refused
     check(!lifecycle[0].prefilled && caption_service.snapshot().state(rn::caption::Field::leader).seeded, "seeded but not prefilled");
     const auto scenario_before = dispatch_originals;

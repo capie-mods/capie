@@ -5,7 +5,7 @@
  * The game is built with MSVC, so its strings are 32-byte objects: a 16-byte buffer that
  * holds short strings inline (small-string optimisation, capacity 15) or a heap pointer,
  * then size and capacity. CAPIE compares widget, model and selector names this way and
- * hands short-lived strings to `FindWidget` and `SetText`.
+ * hands short-lived strings to `SetText` and the console (widget lookups take an `engine::NameView`).
  *
  * Two comparisons exist on purpose and must not be merged:
  *   - `name_equals` (editor bridge) copies `size + 1` bytes and requires the terminating
@@ -16,7 +16,7 @@
  *
  * `borrowed_string` builds a string that points at caller memory for the duration of one
  * call. The game must not keep it; every game function it is passed to copies its
- * argument (FindWidget looks it up, SetText copies it). It is never stored by CAPIE.
+ * argument (SetText copies it). It is never stored by CAPIE.
  */
 #pragma once
 #include "../core/memory.hpp"

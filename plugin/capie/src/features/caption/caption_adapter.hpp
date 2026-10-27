@@ -67,7 +67,7 @@ struct CaptionEnv {
         return true;
     }
     /**
-     * @brief SEH-guarded `B6E210(gui, index)`.
+     * @brief SEH-guarded `RequestViewRefresh(gui, index)`.
      * @param gui GUI container.
      * @param index View index.
      * @return `false` on fault.
