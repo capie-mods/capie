@@ -97,9 +97,11 @@ slow = true
 
 # --- Step 2: build ----------------------------------------------------------------
 [build]
-# Reviewed CAPIE binaries: the launcher and the proxy compile in these hashes.
+# Reviewed CAPIE binaries. bundle-inputs.json is the one list of their hashes: build_launcher.ps1
+# and build_proxy.ps1 compile them in, and this step checks the build folder and the ZIP against
+# it. reviewed_files must name exactly the files that bundle-inputs.json lists.
 capie_output = "plugin/build/capie-v15-dev"
-reviewed_hashes = "plugin/capie/deploy/DEPLOYMENT.md"
+reviewed_hashes = "plugin/capie/deploy/bundle-inputs.json"
 reviewed_files = ["capie_core.dll", "capie_editor.dll", "capie_injector.exe"]
 
 [build.rebuild_capie]

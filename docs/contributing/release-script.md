@@ -56,8 +56,9 @@ tests (with `--minhook-dir`; `--skip-slow` leaves it out). A command that needs 
 MinHook or PSScriptAnalyzer is skipped and reported when that is missing.
 
 **build**: checks that `plugin/build/capie/` holds the binaries whose hashes are in
-`plugin/capie/deploy/DEPLOYMENT.md`, runs `build_launcher.ps1` and `build_proxy.ps1` (they pin
-those hashes and run their own tests), and writes:
+`plugin/capie/deploy/bundle-inputs.json`, runs `build_launcher.ps1` and `build_proxy.ps1` (they pin
+those hashes and run their own tests), checks that every shipped PE file carries the build
+identity of `game_build.hpp` (see below), and writes:
 
 | File | Content |
 | --- | --- |
@@ -73,8 +74,35 @@ block into `Configuration.ps1` and rebuilds `install.ps1`; commit both before `r
 MSVC builds are not bit-reproducible, and the launcher and proxy compile in the reviewed DLL
 hashes, so `build` never recompiles the CAPIE DLLs silently. `--rebuild-capie --minhook-dir ...`
 runs `build.ps1` over `plugin/build/capie/` and stops with the new hashes. Have them reviewed,
-re-pin them in `DEPLOYMENT.md`, `build_launcher.ps1` and `build_proxy.ps1`, commit, then run
-`build` again.
+re-pin them in `plugin/capie/deploy/bundle-inputs.json`, commit, then run `build` again.
+
+### Reviewed bundle hashes: `bundle-inputs.json`
+
+`plugin/capie/deploy/bundle-inputs.json` is the one place where the reviewed CAPIE binaries are
+pinned. `build_launcher.ps1` and `build_proxy.ps1` read it (and compile the hashes into the
+launcher and the proxy), and the `build` step checks the build folder and the ZIP against it.
+It is a JSON array with one object per file and exactly these keys:
+
+| Key | Value |
+| --- | --- |
+| `name` | file name in `runtime/` (`capie_core.dll`, `capie_editor.dll`, `capie_injector.exe`) |
+| `source` | path of the reviewed file, relative to the repository root |
+| `sha256` | SHA-256 of the reviewed file, 64 **lower-case** hex digits |
+| `dll` | `true` for a DLL the launcher injects, `false` for the injector |
+
+The step refuses a file that is not valid JSON, has another key, an upper-case or short hash,
+a non-boolean `dll` or a name twice, and it refuses when the names differ from
+`reviewed_files` in `release.toml`. The SHA-256 tables in `DEPLOYMENT.md` are history only.
+
+### Build identity of the shipped binaries
+
+The manifest's `supportedGameSha256` and the release version come from
+`plugin/capie/src/core/game_build.hpp`. So that the installer never promises a game build the
+DLLs would refuse, `build` checks that every `.dll`/`.exe` in the ZIP (core, editor, injector,
+launcher and, when present, `proxy/version.dll`) contains `game_exe_sha256` (either case) and
+`capie_release` as ASCII or UTF-16LE text, not as part of a longer token (`1.5.1` does not match
+`1.5.10`). A binary without them was built from another header: rebuild it, re-pin
+`bundle-inputs.json`, commit, and run `build` again.
 
 The signing key path is a command-line option only. The script refuses a key inside the
 repository and reads nothing from the key file except the public modulus and exponent (for the
@@ -156,7 +184,7 @@ upload Hidden, subscribe to it and check it in the game before you make it visib
 | --- | --- | --- |
 | CAPIE release | `capie_release` in `plugin/capie/src/core/game_build.hpp` | tag `v<version>`, ZIP name, manifest, notes |
 | CAPIE short version, build number | `capie_version`, `capie_build_number` (same file) | checked against `capie_release` (player status text, multiplayer handshake) |
-| Supported game build | `game_exe_sha256`, `game_version` (same file) | manifest `supportedGameSha256`, notes |
+| Supported game build | `game_exe_sha256`, `game_version` (same file) | manifest `supportedGameSha256`, installer pin `SupportedGameSha256` (with `--write-pins`), notes; checked inside every shipped PE file |
 | Rename Anything | `version` in `mod/descriptor.mod` | Workshop change note (`CHANGELOG.md`) |
 | "CAPIE" switch mod | `version` in `plugin/capie/toggle-mod/capie/descriptor.mod` | Workshop change note (`plugin/capie/toggle-mod/CHANGELOG.md`) |
 

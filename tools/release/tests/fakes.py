@@ -33,12 +33,24 @@ COMMIT = "0123456789abcdef0123456789abcdef01234567"
 GAME_SHA = "7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5"
 """Supported game hash written into the synthetic ``game_build.hpp``."""
 
+RELEASE = "1.4.0"
+"""``capie_release`` written into the synthetic ``game_build.hpp``."""
+
+IDENTITY_ASCII = b"\0" + GAME_SHA.lower().encode("ascii") + b"\0" + RELEASE.encode("ascii") + b"\0"
+"""The build identity strings as a native build stores ``char`` constants (NUL-terminated)."""
+
+IDENTITY_UTF16 = (GAME_SHA.lower() + "\0" + RELEASE + "\0").encode("utf-16-le")
+"""The build identity strings as ``wchar_t`` constants (UTF-16LE, NUL-terminated)."""
+
 BINARIES = {
-    "capie_core.dll": b"MZ core",
-    "capie_editor.dll": b"MZ editor",
-    "capie_injector.exe": b"MZ injector",
+    "capie_core.dll": b"MZ core" + IDENTITY_ASCII,
+    "capie_editor.dll": b"MZ editor" + IDENTITY_ASCII,
+    "capie_injector.exe": b"MZ" + IDENTITY_UTF16,
 }
-"""Fake reviewed CAPIE binaries."""
+"""Fake reviewed CAPIE binaries (each carries the game hash and the release, like a real build)."""
+
+LAUNCHER = b"MZ launcher" + IDENTITY_ASCII
+"""Fake launcher built from the synthetic ``game_build.hpp``."""
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
 """A tiny file that starts like a PNG."""
@@ -180,7 +192,7 @@ clean_after = ["mod"]
 
 [build]
 capie_output = "plugin/build/capie"
-reviewed_hashes = "plugin/capie/deploy/DEPLOYMENT.md"
+reviewed_hashes = "plugin/capie/deploy/bundle-inputs.json"
 reviewed_files = ["capie_core.dll", "capie_editor.dll", "capie_injector.exe"]
 [build.rebuild_capie]
 name = "capie build"
@@ -280,6 +292,27 @@ $script:RaPinnedRelease = [ordered]@{{
 """Template of the installer configuration of the synthetic repository."""
 
 
+def bundle_inputs_json(binaries: Mapping[str, bytes]) -> str:
+    """Render ``bundle-inputs.json`` for fake binaries.
+
+    Args:
+        binaries: Contents by file name.
+
+    Returns:
+        The JSON text (lower-case hashes).
+    """
+    entries = [
+        {
+            "name": name,
+            "source": f"plugin/build/capie/{name}",
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "dll": name.endswith(".dll"),
+        }
+        for name, data in binaries.items()
+    ]
+    return json.dumps(entries, indent=2) + "\n"
+
+
 def _write(root: Path, relative: str, data: str | bytes) -> None:
     """Write one file below the repository root.
 
@@ -313,7 +346,7 @@ def make_repo(root: Path, key: KeyPair, *, installer_key: bool = True) -> Path:
             f'inline constexpr char game_exe_sha256[] = "{GAME_SHA.lower()}";\n'
             'inline constexpr char game_version[] = "1.19.3.0";\n'
             'inline constexpr char capie_version[] = "1.4";\n'
-            'inline constexpr char capie_release[] = "1.4.0";\n'
+            f'inline constexpr char capie_release[] = "{RELEASE}";\n'
             "inline constexpr unsigned capie_api_level = 6;\n"
             "inline constexpr unsigned capie_build_number = 10400;\n"
         ),
@@ -321,12 +354,8 @@ def make_repo(root: Path, key: KeyPair, *, installer_key: bool = True) -> Path:
         "plugin/capie/src/launcher/config.hpp": (
             'inline constexpr char capie_mod_workshop_id[] = "3000000001";\n'
         ),
-        "plugin/capie/deploy/DEPLOYMENT.md": "| File | SHA-256 |\n| --- | --- |\n"
-        + "".join(
-            f"| {name} | {hashlib.sha256(data).hexdigest().upper()} |\n"
-            for name, data in BINARIES.items()
-        ),
-        "plugin/build/capie-launcher/RenameAnythingLauncher.exe": b"MZ launcher",
+        "plugin/capie/deploy/bundle-inputs.json": bundle_inputs_json(BINARIES),
+        "plugin/build/capie-launcher/RenameAnythingLauncher.exe": LAUNCHER,
         "plugin/capie/CHANGELOG.md": (
             "# CAPIE\n\n## [Unreleased]\n\n## [1.4.0] - 2026-10-14\n\n- Flags.\n"
         ),

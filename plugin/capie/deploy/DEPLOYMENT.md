@@ -23,6 +23,11 @@ timestamps), so the values below are those of the stage-2 build only.
 
 ## CAPIE 1.5 release pinned in the launcher (2026-10-15)
 
+> Since CAPIE 1.5.1 the reviewed hashes live in one machine-readable file,
+> `plugin/capie/deploy/bundle-inputs.json`, which `build_launcher.ps1`, `build_proxy.ps1` and the
+> release kit (`tools/release`) read. The tables below are the review history; when they and the
+> JSON file disagree, the JSON file is what gets built and packaged.
+
 Review `docs/evidence/session-20261015/capie-15-review/review.txt` (W1): the launcher bundles
 exactly these three release files of `plugin/build/capie-v15-dev/` (top level only; never
 `debug/` or `capie-v15-console-dev/`). They are not rebuilt before the in-game test (W2), because

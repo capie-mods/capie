@@ -4,8 +4,9 @@
   does (RSA PKCS#1 v1.5 with SHA-256 over the exact manifest bytes), from the public
   ``Modulus``/``Exponent`` of a .NET ``RSAKeyValue`` XML. Only those two public values
   are ever read, also when they come from the private key file.
-* :func:`reviewed_hashes` reads the SHA-256 table of ``DEPLOYMENT.md``: the binaries
-  that the launcher and proxy pin and that passed review.
+* :func:`reviewed_hashes` reads ``plugin/capie/deploy/bundle-inputs.json``, the one list of
+  reviewed CAPIE binaries (name, source, SHA-256, DLL flag) that ``build_launcher.ps1``,
+  ``build_proxy.ps1`` and this tool all read.
 * :func:`render_pinned_block` and :func:`replace_pinned_block` produce the
   ``$script:RaPinnedRelease`` block of ``tools/bootstrap/src/Shared/Configuration.ps1``.
 """
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 
@@ -32,8 +34,14 @@ _MODULUS = re.compile(r"<Modulus>\s*([A-Za-z0-9+/=\s]+?)\s*</Modulus>")
 _EXPONENT = re.compile(r"<Exponent>\s*([A-Za-z0-9+/=\s]+?)\s*</Exponent>")
 """Public exponent element of an ``RSAKeyValue``."""
 
-_TABLE_ROW = re.compile(r"^\|\s*([A-Za-z0-9_.-]+)\s*\|\s*([0-9A-Fa-f]{64})\s*\|", re.MULTILINE)
-"""``| file | SHA-256 |`` row of a Markdown table."""
+_LOWER_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+"""A ``sha256`` value of ``bundle-inputs.json`` (lower-case, as the native builds compile it)."""
+
+_INPUT_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
+"""A ``name`` value of ``bundle-inputs.json`` (a plain file name)."""
+
+_INPUT_KEYS = frozenset({"name", "source", "sha256", "dll"})
+"""The keys every ``bundle-inputs.json`` entry has, and no other."""
 
 _PINNED_BLOCK = re.compile(
     r"^\$script:RaPinnedRelease = \[ordered\]@\{.*?^\}[ \t]*$", re.MULTILINE | re.DOTALL
@@ -140,19 +148,73 @@ def verify_signature(key: PublicKey, data: bytes, signature_b64: str) -> bool:
     return pow(signature, key.exponent, key.modulus).to_bytes(size, "big") == expected
 
 
-def reviewed_hashes(markdown: str) -> dict[str, str]:
-    """Read ``| file | SHA-256 |`` rows (the first table row per file wins).
+@dataclass(frozen=True)
+class BundleInput:
+    """One reviewed CAPIE binary of ``bundle-inputs.json``."""
+
+    name: str
+    source: str
+    sha256: str
+    dll: bool
+
+
+def bundle_inputs(text: str) -> tuple[BundleInput, ...]:
+    """Parse and validate ``bundle-inputs.json``.
 
     Args:
-        markdown: Text of ``DEPLOYMENT.md``.
+        text: Text of the file (a JSON array of ``{"name", "source", "sha256", "dll"}``).
+
+    Returns:
+        The entries in file order.
+
+    Raises:
+        SigningError: Not valid JSON, a wrong shape, a non-lower-case hash or a duplicate name.
+    """
+    try:
+        data = json.loads(text.removeprefix("﻿"))
+    except json.JSONDecodeError as error:
+        msg = f"bundle-inputs.json is not valid JSON: {error}"
+        raise SigningError(msg) from error
+    if not isinstance(data, list) or not data:
+        msg = "bundle-inputs.json must be a non-empty JSON array"
+        raise SigningError(msg)
+    entries: list[BundleInput] = []
+    seen: set[str] = set()
+    for index, item in enumerate(data):
+        if not isinstance(item, dict) or set(item) != _INPUT_KEYS:
+            msg = f"bundle-inputs.json entry {index} must have exactly {sorted(_INPUT_KEYS)}"
+            raise SigningError(msg)
+        name, source, digest, dll = item["name"], item["source"], item["sha256"], item["dll"]
+        if not isinstance(name, str) or not _INPUT_NAME.match(name):
+            msg = f"bundle-inputs.json entry {index}: bad name {name!r}"
+            raise SigningError(msg)
+        if not isinstance(source, str) or not source:
+            msg = f"bundle-inputs.json entry {name}: bad source {source!r}"
+            raise SigningError(msg)
+        if not isinstance(digest, str) or not _LOWER_SHA256.match(digest):
+            msg = f"bundle-inputs.json entry {name}: sha256 must be 64 lower-case hex digits"
+            raise SigningError(msg)
+        if not isinstance(dll, bool):
+            msg = f"bundle-inputs.json entry {name}: dll must be true or false"
+            raise SigningError(msg)
+        if name.lower() in seen:
+            msg = f"bundle-inputs.json lists {name} twice"
+            raise SigningError(msg)
+        seen.add(name.lower())
+        entries.append(BundleInput(name, source, digest, dll))
+    return tuple(entries)
+
+
+def reviewed_hashes(text: str) -> dict[str, str]:
+    """Reviewed hashes by file name, from ``bundle-inputs.json``.
+
+    Args:
+        text: Text of ``bundle-inputs.json``.
 
     Returns:
         Upper-case hashes by file name.
     """
-    found: dict[str, str] = {}
-    for name, digest in _TABLE_ROW.findall(markdown):
-        found.setdefault(name, digest.upper())
-    return found
+    return {entry.name: entry.sha256.upper() for entry in bundle_inputs(text)}
 
 
 @dataclass(frozen=True)
