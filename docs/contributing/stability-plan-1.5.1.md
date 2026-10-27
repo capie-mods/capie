@@ -23,7 +23,9 @@ off, and the next game update is a routine job. Status: **done**, **next** (befo
 | N1 | Fault latch: the first access violation inside a game call stops every later game call (`engine::game_call_faulted`) | done |
 | N2 | `guarded_find` reads the result's vtable through the guarded copy; null checks on every game-call wrapper | done |
 | N3 | `capie_core` init: once-guard (no concurrent init), refuses a renamed copy (40), pins its module (14) | done |
-| N4 | Prove on 1.19.4.0 that the effect constructor deep-copies the record vector (H2), and pin the portrait entry's +0x28 field and size before writing them (H3) | next (Ghidra) |
+| N4 | Prove on 1.19.4.0 that the effect constructor deep-copies the record vector (H2), and the portrait entry layout (H3) | done: both confirmed in Ghidra (port notes, section Ghidra verification) |
+| N10 | Refuse a window root equal to its parent (the factory returns the parent on failure); pin the `+0xBF9` and `+0xE8` stores | next |
+| N11 | Hook SetVariable through its only vtable slot instead of an inline detour | later |
 | N5 | Runtime RTTI check of every vtable constant (class name via the complete object locator) at init; refuse the dependent feature on mismatch; pin the `+0xBF9` read | done: `core/rtti.hpp`, editor refuses (23), core keeps the portrait layer off; `rtti_exe_test` 30/30 on 1.19.4.0 confirms every inferred vtable (model, root, edit definition). `+0xBF9` pin: waiting for the Ghidra review |
 | N6 | Hooks are `noexcept`: a C++ exception from the original function aborts the process. Remove `noexcept` from hook entry points, keep try/catch around CAPIE's own work | later: the engine barely uses C++ exceptions (out-of-memory, which ends the game anyway) and the change spans every hook; do it with the hook-table refactor (readability plan step 6) |
 | N7 | Flag layer: synchronise `seen_`; gate or drop the second `LoadCountryFlag` call | later |

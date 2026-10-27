@@ -218,3 +218,21 @@ ironman mode.").
   `vt_edit_definition`.
 - The release pipeline (`build_launcher.ps1`, `build_proxy.ps1`, `deploy/DEPLOYMENT.md`) bundles
   reviewed binaries by SHA-256; new binaries must be built and reviewed for 1.5.1.
+
+## Ghidra verification (full analysis, 2026-10-27)
+
+| Item | Verdict | Evidence |
+|---|---|---|
+| Effect ctor copies CAPIE's record vector (H2) | confirmed | `11CE6B0` → `11EADE0(this+0x28, count, data, count)` → `BDA9D0` copies each 0x28-byte record with `11F770` (std::string copy ctor) and the value qword; no pointer into the caller's buffer survives. Dispatch evaluates selector triggers against the game's own `context+0x470` records before the ctor. |
+| Portrait entry layout (H3) | confirmed | entry 0x30 bytes at `[rsp+30h]` of `B96450`; `+0` set byte, `+4` kind, `+8` string, `+0x28` non-owning texture handle used only for kind 1; the caller frees only the string. `PortraitEntryValid` asserts `_ThreadForbidCount == 0`: call it only inside the hook (UI thread). |
+| `vt_sg_model` / `vt_sg_root` / `vt_edit_definition` (M1) | confirmed | template ctor `1639990`; window ctor `BDBAB0` stores the template at `+0xE8` (`BDBEB1`); Bind `BD8ED0` fills `+0xF8` from a factory that returns the PARENT on failure; CEditBox base ctor `231B8B0` stores the definition at `+0x60`. Also checked at runtime by `core/rtti.hpp`. |
+| `window_desired` `+0xBF9` | confirmed | Tick `BDB500` is its only writer: parent visible (`+0xBF8`) AND the model's visible trigger AND a valid scope. Tick also clears `+0xF8`/`+0x100` when the root or parent is destroyed (root `+0xA5` bit 4). |
+
+Hook points: localisation wrappers, UpdateNames, BuildNameKey, flag atlas, ResolvePortrait and the
+scripted-window hooks are already the narrowest useful points. `SetVariableEffect::Execute`
+(`37D1C0`) has no direct caller, only vtable slot `27F2FF0` (vtable `27F2F88` + 0x68): patching that
+slot is exact and atomic and could replace the inline detour. Pre-hashed localisation lookups
+(`241D010`) bypass the lookup hooks; harmless as long as nothing pre-hashes `RN1|`/`CAPIE_` keys.
+
+Follow-ups: refuse a root equal to the parent (`+0x100`) in the window guards; pin the `+0xBF9`
+store in Tick and the `+0xE8` store at `BDBEB1`; consider the vtable-slot hook for SetVariable.
