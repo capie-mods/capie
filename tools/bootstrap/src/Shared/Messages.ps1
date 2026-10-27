@@ -84,7 +84,38 @@ $script:RaMessages = @{
         'Your hoi4.exe build ({0}...) is not supported yet. The launcher starts the game without CAPIE. Check again ',
         'later (release notes, versions.json).'
     ) -join ''
-    DisableDone                = 'Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
+    InstalledGameUnsupported   = @(
+        "NOTE: CAPIE {0} does NOT support your Hearts of Iron IV build (hoi4.exe SHA-256 {1}...). The game still `n",
+        "starts, but without CAPIE. Get a CAPIE version made for your game build:`n",
+        "  open    {2}`n",
+        "  or run  & ([scriptblock]::Create((irm {3}))) -Update`n",
+        'If that already is the newest release, CAPIE has not been updated for this game build yet; check the page again later.'
+    ) -join ''
+    InstalledGameUnknown       = @(
+        'hoi4.exe was not found through Steam, so it was not checked whether CAPIE {0} supports your game build. ',
+        'Releases and their game builds: {1}'
+    ) -join ''
+    UpdateHeldBack             = @(
+        'CAPIE {0} is available but does not support your hoi4.exe build ({2}...); the installed CAPIE {1} does, ',
+        'so it was kept. To install {0} anyway (the game would then start without CAPIE), run -Update -Force.'
+    ) -join ''
+    GameRunning                = @(
+        'Hearts of Iron IV or the Paradox Launcher is running ({0}). Close the game and the launcher completely, ',
+        'then run this setup again. Nothing was changed.'
+    ) -join ''
+    UninstallSteamNotFound     = @(
+        "Steam was not found, but the HOI4 Steam launch options may still start {0}. Removing the files now would leave `n",
+        "Steam unable to start the game, so nothing was removed. Either run -Uninstall -SteamRoot `"<your Steam folder>`", `n",
+        "or clear the option by hand: in Steam open Library > Hearts of Iron IV > Properties > General > Launch Options, `n",
+        "delete the quoted ...\RenameAnythingLauncher.exe part (and -capie), keep %command% and your own options, `n",
+        'then run -Uninstall -Force.'
+    ) -join ''
+    SteamConfigUnreadable      = @(
+        'Account {0}: localconfig.vdf cannot be read ({1}), so its launch option may still point at the CAPIE launcher. ',
+        'Nothing was removed. Close what locks the file and run -Uninstall again, or clear the option in Steam by hand ',
+        '(Library > Hearts of Iron IV > Properties > General > Launch Options) and run -Uninstall -Force.'
+    ) -join ''
+    DisableDone                ='Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
     PurgeDone                  = 'Uninstalled. No files of this setup are left, and the Steam launch options are as they were before.'
     ReleaseVerified            = 'Release {0}: signed manifest verified.'
     WorkshopModPresent         = @(

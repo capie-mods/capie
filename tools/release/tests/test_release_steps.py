@@ -11,11 +11,24 @@ import json
 import zipfile
 from typing import TYPE_CHECKING, override
 
-from fakes import BINARIES, COMMIT, GAME_SHA, FakePrompter, FakeRunner, Harness, KeyPair, make_repo
+from fakes import (
+    BINARIES,
+    COMMIT,
+    GAME_SHA,
+    IDENTITY_ASCII,
+    FakePrompter,
+    FakeRunner,
+    Harness,
+    KeyPair,
+    bundle_inputs_json,
+    make_repo,
+)
 from releasekit import workshop
 from releasekit.package import (
     BundleEntry,
+    contains_string,
     entry_problems,
+    identity_problems,
     local_inner_descriptor,
     switch_mod_descriptor,
     write_zip,
@@ -221,7 +234,7 @@ def test_build_refuses_a_key_inside_the_repository(harness: Harness) -> None:
 
 
 def test_build_refuses_unreviewed_binaries(harness: Harness) -> None:
-    """A CAPIE DLL that differs from DEPLOYMENT.md stops the build before packaging.
+    """A CAPIE DLL that differs from bundle-inputs.json stops the build before packaging.
 
     Args:
         harness: Test harness.
@@ -230,6 +243,114 @@ def test_build_refuses_unreviewed_binaries(harness: Harness) -> None:
     assert _build(harness) == 1
     assert "!= reviewed" in harness.output
     assert not (harness.out / "CAPIE-1.4.0-win64.zip").exists()
+
+
+def _replace_binary(harness: Harness, name: str, data: bytes) -> None:
+    """Swap one reviewed CAPIE binary everywhere and re-pin it, so only its contents differ.
+
+    Args:
+        harness: Test harness.
+        name: File name (``capie_core.dll`` ...).
+        data: New contents.
+    """
+    binaries = dict(BINARIES)
+    binaries[name] = data
+    for folder in ("plugin/build/capie", "plugin/build/capie-launcher/runtime"):
+        (harness.root / folder / name).write_bytes(data)
+    (harness.root / "plugin/capie/deploy/bundle-inputs.json").write_text(
+        bundle_inputs_json(binaries), encoding="utf-8"
+    )
+
+
+def test_build_refuses_a_binary_built_for_another_game(harness: Harness) -> None:
+    """A reviewed DLL without the header's game_exe_sha256 stops the build before packaging.
+
+    Args:
+        harness: Test harness.
+    """
+    other = ("a" * 64).encode("ascii")
+    _replace_binary(harness, "capie_editor.dll", b"MZ editor\0" + other + b"\x001.4.0\0")
+    assert _build(harness) == 1
+    assert "runtime/capie_editor.dll does not contain game_exe_sha256" in harness.output
+    assert "do not match game_build.hpp" in harness.output
+    assert not (harness.out / "CAPIE-1.4.0-win64.zip").exists()
+
+
+def test_build_refuses_a_stale_release_string(harness: Harness) -> None:
+    """A binary that still says the previous capie_release is not packaged.
+
+    Args:
+        harness: Test harness.
+    """
+    stale = b"MZ core\0" + GAME_SHA.lower().encode("ascii") + b"\x001.3.9\0"
+    _replace_binary(harness, "capie_core.dll", stale)
+    assert _build(harness) == 1
+    assert "runtime/capie_core.dll does not contain capie_release '1.4.0'" in harness.output
+
+
+def test_build_checks_the_launcher_and_the_proxy(harness: Harness) -> None:
+    """The launcher and the optional proxy are PE files too and must carry both strings.
+
+    Args:
+        harness: Test harness.
+    """
+    proxy = harness.root / "plugin/build/capie-proxy/version.dll"
+    proxy.parent.mkdir(parents=True)
+    proxy.write_bytes(b"MZ proxy without identity")
+    (harness.root / "plugin/build/capie-launcher/RenameAnythingLauncher.exe").write_bytes(
+        b"MZ old launcher"
+    )
+    assert _build(harness) == 1
+    assert "proxy/version.dll does not contain game_exe_sha256" in harness.output
+    assert "RenameAnythingLauncher.exe does not contain capie_release" in harness.output
+    proxy.write_bytes(b"MZ proxy" + IDENTITY_ASCII)
+    (harness.root / "plugin/build/capie-launcher/RenameAnythingLauncher.exe").write_bytes(
+        b"MZ launcher" + IDENTITY_ASCII
+    )
+    assert _build(harness) == 0, harness.output
+    assert "5 PE files carry game_exe_sha256" in harness.output
+
+
+def test_build_refuses_reviewed_files_that_disagree_with_bundle_inputs(harness: Harness) -> None:
+    """release.toml's reviewed_files and bundle-inputs.json must name the same binaries.
+
+    Args:
+        harness: Test harness.
+    """
+    binaries = {k: v for k, v in BINARIES.items() if k != "capie_injector.exe"}
+    (harness.root / "plugin/capie/deploy/bundle-inputs.json").write_text(
+        bundle_inputs_json(binaries), encoding="utf-8"
+    )
+    assert _build(harness) == 1
+    assert "reviewed_files is" in harness.output
+
+
+def test_contains_string_finds_ascii_and_utf16_tokens_only() -> None:
+    """Both encodings count; a longer version or hash that only starts the same does not."""
+    sha = GAME_SHA.lower()
+    assert contains_string(b"x\0" + sha.encode() + b"\0", GAME_SHA, ignore_case=True)
+    assert contains_string(b"MZ" + sha.upper().encode("utf-16-le"), sha, ignore_case=True)
+    assert not contains_string(b"MZ" + sha.encode(), GAME_SHA)
+    assert contains_string(b"v1.5.1\0", "1.5.1")
+    assert contains_string(b"CAPIE 1.5.1 loaded", "1.5.1")
+    assert not contains_string(b"1.5.10\0", "1.5.1")
+    assert not contains_string(b"11.5.1\0", "1.5.1")
+    assert not contains_string(b"1.5.1.2\0", "1.5.1")
+    assert not contains_string(b"\0" + sha.encode() + b"f", sha)
+    assert contains_string("CAPIE 1.5.1\0".encode("utf-16-le"), "1.5.1")
+    assert not contains_string("1.5.10\0".encode("utf-16-le"), "1.5.1")
+
+
+def test_identity_problems_ignore_text_files() -> None:
+    """Only .dll/.exe (or MZ-headed) entries are checked; a bundle without one is refused."""
+    text = BundleEntry("mod/capie.mod", b'name="CAPIE"\n')
+    assert identity_problems([text], GAME_SHA, "1.4.0") == [
+        "the bundle has no .dll/.exe file to check"
+    ]
+    good = BundleEntry("runtime/capie_core.dll", BINARIES["capie_core.dll"])
+    assert identity_problems([text, good], GAME_SHA, "1.4.0") == []
+    renamed = BundleEntry("runtime/capie_core.bin", b"MZ")
+    assert len(identity_problems([renamed], GAME_SHA, "1.4.0")) == 2  # noqa: PLR2004 - both strings
 
 
 def test_rebuild_capie_stops_for_re_pinning(harness: Harness, tmp_path: Path) -> None:
@@ -253,7 +374,7 @@ def test_rebuild_capie_stops_for_re_pinning(harness: Harness, tmp_path: Path) ->
     runner.on_run = rebuild
     code = _build(harness, "--rebuild-capie", "--minhook-dir", str(tmp_path))
     assert code == 1
-    assert "re-pin them in DEPLOYMENT.md" in harness.output
+    assert "re-pin them in plugin/capie/deploy/bundle-inputs.json" in harness.output
     assert "capie_editor.dll" in harness.output
 
 

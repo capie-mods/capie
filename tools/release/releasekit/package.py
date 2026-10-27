@@ -2,14 +2,18 @@
 
 Why the CAPIE DLLs are not simply recompiled here: MSVC output is not bit-reproducible
 (PE timestamps), and the launcher and the proxy compile in the SHA-256 of the reviewed
-``capie_core.dll``/``capie_editor.dll``/``capie_injector.exe`` (``DEPLOYMENT.md``). A fresh
-build therefore never matches the pins. The step:
+``capie_core.dll``/``capie_editor.dll``/``capie_injector.exe``
+(``plugin/capie/deploy/bundle-inputs.json``, read by ``build_launcher.ps1``, ``build_proxy.ps1``
+and this step). A fresh build therefore never matches the pins. The step:
 
 1. ``--rebuild-capie`` only: runs ``build.ps1`` (all offline tests) over the reviewed
-   output folder and stops when the new hashes differ from ``DEPLOYMENT.md``, listing
+   output folder and stops when the new hashes differ from ``bundle-inputs.json``, listing
    them for review and re-pinning.
 2. Checks that the CAPIE binaries in the build folder are the reviewed ones.
-3. Runs ``[[build.commands]]`` (launcher and proxy builds with their own tests).
+3. Runs ``[[build.commands]]`` (launcher and proxy builds with their own tests), then checks
+   that every shipped PE file (``.dll``/``.exe``) carries the ``game_exe_sha256`` and
+   ``capie_release`` strings of ``game_build.hpp`` (ASCII or UTF-16LE), so the manifest's
+   ``supportedGameSha256`` is the build the binaries really accept.
 4. Assembles the ZIP in the layout ``install.ps1`` expects (launcher at the root,
    ``runtime/``, ``proxy/version.dll``, ``mod/capie.mod`` + ``mod/capie/``), byte for byte
    reproducible from the same inputs (fixed timestamps, fixed order).
@@ -36,11 +40,11 @@ from releasekit.runner import quote
 from releasekit.signing import (
     PinnedRelease,
     SigningError,
+    bundle_inputs,
     pinned_fields,
     public_key_from_xml,
     render_pinned_block,
     replace_pinned_block,
-    reviewed_hashes,
     verify_signature,
 )
 
@@ -84,6 +88,18 @@ ZIP_NAME = re.compile(r"^[0-9A-Za-z._-]+\.zip$")
 
 TAIL_LINES = 20
 """Output lines of a failed build shown on the console."""
+
+PE_SUFFIXES = (".dll", ".exe")
+"""ZIP entries that are Windows executables and must carry the build identity strings."""
+
+PE_MAGIC = b"MZ"
+"""First bytes of a PE file (DOS header), also checked for entries with another suffix."""
+
+TOKEN_CHARS = frozenset(b"0123456789.abcdefABCDEF")
+"""Characters that may not touch a matched version or hash (``1.5.1`` is not in ``1.5.10``)."""
+
+UTF16_UNIT = 2
+"""Code unit size of UTF-16LE."""
 
 
 @dataclass(frozen=True)
@@ -252,6 +268,156 @@ def collect_entries(ctx: Context) -> tuple[list[BundleEntry], list[str]]:
     return entries, missing
 
 
+def _neighbour(data: bytes, offset: int, unit: int) -> int | None:
+    """Character at a byte offset, or ``None`` outside the data or for a non-ASCII code unit.
+
+    Args:
+        data: File contents.
+        offset: Byte offset of the code unit.
+        unit: Code unit size (1 for ASCII, 2 for UTF-16LE).
+
+    Returns:
+        The character code, or ``None``.
+    """
+    if offset < 0 or offset + unit > len(data):
+        return None
+    if unit == UTF16_UNIT and data[offset + 1] != 0:
+        return None
+    return data[offset]
+
+
+def contains_string(data: bytes, text: str, *, ignore_case: bool = False) -> bool:
+    """The file holds ``text`` as ASCII or UTF-16LE, not as part of a longer token.
+
+    Args:
+        data: File contents.
+        text: ASCII text (a version or a hexadecimal hash).
+        ignore_case: Also accept the upper- and lower-case spelling.
+
+    Returns:
+        True when one occurrence is found.
+    """
+    spellings = {text, text.lower(), text.upper()} if ignore_case else {text}
+    for spelling in spellings:
+        for encoding, unit in (("ascii", 1), ("utf-16-le", UTF16_UNIT)):
+            needle = spelling.encode(encoding)
+            start = data.find(needle)
+            while start != -1:
+                before = _neighbour(data, start - unit, unit)
+                after = _neighbour(data, start + len(needle), unit)
+                if (
+                    start % unit == 0
+                    and (before is None or before not in TOKEN_CHARS)
+                    and (after is None or after not in TOKEN_CHARS)
+                ):
+                    return True
+                start = data.find(needle, start + 1)
+    return False
+
+
+def is_pe_entry(entry: BundleEntry) -> bool:
+    """The entry is a Windows executable (by suffix or by its ``MZ`` header).
+
+    Args:
+        entry: ZIP entry.
+
+    Returns:
+        True for ``.dll``/``.exe`` files and for anything that starts like a PE file.
+    """
+    return entry.name.lower().endswith(PE_SUFFIXES) or entry.data.startswith(PE_MAGIC)
+
+
+def identity_problems(entries: Sequence[BundleEntry], game_sha256: str, release: str) -> list[str]:
+    """Every shipped PE carries the supported game hash and the CAPIE release.
+
+    The manifest's ``supportedGameSha256`` comes from ``game_build.hpp``; this check proves
+    the binaries in the ZIP were built from that header, so the installer never promises a
+    game build the DLLs would refuse.
+
+    Args:
+        entries: ZIP entries.
+        game_sha256: ``game_exe_sha256`` (any case).
+        release: ``capie_release``.
+
+    Returns:
+        One message per missing string (empty when every PE file carries both).
+    """
+    pe_entries = [e for e in entries if is_pe_entry(e)]
+    if not pe_entries:
+        return ["the bundle has no .dll/.exe file to check"]
+    problems = []
+    for entry in pe_entries:
+        if not contains_string(entry.data, game_sha256, ignore_case=True):
+            problems.append(
+                f"{entry.name} does not contain game_exe_sha256 {game_sha256.lower()} "
+                "(built for another game build?)"
+            )
+        if not contains_string(entry.data, release):
+            problems.append(
+                f"{entry.name} does not contain capie_release {release!r} (stale binary?)"
+            )
+    return problems
+
+
+def check_identity(ctx: Context, entries: Sequence[BundleEntry]) -> bool:
+    """Record :func:`identity_problems` for the bundle.
+
+    Args:
+        ctx: Run context.
+        entries: ZIP entries.
+
+    Returns:
+        True when every shipped PE file names the supported game build and this release.
+    """
+    problems = identity_problems(entries, ctx.capie.game_sha256, ctx.version)
+    for problem in problems:
+        ctx.reporter.record(STEP, Status.FAIL, problem)
+    if problems:
+        ctx.reporter.record(
+            STEP,
+            Status.FAIL,
+            "the bundle's binaries do not match game_build.hpp: rebuild them from this header "
+            f"(and re-pin {ctx.config.build.reviewed_hashes}) before packaging",
+        )
+        return False
+    count = sum(1 for e in entries if is_pe_entry(e))
+    ctx.reporter.record(
+        STEP,
+        Status.OK,
+        f"{count} PE files carry game_exe_sha256 {ctx.capie.game_sha256.lower()[:12]}... "
+        f"and capie_release {ctx.version}",
+    )
+    return True
+
+
+def read_reviewed(ctx: Context) -> dict[str, str] | None:
+    """Read the reviewed hashes from ``bundle-inputs.json``.
+
+    Args:
+        ctx: Run context.
+
+    Returns:
+        Upper-case hashes by file name, or ``None`` after recording why they are unusable.
+    """
+    config = ctx.config
+    path = config.resolve(config.build.reviewed_hashes)
+    try:
+        inputs = bundle_inputs(path.read_text(encoding="utf-8"))
+    except (OSError, SigningError) as error:
+        ctx.reporter.record(STEP, Status.FAIL, f"{config.build.reviewed_hashes}: {error}")
+        return None
+    listed = {entry.name for entry in inputs}
+    if listed != set(config.build.reviewed_files):
+        ctx.reporter.record(
+            STEP,
+            Status.FAIL,
+            f"{config.build.reviewed_hashes} lists {sorted(listed)} but release.toml "
+            f"reviewed_files is {sorted(config.build.reviewed_files)}",
+        )
+        return None
+    return {entry.name: entry.sha256.upper() for entry in inputs}
+
+
 def check_reviewed(ctx: Context, entries: Sequence[BundleEntry]) -> bool:
     """The CAPIE binaries (build folder and ZIP copies) are the reviewed ones.
 
@@ -260,12 +426,12 @@ def check_reviewed(ctx: Context, entries: Sequence[BundleEntry]) -> bool:
         entries: ZIP entries.
 
     Returns:
-        True when every reviewed file matches ``DEPLOYMENT.md``.
+        True when every reviewed file matches ``bundle-inputs.json``.
     """
     config = ctx.config
-    table = reviewed_hashes(
-        config.resolve(config.build.reviewed_hashes).read_text(encoding="utf-8")
-    )
+    table = read_reviewed(ctx)
+    if table is None:
+        return False
     ok = True
     for name in config.build.reviewed_files:
         built = config.resolve(config.build.capie_output) / name
@@ -318,9 +484,9 @@ def rebuild_capie(ctx: Context) -> bool:
         return False
     ctx.reporter.record(STEP, Status.OK, ctx.config.build.rebuild_capie.name)
     output = ctx.config.resolve(ctx.config.build.capie_output)
-    table = reviewed_hashes(
-        ctx.config.resolve(ctx.config.build.reviewed_hashes).read_text(encoding="utf-8")
-    )
+    table = read_reviewed(ctx)
+    if table is None:
+        return False
     changed = []
     for name in ctx.config.build.reviewed_files:
         actual = sha256_bytes((output / name).read_bytes())
@@ -332,8 +498,8 @@ def rebuild_capie(ctx: Context) -> bool:
             Status.FAIL,
             "new CAPIE binaries differ from the reviewed hashes "
             "(expected: MSVC is not reproducible). "
-            "After review, re-pin them in DEPLOYMENT.md, build_launcher.ps1 and build_proxy.ps1, "
-            "commit, "
+            f"After review, re-pin them in {ctx.config.build.reviewed_hashes} "
+            "(build_launcher.ps1 and build_proxy.ps1 read it), commit, "
             "and run 'build' again: " + "; ".join(changed),
         )
         return False
@@ -684,6 +850,7 @@ def run(ctx: Context) -> bool:
     if ctx.options.dry_run:
         entries, missing = collect_entries(ctx)
         check_reviewed(ctx, entries)
+        check_identity(ctx, entries)
         plan(ctx, entries, missing, zip_name)
         return not reporter.failed(STEP)
     if key is None or not run_build_commands(ctx):
@@ -694,7 +861,7 @@ def run(ctx: Context) -> bool:
     problems = entry_problems(entries, ctx.config.bundle.launcher_zip_path)
     for problem in problems:
         reporter.record(STEP, Status.FAIL, problem)
-    if missing or problems or not check_reviewed(ctx, entries):
+    if missing or problems or not check_reviewed(ctx, entries) or not check_identity(ctx, entries):
         return False
     return _package(ctx, entries, zip_name, key)
 

@@ -7,6 +7,8 @@
 $script:RaAppId = '394360'                                  # Hearts of Iron IV Steam app id
 $script:RaGameExeName = 'hoi4.exe'
 $script:RaParadoxLauncherExeName = 'dowser.exe'             # what Steam's %command% starts
+# Processes that load our files: no install, update, rollback or uninstall while one runs.
+$script:RaGameProcessNames = @('hoi4', 'dowser')
 $script:RaSteamProcessName = 'steam'
 $script:RaSteamHelperProcessName = 'steamwebhelper'          # must be gone too before localconfig.vdf is edited
 $script:RaSteamExeRegistryValue = 'SteamExe'
@@ -59,6 +61,16 @@ $script:RaStagingPrefix = '.staging-'
 $script:RaDownloadPrefix = 'download-'
 $script:RaBrokenInfix = '.broken-'
 $script:RaJunctionTempInfix = '.new-'
+$script:RaJunctionOldInfix = '.old-'         # the previous 'current' link, kept until the new one is in place
+# Leftovers of an interrupted run (names from New-RaUniqueName: 32 lower-case hex digits). Swept at
+# the start of a run only when the name matches exactly, the item is ours (see Clear-RaLeftover) and
+# it is older than RaLeftoverMinAgeMinutes (so a second setup window running at the same time keeps its files).
+$script:RaLeftoverDownloadPattern = '^download-[0-9a-f]{32}\.zip$'
+$script:RaLeftoverStagingPattern = '^\.staging-[0-9a-f]{32}$'
+$script:RaLeftoverJunctionPattern = '^current\.(new|old)-[0-9a-f]{32}$'
+$script:RaLeftoverMarkerPattern = '^proxy\.enabled\.[0-9a-f]{32}\.remove$'
+$script:RaLeftoverProxyPattern = '^version\.dll\.[0-9a-f]{32}\.(tmp|bak|remove)$'
+$script:RaLeftoverMinAgeMinutes = 30
 $script:RaIconIndexSuffix = ',0'
 # localconfig.vdf backups made by New-RaBackupPath (only these are deleted by -Uninstall -Purge).
 $script:RaBackupNamePattern = '^localconfig\.vdf\.renameanything-backup-\d{8}-\d{6}(-\d+)?$'
@@ -102,6 +114,9 @@ $script:RaNotesSectionPattern = '^\s*##\s+Supported game build'   # the changelo
 $script:RaReleaseShaPrefixLength = 8
 $script:RaVersionCorePattern = '^(\d+\.\d+\.\d+).*$'
 $script:RaGitHubDownloadPrefixFormat = 'https://github.com/{0}/releases/download/'
+# What a player is told to open or run when the installed CAPIE does not support the game build.
+$script:RaGitHubLatestPageFormat = 'https://github.com/{0}/releases/latest'
+$script:RaGitHubLatestInstallerFormat = 'https://github.com/{0}/releases/latest/download/install.ps1'
 $script:RaManifestAssetName = 'release-manifest.json'
 $script:RaSignatureAssetName = 'release-manifest.json.sig'
 $script:RaSignatureFileSuffix = '.sig'

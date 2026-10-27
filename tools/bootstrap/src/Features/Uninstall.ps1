@@ -8,8 +8,11 @@ function Invoke-RaUninstall {
         Removes the Steam launch option part, our shortcuts and the installed files.
     .DESCRIPTION
         Steam first: while Steam keeps the launch option pointing at the launcher, no
-        file is removed. Then the proxy, shortcuts and the "CAPIE" switch mod (earlier files
-        restored), then the 'current' junction (so nothing can be
+        file is removed. That includes the cases where Steam is not found but this setup
+        recorded a launch option (or has no state to tell), and where an account's
+        localconfig.vdf cannot be read: the run stops and explains how to clear the option by
+        hand; -Force then skips the Steam step. Then the proxy, shortcuts and the "CAPIE"
+        switch mod (earlier files restored), then the 'current' junction (so nothing can be
         deleted through it), then everything under the root folder except bootstrap.log.
     .PARAMETER State
         State object (modified).
@@ -27,11 +30,14 @@ function Invoke-RaUninstall {
         [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
     )
     if ($SteamRootPath) {
-        if (-not (Remove-RaSteamLaunchOption $State $SteamRootPath)) {
+        if (-not (Remove-RaSteamLaunchOption $State $SteamRootPath -Strict:(-not $script:RaForce))) {
             throw 'Steam is running: the launch option still points to the launcher, so no files were removed. Close Steam and run -Uninstall again.'
         }
+    } elseif (Test-RaSteamOptionPossible $State) {
+        if (-not $script:RaForce) { throw (Get-RaText 'UninstallSteamNotFound' @((Get-RaLauncherPath))) }
+        Write-RaLog 'Steam not found; -Force: the launch option is taken as cleared by hand.' -Level WARN
     } else {
-        Write-RaLog 'Steam not found; skipping launch options.' -Level WARN
+        Write-RaLog 'Steam not found; this setup recorded no Steam launch option.' -Level WARN
     }
     Remove-RaProxy $State
     Remove-RaOwnShortcut $State
@@ -55,6 +61,28 @@ function Invoke-RaUninstall {
         Remove-Item -LiteralPath $item.FullName -Recurse -Force
     }
     Write-RaLog "Removed files in $($script:RaRoot) (kept $($script:RaLogFileName))"
+}
+
+function Test-RaSteamOptionPossible {
+    <#
+    .SYNOPSIS
+        Tests whether a HOI4 Steam launch option may still point at our files.
+    .DESCRIPTION
+        True when the state records a Steam entry, or when there is no state.json but the
+        launcher is installed (the state was lost, so nothing proves the option is gone).
+        Used when Steam itself cannot be found to look.
+    .PARAMETER State
+        State object (read only).
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        if (Test-RaSteamOptionPossible $state) { 'clear it by hand first' }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State)
+    if (@($State.SteamEntries | Where-Object { $_ }).Count -gt 0) { return $true }
+    return ((-not (Test-Path -LiteralPath (Get-RaStatePath))) -and (Test-Path -LiteralPath (Get-RaLauncherPath)))
 }
 
 function Invoke-RaDisable {

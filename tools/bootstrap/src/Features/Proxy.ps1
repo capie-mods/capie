@@ -224,9 +224,11 @@ function Install-RaProxy {
         elseif ($installed -and (Test-Path -LiteralPath $path) -and (Get-RaFileSha256 $path) -eq $sha) { [IO.File]::Delete($path) }
         throw
     } finally {
-        if (Test-Path -LiteralPath $tmp) { [IO.File]::Delete($tmp) }
+        # Cleanup is logged, never thrown: after the success point a locked temporary file must not
+        # report a working proxy as failed, and on failure it must not hide the first error.
+        Remove-RaTempItem $tmp
         # A failed restoration must retain its recovery copy.
-        if ($success -and (Test-Path -LiteralPath $backup)) { [IO.File]::Delete($backup) }
+        if ($success) { Remove-RaTempItem $backup }
     }
 }
 
