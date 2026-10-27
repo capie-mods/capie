@@ -20,6 +20,7 @@
  * 15 timeout.
  */
 #include "../core/game_build.hpp"
+#include "../core/build_identity.hpp"
 #include "../core/sha256.hpp"
 
 #include <tlhelp32.h>

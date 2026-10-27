@@ -191,8 +191,8 @@ Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
         !rd(mem, context, off::context_model, ctx_model) || ctx_model != model ||
         !rd(mem, context, off::context_root, ctx_root) || !rd(mem, window, off::window_root, root) || !root ||
         root != ctx_root || !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
-        !rd(mem, window, off::window_parent, parent)) {
-        return Kind::invalid;
+        !rd(mem, window, off::window_parent, parent) || parent == root) {
+        return Kind::invalid;  // also a root equal to the parent: the window factory's failure result
     }
     out.root = root;
     unsigned char flags = 0;

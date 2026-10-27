@@ -43,6 +43,7 @@
  * debug flavor; counts only, never the text of a name). A missing log does not stop CAPIE.
  */
 #include "../core/game_build.hpp"
+#include "../core/build_identity.hpp"
 #include "../core/hook_set.hpp"
 #include "../core/init_codes.hpp"
 #include "../core/pe_image.hpp"

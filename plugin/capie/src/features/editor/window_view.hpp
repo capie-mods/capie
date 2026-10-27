@@ -83,13 +83,17 @@ inline ViewResult inspect_chain(void* window, void* model, View& out) noexcept {
     void* ctx_window = nullptr;
     void* ctx_model = nullptr;
     void* ctx_root = nullptr;
+    void* parent = nullptr;
     unsigned char flags = 0;
     unsigned char desired = 0;
+    // The window factory returns the PARENT when it cannot create the window (Bind, 1.19.4.0): a
+    // root equal to the parent has the right class but is not this window's root.
     if (!member(context, 0, ctx_vt) || ctx_vt != image_base + rva::vt_sg_context ||
         !member(context, off::context_window, ctx_window) || ctx_window != window ||
         !member(context, off::context_model, ctx_model) || ctx_model != model ||
         !member(context, off::context_root, ctx_root) || !member(window, off::window_root, out.root) ||
-        ctx_root != out.root || !member(out.root, 0, root_vt) || root_vt != image_base + rva::vt_sg_root ||
+        ctx_root != out.root || !member(window, off::window_parent, parent) || parent == out.root ||
+        !member(out.root, 0, root_vt) || root_vt != image_base + rva::vt_sg_root ||
         !member(out.root, off::root_flags, flags) || !member(window, off::window_desired, desired) ||
         !readable(out.root, off::root_readable_span) || !bounded_list(out.root, off::root_children) ||
         !bounded_map(out.root, off::root_edit_map) || !bounded_map(out.root, off::root_instant_map)) {

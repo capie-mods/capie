@@ -843,13 +843,16 @@ WindowKind inspect(const M& mem, uptr image, uptr window, OwnWindow& out) noexce
     uptr ctx_root = 0;
     uptr root = 0;
     uptr root_vt = 0;
+    uptr parent = 0;
     unsigned char flags = 0;
     unsigned char desired = 0;
+    // A root equal to the parent is the window factory's failure result, not this window's root.
     if (!rd(mem, context, 0, ctx_vt) || ctx_vt != image + rva::vt_sg_context ||
         !rd(mem, context, off::context_window, ctx_window) || ctx_window != window ||
         !rd(mem, context, off::context_model, ctx_model) || ctx_model != model ||
         !rd(mem, context, off::context_root, ctx_root) || !rd(mem, window, off::window_root, root) || !root ||
-        ctx_root != root || !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
+        ctx_root != root || !rd(mem, window, off::window_parent, parent) || parent == root ||
+        !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
         !rd(mem, root, off::root_flags, flags) || !rd(mem, window, off::window_desired, desired)) {
         return WindowKind::invalid;
     }

@@ -34,6 +34,7 @@
  * Exports: `RNInitialize`, and in the debug flavor `RNDebugRequest`.
  */
 #include "../core/game_build.hpp"
+#include "../core/build_identity.hpp"
 #include "../core/hook_set.hpp"
 #include "../core/init_codes.hpp"
 #include "../core/rtti.hpp"

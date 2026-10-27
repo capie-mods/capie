@@ -32,6 +32,7 @@
  * own policy. The launcher has no network code and runs as the invoking user
  * (`asInvoker` manifest).
  */
+#include "../core/build_identity.hpp"
 #include "command_line.hpp"
 #include "config.hpp"
 #include "file_pin.hpp"

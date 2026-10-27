@@ -9,6 +9,7 @@
  * This startup-import proxy is kept in memory until process exit; hot unloading is
  * unsupported. There are no process opens, remote threads or injection helpers.
  */
+#include "../core/build_identity.hpp"
 #include "loader.hpp"
 #include "proxy_manifest.generated.hpp"
 
