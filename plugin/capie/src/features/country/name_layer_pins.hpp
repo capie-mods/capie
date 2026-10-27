@@ -59,7 +59,7 @@ inline constexpr core::Signature signatures[] = {
      "CFaction::GetName (whole function): +0x18 text when +0x28 size != 0, else template +0x568 (API 5)"},
     {"faction.string_copy", core::SignatureGroup::country_hook, core::rva::string_copy,
      "48895c2408488974241048897c241841564883ec2033c00f57c00f1101",
-     "MSVC string copy-construct on the game heap (called by GetName at D8BB98)"},
+     "MSVC string copy-construct on the game heap (called by GetName, pin faction.get_name_copy)"},
 };
 
 /// @brief Offsets the layer reads, pinned in the game's own instructions.

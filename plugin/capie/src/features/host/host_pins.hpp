@@ -26,7 +26,7 @@ inline constexpr core::Signature signatures[] = {
     {"host.get_local_human", core::SignatureGroup::editor_callee, 0x1F1A40,
      "40534883EC20488BD9488B0D????????488B01FF9088000000488BC8E8????????48638B04010000",
      "CGameState::GetLocalHuman: session vslot 0x88, humans +0x104 (report 1.4)"},
-    {"host.get_session", core::SignatureGroup::editor_callee, 0x17F880, "488B8180030000C3",
+    {"host.get_session", core::SignatureGroup::editor_callee, layout::get_session, "488B8180030000C3",
      "CGameApplication::GetSession: mov rax,[rcx+380h] (report 1.1)"},
     {"host.get_machine_id", core::SignatureGroup::editor_callee, 0x148D5EF, "CC8B8184000000C3",
      "CSession::GetMachineId: mov eax,[rcx+84h] (port 1.19.4.0; padding byte for uniqueness)"},
@@ -58,8 +58,8 @@ inline constexpr core::RipPin target_pins[] = {
 
 /// @brief Vtable slots: GetSession of the application, idler slot 0x88 (report 1.1).
 inline constexpr core::NamedSlotPin slot_pins[] = {
-    {"app.get_session_slot", {layout::vt_game_application, 0x88, 0x17F880}},
-    {"ingame_idler.session_slot", {0x29E5828, 0x88, 0xB8E390}},
+    {"app.get_session_slot", {layout::vt_game_application, layout::slot_get_session, layout::get_session}},
+    {"ingame_idler.session_slot", {core::rva::vt_ingame_idler, layout::slot_get_session, layout::idler_get_session}},
 };
 
 /// @brief Expected signatures.

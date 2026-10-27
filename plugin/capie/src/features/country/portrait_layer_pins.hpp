@@ -45,35 +45,35 @@ inline constexpr core::Signature signatures[] = {
 
 /// @brief Argument layout, entry layout, character layout and leader chain, in the game's instructions.
 inline constexpr core::InstructionPin instruction_pins[] = {
-    {"ui.size_small_is_zero", 0xB96487, "83bc249000000000"},        // cmp dword [rsp+90],0 (0 -> GFX_idea_unknown)
-    {"ui.character_argument", 0xB964C8, "48897c2420"},              // mov [rsp+20],rdi: 5th argument = character
-    {"ui.out_buffer", 0xB964D8, "488d542430"},                      // lea rdx,[rsp+30]: caller's entry buffer
-    {"resolve.character_argument", 0x1439C0D, "488b5d77"},          // mov rbx,[rbp+77]: 5th argument
-    {"resolve.character_id", 0x1439C29, "448b430c"},                // mov r8d,[rbx+0C]: character id
-    {"valid.flag_byte", 0x1438E46, "803900"},                       // cmp byte [rcx],0
-    {"valid.kind", 0x1438E4F, "8b4104"},                            // mov eax,[rcx+4]
-    {"valid.name", 0x1438E6D, "488d5108"},                          // lea rdx,[rcx+8]: sprite name
+    {"ui.size_small_is_zero", 0xB96487, "83bc249000000000"},         // cmp dword [rsp+90],0 (0 -> GFX_idea_unknown)
+    {"ui.character_argument", 0xB964C8, "48897c2420"},               // mov [rsp+20],rdi: 5th argument = character
+    {"ui.out_buffer", 0xB964D8, "488d542430"},                       // lea rdx,[rsp+30]: caller's entry buffer
+    {"resolve.character_argument", 0x1439C0D, "488b5d77"},           // mov rbx,[rbp+77]: 5th argument
+    {"resolve.character_id", 0x1439C29, "448b430c"},                 // mov r8d,[rbx+0C]: character id
+    {"valid.flag_byte", 0x1438E46, "803900"},                        // cmp byte [rcx],0
+    {"valid.kind", 0x1438E4F, "8b4104"},                             // mov eax,[rcx+4]
+    {"valid.name", 0x1438E6D, "488d5108"},                           // lea rdx,[rcx+8]: sprite name
     {"character.write_portraits", 0x102AB25, "4c8d4678ba294c0000"},  // lea r8,[rsi+78]; mov edx,4C29
-    {"character.write_variables", 0x102ADAB, "4c8d86d8000000ba4a2a0000"},  // lea r8,[rsi+D8]; mov edx,2A4A
-    {"character.read_variables_token", 0x102964B, "4181f84a2a0000"},       // cmp r8d,2A4A
-    {"character.read_variables", 0x1029766, "498d97d8000000"},             // lea rdx,[r15+D8]
-    {"leader.politics", 0x717370, "488b81900f0000c3"},                    // mov rax,[rcx+F90]; ret
-    {"leader.ruling_party", 0x2FDC37, "488b80d0000000"},                  // mov rax,[rax+D0]
-    {"leader.first_role", 0x1230500, "83797c00750333c0c3488b4970"},       // count +7C, roles +70
-    {"leader.deref", 0x1B6B80, "488b01c3"},                               // mov rax,[rcx]; ret
-    {"leader.character", 0x2C1410, "488b4108c3"},                         // mov rax,[rcx+8]; ret
-    {"effect.civilian_large", 0x2FDCB4, "33d241b801000000"},              // type 0, size 1
+    {"character.write_variables", 0x102ADAB, "4c8d86d8000000ba4a2a0000"},         // lea r8,[rsi+D8]; mov edx,2A4A
+    {"character.read_variables_token", 0x102964B, "4181f84a2a0000"},              // cmp r8d,2A4A
+    {"character.read_variables", 0x1029766, "498d97d8000000"},                    // lea rdx,[r15+D8]
+    {"leader.politics", core::rva::country_politics_getter, "488b81900f0000c3"},  // mov rax,[rcx+F90]; ret
+    {"leader.ruling_party", 0x2FDC37, "488b80d0000000"},                          // mov rax,[rax+D0]
+    {"leader.first_role", core::rva::party_first_leader_role, "83797c00750333c0c3488b4970"},  // count +7C, roles +70
+    {"leader.deref", core::rva::pointer_load, "488b01c3"},                                    // mov rax,[rcx]; ret
+    {"leader.character", core::rva::role_character_getter, "488b4108c3"},                     // mov rax,[rcx+8]; ret
+    {"effect.civilian_large", 0x2FDCB4, "33d241b801000000"},                                  // type 0, size 1
 };
 
 /// @brief Call targets (rel32 displacement RVA, next instruction RVA, target RVA).
 inline constexpr core::RipPin target_pins[] = {
     {"ui.calls_resolve", 0xB964E1, 0xB964E5, core::rva::portrait_resolve},
     {"ui.calls_valid", 0xB964EC, 0xB964F0, core::rva::portrait_valid},
-    {"leader.calls_politics", 0x2FDC33, 0x2FDC37, 0x717370},
-    {"leader.calls_first_role", 0x2FDC71, 0x2FDC75, 0x1230500},
-    {"leader.first_role_jumps", 0x123050E, 0x1230512, 0x1B6B80},
-    {"leader.calls_character", 0x2FDC82, 0x2FDC86, 0x2C1410},
-    {"effect.writes_portrait", 0x2FDCC0, 0x2FDCC4, 0x143ADA0},
+    {"leader.calls_politics", 0x2FDC33, 0x2FDC37, core::rva::country_politics_getter},
+    {"leader.calls_first_role", 0x2FDC71, 0x2FDC75, core::rva::party_first_leader_role},
+    {"leader.first_role_jumps", 0x123050E, 0x1230512, core::rva::pointer_load},
+    {"leader.calls_character", 0x2FDC82, 0x2FDC86, core::rva::role_character_getter},
+    {"effect.writes_portrait", 0x2FDCC0, 0x2FDCC4, core::rva::leader_portrait_write},
 };
 
 /// @brief Expected signatures.

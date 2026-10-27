@@ -20,6 +20,7 @@
  * game memory by CAPIE; the game copies what it needs with its own code.
  */
 #pragma once
+#include "../../core/game_layout.hpp"
 #include "../../core/memory.hpp"
 #include "../../engine/msvc_string.hpp"
 
@@ -44,6 +45,12 @@ inline constexpr uptr set_cosmetic_tag_rva = 0x299AC0;
 inline constexpr uptr drop_cosmetic_tag_rva = 0x26A6E0;
 /// @brief RVA of the vanilla `eval_effect` console action.
 inline constexpr uptr eval_effect_rva = 0x27A8C0;
+/// @brief RVA of the console command lookup (by name and alias).
+inline constexpr uptr lookup_rva = 0x2537AA0;
+/// @brief RVA of the `CCountry` cosmetic-tag setter the vanilla `set_cosmetic_tag` calls.
+inline constexpr uptr country_set_cosmetic_rva = 0x759370;
+/// @brief RVA of the dispatcher's gate message ("Console not available in multiplayer or ironman mode.").
+inline constexpr uptr gate_message_rva = 0x2C03C50;
 
 /// @brief Offset of the entry array data pointer in the console.
 inline constexpr uptr console_entries = 0x00;
@@ -143,15 +150,15 @@ using ThreadIdFn = std::uint32_t (*)();
 using LogFn = void (*)(const char* line);
 
 /// @brief RVA of the sprite lookup (called by the portrait validity check).
-inline constexpr uptr sprite_find_rva = 0x22A0B80;
+inline constexpr uptr sprite_find_rva = core::rva::sprite_find;
 /// @brief RVA of the global sprite database pointer (read by the portrait validity check).
-inline constexpr uptr sprite_database_rva = 0x3500ED0;
+inline constexpr uptr sprite_database_rva = core::rva::sprite_database_global;
 /// @brief RVA of the tag parser called by `set_cosmetic_tag`.
 inline constexpr uptr tag_parse_rva = 0x1168A70;
 /// @brief RVA of the country lookup called by `set_cosmetic_tag`.
-inline constexpr uptr country_of_rva = 0xC07620;
+inline constexpr uptr country_of_rva = core::rva::country_of;
 /// @brief Offset of the cosmetic tag string in a country (pin `country.cosmetic_tag`: `lea rsi,[rcx+1488]`).
-inline constexpr uptr country_cosmetic_tag = 0x1488;
+inline constexpr uptr country_cosmetic_tag = core::off::country_cosmetic_tag;
 
 /**
  * @brief Writes an empty MSVC string, as the vanilla `set_cosmetic_tag` does for its result.

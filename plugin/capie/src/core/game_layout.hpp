@@ -64,6 +64,16 @@ inline constexpr std::uintptr_t sprite_find = 0x22A0B80;
 inline constexpr std::uintptr_t sprite_database_global = 0x3500ED0;
 /// @brief `CCharacter` primary vtable (hierarchy CCharacter, CReferenceObject, CPersistent).
 inline constexpr std::uintptr_t vt_character = 0x29FAF30;
+/// @brief `politics* GetPolitics(country*)`: `mov rax,[rcx+F90]; ret`; pinned, never called.
+inline constexpr std::uintptr_t country_politics_getter = 0x717370;
+/// @brief First leader role of a party (count +7C, roles +70); pinned, never called.
+inline constexpr std::uintptr_t party_first_leader_role = 0x1230500;
+/// @brief `mov rax,[rcx]; ret`, the tail jump of `party_first_leader_role`; pinned, never called.
+inline constexpr std::uintptr_t pointer_load = 0x1B6B80;
+/// @brief Character of a leader role: `mov rax,[rcx+8]; ret`; pinned, never called.
+inline constexpr std::uintptr_t role_character_getter = 0x2C1410;
+/// @brief Portrait write of `set_country_leader_portrait` (civilian, large); pinned, never called.
+inline constexpr std::uintptr_t leader_portrait_write = 0x143ADA0;
 
 // ---- Scripted window manager and widgets (hooked or called by capie_editor.dll) ---------
 /// @brief `void Tick(window*, char force)`; per-frame scripted window update, hooked.
@@ -106,6 +116,10 @@ inline constexpr std::uintptr_t view_get_root = 0x12C4E70;
 inline constexpr std::uintptr_t observer_frame = 0x161DB40;
 /// @brief Politics observer slot 0x48 (leader and party writers); pinned.
 inline constexpr std::uintptr_t observer_refresh = 0x1620890;
+/// @brief Politics observer bind: `[observer+8] = gui`, `[observer+14] = 0`; pinned, never called.
+inline constexpr std::uintptr_t observer_bind = 0x12C3B50;
+/// @brief Politics view base constructor (stores the idler and the view root); pinned, never called.
+inline constexpr std::uintptr_t view_base_ctor = 0x12C4AD0;
 
 // ---- Focus release chain -------------------------------------------------------------------
 /// @brief `void FocusSwitch(manager*, widget*)`; called with `nullptr` once per politics hide.
@@ -114,6 +128,10 @@ inline constexpr std::uintptr_t focus_switch = 0x22BD0E0;
 inline constexpr std::uintptr_t edit_unfocus = 0x2371A40;
 /// @brief CEditBox focus (vtable slot 0xC0); pinned.
 inline constexpr std::uintptr_t edit_focus = 0x2371210;
+/// @brief Receiver release thunk: `mov rdx,rcx; mov rcx,[manager_global]; jmp manager_release`; pinned.
+inline constexpr std::uintptr_t receiver_release = 0x2379B70;
+/// @brief Manager release: releases `[manager+210]` and zeroes it; pinned, never called.
+inline constexpr std::uintptr_t manager_release = 0x22BD170;
 /// @brief RVA of the displacement of `mov rcx,[rip+disp]` in the receiver release thunk (`focus.2379B70`).
 inline constexpr std::uintptr_t focus_manager_rip_displacement = 0x2379B76;
 /// @brief RVA of the instruction after that `mov` (RIP base).

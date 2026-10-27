@@ -32,6 +32,7 @@
  * the session through CGameApplication::SetSession). Reads only; no game calls, no writes.
  */
 #pragma once
+#include "../../core/game_layout.hpp"
 #include "../../core/memory.hpp"
 
 #include <array>
@@ -53,7 +54,10 @@ inline constexpr uptr vt_proxy_server = 0x2BCBA08;      ///< Client backend.
 inline constexpr uptr vt_network_server = 0x2BCB310;    ///< MP host backend.
 inline constexpr uptr vt_dummy_server = 0x2BCB020;      ///< Local (single player) backend.
 inline constexpr uptr vt_human = 0x279EDB8;             ///< CHuman vtable.
-inline constexpr uptr gamestate_global = 0x33DD6B0;     ///< CGameState* (also pinned by the name layer).
+inline constexpr uptr gamestate_global = core::rva::gamestate_global;  ///< CGameState* (pinned by the name layer).
+inline constexpr uptr get_session = 0x17F880;        ///< CGameApplication::GetSession (`host.get_session`).
+inline constexpr uptr idler_get_session = 0xB8E390;  ///< CInGameIdler session getter.
+inline constexpr uptr slot_get_session = 0x88;       ///< Vtable slot of both session getters.
 
 inline constexpr uptr app_session = 0x380;            ///< `host.get_session`: mov rax,[rcx+380].
 inline constexpr uptr session_mode = 0x34;            ///< `session.mode`: mov [rcx+34],r8d.
