@@ -24,8 +24,8 @@
 #include "../../core/game_layout.hpp"
 #include "../../core/memory.hpp"
 #include "../../core/pe_image.hpp"
+#include "../../core/pin_check.hpp"
 #include "../../core/signatures.hpp"
-#include "name_layer_pins.hpp"
 
 #include <cstddef>
 #include <iterator>
@@ -44,7 +44,7 @@ inline constexpr core::Signature signatures[] = {
 };
 
 /// @brief Argument layout, entry layout, character layout and leader chain, in the game's instructions.
-inline constexpr layer::pins::InstructionPin instruction_pins[] = {
+inline constexpr core::InstructionPin instruction_pins[] = {
     {"ui.size_small_is_zero", 0xB96487, "83bc249000000000"},        // cmp dword [rsp+90],0 (0 -> GFX_idea_unknown)
     {"ui.character_argument", 0xB964C8, "48897c2420"},              // mov [rsp+20],rdi: 5th argument = character
     {"ui.out_buffer", 0xB964D8, "488d542430"},                      // lea rdx,[rsp+30]: caller's entry buffer
@@ -92,24 +92,8 @@ static_assert(std::size(signatures) == expected_signatures &&
  * @return Null when all pass, else the id of the first failed check.
  */
 inline const char* first_failed_pin(const core::TextSection& text) noexcept {
-    const auto image = reinterpret_cast<uptr>(text.base);
-    const core::ProcessMemory reader{};
-    for (const auto& signature : signatures) {
-        if (!core::verify_signature(text, signature)) {
-            return signature.id;
-        }
-    }
-    for (const auto& pin : instruction_pins) {
-        if (!layer::pins::verify_instruction(image, pin)) {
-            return pin.id;
-        }
-    }
-    for (const auto& pin : target_pins) {
-        if (!core::verify_rip_pin(reader, image, pin)) {
-            return pin.id;
-        }
-    }
-    return nullptr;
+    return core::first_failed(text, core::ProcessMemory{}, reinterpret_cast<uptr>(text.base), signatures,
+                              instruction_pins, target_pins);
 }
 
 }  // namespace capie::country::portrait::pins

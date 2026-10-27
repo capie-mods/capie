@@ -22,11 +22,11 @@
 #include "../../core/game_layout.hpp"
 #include "../../core/memory.hpp"
 #include "../../core/pe_image.hpp"
+#include "../../core/pin_check.hpp"
 #include "../../core/signatures.hpp"
 
-#include <algorithm>
-#include <array>
 #include <cstddef>
+#include <iterator>
 
 namespace capie::country::layer::pins {
 
@@ -62,15 +62,8 @@ inline constexpr core::Signature signatures[] = {
      "MSVC string copy-construct on the game heap (called by GetName at D8BB98)"},
 };
 
-/// @brief Exact instruction bytes at an RVA.
-struct InstructionPin {
-    const char* id;   ///< Identifier for the log.
-    uptr rva;         ///< Instruction RVA.
-    const char* hex;  ///< Exact bytes.
-};
-
 /// @brief Offsets the layer reads, pinned in the game's own instructions.
-inline constexpr InstructionPin instruction_pins[] = {
+inline constexpr core::InstructionPin instruction_pins[] = {
     {"country.variables", 0x589A8B, "488b9818020000"},                      // mov rbx,[rax+218] after country_of
     {"country.variables2", 0x589D52, "488b9818020000"},                     // second scope path, same offset
     {"scoped_variable.name_size", 0x58C463, "8b8780000000"},                // mov eax,[rdi+80]
@@ -106,43 +99,13 @@ static_assert(std::size(signatures) == expected_signatures &&
               std::size(target_pins) == expected_target_pins);
 
 /**
- * @brief Checks one instruction pin.
- * @param image Image base.
- * @param pin Pin.
- * @return `true` when the bytes at `image + rva` equal the pin.
- */
-inline bool verify_instruction(uptr image, const InstructionPin& pin) noexcept {
-    std::array<unsigned char, core::max_pattern_bytes> expected{};
-    const auto size = core::decode_hex(pin.hex, expected.data(), expected.size());
-    std::array<unsigned char, core::max_pattern_bytes> actual{};
-    return size != 0 && core::ProcessMemory::read(image + pin.rva, actual.data(), size) &&
-           std::equal(expected.begin(), expected.begin() + static_cast<std::ptrdiff_t>(size), actual.begin());
-}
-
-/**
  * @brief Checks every signature, instruction pin and target pin of the layer.
  * @param text `.text` of the game image (the image base is `text.base`).
  * @return Null when all pass, else the id of the first failed check.
  */
 inline const char* first_failed_pin(const core::TextSection& text) noexcept {
-    const auto image = reinterpret_cast<uptr>(text.base);
-    const core::ProcessMemory reader{};
-    for (const auto& signature : signatures) {
-        if (!core::verify_signature(text, signature)) {
-            return signature.id;
-        }
-    }
-    for (const auto& pin : instruction_pins) {
-        if (!verify_instruction(image, pin)) {
-            return pin.id;
-        }
-    }
-    for (const auto& pin : target_pins) {
-        if (!core::verify_rip_pin(reader, image, pin)) {
-            return pin.id;
-        }
-    }
-    return nullptr;
+    return core::first_failed(text, core::ProcessMemory{}, reinterpret_cast<uptr>(text.base), signatures,
+                              instruction_pins, target_pins);
 }
 
 }  // namespace capie::country::layer::pins

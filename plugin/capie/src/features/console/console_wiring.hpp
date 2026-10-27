@@ -28,6 +28,7 @@
 #include "../../core/log.hpp"
 #include "../../core/memory.hpp"
 #include "../../core/pe_image.hpp"
+#include "../../core/pin_check.hpp"
 #include "../../core/signatures.hpp"
 #include "console_bridge.hpp"
 #include "console_layout.hpp"
@@ -75,15 +76,9 @@ inline constexpr core::Signature console_signatures[] = {
      "4881C100010000E9????????CCCCCCCC48895C2418", "sprite of a name in the sprite database (portrait review 1.4)"},
 };
 
-/// @brief Exact instruction bytes at an RVA (inside a function verified above).
-struct InstructionPin {
-    const char* id;   ///< Identifier for the log.
-    uptr rva;         ///< Instruction RVA.
-    const char* hex;  ///< Exact bytes.
-};
-
-/// @brief The 22 layout pins of re-evidence.md section 7, the cosmetic-tag offset and the gate order.
-inline constexpr InstructionPin instruction_pins[] = {
+/// @brief The 22 layout pins of re-evidence.md section 7, the cosmetic-tag offset and the gate order
+/// (each inside a function verified above).
+inline constexpr core::InstructionPin instruction_pins[] = {
     {"entry.name", 0x2537AE9, "488d4d08"},
     {"entry.alias_count", 0x2537AFD, "397d28"},
     {"entry.aliases", 0x2537B02, "488d7530"},
@@ -142,43 +137,13 @@ inline std::uint32_t thread_id() noexcept {
 }
 
 /**
- * @brief Checks one instruction pin.
- * @param image Image base.
- * @param pin Pin.
- * @return `true` when the bytes at `image + rva` equal the pin.
- */
-inline bool verify_instruction(uptr image, const InstructionPin& pin) noexcept {
-    std::array<unsigned char, core::max_pattern_bytes> expected{};
-    const auto size = core::decode_hex(pin.hex, expected.data(), expected.size());
-    std::array<unsigned char, core::max_pattern_bytes> actual{};
-    return size != 0 && core::ProcessMemory::read(image + pin.rva, actual.data(), size) &&
-           std::equal(expected.begin(), expected.begin() + static_cast<std::ptrdiff_t>(size), actual.begin());
-}
-
-/**
  * @brief Checks every console signature, instruction pin and target pin (code bytes only).
  * @param text `.text` of the game image (the image base is `text.base`).
  * @return Null when all pass, else the id of the first failed check.
  */
 inline const char* first_failed_pin(const core::TextSection& text) noexcept {
-    const auto image = reinterpret_cast<uptr>(text.base);
-    const core::ProcessMemory reader{};
-    for (const auto& signature : console_signatures) {
-        if (!core::verify_signature(text, signature)) {
-            return signature.id;
-        }
-    }
-    for (const auto& pin : instruction_pins) {
-        if (!verify_instruction(image, pin)) {
-            return pin.id;
-        }
-    }
-    for (const auto& pin : target_pins) {
-        if (!core::verify_rip_pin(reader, image, pin)) {
-            return pin.id;
-        }
-    }
-    return nullptr;
+    return core::first_failed(text, core::ProcessMemory{}, reinterpret_cast<uptr>(text.base), console_signatures,
+                              instruction_pins, target_pins);
 }
 
 /// @brief Process memory policy used by the bridge.
