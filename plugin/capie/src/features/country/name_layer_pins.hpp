@@ -28,7 +28,7 @@
 #include <cstddef>
 #include <iterator>
 
-namespace capie::country::layer::pins {
+namespace capie::country::name::pins {
 
 using core::uptr;
 
@@ -108,4 +108,4 @@ inline const char* first_failed_pin(const core::TextSection& text) noexcept {
                               instruction_pins, target_pins);
 }
 
-}  // namespace capie::country::layer::pins
+}  // namespace capie::country::name::pins
