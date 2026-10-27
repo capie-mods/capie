@@ -36,6 +36,7 @@
 #include "../core/game_build.hpp"
 #include "../core/hook_set.hpp"
 #include "../core/init_codes.hpp"
+#include "../core/rtti.hpp"
 #include "../core/log.hpp"
 #include "../core/pe_image.hpp"
 #include "../core/sha256.hpp"
@@ -482,6 +483,12 @@ InitCode initialize() {
     }
     if (const auto focus = focus_verify(text); focus != InitCode::ok) {
         return focus;
+    }
+    // Every vtable the editor compares objects against must belong to the expected class; a
+    // constant that points at another class after a port would let a wrong object pass.
+    if (core::first_wrong_class(core::ProcessMemory{}, reinterpret_cast<core::uptr>(base), core::editor_vtable_classes) !=
+        nullptr) {
+        return InitCode::rtti_mismatch;
     }
     wchar_t log_path[max_path_chars]{};
     if (GetModuleFileNameW(own_module, log_path, max_path_chars) == 0) {

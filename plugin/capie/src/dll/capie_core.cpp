@@ -46,6 +46,7 @@
 #include "../core/hook_set.hpp"
 #include "../core/init_codes.hpp"
 #include "../core/pe_image.hpp"
+#include "../core/rtti.hpp"
 #include "../core/sha256.hpp"
 #include "../core/signature_table.hpp"
 #include "../features/country/capability.hpp"
@@ -272,7 +273,12 @@ InitCode initialize() {
     const bool layer_ok = failed_pin == nullptr;
     const char* const failed_flag_pin = flag::pins::first_failed_pin(text);
     const bool flag_ok = layer_ok && failed_flag_pin == nullptr;
-    const char* const failed_portrait_pin = portrait::pins::first_failed_pin(text);
+    // The portrait layer compares characters against vt_character: its class is checked too (RTTI).
+    const char* failed_portrait_pin = portrait::pins::first_failed_pin(text);
+    if (failed_portrait_pin == nullptr) {
+        failed_portrait_pin =
+            core::first_wrong_class(core::ProcessMemory{}, reinterpret_cast<core::uptr>(base), core::core_vtable_classes);
+    }
     const bool portrait_ok = layer_ok && failed_portrait_pin == nullptr;
     const core::HookSpec all_hooks[] = {
         {"country.lookup_n", core::rva::loc_lookup_n, reinterpret_cast<void*>(&lookup_n),

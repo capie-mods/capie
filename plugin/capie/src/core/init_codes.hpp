@@ -22,6 +22,7 @@ enum class InitCode : std::uint32_t {
     signature_mismatch = 20,      ///< A byte signature is not unique at its RVA.
     caption_pin_mismatch = 21,    ///< Caption vtable slot pin or token DWORD differs.
     focus_pin_mismatch = 22,      ///< Focus fingerprint, slot pin or RIP target differs.
+    rtti_mismatch = 23,           ///< A vtable constant belongs to another class (MSVC RTTI, `rtti.hpp`).
     minhook_init_failed = 30,     ///< `MH_Initialize` failed.
     hook_create_failed = 31,      ///< `MH_CreateHook` failed for one target.
     hook_enable_failed = 32,      ///< Enabling hooks failed; partially enabled hooks were disabled.
