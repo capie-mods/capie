@@ -5,28 +5,28 @@
  * Country names: priority layer > cosmetic tag > base name. Three hooks on the game's logic
  * path, none on the per-frame localisation path:
  *
- * - `update_names(country)` (716580). Reads the country's layer (`name_layer.hpp`), remembers
+ * - `update_names(country)` (`rva::update_names`). Reads the country's layer (`name_layer.hpp`), remembers
  *   it for this thread and calls the original once. The original computes the three keys with
  *   `BuildNameKey`, localises them into the country's cached name, adjective and definite name
  *   and marks the map labels dirty when they changed.
- * - `build_name_key(out, tag, ...)` (6ECFF0). While an `update_names` call on this thread has a
+ * - `build_name_key(out, tag, ...)` (`rva::build_name_key`). While an `update_names` call on this thread has a
  *   valid layer, the original is called with the tag argument replaced by a borrowed string
  *   `RN1|<name>|<adjective>|`; otherwise the arguments pass through unchanged. The original
  *   only copies the tag (report 1.2). The existing localisation hooks answer the resulting
  *   `RN1|...` keys; ideology variants of that tag do not exist, so the game falls back to the
  *   base form exactly as for an RN1 cosmetic tag. Without a layer the original sees the real
  *   cosmetic tag (or the base tag), so the cosmetic tag wins over the base name.
- * - `set_variable(effect, context)` (364C60). After the original, if the effect's variable is
+ * - `set_variable(effect, context)` (`rva::set_variable_execute`). After the original, if the effect's variable is
  *   `capie_cn_rev`, every country whose layer differs from what it currently shows is refreshed
  *   through `update_names`. The effect runs at the same step of the same command on every
  *   multiplayer client; the refresh changes only the game's display caches. A variable named
  *   `capie_fn_rev` refreshes the faction cache below instead.
  *
  * Faction names (API level 5): one more hook, `faction_name(faction, out)` = `CFaction::GetName`
- * (D8BB80), the accessor 120 call sites use (it returns the stored name text, else the template
+ * (`rva::faction_get_name`), the accessor 120 call sites use (it returns the stored name text, else the template
  * name). When the faction leader (members[0], `faction+0x58`) has a valid faction layer
  * (`capie_fn_*` on the leader), the hook copies that text into `out` with the game's own string
- * copy (11E010) instead of calling the original; otherwise it calls the original. The stored
+ * copy (`rva::string_copy`) instead of calling the original; otherwise it calls the original. The stored
  * name is never touched, so removing the layer shows it again. The hook may run on a UI thread,
  * so it never reads variables: it reads a cache filled on the logic thread by `update_names`
  * (every country, also after a load) and by a `capie_fn_rev` commit. With no faction layer in
@@ -122,7 +122,7 @@ public:
      * @brief Activates the layers (after every pin passed and the hooks were installed).
      * @param image Image base (for the game-state global).
      * @param log Log sink (may be null).
-     * @param copy The game's string copy (pinned 11E010).
+     * @param copy The game's string copy (`rva::string_copy`, pinned).
      */
     void activate(uptr image, LogFn log, StringCopyFn copy) noexcept {
         image_ = image;

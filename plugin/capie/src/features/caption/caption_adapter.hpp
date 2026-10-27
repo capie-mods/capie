@@ -3,7 +3,7 @@
  * @brief Connects the caption refresh core to the editor bridge (same hooks, no extra detour).
  *
  * The core (`caption_refresh.hpp`) is engine-agnostic; this adapter gives it bounded
- * process memory, the carrier lookup, the SEH-guarded `B6E210` call and the editor log,
+ * process memory, the carrier lookup, the SEH-guarded `RequestViewRefresh` call and the editor log,
  * and exposes the four integration points the bridge calls:
  *   - `caption_tick(window)`     after the original Tick (observation + at most one request);
  *   - `caption_bind(window)`     after the original Bind (baseline reset);

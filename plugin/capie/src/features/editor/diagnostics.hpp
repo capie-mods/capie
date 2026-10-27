@@ -47,7 +47,7 @@ inline constexpr std::size_t short_line_capacity = 256;
 inline constexpr std::size_t escaped_bytes_per_point = 6;
 /// @brief Lower-case hex digits used in control-character escapes.
 inline constexpr char escape_hex_digits[] = "0123456789abcdef";
-/// @brief A code point renders as at most 9 characters in `codepoints=[...]` (" 10FFFF" + slack).
+/// @brief A code point renders as at most 9 characters in `codepoints=[...]` (space + U+10FFFF + slack).
 inline constexpr std::size_t codepoint_chars = 9;
 
 /**

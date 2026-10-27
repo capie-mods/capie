@@ -11,8 +11,8 @@
  * copied in under a short SRW lock; file I/O happens outside the lock.
  *
  * Flavors: the release editor DLL does not use either class (no ring, no remote requests,
- * no `RNDebugRequest` export). The debug flavor uses both exactly as the accepted rev7
- * bridge did.
+ * no `RNDebugRequest` export). The debug flavor uses both exactly as the original
+ * bridge prototype did.
  *
  * Performance: `Control::has_work()` is a lock-free flag so the per-frame Tick can skip
  * the queue entirely while no request is pending. When it is set, `take()` runs exactly

@@ -7,10 +7,9 @@
  * `focus_signatures` (+ focus slot pins and the manager RIP pin). Initialization refuses on
  * the first mismatch, with the code of the group (20, 21 or 22).
  *
- * Every entry was copied byte-for-byte from the accepted sources (country 18841A6D...,
- * caption bridge rev7 3864532C...). `tests/check_signature_table.py` re-extracts the
- * accepted values from those sources and fails on any difference in RVA, length or bytes;
- * `signature_exe_test.exe` checks every entry against the EXE file.
+ * `tests/check_signature_table.py` compares every entry with the accepted table of the pinned
+ * build (`tools/port/accepted-1.19.4.0.json`) and fails on any difference in RVA, length or
+ * bytes; `signature_exe_test.exe` checks every entry against the EXE file.
  *
  * Evidence rules (RE findings 1.1 and 6.1): each run starts and ends on an instruction
  * boundary, is free of DIR64 relocations (so it also matches the ASLR-relocated image),
@@ -176,7 +175,7 @@ inline constexpr SlotPin focus_slot_pins[] = {
     {rva::vt_edit, off::slot_edit_focus, rva::edit_focus},
 };
 
-/// @brief `22FBEC3: mov rcx,[rip+disp]` must target the focus manager global.
+/// @brief `mov rcx,[rip+disp]` of the receiver release thunk (`focus.2379B70`) must target the focus manager global.
 inline constexpr RipPin focus_manager_rip_pin = {"focus.manager_global", rva::focus_manager_rip_displacement,
                                                  rva::focus_manager_rip_next, rva::manager_global};
 

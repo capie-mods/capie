@@ -2,7 +2,7 @@
  * @file host_probe.hpp
  * @brief Read-only host detection probe (debug flavor of `capie_editor.dll`: log only, no record).
  *
- * Design and static evidence: monorepo archive: docs/evidence/session-20261014/host-detect/report.txt. Stage 1 of
+ * Design and static evidence: the host-detect report (session 2026-10-14). Stage 1 of
  * the rollout (report section 5, step 0): the debug flavor logs one `CAPIE_HOST` line per grammar
  * Apply; no `capie_host` record is sent and the release flavor does not contain the probe. The
  * record waits for the two-client test (report sections 5 and 7).
@@ -11,15 +11,15 @@
  * `get_host_username`; is_host = both equal. Names are compared as the SAME element of the human
  * list (machine id), so two players with the same display name never make a client the host.
  *
- * Engine chain (hoi4.exe 1.19.4.0; 1.19.3.0 values in docs/research/port-1.19.4.0.md):
- *   app      = [image + 0x33DDB08]                 getter 19A5F70; GetLocalHuman 1F1A49 loads it and calls vslot 0x88;
+ * Engine chain (pinned build; see docs/research/port-1.19.4.0.md):
+ *   app      = [image + 0x33DDB08]                 getter GetApplication; GetLocalHuman loads it and calls vslot 0x88;
  *              vtable CGameApplication 2796308
  *   session  = [app + 0x380]                       CGameApplication::GetSession 17F880 (vslot 0x88)
  *              vtable CSession 2BB4548
  *   mode     = dword [session + 0x34]              CSession::Init 22C3760: 0 client, 1 MP host, 2 local/SP
  *   server   = byte  [session + 0x3C]              Init: (mode-1) <= 1
  *   backend  = vtable of [session + 0x40]          CProxyServer 2BCBA08 / CNetworkServer 2BCB310 / CDummyServer 2BCB020
- *   my_id    = dword [session + 0x84]              GetMachineId 148D5F0; Init sets 1
+ *   my_id    = dword [session + 0x84]              GetMachineId; Init sets 1
  *   humans   = [gamestate + 0xF8], count [gamestate + 0x104], stride 0xA0, element vtable CHuman 279EDB8
  *              (GetLocalHuman 1F1A40 matches element+0x98 against my_id)
  *   name     = MSVC std::string at human + 0x20   (USER_NAME tooltip 1A413EB)
@@ -29,7 +29,7 @@
  * log line carries only lengths and "equal/different", never the text.
  *
  * Thread: called only from the Apply path of capie_editor (UI thread, the thread that also swaps
- * the session through CGameApplication::SetSession 1A8470). Reads only; no game calls, no writes.
+ * the session through CGameApplication::SetSession). Reads only; no game calls, no writes.
  */
 #pragma once
 #include "../../core/memory.hpp"
@@ -46,7 +46,7 @@ using core::uptr;
 
 /// @brief RVAs and offsets of the host chain (each one pinned in `host_pins.hpp`).
 namespace layout {
-inline constexpr uptr app_global = 0x33DDB08;           ///< CApplication* (RIP target in 222BDB0).
+inline constexpr uptr app_global = 0x33DDB08;           ///< CApplication* (RIP target of `app.global`).
 inline constexpr uptr vt_game_application = 0x2796308;  ///< CGameApplication primary vtable.
 inline constexpr uptr vt_session = 0x2BB4548;           ///< CSession vtable.
 inline constexpr uptr vt_proxy_server = 0x2BCBA08;      ///< Client backend.
@@ -55,17 +55,17 @@ inline constexpr uptr vt_dummy_server = 0x2BCB020;      ///< Local (single playe
 inline constexpr uptr vt_human = 0x279EDB8;             ///< CHuman vtable.
 inline constexpr uptr gamestate_global = 0x33DD6B0;     ///< CGameState* (also pinned by the name layer).
 
-inline constexpr uptr app_session = 0x380;            ///< 1776E0: mov rax,[rcx+380].
-inline constexpr uptr session_mode = 0x34;            ///< 22508E2: mov [rcx+4C],r8d.
-inline constexpr uptr session_is_server = 0x3C;       ///< 22508D5: mov [rcx+54],al.
-inline constexpr uptr session_backend = 0x40;         ///< 22508FE: mov [rcx+58],rdx.
-inline constexpr uptr session_machine_id = 0x84;      ///< B54190: mov eax,[rcx+A4].
-inline constexpr uptr gamestate_humans = 0xF8;        ///< 1DB90F: mov r10,[rbx+F8].
-inline constexpr uptr gamestate_human_count = 0x104;  ///< 1DB901: movsxd rcx,[rbx+104].
-inline constexpr uptr human_stride = 0xA0;            ///< 1DB92D: add rcx,0A0.
-inline constexpr uptr human_name = 0x20;              ///< 19A94BB: lea rdx,[rbx+20].
-inline constexpr uptr human_machine_id = 0x98;        ///< 1DB91C / BBC6E3.
-inline constexpr std::int32_t host_machine_id = 1;    ///< 2269C50: cmp dword [rcx+0C],1 = "from host".
+inline constexpr uptr app_session = 0x380;            ///< `host.get_session`: mov rax,[rcx+380].
+inline constexpr uptr session_mode = 0x34;            ///< `session.mode`: mov [rcx+34],r8d.
+inline constexpr uptr session_is_server = 0x3C;       ///< `session.is_server`: mov [rcx+3C],al.
+inline constexpr uptr session_backend = 0x40;         ///< `session.backend`: mov [rcx+40],rdx.
+inline constexpr uptr session_machine_id = 0x84;      ///< `host.get_machine_id`: mov eax,[rcx+84].
+inline constexpr uptr gamestate_humans = 0xF8;        ///< `gamestate.humans`: mov r10,[rbx+F8].
+inline constexpr uptr gamestate_human_count = 0x104;  ///< `gamestate.human_count`: movsxd rcx,[rbx+104].
+inline constexpr uptr human_stride = 0xA0;            ///< `human.stride`: add rcx,0A0.
+inline constexpr uptr human_name = 0x20;              ///< `human.name`: lea rdx,[rbx+20].
+inline constexpr uptr human_machine_id = 0x98;        ///< `human.machine_id`, `human.ctor_machine_id`.
+inline constexpr std::int32_t host_machine_id = 1;    ///< `host.is_from_host`: cmp dword [rcx+0C],1 = "from host".
 
 inline constexpr std::int32_t mode_client = 0;      ///< Session mode of an MP client.
 inline constexpr std::int32_t mode_mp_host = 1;     ///< Session mode of an MP host.

@@ -2,8 +2,9 @@
  * @file flag_layer_pins.hpp
  * @brief Code-byte pins of the country flag layer (`capie_core.dll`), checked before its hooks go live.
  *
- * The flag layer hooks `UpdateFlagAtlas` (123FE20), `LoadCountryFlag` (123F7E0) and
- * `BuildFlagCandidates` (147D990) and writes one slot key of the flag atlas. Pinned here: the
+ * The flag layer hooks `UpdateFlagAtlas` (`rva::flag_atlas_update`), `LoadCountryFlag`
+ * (`rva::load_country_flag`) and `BuildFlagCandidates` (`rva::build_flag_candidates`) and
+ * writes one slot key of the flag atlas. Pinned here: the
  * three function prologues (design 1.7, review 1.1), the atlas key array and its count, the loop
  * over the game-state country list that indexes the slots (review 1.7, K9), the cosmetic-tag
  * argument of the candidate call (review K7) and the call sites (the 8-argument

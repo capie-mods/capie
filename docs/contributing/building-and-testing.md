@@ -50,12 +50,17 @@ uv run ruff check
 uv run ruff format --check
 uv run ty check
 uv run python tools/check_constant_docstrings.py
+uv run python tools/lint/check_comment_addresses.py
 uv run pytest
 ```
 
 `tools/check_constant_docstrings.py` requires a docstring under every module-level `UPPER_CASE`
 constant and `Args:` and `Returns:` sections in every function docstring, which ruff does not
-check on its own. `uv run pytest` runs `tools/tests/` and `sdk/capie-script-sdk/tests/`.
+check on its own. `tools/lint/check_comment_addresses.py` fails on a 5 to 7 digit hex number in a
+comment of the DLL sources (`plugin/capie/src/{core,engine,features,dll}`) unless the code pins that
+value for the current build (`game_layout.hpp`, the signature and pin tables): comments name
+functions and constants, so they cannot go stale when the game updates. `plugin/capie/build.ps1`
+runs it too. `uv run pytest` runs `tools/tests/` and `sdk/capie-script-sdk/tests/`.
 Excluded paths (the archived [monorepo archive: docs/evidence/](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence), pinned tools under `probes/`) are listed with their
 reasons in `pyproject.toml`.
 

@@ -2,13 +2,14 @@
  * @file name_layer_pins.hpp
  * @brief Code-byte pins of the country name layer (`capie_core.dll`), checked before its hooks go live.
  *
- * The layer hooks `CCountry_UpdateNames` (716580), `CCountry_BuildNameKey` (6ECFF0) and
- * `CSetVariableEffect::Execute` (364C60), and reads country variables and the country list
- * with the layout in `core/game_layout.hpp`. Every hooked function and every offset it reads
- * is pinned here: 7 unique signatures, 12 instruction pins (offsets in the game's own
- * instructions) and 6 RIP/rel32 target pins (API level 5 added the faction name accessor
- * D8BB80, the string copy 11E010 and the faction member layout). Evidence:
- * monorepo archive: `docs/evidence/session-20261013/custom-name-layer/report.txt`, section 1.
+ * The layer hooks `CCountry_UpdateNames` (`rva::update_names`), `CCountry_BuildNameKey`
+ * (`rva::build_name_key`) and `CSetVariableEffect::Execute` (`rva::set_variable_execute`),
+ * and reads country variables and the country list with the layout in `core/game_layout.hpp`.
+ * Every hooked function and every offset it reads is pinned here: 7 unique signatures,
+ * 12 instruction pins (offsets in the game's own instructions) and 6 RIP/rel32 target pins
+ * (API level 5 added the faction name accessor `rva::faction_get_name`, the string copy
+ * `rva::string_copy` and the faction member layout). The "report" sections cited below are
+ * those of the custom-name-layer report (session 2026-10-13).
  *
  * All-or-nothing for the layer only: one failed pin turns the layer off (its three hooks are
  * not installed) and is logged; the three localisation hooks and RN1 names keep working. This
@@ -75,7 +76,7 @@ inline constexpr InstructionPin instruction_pins[] = {
     {"scoped_variable.name_size", 0x58C463, "8b8780000000"},                // mov eax,[rdi+80]
     {"scoped_variable.name_data", 0x58C469, "488d5770"},                    // lea rdx,[rdi+70]
     {"scoped_variable.name_capacity", 0x58C46D, "4883bf880000000f"},        // cmp qword [rdi+88],0F
-    {"set_variable.scoped_variable", 0x37D1D5, "4883c158"},                 // add rcx,58 before 542280
+    {"set_variable.scoped_variable", 0x37D1D5, "4883c158"},                 // add rcx,58 before the scope call
     {"update_names.tag_argument", 0x75EA17, "488d9788140000"},              // lea rdx,[rdi+1488] = BuildNameKey tag
     {"gamestate.countries", 0x1AF4EB, "488b9810030000"},                    // mov rbx,[rax+310]
     {"gamestate.country_count", 0x1AF4F2, "4863801c030000"},                // movsxd rax,[rax+31C]

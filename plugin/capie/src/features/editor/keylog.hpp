@@ -14,7 +14,7 @@
  * 64 records per slot.
  *
  * The release flavor does not install the key and wrapper hooks at all, so none of this
- * runs there. In the debug flavor the behaviour and line format equal the accepted rev7.
+ * runs there. In the debug flavor the behaviour and line format equal the original bridge prototype.
  */
 #pragma once
 #include "../../core/log.hpp"
@@ -107,9 +107,9 @@ inline SRWLOCK logger_lock = SRWLOCK_INIT;
 
 /// @brief Result of taking a budget slot.
 enum class LogSlot { record, cap, drop };
-/// @brief Event word holding modifiers (zero for a plain Enter; 2272FA0).
+/// @brief Event word holding modifiers (zero for a plain Enter; the game's Enter test).
 inline constexpr std::size_t event_modifier_word = 2;
-/// @brief Last event word, also checked by the native Enter predicate (2272FA0).
+/// @brief Last event word, also checked by the native Enter predicate.
 inline constexpr std::size_t event_final_word = 7;
 /// @brief Size of a key log line buffer.
 inline constexpr std::size_t key_line_capacity = 2048;

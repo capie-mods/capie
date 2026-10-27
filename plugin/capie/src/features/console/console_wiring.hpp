@@ -11,9 +11,10 @@
  * - `prepare(text, image)` runs inside `RNInitialize` (injector thread) after the editor's
  *   own checks. It reads only the game's code bytes: 13 unique signatures, 25 instruction
  *   pins (the 22 entry/argv/result offsets, the cosmetic-tag offset and the gate order) and
- *   11 RIP/rel32 target pins (the console singleton slot `35E1A80`, the calls from the
- *   verified `set_cosmetic_tag` body to `129CA0`, `10E10C0`, `BB4390`, `711260`, the
- *   dispatcher's gate message and lookup call, the game's own call of `24B4920`, and the
+ *   11 RIP/rel32 target pins (the console singleton slot, the calls from the verified
+ *   `set_cosmetic_tag` body to the string assign, the tag parser, `country_of` and the
+ *   cosmetic-tag setter, the dispatcher's gate message and lookup call, the game's own
+ *   call of add-or-replace, and the
  *   sprite database global and sprite lookup used by the portrait validity check). Only
  *   when every check passes does it fill a `NativeApi` with `verified = true`. A failure
  *   leaves the console feature off and the editor running, with one log line.
@@ -190,7 +191,7 @@ inline Registration logged_state = Registration::waiting;
 inline std::atomic<bool> prepared{false};
 
 /**
- * @brief The action CAPIE registers for its three commands (game thread, called by `24B4D60`).
+ * @brief The action CAPIE registers for its three commands (game thread, called by the console dispatcher).
  * @param out Dispatcher's result storage.
  * @param argv Tokens after the command name.
  * @param context Entry context.

@@ -2,15 +2,16 @@
  * @file portrait_layer_pins.hpp
  * @brief Code-byte pins of the leader portrait layer (`capie_core.dll`), checked before its hook goes live.
  *
- * Evidence: monorepo archive: docs/evidence/session-20261014/portrait-layer/design.txt and review.txt. Pinned:
- * - the hooked `ResolvePortrait` (139DF20) and its only caller B44490 (call at B44520, the
- *   character as the fifth argument, the caller's buffer, size 0 = small);
- * - inside 139DF20 the character argument and its id at +0xC;
- * - the validity function 139D1E0 the hook calls (flag byte, kind, name) and its call by the GUI;
+ * "design" and "review" below are the portrait-layer design and review (session 2026-10-14). Pinned:
+ * - the hooked `ResolvePortrait` (`rva::portrait_resolve`) and its only caller (the `ui.*` pins:
+ *   the character as the fifth argument, the caller's buffer, size 0 = small);
+ * - inside `ResolvePortrait` the character argument and its id at +0xC;
+ * - the validity function `rva::portrait_valid` the hook calls (flag byte, kind, name) and its call
+ *   by the GUI;
  * - the character layout as CCharacter::Write/Read use it (portraits +0x78 token 4C29,
- *   variables +0xD8 token 2A4A); the getters 0xCE9BA0 / 0xF9F9F0 are folded by the linker and
+ *   variables +0xD8 token 2A4A); the plain field getters are folded by the linker and
  *   prove nothing (review 1.2);
- * - the ruling-leader chain of the `set_country_leader_portrait` effect (2E5680): politics
+ * - the ruling-leader chain of the `set_country_leader_portrait` effect: politics
  *   +0xF90, ruling party +0xD0, first leader role (+0x70, count +0x7C), role +0x8 character,
  *   and its civilian large write (type 0, size 1).
  * None of the ranges overlaps a DIR64 relocation (checked by tools/port/gen_tables.py on the 1.19.4.0 file).

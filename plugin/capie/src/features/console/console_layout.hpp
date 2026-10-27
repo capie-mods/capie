@@ -2,12 +2,12 @@
  * @file console_layout.hpp
  * @brief Byte layouts of the game's console objects (HOI4 1.19.4.0, SHA B6650C85...; ported in docs/research/port-1.19.4.0.md).
  *
- * Every offset is proven by one instruction in monorepo archive: `docs/evidence/session-20261011/
- * claude-console/re-evidence.md` (sections 1 to 3; `raw/console_audit.txt` checks them):
+ * Every offset is proven by one instruction pin in `console_wiring.hpp` ("re-evidence.md" is the
+ * console RE report of session 2026-10-11):
  *
- *     console (singleton at image + 0x35E1A80)
+ *     console (singleton at image + `console_slot_rva`)
  *       +0x00 entry array data, +0x0C entry count, +0x10 allocator
- *     command entry, 0x1C8 bytes (24B4920 assignment path, 24B54C0 lookup)
+ *     command entry, 0x1C8 bytes (add-or-replace assignment path, lookup)
  *       +0x00 flag (1 = usable in release), +0x08 name, +0x28 alias count,
  *       +0x30 3 alias pointers (copied raw), +0x48 description, +0x68 action,
  *       +0x70 unused, +0x78 action context, +0x80 argument-name count,
@@ -32,11 +32,11 @@ namespace capie::console::layout {
 using core::uptr;
 using engine::MsvcString;
 
-/// @brief RVA of the console singleton slot (`24B4C40` stores it at `24B4CE4`/`24B4CFB`).
+/// @brief RVA of the console singleton slot (stored by `console.singleton_create`, pins `console.singleton_store*`).
 inline constexpr uptr console_slot_rva = 0x368F540;
-/// @brief RVA of the add-or-replace function (`24B4920`, masked hash CB12AC9E...AF36E).
+/// @brief RVA of the add-or-replace function (`console.add_or_replace`).
 inline constexpr uptr add_or_replace_rva = 0x2536F00;
-/// @brief RVA of MSVC `std::string::assign(const char*, size_t)` (callee at 2825E4).
+/// @brief RVA of MSVC `std::string::assign(const char*, size_t)` (called by `set_cosmetic_tag`).
 inline constexpr uptr string_assign_rva = 0x12B3C0;
 /// @brief RVA of the vanilla `set_cosmetic_tag` console action.
 inline constexpr uptr set_cosmetic_tag_rva = 0x299AC0;
@@ -62,24 +62,24 @@ inline constexpr std::size_t max_alias_bytes = 64;
 
 /// @brief Proven entry offsets (instruction pins in re-evidence.md section 7).
 namespace entry_offset {
-inline constexpr std::size_t name = 0x08;            ///< 24B5509 / 24B4AAB.
-inline constexpr std::size_t alias_count = 0x28;     ///< 24B551D / 24B4AD3.
-inline constexpr std::size_t aliases = 0x30;         ///< 24B5522.
-inline constexpr std::size_t description = 0x48;     ///< 24B4ACF.
-inline constexpr std::size_t action = 0x68;          ///< 24B4F8A / 24B4B15.
-inline constexpr std::size_t context = 0x78;         ///< 24B4F8F / 24B4B2A.
-inline constexpr std::size_t arg_name_count = 0x80;  ///< 24B4B31.
-inline constexpr std::size_t arg_names = 0x88;       ///< 24B4B0E (source + 8 + 0x80).
+inline constexpr std::size_t name = 0x08;            ///< Pin `entry.name`.
+inline constexpr std::size_t alias_count = 0x28;     ///< Pins `entry.alias_count`, `entry.alias_count_assign`.
+inline constexpr std::size_t aliases = 0x30;         ///< Pin `entry.aliases`.
+inline constexpr std::size_t description = 0x48;     ///< Pin `entry.description`.
+inline constexpr std::size_t action = 0x68;          ///< Pins `entry.action`, `entry.action_assign`.
+inline constexpr std::size_t context = 0x78;         ///< Pins `entry.context`, `entry.context_assign`.
+inline constexpr std::size_t arg_name_count = 0x80;  ///< Pin `entry.arg_name_count`.
+inline constexpr std::size_t arg_names = 0x88;       ///< Add-or-replace copies them (source + 8 + 0x80).
 }  // namespace entry_offset
 /// @brief Padding after a leading byte up to the next 8-byte member.
 inline constexpr std::size_t byte_padding = 7;
 /// @brief Size of a `TempVector` header.
 inline constexpr std::size_t temp_vector_size = 0x18;
-/// @brief Offset of the element count in a `TempVector` (24B4E9F, 282580).
+/// @brief Offset of the element count in a `TempVector` (pin `argv.count`).
 inline constexpr std::size_t temp_vector_count = 0x0C;
 /// @brief Size of an action result.
 inline constexpr std::size_t action_result_size = 0x28;
-/// @brief Offset of the message in an action result (24B4FA4).
+/// @brief Offset of the message in an action result (pin `result.message`).
 inline constexpr std::size_t action_result_message = 0x08;
 
 /// @brief One command entry, byte for byte.
@@ -127,34 +127,34 @@ static_assert(sizeof(ActionResult) == action_result_size && offsetof(ActionResul
 
 /// @brief A console action (`Result* fn(Result* out, const TempVector<std::string>* argv, u64 ctx)`).
 using ActionFn = ActionResult* (*)(ActionResult* out, const TempVector* argv, std::uint64_t context);
-/// @brief `24B4920(console, source)`: appends new names, replaces existing ones.
+/// @brief `add_or_replace(console, source)`: appends new names, replaces existing ones.
 using AddOrReplaceFn = void (*)(void* console, const TempVector* source);
-/// @brief `129CA0(string, bytes, size)`: MSVC `std::string::assign` on the game's heap.
+/// @brief `assign(string, bytes, size)`: MSVC `std::string::assign` on the game's heap.
 using AssignFn = MsvcString* (*)(MsvcString* self, const char* bytes, std::size_t size);
-/// @brief `10E10C0(out_tag, name)`: country tag from a name string (copies the name; read only).
+/// @brief `tag_parse(out_tag, name)`: country tag from a name string (copies the name; read only).
 using TagParseFn = void* (*)(void* out_tag, const MsvcString* name);
-/// @brief `BB4390(tag)`: country object of a tag (array lookup in the game state; read only).
+/// @brief `country_of(tag)`: country object of a tag (array lookup in the game state; read only).
 using CountryOfFn = void* (*)(const void* tag);
-/// @brief `2238DF0(database, name)`: sprite of a name, null when it does not exist (read only).
+/// @brief `sprite_find(database, name)`: sprite of a name, null when it does not exist (read only).
 using SpriteFindFn = void* (*)(void* database, const MsvcString* name);
 /// @brief Id of the calling thread.
 using ThreadIdFn = std::uint32_t (*)();
 /// @brief Writes one NUL-terminated log line.
 using LogFn = void (*)(const char* line);
 
-/// @brief RVA of the sprite lookup (called by the portrait validity check at 139D218).
+/// @brief RVA of the sprite lookup (called by the portrait validity check).
 inline constexpr uptr sprite_find_rva = 0x22A0B80;
-/// @brief RVA of the global sprite database pointer (read at 139D211).
+/// @brief RVA of the global sprite database pointer (read by the portrait validity check).
 inline constexpr uptr sprite_database_rva = 0x3500ED0;
-/// @brief RVA of the tag parser called by `set_cosmetic_tag` at 28258E.
+/// @brief RVA of the tag parser called by `set_cosmetic_tag`.
 inline constexpr uptr tag_parse_rva = 0x1168A70;
-/// @brief RVA of the country lookup called by `set_cosmetic_tag` at 2825A2.
+/// @brief RVA of the country lookup called by `set_cosmetic_tag`.
 inline constexpr uptr country_of_rva = 0xC07620;
-/// @brief Offset of the cosmetic tag string in a country (`711279 lea rsi,[rcx+1488]`).
+/// @brief Offset of the cosmetic tag string in a country (pin `country.cosmetic_tag`: `lea rsi,[rcx+1488]`).
 inline constexpr uptr country_cosmetic_tag = 0x1488;
 
 /**
- * @brief Writes an empty MSVC string, as `282560` does for its result.
+ * @brief Writes an empty MSVC string, as the vanilla `set_cosmetic_tag` does for its result.
  * @param target String storage (uninitialised or an empty SSO string).
  */
 inline void construct_empty(MsvcString& target) noexcept {

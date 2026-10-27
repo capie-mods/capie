@@ -2,10 +2,9 @@
  * @file host_pins.hpp
  * @brief Pins of the host probe (`host_probe.hpp`), checked once at editor start in the debug flavor.
  *
- * Source: monorepo archive: docs/evidence/session-20261014/host-detect/report.txt, section 3, ported to
- * 1.19.4.0 in docs/research/port-1.19.4.0.md (the session layout moved: mode +0x34, server +0x3C,
- * backend +0x40, machine id +0x84). `GetMachineId` keeps one leading padding byte so its pattern
- * is unique (148D5EF, `CC8B8184000000C3`). None of the pinned ranges overlaps a DIR64 relocation
+ * "report" below is the host-detect report (session 2026-10-14); the current values are in
+ * docs/research/port-1.19.4.0.md. `GetMachineId` keeps one leading padding byte so its pattern
+ * is unique (`CC8B8184000000C3`). None of the pinned ranges overlaps a DIR64 relocation
  * (checked on the 1.19.4.0 file by tools/port/gen_tables.py).
  *
  * A failed pin turns the probe off (one log line naming the pin); the editor keeps working.
