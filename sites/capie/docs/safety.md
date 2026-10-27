@@ -38,7 +38,7 @@ opens itself.
 CAPIE starts only on a game build it knows:
 
 1. It computes the SHA-256 of the running `hoi4.exe` and compares it with the pinned value for
-   HOI4 1.19.3.0. A different hash stops it with error code 10.
+   HOI4 1.19.4.0 (CAPIE 1.5.1). A different hash stops it with error code 10.
 2. Every code pattern it needs must match exactly once, at the expected address. One mismatch
    stops it with error code 20, before any hook is switched on.
 3. Only then does it hook. Each hook forwards to the game's original code exactly once.

@@ -80,5 +80,5 @@ evidence and the limits of each check.
 | Item | Why |
 |---|---|
 | Multiplayer | Never tested with two players |
-| Any game version other than 1.19.3.0 | CAPIE stays off; scripts keep working |
+| Any game version other than 1.19.4.0 (CAPIE 1.5.1) | CAPIE stays off; scripts keep working |
 | Achievements and ironman | Mods that change `common/` change the checksum; ironman not tested |
