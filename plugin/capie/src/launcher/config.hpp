@@ -59,6 +59,18 @@ inline constexpr wchar_t steam_user_key[] = L"Software\\Valve\\Steam";
 inline constexpr wchar_t app_data_dir_name[] = L"RenameAnything";
 /// @brief Launcher log file name inside the app data folder.
 inline constexpr wchar_t log_file_name[] = L"launcher.log";
+/// @brief Last outcome of a launcher run, next to the log (`key=value` lines, UTF-8; read by people and tools).
+inline constexpr wchar_t status_file_name[] = L"last-status.txt";
+/**
+ * @brief Crash-loop sentinel of the launcher, next to the log.
+ *
+ * Written before the first injector step and deleted once both steps ended cleanly (or the
+ * game survived a refused step). Still present at the next start means the last game with
+ * CAPIE ended during injection (crash, kill, power loss): that start runs without CAPIE once.
+ */
+inline constexpr wchar_t inject_sentinel_name[] = L"capie-inject.pending";
+/// @brief Release page named in the player notices about an unsupported game build.
+inline constexpr wchar_t release_page_url[] = L"https://github.com/capie-mods/capie/releases/latest";
 /// @brief Suffix of the single rotated log file.
 inline constexpr wchar_t rotated_log_suffix[] = L".1";
 /// @brief File remembering the game chosen in shortcut mode (UTF-16 with BOM, as in the accepted launcher).
@@ -192,6 +204,8 @@ struct Policy {
     std::wstring dlc_load;
     /// @brief How the CAPIE switch mod is recognised in that playset.
     ModIdentity capie_mod;
+    /// @brief Absolute path of the crash-loop sentinel (`inject_sentinel_name`); empty disables the breaker.
+    std::wstring crash_sentinel;
     /// @brief Unknown build handling (see UnknownBuildPolicy).
     UnknownBuildPolicy unknown_build = UnknownBuildPolicy::run_without_capie;
     /// @brief Timeouts.

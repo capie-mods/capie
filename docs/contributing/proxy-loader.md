@@ -42,6 +42,17 @@ An initializer failure is recorded in `proxy.log`; a core already activated is r
 editor initialization fails, and the game must be restarted. No module with possible live
 hooks is unloaded.
 
+The DLL hashes compiled into the proxy come from `plugin/capie/deploy/bundle-inputs.json`, the
+same list the launcher bundle is built from (format in `plugin/capie/deploy/DEPLOYMENT.md`);
+`build_proxy.ps1` reads the generated header back and fails when its pins differ from that list.
+
+Crash-loop breaker: right before the first `RNInitialize` the worker writes
+`%LOCALAPPDATA%\RenameAnything\proxy-init.pending` and deletes it once both initializers have
+returned. If the file is still there at the next start (the previous game ended inside an
+initializer), that start loads no CAPIE, logs `crash_guard_skipped` in `proxy.log` and deletes
+the file, so the start after it tries again. The launcher uses its own sentinel,
+`capie-inject.pending`, around its two injector steps.
+
 This method creates no helper process, opens no other process and uses no remote thread.
 The system forwards remain available regardless of activation or validation outcome.
 

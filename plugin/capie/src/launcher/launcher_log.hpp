@@ -10,8 +10,15 @@
  * Notices are the few things the player must hear about (unknown game build, damaged
  * bundle, CAPIE not loaded). Each notice is logged; when dialogs are on it is also shown
  * in a message box on its own thread, so the launcher keeps working and the game is never
- * blocked by an unanswered dialog. `--no-dialogs` keeps notices in the log only. Texts are
- * Polish when the Windows UI language is Polish, English otherwise.
+ * blocked by an unanswered dialog. The box is topmost and asks for the foreground: the
+ * launcher has no window of its own, and a notice hidden behind the Paradox Launcher or the
+ * game's loading screen would never be read. `--no-dialogs` keeps notices in the log only.
+ * Texts are Polish when the Windows UI language is Polish, English otherwise.
+ *
+ * Next to the log, `last-status.txt` holds the outcome of the latest run in four
+ * `key=value` lines (`time`, `outcome`, `message`, `log`), replaced atomically, so the
+ * player, a support request or the installer can read "what happened last time" without
+ * reading the log.
  */
 #pragma once
 #include "config.hpp"
@@ -37,6 +44,44 @@ enum class Level : std::uint8_t { info, warning, error };
 
 /// @brief Characters of the time stamp prefix buffer.
 inline constexpr std::size_t stamp_chars = 64;
+/// @brief Style of every non-blocking notice box: on top of the game and the Paradox Launcher.
+inline constexpr UINT notice_box_style = MB_OK | MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND;
+/// @brief Style of a notice box shown when nothing was started.
+inline constexpr UINT error_box_style = MB_OK | MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND;
+
+/**
+ * @brief UTC time as ISO 8601 with milliseconds.
+ * @return For example `2026-10-27T12:00:00.000Z`.
+ */
+inline std::string utc_stamp() {
+    SYSTEMTIME now{};
+    GetSystemTime(&now);
+    std::array<char, stamp_chars> stamp{};
+    static_cast<void>(std::snprintf(stamp.data(), stamp.size(), "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ", now.wYear,
+                                    now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds));
+    return stamp.data();
+}
+
+/**
+ * @brief One line of the status file: line breaks and tabs of a notice become single spaces.
+ * @param text Text.
+ * @return Single-line text without trailing spaces.
+ */
+inline std::wstring single_line(std::wstring_view text) {
+    std::wstring line;
+    for (const wchar_t ch : text) {
+        const bool control = ch == L'\r' || ch == L'\n' || ch == L'\t';
+        if (!control) {
+            line.push_back(ch);
+        } else if (!line.empty() && line.back() != L' ') {
+            line.push_back(L' ');
+        }
+    }
+    while (!line.empty() && line.back() == L' ') {
+        line.pop_back();
+    }
+    return line;
+}
 
 /// @brief Append-only, thread-safe local log file.
 class Log {
@@ -64,14 +109,10 @@ public:
             return;
         }
         try {
-            SYSTEMTIME now{};
-            GetSystemTime(&now);
-            std::array<char, stamp_chars> stamp{};
-            static_cast<void>(std::snprintf(stamp.data(), stamp.size(),
-                                            "%04u-%02u-%02uT%02u:%02u:%02u.%03uZ pid=%lu %s ", now.wYear, now.wMonth,
-                                            now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds,
-                                            GetCurrentProcessId(), level_name(level)));
-            std::string line = stamp.data() + to_utf8(text) + "\r\n";
+            std::array<char, stamp_chars> prefix{};
+            static_cast<void>(std::snprintf(prefix.data(), prefix.size(), " pid=%lu %s ", GetCurrentProcessId(),
+                                            level_name(level)));
+            std::string line = utc_stamp() + prefix.data() + to_utf8(text) + "\r\n";
             const std::scoped_lock lock(mutex_);
             const Handle file(CreateFileW(path_.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                                           OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
@@ -86,6 +127,50 @@ public:
 
     /// @brief Log path (empty when disabled).
     [[nodiscard]] const std::wstring& path() const noexcept { return path_; }
+
+    /**
+     * @brief Path of the status file next to the log.
+     * @return `last-status.txt` in the log's folder, or empty when logging is disabled.
+     */
+    [[nodiscard]] std::wstring status_path() const {
+        const auto slash = path_.find_last_of(L"\\/");
+        return slash == std::wstring::npos ? std::wstring{} : path_.substr(0, slash + 1) + status_file_name;
+    }
+
+    /**
+     * @brief Replaces the status file with the outcome of this run.
+     * @param outcome Short tag (for example `capie-loaded`, `game-without-capie`, `not-started`).
+     * @param message One sentence for the player (line breaks become spaces).
+     * @note Never throws. Written to a temporary file and moved over the old one, so a reader
+     *       sees the previous or the new status, never a half-written one.
+     */
+    void status(std::wstring_view outcome, std::wstring_view message) noexcept {
+        try {
+            const auto target = status_path();
+            if (target.empty()) {
+                return;
+            }
+            const std::string text = "time=" + utc_stamp() + "\r\noutcome=" + to_utf8(single_line(outcome)) +
+                                     "\r\nmessage=" + to_utf8(single_line(message)) + "\r\nlog=" + to_utf8(path_) +
+                                     "\r\n";
+            const auto temporary = target + L"." + std::to_wstring(GetCurrentProcessId()) + L".tmp";
+            const std::scoped_lock lock(mutex_);
+            bool written = false;
+            {
+                const Handle file(CreateFileW(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                                              FILE_ATTRIBUTE_NORMAL, nullptr));
+                DWORD actual = 0;
+                written = file &&
+                          WriteFile(file.get(), text.data(), static_cast<DWORD>(text.size()), &actual, nullptr) != 0 &&
+                          actual == text.size();
+            }
+            if (!written || MoveFileExW(temporary.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING) == 0) {
+                DeleteFileW(temporary.c_str());
+            }
+        } catch (...) {
+            return;  // the status file is a convenience; it never affects the launch
+        }
+    }
 
 private:
     /**
@@ -119,10 +204,14 @@ enum class Notice : std::uint8_t {
     invalid_command,     ///< wrapped command refused
     start_failed,        ///< the wrapped program could not start
     playset_unknown,     ///< the active playset could not be read; CAPIE stays off
+    unknown_program,     ///< Steam's command names another program in the game folder: started unchanged, CAPIE off
+    elevated_start,      ///< the program needs administrator rights: started through the shell, CAPIE off
+    launcher_problem,    ///< an unexpected error before the start: the game's command started unchanged, CAPIE off
+    crash_guard,         ///< the last start ended while CAPIE was loading: this start runs without CAPIE once
 };
 
 /// @brief Last notice value (tests iterate every notice up to it).
-inline constexpr Notice last_notice = Notice::playset_unknown;
+inline constexpr Notice last_notice = Notice::crash_guard;
 
 /**
  * @brief Whether the Windows UI language is Polish.
@@ -141,12 +230,14 @@ inline bool polish_ui() noexcept {
 inline std::wstring_view notice_text(Notice notice, bool polish) noexcept {
     switch (notice) {
         case Notice::unknown_game_build:
-            return polish ? L"Ta wersja Hearts of Iron IV nie jest obsługiwana przez zainstalowane CAPIE. Gra "
-                            L"uruchomi się bez CAPIE: zmiana nazw w polu tekstowym i nazwy krajów są wyłączone. "
-                            L"Sprawdź aktualizację: install.ps1 -CheckUpdate."
-                          : L"This Hearts of Iron IV version is not supported by the installed CAPIE. The game "
-                            L"starts without CAPIE: in-place renaming and country names are off. Check for an "
-                            L"update: install.ps1 -CheckUpdate.";
+            return polish ? L"CAPIE wymaga aktualizacji do tej wersji Hearts of Iron IV. Gra uruchomi się bez "
+                            L"CAPIE: do czasu aktualizacji zmiana nazw w polu tekstowym i nazwy krajów są wyłączone. "
+                            L"Zaktualizuj CAPIE w menu instalatora (instalacja lub aktualizacja) albo pobierz "
+                            L"najnowsze wydanie: https://github.com/capie-mods/capie/releases/latest"
+                          : L"CAPIE needs an update for this Hearts of Iron IV version. The game starts without "
+                            L"CAPIE: in-place renaming and country names are off until then. Update CAPIE from the "
+                            L"installer menu (install or update) or download the latest release: "
+                            L"https://github.com/capie-mods/capie/releases/latest";
         case Notice::bundle_invalid:
             return polish ? L"Pliki CAPIE są niekompletne, zmienione albo folder nie jest zapisywalny. Gra uruchomi "
                             L"się bez CAPIE. Zainstaluj ponownie: install.ps1 -Install."
@@ -179,6 +270,29 @@ inline std::wstring_view notice_text(Notice notice, bool polish) noexcept {
                             L"włączony. Gra działa bez CAPIE. Nic nie zmieniono."
                           : L"The active playset could not be read, so it is not known whether the \"CAPIE\" mod is "
                             L"enabled. The game runs without CAPIE. Nothing was changed.";
+        case Notice::unknown_program:
+            return polish ? L"Steam uruchamia program, którego launcher nie zna (ani dowser.exe, ani hoi4.exe). "
+                            L"Został uruchomiony bez zmian, a gra działa bez CAPIE. Jeśli to skutek aktualizacji "
+                            L"gry, CAPIE wymaga aktualizacji: https://github.com/capie-mods/capie/releases/latest"
+                          : L"Steam starts a program the launcher does not know (neither dowser.exe nor hoi4.exe). "
+                            L"It was started unchanged and the game runs without CAPIE. If this follows a game "
+                            L"update, CAPIE needs an update: https://github.com/capie-mods/capie/releases/latest";
+        case Notice::elevated_start:
+            return polish ? L"Program gry wymaga uprawnień administratora, więc uruchomił go system Windows. Gra "
+                            L"działa bez CAPIE (CAPIE nie ładuje się do gry uruchomionej jako administrator)."
+                          : L"The game's program requires administrator rights, so Windows started it. The game runs "
+                            L"without CAPIE (CAPIE does not load into a game that runs as administrator).";
+        case Notice::launcher_problem:
+            return polish ? L"Launcher napotkał nieoczekiwany błąd przed startem. Polecenie gry zostało uruchomione "
+                            L"bez zmian, a gra działa bez CAPIE. Szczegóły są w launcher.log."
+                          : L"The launcher hit an unexpected error before the start. The game's command was started "
+                            L"unchanged and the game runs without CAPIE. Details are in launcher.log.";
+        case Notice::crash_guard:
+            return polish ? L"Poprzednie uruchomienie zakończyło się w trakcie ładowania CAPIE (gra mogła ulec "
+                            L"awarii lub zostać zamknięta). Tym razem gra działa bez CAPIE; następne uruchomienie "
+                            L"znów spróbuje je załadować."
+                          : L"The previous start ended while CAPIE was loading (the game may have crashed or been "
+                            L"closed). This time the game runs without CAPIE; the next start tries again.";
     }
     return {};
 }
@@ -203,9 +317,10 @@ public:
         try {
             auto text = compose(notice, detail);
             log_.write(Level::warning, L"notice: " + text);
+            remember(text);
             if (dialogs_) {
                 std::thread([message = std::move(text)]() noexcept {
-                    MessageBoxW(nullptr, message.c_str(), dialog_title, MB_OK | MB_ICONWARNING);
+                    MessageBoxW(nullptr, message.c_str(), dialog_title, notice_box_style);
                 }).detach();
             }
         } catch (...) {
@@ -223,8 +338,9 @@ public:
         try {
             const auto text = compose(notice, detail);
             log_.write(Level::error, L"notice: " + text);
+            remember(text);
             if (dialogs_) {
-                MessageBoxW(nullptr, text.c_str(), dialog_title, MB_OK | MB_ICONERROR);
+                MessageBoxW(nullptr, text.c_str(), dialog_title, error_box_style);
             }
         } catch (...) {
             log_.write(Level::error, L"notice could not be shown");
@@ -234,7 +350,25 @@ public:
     /// @brief Number of notices issued (tests).
     [[nodiscard]] unsigned count() const noexcept { return count_.load(); }
 
+    /**
+     * @brief Text of the latest notice (for the status file).
+     * @return Text with detail, or empty when there was none.
+     */
+    [[nodiscard]] std::wstring last_text() const {
+        const std::scoped_lock lock(mutex_);
+        return last_;
+    }
+
 private:
+    /**
+     * @brief Keeps the latest notice text.
+     * @param text Text.
+     */
+    void remember(const std::wstring& text) {
+        const std::scoped_lock lock(mutex_);
+        last_ = text;
+    }
+
     /**
      * @brief Text plus detail.
      * @param notice Notice.
@@ -258,6 +392,8 @@ private:
     bool dialogs_;
     bool polish_;
     std::atomic<unsigned> count_{0};
+    mutable std::mutex mutex_;
+    std::wstring last_;
 };
 
 }  // namespace capie::launcher

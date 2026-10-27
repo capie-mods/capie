@@ -14,7 +14,8 @@
  *    `parallel` (a second game, living twice as long, 300 ms after the first), `none` (no game).
  *  - `FAKE_GAME_LOG`, `FAKE_GAME_MARKERS` (default 2), `FAKE_GAME_DELAY_MS` (default 300),
  *    `FAKE_GAME_LIFETIME_MS` (default 4000), `FAKE_GAME_WINDOW` (default 1) for hoi4.exe.
- *  - `FAKE_INJECT_FAIL_DLL` (file name that fails with code 14), `FAKE_INJECT_SLEEP_MS`.
+ *  - `FAKE_INJECT_FAIL_DLL` (file name that fails with code 14), `FAKE_INJECT_SLEEP_MS`,
+ *    `FAKE_INJECT_KILL_GAME` (1: end the target game first, as a crash during injection would).
  *
  * The fake game creates a real, visible but off-screen top-level window and pumps its
  * messages, so the launcher's window probe sees exactly what it would see in HOI4. Nothing
@@ -246,6 +247,16 @@ int game() {
 int injector(int argc, wchar_t** argv) {
     record(L"injector", argc == 3 ? std::wstring(argv[1]) + L" " + argv[2] : L"bad-usage");
     Sleep(env_number(L"FAKE_INJECT_SLEEP_MS", 0));
+    if (argc == 3 && env_number(L"FAKE_INJECT_KILL_GAME", 0) != 0) {
+        HANDLE target = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE,
+                                    static_cast<DWORD>(std::wcstoul(argv[1], nullptr, 10)));
+        if (target != nullptr) {
+            TerminateProcess(target, 3);  // what a crash inside RNInitialize looks like from outside
+            WaitForSingleObject(target, INFINITE);
+            CloseHandle(target);
+        }
+        return inject_refused;
+    }
     const auto failing = env(L"FAKE_INJECT_FAIL_DLL");
     if (argc == 3 && !failing.empty() && std::filesystem::path(argv[2]).filename().wstring() == failing) {
         return inject_refused;

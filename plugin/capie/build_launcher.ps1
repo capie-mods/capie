@@ -4,11 +4,13 @@
 
 .DESCRIPTION
     Output: plugin/build/capie-launcher/ (the accepted plugin/build/launcher-candidate is not touched).
-      1. Every input binary (the CAPIE 1.5 release build plugin/build/capie-v15-dev/capie_core.dll,
-         capie_editor.dll, capie_injector.exe; never debug/ or a console build) must match the
-         SHA-256 recorded in plugin/capie/deploy/DEPLOYMENT.md.
+      1. Every input binary listed in plugin/capie/deploy/bundle-inputs.json (today the CAPIE 1.5
+         release build plugin/build/capie-v15-dev/capie_core.dll, capie_editor.dll,
+         capie_injector.exe; never debug/ or a console build) must match its SHA-256 there. The
+         same file pins the proxy (build_proxy.ps1), and the table in DEPLOYMENT.md must mirror it.
       2. The inputs are copied into runtime\ and launcher_manifest.generated.hpp is written from
-         the copies (name, lower-case SHA-256, DLL or EXE).
+         the copies (name, lower-case SHA-256, DLL or EXE); its hashes must equal the JSON. A
+         proxy build output that pins other DLL hashes is reported as stale.
       3. The launcher (/SUBSYSTEM:WINDOWS, asInvoker), fake_process.exe and both test suites are
          compiled with /MT /W4 /WX /std:c++20 /permissive-; warnings fail the build.
       4. launcher_unit_test and launcher_flow_test run against scratch folders and fake processes.
@@ -41,6 +43,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'PowerShell 7 is required to build (not to run the launcher).' }
 Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'NativeBuild.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'deploy\BundleInputs.psm1') -Force
 
 # --- Constants ---------------------------------------------------------------
 $script:LauncherVersion = '1.0.0-dev'
@@ -53,18 +56,10 @@ $script:FakeLinkOptions = @('/SUBSYSTEM:WINDOWS', '/ENTRY:wmainCRTStartup')
 $script:WarningPattern = '\bwarning\s+[A-Z]+[0-9]+'
 $script:AsInvokerPattern = 'level="asInvoker"'
 $script:CliTimeoutMilliseconds = 60000
-# Reviewed CAPIE stage-2 release binaries (plugin/capie/deploy/DEPLOYMENT.md). Order = BundleManifest order.
-$script:BundleInputs = @(
-    @{ source = 'plugin/build/capie-v15-dev/capie_core.dll'; name = 'capie_core.dll'; dll = $true
-        sha = '7A1C946F8A15F6120A0232453E3013B9F854EC2A6B526D0AB9C86F19959D0DE1'
-    },
-    @{ source = 'plugin/build/capie-v15-dev/capie_editor.dll'; name = 'capie_editor.dll'; dll = $true
-        sha = '0DAD2732552305F43E1E87FB6E10E6A5B473E683EA27F1E82D0EBD9B8934D656'
-    },
-    @{ source = 'plugin/build/capie-v15-dev/capie_injector.exe'; name = 'capie_injector.exe'; dll = $false
-        sha = 'EB5E9FF5F9B944B55CA5EB4B343D18D507584284FB60F5F119A8BE8843484C25'
-    }
-)
+# Reviewed CAPIE release binaries: plugin/capie/deploy/bundle-inputs.json (shared with build_proxy.ps1).
+# Order = BundleManifest order (core, editor, injector); sha256 is lower-case.
+$script:BundleInputs = @(Read-CapieBundleInput)
+Assert-CapieDeploymentTable -Inputs $script:BundleInputs
 # The accepted launcher candidate stays the reference; the build proves it did not change it.
 $script:ProtectedNames = @('plugin/launcher/launcher.cpp', 'plugin/launcher/launcher_core.hpp',
     'plugin/launcher/launcher_test.cpp', 'plugin/launcher/build.ps1', 'plugin/launcher/README.md',
@@ -178,18 +173,25 @@ function Invoke-Cli {
 $before = [ordered]@{}
 foreach ($name in $script:ProtectedNames) { $before[$name] = Get-Sha256 (Join-Path $repoDir $name) }
 foreach ($entry in $script:BundleInputs) {
-    if ((Get-Sha256 (Join-Path $repoDir $entry.source)) -ne $entry.sha) { throw "CAPIE input differs from DEPLOYMENT.md: $($entry.source)" }
+    $source = Join-Path $repoDir $entry.source
+    if (-not (Test-Path -LiteralPath $source)) { throw "Reviewed CAPIE input missing (bundle-inputs.json): $($entry.source)" }
+    if ((Get-Sha256 $source).ToLowerInvariant() -cne $entry.sha256) { throw "CAPIE input differs from bundle-inputs.json: $($entry.source)" }
 }
 # 2. Bundle copy and generated manifest.
 foreach ($dir in $outputDir, $runtimeDir, $testOutDir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
 foreach ($entry in $script:BundleInputs) {
     $target = Join-Path $runtimeDir $entry.name
     Copy-Item -LiteralPath (Join-Path $repoDir $entry.source) -Destination $target -Force
-    if ((Get-Sha256 $target) -ne $entry.sha) { throw "Bundle copy mismatch: $($entry.name)" }
+    if ((Get-Sha256 $target).ToLowerInvariant() -cne $entry.sha256) { throw "Bundle copy mismatch: $($entry.name)" }
 }
 Copy-Item -LiteralPath (Join-Path $repoDir 'plugin/build/capie-v15-dev/LICENSE.MinHook.txt') -Destination (Join-Path $outputDir 'LICENSE.MinHook.txt') -Force
-[IO.File]::WriteAllText((Join-Path $outputDir 'launcher_manifest.generated.hpp'), (New-LauncherManifestHeader -RuntimeDirectory $runtimeDir),
-    [Text.UTF8Encoding]::new($false))
+$launcherHeader = Join-Path $outputDir 'launcher_manifest.generated.hpp'
+[IO.File]::WriteAllText($launcherHeader, (New-LauncherManifestHeader -RuntimeDirectory $runtimeDir), [Text.UTF8Encoding]::new($false))
+# The compiled pins must be the JSON's, and the proxy must not pin another CAPIE build.
+Assert-CapieLauncherMatchesBundle -LauncherHashes (Get-CapieHeaderHash -Path $launcherHeader) -Inputs $script:BundleInputs
+$staleProxy = Test-CapieOtherBuild -HeaderPath (Join-Path $repoDir 'plugin\build\capie-proxy\proxy_manifest.generated.hpp') `
+    -Inputs $script:BundleInputs -Proxy
+if ($staleProxy) { Write-Warning $staleProxy }
 [void](Import-NbVisualStudioEnvironment -VisualStudioDir $VisualStudioDir)
 $script:CliResults = [Collections.Generic.List[object]]::new()
 
@@ -256,6 +258,20 @@ if (Test-Path -LiteralPath $GameExe) {
 [void](Invoke-Cli -Executable $exe -Arguments "--no-dialogs `"$cliDir\missing\dowser.exe`"" -Expected 2 -Environment $fakeEnv)
 [void](Invoke-Cli -Executable $exe -Arguments "--no-dialogs relative\dowser.exe" -Expected 2 -Environment $fakeEnv)
 if (Test-Path -LiteralPath $record) { throw 'A refused wrapper command started a process.' }
+$statusFile = Join-Path $appData 'RenameAnything\last-status.txt'
+if ((Get-Content -LiteralPath $statusFile -Raw -Encoding utf8) -notmatch 'outcome=not-started') { throw 'A refusal did not write last-status.txt.' }
+# Another program in the game folder (a renamed Paradox Launcher): started unchanged, CAPIE off, one notice.
+$fakeRelay = Join-Path $gameDir 'relay.exe'
+[void](Invoke-Cli -Executable $exe -Arguments ("--no-dialogs `"$fakeRelay`" -x") -Expected 0 -Environment $fakeEnv)
+$records = @(Get-Content -LiteralPath $record -Encoding utf8)
+$relayLine = @($records | Where-Object { $_ -like 'relay|*' })
+if ($relayLine.Count -ne 1 -or $relayLine[0].Split('|')[2] -ne "`"$fakeRelay`" -x") { throw "Unknown program not started unchanged: $relayLine" }
+if (@($records | Where-Object { $_ -like 'hoi4|*' }).Count -ne 1) { throw 'The game behind the unknown program did not run.' }
+if (@($records | Where-Object { $_ -like 'injector|*' }).Count -ne 0) { throw 'Injector ran behind an unknown program.' }
+if ((Get-Content -LiteralPath $statusFile -Raw -Encoding utf8) -notmatch 'outcome=game-without-capie') {
+    throw 'last-status.txt does not report the run without CAPIE.'
+}
+Remove-Item -LiteralPath $record -Force
 # Wrapper with fakes: the fake game hash is unknown, so the game runs without CAPIE and the launcher waits for it.
 $tail = ' "-- " -debug_mode "a\"b"'
 $case = Invoke-Cli -Executable $exe -Arguments ("--no-dialogs `"$fakeDowser`"" + $tail) -Expected 0 -Environment $fakeEnv
@@ -267,8 +283,11 @@ if ($dowserLine[0].Split('|')[4] -ne 'cli-mark') { throw 'Environment not inheri
 if ($gameLine.Count -ne 1) { throw 'Fake game did not run exactly once.' }
 if (@($records | Where-Object { $_ -like 'injector|*' }).Count -ne 0) { throw 'Injector ran for an unknown game build.' }
 $launcherLog = Get-Content -LiteralPath (Join-Path $appData 'RenameAnything\launcher.log') -Raw -Encoding utf8
-foreach ($expected in 'unknown build', 'notice: ', 'started tree ended') {
+foreach ($expected in 'unknown build', 'notice: ', 'started tree ended', 'unknown program in the game folder') {
     if ($launcherLog -notmatch [regex]::Escape($expected)) { throw "launcher.log lacks '$expected'" }
+}
+if ((Get-Content -LiteralPath $statusFile -Raw -Encoding utf8) -notmatch 'releases/latest') {
+    throw 'last-status.txt does not carry the actionable unsupported-build notice.'
 }
 # Shortcut mode with an explicit game: starts the fake Paradox Launcher, remembers the path.
 Remove-Item -LiteralPath $record -Force
@@ -297,7 +316,8 @@ foreach ($name in $script:ProtectedNames) {
     if ((Get-Sha256 (Join-Path $repoDir $name)) -ne $before[$name]) { throw "Protected file changed: $name" }
 }
 $sources = [ordered]@{}
-foreach ($file in @(Get-ChildItem -LiteralPath $sourceDir -File) + @(Get-ChildItem -LiteralPath $testDir -File) + @(Get-Item -LiteralPath $PSCommandPath)) {
+$deployFiles = @(Get-Item -LiteralPath (Get-CapieBundleInputPath)) + @(Get-Item -LiteralPath (Join-Path $PSScriptRoot 'deploy\BundleInputs.psm1'))
+foreach ($file in @(Get-ChildItem -LiteralPath $sourceDir -File) + @(Get-ChildItem -LiteralPath $testDir -File) + $deployFiles + @(Get-Item -LiteralPath $PSCommandPath)) {
     $sources[[IO.Path]::GetRelativePath($repoDir, $file.FullName).Replace('\', '/')] = Get-Sha256 $file.FullName
 }
 $shipped = [ordered]@{ $script:LauncherExeName = Get-Sha256 $exe; 'LICENSE.MinHook.txt' = Get-Sha256 (Join-Path $outputDir 'LICENSE.MinHook.txt') }

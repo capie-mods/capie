@@ -1,9 +1,57 @@
 # Switching the launcher and bootstrap to CAPIE binaries (prepared, not applied)
 
+## One list of reviewed binaries: `bundle-inputs.json`
+
+`plugin/capie/deploy/bundle-inputs.json` is the only place that names the reviewed CAPIE
+binaries and their hashes. `build_launcher.ps1` bundles and pins exactly these files, and
+`build_proxy.ps1` compiles the hashes of the two DLL entries into `version.dll`, both through
+`deploy/BundleInputs.psm1`. Before this file existed the proxy compiled its own, older hash
+list, so the proxy and the launcher could pin different builds without anyone noticing.
+The release and bootstrap tools read the same file.
+
+Format: a JSON array with exactly three objects, in this order (the launcher's
+`BundleManifest` order and the proxy's `dll_hashes` order):
+
+```json
+[
+  {"name": "capie_core.dll",     "source": "plugin/build/capie-v15-dev/capie_core.dll",     "sha256": "<64 lower-case hex>", "dll": true},
+  {"name": "capie_editor.dll",   "source": "plugin/build/capie-v15-dev/capie_editor.dll",   "sha256": "<64 lower-case hex>", "dll": true},
+  {"name": "capie_injector.exe", "source": "plugin/build/capie-v15-dev/capie_injector.exe", "sha256": "<64 lower-case hex>", "dll": false}
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `name` | File name inside the package's `runtime/` folder. Exactly `capie_core.dll`, `capie_editor.dll`, `capie_injector.exe`. |
+| `source` | Repository-relative path of the reviewed build output, forward slashes, no `..`; ends with `/` + `name`. |
+| `sha256` | SHA-256 of that file, 64 lower-case hex characters. |
+| `dll` | `true` for the two DLLs (PE DLL expected, injected, pinned by the proxy), `false` for the injector. |
+
+No other field is allowed; a missing or extra field, another order, upper-case hex or a
+wrong `dll` flag fails every build that reads the file.
+
+Build-time checks:
+
+- every `source` must exist and have its `sha256` (a missing reviewed build fails the
+  build; it is never replaced by a fresh compile, because MSVC output is not
+  bit-reproducible);
+- the hashes in the generated `launcher_manifest.generated.hpp` (launcher) and
+  `proxy_manifest.generated.hpp` (proxy) are read back and must equal the JSON's (all
+  three for the launcher, the two `dll` entries for the proxy). This is the check that
+  the proxy's accepted hashes and the launcher bundle cannot differ;
+- the table between the `bundle-inputs` markers below must list the same names and
+  hashes (any case) in the same order;
+- each build warns when the other build's output folder still holds a generated header
+  with other hashes (a stale `plugin/build/capie-launcher` or `plugin/build/capie-proxy`:
+  rebuild it).
+
+To move to new reviewed binaries, change `bundle-inputs.json` and the table below in the
+same commit, then rebuild both the launcher and the proxy.
+
 ## Proxy package layout
 
 `plugin/capie/build_proxy.ps1` builds the opt-in proxy from the reviewed core/editor hashes
-below. For a future signed release, place its `plugin/build/capie-proxy/version.dll` at
+in `bundle-inputs.json`. For a future signed release, place its `plugin/build/capie-proxy/version.dll` at
 `proxy/version.dll` inside the package. Keep `capie_core.dll` and `capie_editor.dll` under
 `runtime/`; the proxy resolves them from the installed `current/runtime/`. Include the
 matching launcher/injector and MinHook license for the launcher alternative.
@@ -26,19 +74,21 @@ timestamps), so the values below are those of the stage-2 build only.
 Review `docs/evidence/session-20261015/capie-15-review/review.txt` (W1): the launcher bundles
 exactly these three release files of `plugin/build/capie-v15-dev/` (top level only; never
 `debug/` or `capie-v15-console-dev/`). They are not rebuilt before the in-game test (W2), because
-MSVC output is not bit-reproducible. `plugin/capie/build_launcher.ps1` (`$BundleInputs`) checks
-them against this table:
+MSVC output is not bit-reproducible. `bundle-inputs.json` holds them; this table mirrors it and
+both builds check that it does:
 
+<!-- bundle-inputs:begin -->
 | File | SHA-256 |
 | --- | --- |
 | capie_core.dll | 7A1C946F8A15F6120A0232453E3013B9F854EC2A6B526D0AB9C86F19959D0DE1 |
 | capie_editor.dll | 0DAD2732552305F43E1E87FB6E10E6A5B473E683EA27F1E82D0EBD9B8934D656 |
 | capie_injector.exe | EB5E9FF5F9B944B55CA5EB4B343D18D507584284FB60F5F119A8BE8843484C25 |
+<!-- bundle-inputs:end -->
 
-The proxy (`build_proxy.ps1`, `src/proxy`) is not switched: its compiled pins stay on the
-stage-2 (1.0) hashes below until the proxy is rebuilt from these files.
+The proxy is switched too: it pins the two DLL hashes above from the same file. A proxy built
+before this change still carries the stage-2 (1.0) pins below and refuses the 1.5 DLLs; rebuild it.
 
-Stage-2 release build after the clang-tidy pass (`plugin/build/capie/`; still pinned by the proxy):
+Stage-2 release build after the clang-tidy pass (`plugin/build/capie/`; historical, no longer pinned):
 
 | File | SHA-256 |
 | --- | --- |

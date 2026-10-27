@@ -15,6 +15,12 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void*) {
     if (length == 0 || length >= 32768) {
         return 77;
     }
+    // Crash-loop breaker: the loader must have written its sentinel before calling us.
+    wchar_t sentinel[32768]{};
+    const DWORD sentinel_length = GetEnvironmentVariableW(L"CAPIE_PROXY_TEST_SENTINEL", sentinel, 32768);
+    if (sentinel_length > 0 && sentinel_length < 32768 && GetFileAttributesW(sentinel) == INVALID_FILE_ATTRIBUTES) {
+        return 80;
+    }
     const HANDLE file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
                                     FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE) {

@@ -74,8 +74,8 @@
  {
   "name": "pin-shares-write",
   "file": "src/launcher/file_pin.hpp",
-  "find": "    return Handle(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,",
-  "replace": "    return Handle(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,",
+  "find": "? FILE_SHARE_READ | FILE_SHARE_DELETE : FILE_SHARE_READ;",
+  "replace": "? FILE_SHARE_READ | FILE_SHARE_DELETE : FILE_SHARE_READ | FILE_SHARE_WRITE;",
   "suite": "tests/launcher/launcher_unit_test.cpp",
   "summary": "launcher unit tests:"
  },
@@ -292,6 +292,102 @@
   "file": "src/launcher/playset_gate.hpp",
   "find": "if (depth > json_depth_limit || at_ >= text_.size()) {",
   "replace": "if (at_ >= text_.size()) {",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "game-pin-strict",
+  "file": "src/launcher/file_pin.hpp",
+  "find": "? FILE_SHARE_READ | FILE_SHARE_DELETE : FILE_SHARE_READ;",
+  "replace": "? FILE_SHARE_READ : FILE_SHARE_READ;",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "game-pin-writable",
+  "file": "src/launcher/file_pin.hpp",
+  "find": "? FILE_SHARE_READ | FILE_SHARE_DELETE : FILE_SHARE_READ;",
+  "replace": "? FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE : FILE_SHARE_READ;",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "passthrough-is-game",
+  "file": "src/launcher/game_location.hpp",
+  "find": "names_game_program(program) ? ProgramKind::game : ProgramKind::passthrough",
+  "replace": "ProgramKind::game",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "passthrough-without-game-folder",
+  "file": "src/launcher/game_location.hpp",
+  "find": "    if (!file_exists(game)) {\n        throw LauncherError(ExitCode::usage, L\"The wrapped program is not in a game folder",
+  "replace": "    if (false) {\n        throw LauncherError(ExitCode::usage, L\"The wrapped program is not in a game folder",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "elevation-not-handled",
+  "file": "src/launcher/process_tree.hpp",
+  "find": "if (error != ERROR_ELEVATION_REQUIRED) {",
+  "replace": "if (true) {",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "crash-guard-ignored",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "if (consume_sentinel(policy.crash_sentinel)) {",
+  "replace": "if (false) {",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "crash-sentinel-always-cleared",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "        if (running(game.process.get())) {\n            disarm_sentinel",
+  "replace": "        if (true) {\n            disarm_sentinel",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "crash-sentinel-never-cleared",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "    disarm_sentinel(policy.crash_sentinel);\n    return GameOutcome::loaded;",
+  "replace": "    return GameOutcome::loaded;",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "pins-kept-when-off",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "        prerequisites = {};  // nothing to protect",
+  "replace": "        // nothing to protect",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "status-not-written",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "    log.status(outcome, message);\n",
+  "replace": "",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "notice-not-topmost",
+  "file": "src/launcher/launcher_log.hpp",
+  "find": "MB_OK | MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND;",
+  "replace": "MB_OK | MB_ICONWARNING;",
+  "suite": "tests/launcher/launcher_unit_test.cpp",
+  "summary": "launcher unit tests:"
+ },
+ {
+  "name": "sentinel-not-consumed",
+  "file": "src/launcher/crash_guard.hpp",
+  "find": "    disarm_sentinel(path);\n    return true;",
+  "replace": "    return true;",
   "suite": "tests/launcher/launcher_unit_test.cpp",
   "summary": "launcher unit tests:"
  }
