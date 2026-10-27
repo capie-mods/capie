@@ -2,13 +2,14 @@
  * @file name_layer_pins.hpp
  * @brief Code-byte pins of the country name layer (`capie_core.dll`), checked before its hooks go live.
  *
- * The layer hooks `CCountry_UpdateNames` (716580), `CCountry_BuildNameKey` (6ECFF0) and
- * `CSetVariableEffect::Execute` (364C60), and reads country variables and the country list
- * with the layout in `core/game_layout.hpp`. Every hooked function and every offset it reads
- * is pinned here: 7 unique signatures, 12 instruction pins (offsets in the game's own
- * instructions) and 6 RIP/rel32 target pins (API level 5 added the faction name accessor
- * D8BB80, the string copy 11E010 and the faction member layout). Evidence:
- * monorepo archive: `docs/evidence/session-20261013/custom-name-layer/report.txt`, section 1.
+ * The layer hooks `CCountry_UpdateNames` (`rva::update_names`), `CCountry_BuildNameKey`
+ * (`rva::build_name_key`) and `CSetVariableEffect::Execute` (`rva::set_variable_execute`),
+ * and reads country variables and the country list with the layout in `core/game_layout.hpp`.
+ * Every hooked function and every offset it reads is pinned here: 7 unique signatures,
+ * 12 instruction pins (offsets in the game's own instructions) and 6 RIP/rel32 target pins
+ * (API level 5 added the faction name accessor `rva::faction_get_name`, the string copy
+ * `rva::string_copy` and the faction member layout). The "report" sections cited below are
+ * those of the custom-name-layer report (session 2026-10-13).
  *
  * All-or-nothing for the layer only: one failed pin turns the layer off (its three hooks are
  * not installed) and is logged; the three localisation hooks and RN1 names keep working. This
@@ -21,13 +22,13 @@
 #include "../../core/game_layout.hpp"
 #include "../../core/memory.hpp"
 #include "../../core/pe_image.hpp"
+#include "../../core/pin_check.hpp"
 #include "../../core/signatures.hpp"
 
-#include <algorithm>
-#include <array>
 #include <cstddef>
+#include <iterator>
 
-namespace capie::country::layer::pins {
+namespace capie::country::name::pins {
 
 using core::uptr;
 
@@ -58,24 +59,17 @@ inline constexpr core::Signature signatures[] = {
      "CFaction::GetName (whole function): +0x18 text when +0x28 size != 0, else template +0x568 (API 5)"},
     {"faction.string_copy", core::SignatureGroup::country_hook, core::rva::string_copy,
      "48895c2408488974241048897c241841564883ec2033c00f57c00f1101",
-     "MSVC string copy-construct on the game heap (called by GetName at D8BB98)"},
-};
-
-/// @brief Exact instruction bytes at an RVA.
-struct InstructionPin {
-    const char* id;   ///< Identifier for the log.
-    uptr rva;         ///< Instruction RVA.
-    const char* hex;  ///< Exact bytes.
+     "MSVC string copy-construct on the game heap (called by GetName, pin faction.get_name_copy)"},
 };
 
 /// @brief Offsets the layer reads, pinned in the game's own instructions.
-inline constexpr InstructionPin instruction_pins[] = {
+inline constexpr core::InstructionPin instruction_pins[] = {
     {"country.variables", 0x589A8B, "488b9818020000"},                      // mov rbx,[rax+218] after country_of
     {"country.variables2", 0x589D52, "488b9818020000"},                     // second scope path, same offset
     {"scoped_variable.name_size", 0x58C463, "8b8780000000"},                // mov eax,[rdi+80]
     {"scoped_variable.name_data", 0x58C469, "488d5770"},                    // lea rdx,[rdi+70]
     {"scoped_variable.name_capacity", 0x58C46D, "4883bf880000000f"},        // cmp qword [rdi+88],0F
-    {"set_variable.scoped_variable", 0x37D1D5, "4883c158"},                 // add rcx,58 before 542280
+    {"set_variable.scoped_variable", 0x37D1D5, "4883c158"},                 // add rcx,58 before the scope call
     {"update_names.tag_argument", 0x75EA17, "488d9788140000"},              // lea rdx,[rdi+1488] = BuildNameKey tag
     {"gamestate.countries", 0x1AF4EB, "488b9810030000"},                    // mov rbx,[rax+310]
     {"gamestate.country_count", 0x1AF4F2, "4863801c030000"},                // movsxd rax,[rax+31C]
@@ -105,43 +99,13 @@ static_assert(std::size(signatures) == expected_signatures &&
               std::size(target_pins) == expected_target_pins);
 
 /**
- * @brief Checks one instruction pin.
- * @param image Image base.
- * @param pin Pin.
- * @return `true` when the bytes at `image + rva` equal the pin.
- */
-inline bool verify_instruction(uptr image, const InstructionPin& pin) noexcept {
-    std::array<unsigned char, core::max_pattern_bytes> expected{};
-    const auto size = core::decode_hex(pin.hex, expected.data(), expected.size());
-    std::array<unsigned char, core::max_pattern_bytes> actual{};
-    return size != 0 && core::ProcessMemory::read(image + pin.rva, actual.data(), size) &&
-           std::equal(expected.begin(), expected.begin() + static_cast<std::ptrdiff_t>(size), actual.begin());
-}
-
-/**
  * @brief Checks every signature, instruction pin and target pin of the layer.
  * @param text `.text` of the game image (the image base is `text.base`).
  * @return Null when all pass, else the id of the first failed check.
  */
 inline const char* first_failed_pin(const core::TextSection& text) noexcept {
-    const auto image = reinterpret_cast<uptr>(text.base);
-    const core::ProcessMemory reader{};
-    for (const auto& signature : signatures) {
-        if (!core::verify_signature(text, signature)) {
-            return signature.id;
-        }
-    }
-    for (const auto& pin : instruction_pins) {
-        if (!verify_instruction(image, pin)) {
-            return pin.id;
-        }
-    }
-    for (const auto& pin : target_pins) {
-        if (!core::verify_rip_pin(reader, image, pin)) {
-            return pin.id;
-        }
-    }
-    return nullptr;
+    return core::first_failed(text, core::ProcessMemory{}, reinterpret_cast<uptr>(text.base), signatures,
+                              instruction_pins, target_pins);
 }
 
-}  // namespace capie::country::layer::pins
+}  // namespace capie::country::name::pins

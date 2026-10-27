@@ -3,6 +3,8 @@
 Usage: python -I apply.py <capie repo> <new_tables.json>
 Rewrites: signature/instruction pin entries (RVA literal + pattern), RIP pins (displacement, next,
 literal target), and the named constants of game_layout.hpp, host_probe.hpp and console_layout.hpp.
+An entry whose RVA is a named constant (`rva::x`, `core::rva::x`, `layout::x`) gets that constant
+rewritten instead; a constant that is an alias of another one (`x = core::rva::y;`) is left alone.
 """
 import json, os, pathlib, re, sys
 
@@ -19,6 +21,7 @@ def fmt_hex(h, upper, indent):
 
 def U(v): return "0x" + format(int(v, 16), "X")
 
+named = {"rva": {}, "host": {}, "console": {}}  # constants named by table entries, new value
 for f in files:
     text = f.read_text(); orig = text
     def entry(m):
@@ -34,6 +37,10 @@ for f in files:
             body = body[:pat.start()] + fmt_hex(t["hex"], upper, indent) + body[pat.end():]
             rm = re.search(r',\s*(0x[0-9A-Fa-f]{4,8})\s*,', body)
             if rm: body = body[:rm.start(1)] + U(t["rva"]) + body[rm.end(1):]
+            nm = None if rm else re.search(r',\s*(?:core::)?(rva|layout)::(\w+)\s*,', body)
+            if nm:
+                owner = "rva" if nm[1] == "rva" else ("host" if "host" in f.name else "console")
+                named[owner][nm[2]] = t["rva"]
         elif ident in mp["rip_pins"]:
             d, n, tgt = mp["rip_pins"][ident]
             nums = list(re.finditer(r'0x[0-9A-Fa-f]+', body))
@@ -55,13 +62,14 @@ def set_consts(path, values, ns=None):
     seg = text[seg_lo:seg_hi]
     for name, val in values.items():
         if val == "TODO": val = "0x0"
+        if re.search(rf"\b{name} = [A-Za-z_][\w:]*;", seg): continue  # alias of another constant
         seg, k = re.subn(rf"(\b{name} = )0x[0-9A-Fa-f]+;", rf"\g<1>{U(val)};", seg)
         if k != 1: print("  !", path.name, name, "matched", k)
     path.write_text(text[:seg_lo] + seg + text[seg_hi:]); print("constants", path.relative_to(repo))
 
-set_consts(src / "core/game_layout.hpp", mp["rva"], "rva")
+set_consts(src / "core/game_layout.hpp", {**named["rva"], **mp["rva"]}, "rva")
 set_consts(src / "core/game_layout.hpp", {k: v[1] for k, v in mp["off"].items() if not k.startswith("session")}, "off")
-host = {k: v for k, v in mp["host"].items() if k != "ingame_idler_session_slot_target"}
+host = {**named["host"], **{k: v for k, v in mp["host"].items() if k != "ingame_idler_session_slot_target"}}
 host.update({k: v[1] for k, v in mp["off"].items() if k.startswith("session")})
 set_consts(src / "features/host/host_probe.hpp", host)
-set_consts(src / "features/console/console_layout.hpp", mp["console"])
+set_consts(src / "features/console/console_layout.hpp", {**named["console"], **mp["console"]})

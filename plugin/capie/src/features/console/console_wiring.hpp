@@ -11,9 +11,10 @@
  * - `prepare(text, image)` runs inside `RNInitialize` (injector thread) after the editor's
  *   own checks. It reads only the game's code bytes: 13 unique signatures, 25 instruction
  *   pins (the 22 entry/argv/result offsets, the cosmetic-tag offset and the gate order) and
- *   11 RIP/rel32 target pins (the console singleton slot `35E1A80`, the calls from the
- *   verified `set_cosmetic_tag` body to `129CA0`, `10E10C0`, `BB4390`, `711260`, the
- *   dispatcher's gate message and lookup call, the game's own call of `24B4920`, and the
+ *   11 RIP/rel32 target pins (the console singleton slot, the calls from the verified
+ *   `set_cosmetic_tag` body to the string assign, the tag parser, `country_of` and the
+ *   cosmetic-tag setter, the dispatcher's gate message and lookup call, the game's own
+ *   call of add-or-replace, and the
  *   sprite database global and sprite lookup used by the portrait validity check). Only
  *   when every check passes does it fill a `NativeApi` with `verified = true`. A failure
  *   leaves the console feature off and the editor running, with one log line.
@@ -27,6 +28,7 @@
 #include "../../core/log.hpp"
 #include "../../core/memory.hpp"
 #include "../../core/pe_image.hpp"
+#include "../../core/pin_check.hpp"
 #include "../../core/signatures.hpp"
 #include "console_bridge.hpp"
 #include "console_layout.hpp"
@@ -43,46 +45,40 @@ using core::uptr;
 
 /// @brief Function prefixes that must be unique at their RVA (`raw/console_audit.txt`).
 inline constexpr core::Signature console_signatures[] = {
-    {"console.add_or_replace", core::SignatureGroup::editor_callee, 0x2536F00, "415641574883EC484C8B3A4C8BF14863420C",
-     "adds or replaces console entries by name (re-evidence 2)"},
-    {"console.string_assign", core::SignatureGroup::editor_callee, 0x12B3C0,
+    {"console.add_or_replace", core::SignatureGroup::editor_callee, layout::add_or_replace_rva,
+     "415641574883EC484C8B3A4C8BF14863420C", "adds or replaces console entries by name (re-evidence 2)"},
+    {"console.string_assign", core::SignatureGroup::editor_callee, layout::string_assign_rva,
      "48895C241048896C2418565741574883EC20488B6918", "MSVC std::string::assign on the game heap (9)"},
     {"console.singleton_create", core::SignatureGroup::editor_callee, 0x2537220,
-     "48895C2410574883EC20B9E0000000E8????????", "creates the console and stores it at 35E1A80 (1.1)"},
+     "48895C2410574883EC20B9E0000000E8????????", "creates the console and stores it in the singleton slot (1.1)"},
     {"console.dispatch", core::SignatureGroup::editor_callee, 0x2537340,
      "48895C241848895424105556574154415541564157488BEC4883EC70498BF0", "dispatcher: gate, then lookup (3)"},
-    {"console.lookup", core::SignatureGroup::editor_callee, 0x2537AA0,
+    {"console.lookup", core::SignatureGroup::editor_callee, layout::lookup_rva,
      "48895C240848896C2410488974241848897C24204154415641574883EC204533F6", "lookup by name and alias (3)"},
-    {"console.set_cosmetic_tag", core::SignatureGroup::editor_callee, 0x299AC0,
+    {"console.set_cosmetic_tag", core::SignatureGroup::editor_callee, layout::set_cosmetic_tag_rva,
      "48895C2418488974242048894C2408574883EC30488BF2488BF9", "vanilla set_cosmetic_tag action (5)"},
-    {"console.drop_cosmetic_tag", core::SignatureGroup::editor_callee, 0x26A6E0,
+    {"console.drop_cosmetic_tag", core::SignatureGroup::editor_callee, layout::drop_cosmetic_tag_rva,
      "48895C241848894C24085556574154415541564157488BEC4881EC800000000F29742470488BDA",
      "vanilla drop_cosmetic_tag action (5)"},
-    {"console.eval_effect", core::SignatureGroup::editor_callee, 0x27A8C0,
+    {"console.eval_effect", core::SignatureGroup::editor_callee, layout::eval_effect_rva,
      "48895C241048894C24085556574154415541564157488DAC2400FCFFFF", "vanilla eval_effect action (9, 10)"},
-    {"console.tag_parse", core::SignatureGroup::editor_callee, 0x1168A70, "40534883EC50488BD9488D4C2430E8????????90",
-     "country tag from a name string (10)"},
-    {"console.country_of", core::SignatureGroup::editor_callee, 0xC07620,
+    {"console.tag_parse", core::SignatureGroup::editor_callee, layout::tag_parse_rva,
+     "40534883EC50488BD9488D4C2430E8????????90", "country tag from a name string (10)"},
+    {"console.country_of", core::SignatureGroup::editor_callee, layout::country_of_rva,
      "48895C2410574883EC30803D????????00488BD90F84????????803D????????00754F48833D????????007545488D05"
      "????????C6442440004889442428488D15????????488D44244041B10141B85B040000",
      "country object of a tag (10)"},
-    {"console.country_set_cosmetic", core::SignatureGroup::editor_callee, 0x759370,
+    {"console.country_set_cosmetic", core::SignatureGroup::editor_callee, layout::country_set_cosmetic_rva,
      "48895C241048896C24184889742420574883EC3048837A180F", "CCountry set cosmetic tag; +1488 (5)"},
     {"console.restore_device_objects", core::SignatureGroup::editor_callee, 0x2B9D00,
      "48895C2408488974241048897C241855488D6C24A94881EC00010000488BD9", "CGameIdler::RestoreDeviceObjects (2)"},
-    {"console.sprite_find", core::SignatureGroup::editor_callee, 0x22A0B80,
+    {"console.sprite_find", core::SignatureGroup::editor_callee, layout::sprite_find_rva,
      "4881C100010000E9????????CCCCCCCC48895C2418", "sprite of a name in the sprite database (portrait review 1.4)"},
 };
 
-/// @brief Exact instruction bytes at an RVA (inside a function verified above).
-struct InstructionPin {
-    const char* id;   ///< Identifier for the log.
-    uptr rva;         ///< Instruction RVA.
-    const char* hex;  ///< Exact bytes.
-};
-
-/// @brief The 22 layout pins of re-evidence.md section 7, the cosmetic-tag offset and the gate order.
-inline constexpr InstructionPin instruction_pins[] = {
+/// @brief The 22 layout pins of re-evidence.md section 7, the cosmetic-tag offset and the gate order
+/// (each inside a function verified above).
+inline constexpr core::InstructionPin instruction_pins[] = {
     {"entry.name", 0x2537AE9, "488d4d08"},
     {"entry.alias_count", 0x2537AFD, "397d28"},
     {"entry.aliases", 0x2537B02, "488d7530"},
@@ -117,9 +113,9 @@ inline constexpr core::RipPin target_pins[] = {
     {"set_cosmetic_tag.assign", 0x299B65, 0x299B69, layout::string_assign_rva},
     {"set_cosmetic_tag.tag_parse", 0x299B0F, 0x299B13, layout::tag_parse_rva},
     {"set_cosmetic_tag.country_of", 0x299B23, 0x299B27, layout::country_of_rva},
-    {"set_cosmetic_tag.setter", 0x299B2F, 0x299B33, 0x759370},
-    {"dispatch.gate_message", 0x25373EF, 0x25373F3, 0x2C03C50},
-    {"dispatch.lookup_after_gate", 0x2537431, 0x2537435, 0x2537AA0},
+    {"set_cosmetic_tag.setter", 0x299B2F, 0x299B33, layout::country_set_cosmetic_rva},
+    {"dispatch.gate_message", 0x25373EF, 0x25373F3, layout::gate_message_rva},
+    {"dispatch.lookup_after_gate", 0x2537431, 0x2537435, layout::lookup_rva},
     {"restore_device_objects.add", 0x2B9EDF, 0x2B9EE3, layout::add_or_replace_rva},
     {"portrait_valid.sprite_database", 0x1438E74, 0x1438E78, layout::sprite_database_rva},
     {"portrait_valid.sprite_find", 0x1438E79, 0x1438E7D, layout::sprite_find_rva},
@@ -141,43 +137,13 @@ inline std::uint32_t thread_id() noexcept {
 }
 
 /**
- * @brief Checks one instruction pin.
- * @param image Image base.
- * @param pin Pin.
- * @return `true` when the bytes at `image + rva` equal the pin.
- */
-inline bool verify_instruction(uptr image, const InstructionPin& pin) noexcept {
-    std::array<unsigned char, core::max_pattern_bytes> expected{};
-    const auto size = core::decode_hex(pin.hex, expected.data(), expected.size());
-    std::array<unsigned char, core::max_pattern_bytes> actual{};
-    return size != 0 && core::ProcessMemory::read(image + pin.rva, actual.data(), size) &&
-           std::equal(expected.begin(), expected.begin() + static_cast<std::ptrdiff_t>(size), actual.begin());
-}
-
-/**
  * @brief Checks every console signature, instruction pin and target pin (code bytes only).
  * @param text `.text` of the game image (the image base is `text.base`).
  * @return Null when all pass, else the id of the first failed check.
  */
 inline const char* first_failed_pin(const core::TextSection& text) noexcept {
-    const auto image = reinterpret_cast<uptr>(text.base);
-    const core::ProcessMemory reader{};
-    for (const auto& signature : console_signatures) {
-        if (!core::verify_signature(text, signature)) {
-            return signature.id;
-        }
-    }
-    for (const auto& pin : instruction_pins) {
-        if (!verify_instruction(image, pin)) {
-            return pin.id;
-        }
-    }
-    for (const auto& pin : target_pins) {
-        if (!core::verify_rip_pin(reader, image, pin)) {
-            return pin.id;
-        }
-    }
-    return nullptr;
+    return core::first_failed(text, core::ProcessMemory{}, reinterpret_cast<uptr>(text.base), console_signatures,
+                              instruction_pins, target_pins);
 }
 
 /// @brief Process memory policy used by the bridge.
@@ -190,7 +156,7 @@ inline Registration logged_state = Registration::waiting;
 inline std::atomic<bool> prepared{false};
 
 /**
- * @brief The action CAPIE registers for its three commands (game thread, called by `24B4D60`).
+ * @brief The action CAPIE registers for its three commands (game thread, called by the console dispatcher).
  * @param out Dispatcher's result storage.
  * @param argv Tokens after the command name.
  * @param context Entry context.

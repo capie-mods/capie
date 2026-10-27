@@ -36,7 +36,7 @@ void check(bool ok, const std::string& label) {
     }
 }
 
-namespace pins = capie::country::layer::pins;
+namespace pins = capie::country::name::pins;
 
 // Corrupted RVAs are literal expected values of the test cases.
 // NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)

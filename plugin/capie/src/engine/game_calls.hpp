@@ -35,7 +35,7 @@ inline std::uintptr_t image_base = 0;
  * @brief Name argument of the widget lookups: `{const char*, int32}` passed by pointer (16 bytes).
  *
  * 1.19.4.0 ("reduced string allocations in GUI system") looks children up in per-type name hash
- * maps and reads the name as a pointer and an int32 length (`23319D0`: `mov r9,[rdx]`,
+ * maps and reads the name as a pointer and an int32 length (map lookup helper: `mov r9,[rdx]`,
  * `mov eax,[rdx+8]`), no longer as an MSVC `std::string`.
  */
 struct NameView {
@@ -56,13 +56,13 @@ using CaptionRequest = void(__fastcall*)(void*, int);
 /// @brief `void (manager*, widget*)` (FocusSwitch, `rva::focus_switch`).
 using FocusSwitch = void(__fastcall*)(void*, void*);
 
-/// @brief FindEdit (23331C0, map root+13F0); set at initialization.
+/// @brief FindEdit (`rva::find_edit`, map root+13F0); set at initialization.
 inline FindWidget find_edit = nullptr;
-/// @brief FindInstantText (2334D40, map root+1380); set at initialization.
+/// @brief FindInstantText (`rva::find_instant`, map root+1380); set at initialization.
 inline FindWidget find_instant = nullptr;
-/// @brief SetText thunk (22F27C0); set at initialization.
+/// @brief SetText thunk (`rva::text_buffer_set`); set at initialization.
 inline SetText set_text = nullptr;
-/// @brief CEditBox refresh (22F4D80); set at initialization.
+/// @brief CEditBox refresh (`rva::edit_refresh`); set at initialization.
 inline RefreshEdit refresh_edit = nullptr;
 /// @brief RequestViewRefresh (`rva::request_view_refresh`); set when the caption feature is armed.
 inline CaptionRequest caption_request = nullptr;

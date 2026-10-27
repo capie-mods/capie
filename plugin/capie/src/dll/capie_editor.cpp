@@ -16,7 +16,7 @@
  *        same steps in `public_dispatch` (no caption gate, `capie_*` records);
  *   effect constructor: substitutes the record vector for our own dispatch frame only.
  * The debug flavor additionally hooks the edit-box key handler and wrapper (key log) and
- * Execute (command observation), exactly as the accepted rev7 bridge did; the release
+ * Execute (command observation), exactly as the original bridge prototype did; the release
  * flavor does not install those three hooks because they only fed diagnostics.
  *
  * Contract of every hook body: call the original exactly once, never under a lock, pass
@@ -169,7 +169,7 @@ void __fastcall bind_observed(void* window) noexcept {
  */
 bool enter_event(void* event) noexcept {
     int values[core::off::key_event_words]{};
-    // 2273320 active: event[0] != 0 && event[2] != -1; 2272FA0 additionally checks [7].
+    // The game's "key active" test is event[0] != 0 && event[2] != -1; its Enter test also checks [7].
     return engine::guarded_copy(values, event, sizeof(values)) && std::cmp_equal(values[0], core::value::key_enter) &&
            values[event_modifier_word] == 0 && values[event_final_word] == 0;
 }
@@ -411,7 +411,7 @@ constexpr std::size_t init_line_capacity = 1536;
 
 /**
  * @brief Writes the initialization line; every count comes from the tables it describes.
- * @note Debug flavor text is identical to rev7 apart from the CAPIE suffix.
+ * @note Debug flavor text is identical to the bridge prototype's apart from the CAPIE suffix.
  */
 void write_init_line() noexcept {
     char line[init_line_capacity]{};
@@ -548,7 +548,7 @@ InitCode initialize() {
     auto* image = base;
     InitCode installed = InitCode::ok;
     if constexpr (debug_diagnostics) {
-        // rev7 order: create all seven, enable Execute, Bind, ctor, Dispatch, wrapper, key, Tick last.
+        // Prototype order: create all seven, enable Execute, Bind, ctor, Dispatch, wrapper, key, Tick last.
         constexpr std::size_t enable_order[] = {hook::execute, hook::bind, hook::ctor, hook::dispatch,
                                                 hook::wrapper, hook::key,  hook::tick};
         installed = core::install_in_order(image, hooks, std::size(hooks), enable_order, std::size(enable_order));

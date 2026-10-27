@@ -2,11 +2,11 @@
  * @file portrait_layer_hooks.hpp
  * @brief Hook body and cache of the leader portrait layer (API level 7, CONTRACT.md section 18).
  *
- * One hook: `ResolvePortrait` (139DF20), the function the GUI portrait icons call (its only
- * caller is B44520 in B44490) to copy a character's portrait entry into the caller's buffer, with
+ * One hook: `ResolvePortrait` (`rva::portrait_resolve`), the function the GUI portrait icons call
+ * (it has one caller) to copy a character's portrait entry into the caller's buffer, with
  * the game's generic portrait when the character has none. For the civilian portrait (type 0)
  * of a cached ruling leader (same object, same id), the hook builds the entry of the chosen
- * sprite, checks it with the game's own validity function (139D1E0: the sprite exists) and, only
+ * sprite, checks it with the game's own validity function (`PortraitEntryValid`: the sprite exists) and, only
  * when it is valid, fills the caller's buffer itself the way the game's copy does (flag byte,
  * kind 0, copy-constructed name, no texture handle) without calling the original. Otherwise the
  * original runs unchanged (fail-closed: the game's portrait, never the "unknown leader" image).
@@ -43,13 +43,13 @@ namespace capie::country::portrait {
 /// @brief Size of the game's portrait entry.
 inline constexpr std::size_t entry_size = 0x30;
 
-/// @brief The game's portrait entry (0x30 bytes; 139DF5D..139DF7C copies it field by field).
+/// @brief The game's portrait entry (0x30 bytes; `ResolvePortrait` copies it field by field).
 struct Entry {
-    std::uint8_t set;                     ///< Non-zero when the entry holds a portrait (139D1E6).
+    std::uint8_t set;                     ///< Non-zero when the entry holds a portrait (`valid.flag_byte`).
     std::array<std::uint8_t, 3> padding;  ///< Unused.
-    std::int32_t kind;                    ///< 0 = sprite name, 1 = .dds path (139D1EF).
-    engine::MsvcString name;              ///< Sprite name or path (139D20D).
-    std::uint64_t handle;                 ///< Texture handle of a path entry (139D1F7).
+    std::int32_t kind;                    ///< 0 = sprite name, 1 = .dds path (`valid.kind`).
+    engine::MsvcString name;              ///< Sprite name or path (`valid.name`).
+    std::uint64_t handle;                 ///< Texture handle of a path entry.
 };
 static_assert(sizeof(Entry) == entry_size && offsetof(Entry, kind) == core::off::portrait_entry_kind &&
               offsetof(Entry, name) == core::off::portrait_entry_name &&

@@ -827,6 +827,11 @@ void registry_tests() {
     auto& ninth = make_window("capie_v1_ed__mymod__ninth", 0b1, "1");
     tick_observed(ninth.window.data(), 0);
     check(public_editor_count.load() == count, "ninth editor of one mod refused");
+    std::size_t registered_mymod = 0;
+    for (std::size_t i = 0; i < public_editor_count.load(); ++i) {
+        registered_mymod += public_editors[i].id.mod_view() == "mymod" ? 1U : 0U;
+    }
+    check(registered_mymod == max_editors_per_mod, "exactly max_editors_per_mod editors of one mod registered");
     click(ninth, apply_of(ninth));
     check(value_of("capie_epoch") == -2 && capie_records() == 3, "per-mod limit -> sentinel -2");
     for (unsigned i = 0; public_editor_count.load() < max_public_editors && i < 2 * max_public_editors; ++i) {

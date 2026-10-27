@@ -75,8 +75,10 @@ generate` / `apply` (the helpers read it from `CAPIE_PORT_MAP`; the default is
 ## Rules that keep the next port cheap
 
 - Addresses live only in `game_layout.hpp`, the pin tables and the tests. Comments and log
-  messages name functions (`RequestViewRefresh`, `FocusSwitch`), not RVAs. Older comments still
-  carry 1.19.3.0 addresses; fix them when you touch the file.
+  messages name functions (`RequestViewRefresh`, `FocusSwitch`), not RVAs.
+  `tools/lint/check_comment_addresses.py` (run by `build.ps1`) fails on a hex address in a comment
+  of the DLL sources unless the code pins that value, so a port that moves an address also flags
+  every comment that still names the old one.
 - A new pin comes with its meaning: the class, string, caller or slot that finds it again. Write
   it in the pin's comment.
 - Keep the old executable. Ask Steam for the previous depot before an update overwrites it

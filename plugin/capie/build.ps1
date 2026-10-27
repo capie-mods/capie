@@ -13,7 +13,8 @@
     editor input, country status), the new tests (signature table vs EXE file, country
     differential vs the accepted candidate source, hot-path benchmarks), the public-contract
     tests (grammar and alphabet, CAPIE_* keys, grammar editors in both flavors) and the Python
-    checks (signature table, status localisation, native alphabet vs the SDK table).
+    checks (signature table, status localisation, native alphabet vs the SDK table, addresses in
+    comments).
 
     It never starts, inspects, injects into or reads memory of a game process. The EXE is
     only read as a file for the static fingerprint checks. Refuses to overwrite a locked
@@ -322,6 +323,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Signature table differs from the accepted sour
 if ($LASTEXITCODE -ne 0) { throw 'CAPIE status localisation contract failed' }
 & $Python -I (Join-Path $script:TestDir 'check_alphabet.py')
 if ($LASTEXITCODE -ne 0) { throw 'Native alphabet differs from the SDK character table' }
+& $Python -I (Join-Path $script:RepoDir 'tools\lint\check_comment_addresses.py')
+if ($LASTEXITCODE -ne 0) { throw 'A comment names an address the code does not pin (name the function instead)' }
 
 # 5. Benchmarks (old rev7/country-status sources vs CAPIE release/debug).
 if (-not $SkipBenchmarks) {

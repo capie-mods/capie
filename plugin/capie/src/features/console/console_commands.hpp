@@ -84,7 +84,7 @@ inline constexpr std::string_view id_separator = "__";
 /// @brief Mod id reserved for CAPIE's own SDK.
 inline constexpr std::string_view reserved_mod_id = "capie";
 /// @brief Opens the player scope around a mod command. `eval_effect` sets FROM to the player's
-/// country (`[332F260]+520`, else `+524`, the expression `pp` uses for "the player") and ROOT
+/// country (`[gamestate]+520`, else `+524`, the expression `pp` uses for "the player") and ROOT
 /// to the selected object (re-evidence.md section 10), so CAPIE switches to FROM explicitly.
 inline constexpr std::string_view player_scope_open = "FROM = { ";
 /// @brief Closes the player scope.
@@ -127,9 +127,9 @@ inline constexpr std::size_t command_count = 7;
 /// @brief Vanilla console commands CAPIE delegates to.
 enum class Delegate {
     none,               ///< Nothing to call (error or usage).
-    set_cosmetic_tag,   ///< `set_cosmetic_tag <TAG> <cosmetic>` (action 282540).
-    drop_cosmetic_tag,  ///< `drop_cosmetic_tag <TAG>` (action 253220).
-    eval_effect,        ///< `eval_effect <script>` (action 263690).
+    set_cosmetic_tag,   ///< `set_cosmetic_tag <TAG> <cosmetic>` (vanilla action).
+    drop_cosmetic_tag,  ///< `drop_cosmetic_tag <TAG>` (vanilla action).
+    eval_effect,        ///< `eval_effect <script>` (vanilla action).
 };
 
 /**
@@ -569,7 +569,7 @@ inline constexpr std::string_view portrait_clear_all =
     "clear_variable = capie_pt_slen clear_variable = capie_pt_ver ";
 /// @brief Closes the leader's scope and commits on the country (last statement).
 inline constexpr std::string_view portrait_commit = "} set_variable = { capie_pt_rev = 1 } }";
-/// @brief Suffix of the game's small portrait sprites (6B64E0).
+/// @brief Suffix of the game's small portrait sprites.
 inline constexpr std::string_view small_suffix = "_small";
 
 /**

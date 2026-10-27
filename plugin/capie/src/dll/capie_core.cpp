@@ -16,7 +16,7 @@
  * (logged) and the localisation hooks on.
  *
  * Leader portrait layer (API level 7, `features/country/portrait_layer*.hpp`): one more hook
- * (`ResolvePortrait`, 139DF20) shows the civilian portrait chosen for a ruling country leader;
+ * (`ResolvePortrait`) shows the civilian portrait chosen for a ruling country leader;
  * its cache is filled from the UpdateNames and set_variable hooks. Own pins; it needs the name
  * layer's pins as well.
  *
@@ -269,7 +269,7 @@ InitCode initialize() {
         return InitCode::signature_mismatch;
     }
     open_log();
-    const char* const failed_pin = layer::pins::first_failed_pin(text);
+    const char* const failed_pin = name::pins::first_failed_pin(text);
     const bool layer_ok = failed_pin == nullptr;
     const char* const failed_flag_pin = flag::pins::first_failed_pin(text);
     const bool flag_ok = layer_ok && failed_flag_pin == nullptr;

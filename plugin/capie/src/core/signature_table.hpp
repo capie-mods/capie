@@ -7,10 +7,9 @@
  * `focus_signatures` (+ focus slot pins and the manager RIP pin). Initialization refuses on
  * the first mismatch, with the code of the group (20, 21 or 22).
  *
- * Every entry was copied byte-for-byte from the accepted sources (country 18841A6D...,
- * caption bridge rev7 3864532C...). `tests/check_signature_table.py` re-extracts the
- * accepted values from those sources and fails on any difference in RVA, length or bytes;
- * `signature_exe_test.exe` checks every entry against the EXE file.
+ * `tests/check_signature_table.py` compares every entry with the accepted table of the pinned
+ * build (`tools/port/accepted-1.19.4.0.json`) and fails on any difference in RVA, length or
+ * bytes; `signature_exe_test.exe` checks every entry against the EXE file.
  *
  * Evidence rules (RE findings 1.1 and 6.1): each run starts and ends on an instruction
  * boundary, is free of DIR64 relocations (so it also matches the ASLR-relocated image),
@@ -49,16 +48,16 @@ inline constexpr Signature editor_signatures[] = {
      "text-buffer key handler (edit+80 subobject)"},
     {"editor.find_edit", SignatureGroup::editor_callee, rva::find_edit,
      "48895c241048896c241856574154415641574883ec60450fb6e1450fb6f04c8bfa488be94881c1f01300000f10020f29442430",
-     "FindEdit: list displacements +1240/+1258 (twin of find_instant)"},
+     "FindEdit: CEditBox name map +13F0 (twin of find_instant)"},
     {"editor.find_instant", SignatureGroup::editor_callee, rva::find_instant,
      "48895c241048896c241856574154415641574883ec60450fb6e1450fb6f04c8bfa488be94881c180130000",
-     "FindInstantText: list displacement +11E0"},
+     "FindInstantText: CInstantTextBox name map +1380"},
     {"editor.set_text", SignatureGroup::editor_callee, rva::text_buffer_set,
      "48837a180f7603488b12e901000000cc48895c2410574883ec40488bd90f57c00f11442420660f6f0d83718400",
      "SetText SSO thunk (capacity > 15 -> heap pointer)"},
     {"editor.refresh_edit", SignatureGroup::editor_callee, rva::edit_refresh,
      "48895c2410488974241855574156488d6c24b94881ecd0000000488bf9c74567000000004883b9b0010000000f84950300004883e980e885bfffff",
-     "void(CEditBox*) refresh; complete 55-byte prefix ends at 22F4DB7"},
+     "void(CEditBox*) refresh: whole-instruction prefix through the first call"},
     {"editor.wrapper", SignatureGroup::editor_hook, rva::edit_key_wrapper,
      "405556574883ec20488db981020000488beaf60702488bf10f85b6010000488bca48895c2448e8c51cf7ff",
      "CEditBox key wrapper: edit+281 bit1 disabled test"},
@@ -75,22 +74,23 @@ inline constexpr Signature editor_signatures[] = {
 
 /// @brief Caption refresh chain (25 entries; caption core evidence, RE 82CA2D2D).
 inline constexpr Signature caption_signatures[] = {
-    {"caption.E3A930", SignatureGroup::caption, 0xE3A930, "488b81b8060000c3",
+    {"caption.E3A930", SignatureGroup::caption, rva::idler_gui_getter, "488b81b8060000c3",
      "idler slot B8 getter returns [idler+6B8]"},
-    {"caption.BC1690", SignatureGroup::caption, 0xBC1690,
+    {"caption.BC1690", SignatureGroup::caption, rva::request_view_refresh,
      "4883ec2883fa1774404863c248895c2420488d1cc1488b8bc80000004885c97423488b01ff502884c07419488b8bc80000004883c130488b5c24204883c428e92c2b7000488b5c24204883c428c3",
      "void(gui,int) index!=23, gui+C8+8i, view slot28, tail 12C4200(view+30)"},
-    {"caption.12C4200", SignatureGroup::caption, 0x12C4200, "c6411401c3", "observer+14=1 (view+44 dirty)"},
-    {"caption.12C4230", SignatureGroup::caption, 0x12C4230, "40534883ec20488b01488bd9ff5048c64314004883c4205bc3",
-     "consume: observer slot48 then +14=0"},
-    {"caption.12C4EA0", SignatureGroup::caption, 0x12C4EA0,
+    {"caption.12C4200", SignatureGroup::caption, rva::observer_mark_dirty, "c6411401c3",
+     "observer+14=1 (view+44 dirty)"},
+    {"caption.12C4230", SignatureGroup::caption, rva::observer_consume,
+     "40534883ec20488b01488bd9ff5048c64314004883c4205bc3", "consume: observer slot48 then +14=0"},
+    {"caption.12C4EA0", SignatureGroup::caption, rva::view_is_visible,
      "40534883ec20488bd9488b89f80500004885c97426488b01ff904802000084c07519488b83f80500000fb680a5000000c0e80324014883c4205bc3",
      "politics view visibility (slot28) reads view+5F8"},
-    {"caption.12C4E70", SignatureGroup::caption, 0x12C4E70, "488b81f8050000c3", "view root = [view+5F8]"},
-    {"caption.12C3B50", SignatureGroup::caption, 0x12C3B50,
+    {"caption.12C4E70", SignatureGroup::caption, rva::view_get_root, "488b81f8050000c3", "view root = [view+5F8]"},
+    {"caption.12C3B50", SignatureGroup::caption, rva::observer_bind,
      "40534883ec20488d0563be750148895108488901488bd944894110c6411400e85c050000",
      "observer bind: [obs+8]=rdx, [obs+14]=0"},
-    {"caption.12C4AD0", SignatureGroup::caption, 0x12C4AD0,
+    {"caption.12C4AD0", SignatureGroup::caption, rva::view_base_ctor,
      "48895c2410488974241848897c242048894c24085541564157488d6c24b04881ec50010000498bf94d8bf84c8bf2488bf1498379180f76034d8b09488b47104c894d80",
      "view base ctor prologue: rsi=param_4, rdi=param_3, r14=param_2, r15=this"},
     {"caption.12C4B4B", SignatureGroup::caption, 0x12C4B4B, "448b8590000000498bd7488d4e30e8f2efffff90",
@@ -136,16 +136,16 @@ inline constexpr Signature caption_signatures[] = {
 
 /// @brief Focus release chain (8 entries).
 inline constexpr Signature focus_signatures[] = {
-    {"focus.22BD0E0", SignatureGroup::focus, 0x22BD0E0,
+    {"focus.22BD0E0", SignatureGroup::focus, rva::focus_switch,
      "48895c2408574883ec20488bf9488bda488b89380100004885c97409488b01ff90c800000048899f380100004885db740c488b03488bcbff90c0000000488b5c24304883c4205fc3",
      "focus switch: old->C8, [m+138]=new, new->C0 if non-null (whole function)"},
-    {"focus.2371A40", SignatureGroup::focus, 0x2371A40,
-     "48895c2408574883ec200fb68181020000488bd924fe888181020000a8207415", "edit unfocus: clear +271 bit0"},
+    {"focus.2371A40", SignatureGroup::focus, rva::edit_unfocus,
+     "48895c2408574883ec200fb68181020000488bd924fe888181020000a8207415", "edit unfocus: clear +281 bit0"},
     {"focus.2371AC0", SignatureGroup::focus, 0x2371AC0, "488d8ba0010000488b5c24304883c4205fe99a800000",
      "edit unfocus tail: 2379B70(edit+1A0)"},
-    {"focus.2379B70", SignatureGroup::focus, 0x2379B70, "488bd1488b0d46741801e9f135f4ff",
+    {"focus.2379B70", SignatureGroup::focus, rva::receiver_release, "488bd1488b0d46741801e9f135f4ff",
      "receiver release via manager global 3500FC0"},
-    {"focus.22BD170", SignatureGroup::focus, 0x22BD170,
+    {"focus.22BD170", SignatureGroup::focus, rva::manager_release,
      "40534883ec204883b91002000000488bd97419e8e83f0000488bc8488b10ff523048c78310020000000000004883c4205bc3",
      "manager: release [m+210] and zero it (whole function)"},
     {"focus.BDB55E", SignatureGroup::focus, 0xBDB55E, "488b83000100004885c07444f680a500000004743b",
@@ -176,7 +176,7 @@ inline constexpr SlotPin focus_slot_pins[] = {
     {rva::vt_edit, off::slot_edit_focus, rva::edit_focus},
 };
 
-/// @brief `22FBEC3: mov rcx,[rip+disp]` must target the focus manager global.
+/// @brief `mov rcx,[rip+disp]` of the receiver release thunk (`focus.2379B70`) must target the focus manager global.
 inline constexpr RipPin focus_manager_rip_pin = {"focus.manager_global", rva::focus_manager_rip_displacement,
                                                  rva::focus_manager_rip_next, rva::manager_global};
 
