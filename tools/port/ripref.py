@@ -4,14 +4,15 @@ Usage: python -I ripref.py <exe> str:<text> | rva:<hex>
 """
 
 import sys
+from typing import Any, cast
 
-import numpy as np  # ty: ignore[unresolved-import] - numpy is not in the ty environment
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import numpy as np
+import pefile
 
 MAX_STRING_TARGETS = 5
 """Maximum number of occurrences of a string that are searched for references."""
 
-pe = pefile.PE(sys.argv[1], fast_load=True)
+pe = cast("Any", pefile.PE(sys.argv[1], fast_load=True))
 img = pe.get_memory_mapped_image()
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 raw = t.get_data()

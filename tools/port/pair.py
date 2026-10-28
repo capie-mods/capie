@@ -6,13 +6,14 @@ Usage: python -I pair.py <exe> <prefix_hex_without_disp> <follow_hex> [label]
 import collections
 import re
 import sys
+from typing import Any, cast
 
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import pefile
 
 LABEL_ARG_INDEX = 4
 """Index in sys.argv of the optional label printed before each result."""
 
-pe = pefile.PE(sys.argv[1], fast_load=True)
+pe = cast("Any", pefile.PE(sys.argv[1], fast_load=True))
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 d = t.get_data()
 b = t.VirtualAddress

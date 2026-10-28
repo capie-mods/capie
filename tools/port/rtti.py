@@ -8,7 +8,7 @@ import sys
 from collections.abc import Iterator
 from typing import cast
 
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import pefile
 
 pe = pefile.PE(sys.argv[1], fast_load=True)
 img = cast("bytes", pe.get_memory_mapped_image())

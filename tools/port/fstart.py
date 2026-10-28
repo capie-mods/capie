@@ -2,10 +2,11 @@
 
 import bisect
 import sys
+from typing import Any, cast
 
-import pefile  # ty: ignore[unresolved-import] - tool dependency from requirements.txt
+import pefile
 
-pe = pefile.PE(sys.argv[1])
+pe = cast("Any", pefile.PE(sys.argv[1]))
 pe.parse_data_directories()
 ents = sorted((e.struct.BeginAddress, e.struct.EndAddress) for e in pe.DIRECTORY_ENTRY_EXCEPTION)
 begins = [b for b, _ in ents]

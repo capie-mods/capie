@@ -4,9 +4,10 @@ Usage: python -I callers.py <exe> rva[,rva...] [max]
 """
 
 import sys
+from typing import Any, cast
 
-import numpy as np  # ty: ignore[unresolved-import] - numpy is not in the ty environment
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import numpy as np
+import pefile
 
 CALL_OPCODE = 0xE8
 """Opcode byte of a near relative call (E8 rel32)."""
@@ -15,7 +16,7 @@ JMP_OPCODE = 0xE9
 MAX_ARG_INDEX = 3
 """Index in sys.argv of the optional maximum number of sites printed per target."""
 
-pe = pefile.PE(sys.argv[1], fast_load=True)
+pe = cast("Any", pefile.PE(sys.argv[1], fast_load=True))
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 d = np.frombuffer(t.get_data(), np.uint8)
 base = t.VirtualAddress

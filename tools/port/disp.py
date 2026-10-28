@@ -7,10 +7,11 @@ import bisect
 import collections
 import re
 import sys
+from typing import Any, cast
 
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import pefile
 
-pe = pefile.PE(sys.argv[1])
+pe = cast("Any", pefile.PE(sys.argv[1]))
 pe.parse_data_directories()
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 data = t.get_data()

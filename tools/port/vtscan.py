@@ -5,18 +5,19 @@ Usage: python -I vtscan.py <exe> vt_rva nslots disp,disp...
 
 import struct
 import sys
+from typing import Any, cast
 
-import capstone  # ty: ignore[unresolved-import]
-import pefile  # ty: ignore[unresolved-import]
+import capstone
+import pefile
 
 MIN_CODE_RVA = 0x1000
 """First RVA treated as code; a slot whose target falls below it ends the table."""
 
-pe = pefile.PE(sys.argv[1], fast_load=True)
+pe = cast("Any", pefile.PE(sys.argv[1], fast_load=True))
 img = pe.get_memory_mapped_image()
 IB = pe.OPTIONAL_HEADER.ImageBase
 """Preferred image base of the executable, subtracted from absolute slot pointers."""
-md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+md = cast("Any", capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64))
 vt = int(sys.argv[2], 16)
 n = int(sys.argv[3])
 want = {int(x, 16) for x in sys.argv[4].split(",")}

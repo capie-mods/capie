@@ -7,9 +7,10 @@ Usage:
 
 import re
 import sys
+from typing import Any, cast
 
-import capstone  # ty: ignore[unresolved-import] - capstone is not in the ty environment
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import capstone
+import pefile
 
 LO_ARG_INDEX = 4
 """Index in sys.argv of the optional lower RVA bound of the find command."""
@@ -19,11 +20,11 @@ COUNT_ARG_INDEX = 4
 """Index in sys.argv of the optional instruction count of the at command."""
 
 exe, cmd = sys.argv[1], sys.argv[2]
-pe = pefile.PE(exe, fast_load=True)
+pe = cast("Any", pefile.PE(exe, fast_load=True))
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 data = t.get_data()
 base = t.VirtualAddress
-md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+md = cast("Any", capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64))
 
 if cmd == "find":
     h = sys.argv[3]

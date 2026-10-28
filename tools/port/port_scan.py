@@ -8,11 +8,11 @@ import json
 import pathlib
 import re
 import sys
-from typing import Any
+from typing import Any, cast
 
-import capstone  # ty: ignore[unresolved-import] - not in the ty --with list of the check command
-import pefile  # ty: ignore[unresolved-import] - not in the ty --with list of the check command
-from capstone import x86  # ty: ignore[unresolved-import] - not in the ty --with list of the check command
+import capstone
+import pefile
+from capstone import x86
 
 MIN_HEX_CHARS = 4
 """Shortest hex string, in characters, that counts as a code pattern."""
@@ -70,11 +70,11 @@ for f in files:
                 break
         entries.append({"file": f.name, "id": ident, "old_rva": rva, "hex": hexes[0]})
 
-pe = pefile.PE(str(exe), fast_load=True)
+pe = cast("Any", pefile.PE(str(exe), fast_load=True))
 text_sec = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 data = bytes(text_sec.get_data())
 base = int(text_sec.VirtualAddress)
-md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+md = cast("Any", capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64))
 md.detail = True
 
 

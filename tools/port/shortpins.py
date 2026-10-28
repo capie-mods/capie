@@ -8,20 +8,21 @@ import json
 import pathlib
 import re
 import sys
+from typing import Any, cast
 
-import capstone  # ty: ignore[unresolved-import]
-import pefile  # ty: ignore[unresolved-import]
+import capstone
+import pefile
 
 MIN_ANCHOR_BYTES = 16
 """Shortest pattern, in bytes, that can serve as a trusted anchor."""
 
 with pathlib.Path(sys.argv[1]).open() as fh:
     scan = json.load(fh)
-pe = pefile.PE(sys.argv[2], fast_load=True)
+pe = cast("Any", pefile.PE(sys.argv[2], fast_load=True))
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 d = t.get_data()
 b = t.VirtualAddress
-md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+md = cast("Any", capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64))
 
 manual = {  # old function -> new function (established by hand, see docs/research/port-1.19.4.0.md)
     0x22F4580: 0x23717E0,

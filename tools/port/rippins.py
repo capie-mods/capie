@@ -12,7 +12,7 @@ import pathlib
 import re
 import sys
 
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import pefile
 
 MIN_ANCHOR_LENGTH = 16
 """Minimum byte length a scanned hit must have to serve as an anchor."""
