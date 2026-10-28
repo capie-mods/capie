@@ -27,7 +27,8 @@
  * co-loading with any predecessor bridge (40), checks the executable SHA-256 (10), the PE
  * headers (11) and `.text` (12), every editor signature (20), every caption signature
  * (20), caption slot pins and tokens (21), focus signatures, slot pins and the manager RIP
- * target (22), the vtable classes (23); opens the log next to the DLL (13), adopts the
+ * target (22), the vtable classes (23); opens the log next to the DLL (13), checks the
+ * scripted-window layout pins (20, logged with the pin id, `window_pins.hpp`), adopts the
  * game-call fault latch of `capie_core.dll`, pins the module (14), installs the hooks
  * (30/31/32) and only then arms caption, focus and the master switch. A failed attempt is
  * final for the process (33 on retry). The DLL is never unloaded.
@@ -51,6 +52,7 @@
 #include "../features/editor/prefill.hpp"
 #include "../features/editor/public_editor.hpp"
 #include "../features/editor/transport.hpp"
+#include "../features/editor/window_pins.hpp"
 #include "../features/editor/window_view.hpp"
 #include "../features/focus/focus_adapter.hpp"
 #include "../features/host/host_pins.hpp"
@@ -512,6 +514,14 @@ InitCode initialize() {
                                           OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (core::logging::log_file == INVALID_HANDLE_VALUE) {
         return InitCode::log_unavailable;
+    }
+    // The scripted-window offsets every feature reads, proven in the game's own stores (N10).
+    if (const char* failed = window_pins::first_failed_pin(text, core::ProcessMemory{}, reinterpret_cast<core::uptr>(base));
+        failed != nullptr) {
+        char line[core::logging::suffix_capacity]{};
+        const int count = std::snprintf(line, sizeof(line), "RN_LIFECYCLE window layout pin %s failed; editor off\r\n", failed);
+        write_log(line, core::logging::stored_bytes(count, sizeof(line)));
+        return InitCode::signature_mismatch;
     }
     image_base = reinterpret_cast<std::uintptr_t>(base);
     engine::find_edit = reinterpret_cast<engine::FindWidget>(image_base + rva::find_edit);

@@ -39,12 +39,14 @@ First pass: 55 of 112 patterns unique and unchanged, 16 placed by a local delta,
 | politics view idler `view_idler` | `+0x570` | `+0x5F0` | `12C4CDF` view base ctor: `mov [rsi+5F0h],r14` (param 2) |
 | politics view root `view_root` | `+0x578` | `+0x5F8` | `12C4CE6`: `mov [rsi+5F8h],rbx`; `12C4E70` GetRoot: `mov rax,[rcx+5F8h]; ret` |
 | scripted window parent-visible cache `window_parent_seen` | `+0xB78` | `+0xBF8` | `BDB6AF` tick: `cmp cl,[rbx+0BF8h]`; ctor `BDBEEC`: `mov word [rbx+0BF8h],1` |
-| scripted window desired byte `window_desired` | `+0xB79` | `+0xBF9` | same word store at `BDBEEC` (OPEN: runtime check) |
+| scripted window desired byte `window_desired` | `+0xB79` | `+0xBF9` | same word store at `BDBEEC`; tick `BDB7E4`: `mov [rbx+0BF9h],al`, its only store (pinned, `window_pins.hpp`) |
 | session mode | `+0x4C` | `+0x34` | session init `22C379A`: `mov [rcx+34h],r8d` |
 | session machine id | `+0xA4` | `+0x84` | `22C37A2`: `mov dword [rcx+84h],1` |
 
 Unchanged (observed): scripted window `+0xE0` idler, `+0xE8` model, `+0xF0` manager, `+0xF8` root,
-`+0x100` parent, `+0x108` parent scripted GUI, `+0x110` context (window ctor `BDBEAA..BDBEE6`);
+`+0x100` parent, `+0x108` parent scripted GUI, `+0x110` context (window ctor `BDBEAA..BDBEE6`,
+pinned store by store in `plugin/capie/src/features/editor/window_pins.hpp`; the ctor allocates
+`0xC10` bytes, the test fixtures use `0xC00`, which covers every offset CAPIE reads);
 context `+0x10` window, `+0x20`, `+0x28`, `+0x3C0` scope, `+0x470` records (context ctor
 `BD7D40`); politics view observer at `+0x30`, observer `+0x8` GUI, `+0x14` dirty (`12C3B50`);
 `CEditBox` subobjects at `+0x80` (text buffer) and `+0x1A0` (receiver) (RTTI offsets); model
@@ -213,9 +215,10 @@ ironman mode.").
 ## Open
 
 - **In-game test** of every feature on 1.19.4.0 (text fields, name, flag, portrait, faction,
-  caption refresh, focus release). Values marked runtime-proven or inferred above can only be
-  confirmed there: `window_model`, `window_desired` (`+0xBF9`), `vt_sg_model`, `vt_sg_root`,
-  `vt_edit_definition`.
+  caption refresh, focus release). `window_model` (`+0xE8`) and `window_desired` (`+0xBF9`) are
+  no longer runtime-only: the game's own stores are pinned (`features/editor/window_pins.hpp`,
+  checked at editor start and by `tests/window_pins_exe_test.cpp`; scan N10). `vt_sg_model`,
+  `vt_sg_root` and `vt_edit_definition` are checked at runtime by `core/rtti.hpp`.
 - The release pipeline (`build_launcher.ps1`, `build_proxy.ps1`, `deploy/DEPLOYMENT.md`) bundles
   reviewed binaries by SHA-256; new binaries must be built and reviewed for 1.5.1.
 
@@ -234,5 +237,6 @@ scripted-window hooks are already the narrowest useful points. `SetVariableEffec
 slot is exact and atomic and could replace the inline detour. Pre-hashed localisation lookups
 (`241D010`) bypass the lookup hooks; harmless as long as nothing pre-hashes `RN1|`/`CAPIE_` keys.
 
-Follow-ups: refuse a root equal to the parent (`+0x100`) in the window guards; pin the `+0xBF9`
-store in Tick and the `+0xE8` store at `BDBEB1`; consider the vtable-slot hook for SetVariable.
+Follow-ups: refuse a root equal to the parent (`+0x100`) in the window guards (done, tested since
+scan H2); pin the `+0xBF9` store in Tick and the `+0xE8` store at `BDBEB1` (done, scan N10);
+consider the vtable-slot hook for SetVariable.

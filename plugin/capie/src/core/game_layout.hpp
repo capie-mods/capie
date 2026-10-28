@@ -80,6 +80,8 @@ inline constexpr std::uintptr_t leader_portrait_write = 0x143ADA0;
 inline constexpr std::uintptr_t window_tick = 0xBDB500;
 /// @brief `void Bind(window*)`; scripted window (re)bind, hooked.
 inline constexpr std::uintptr_t window_bind = 0xBD8ED0;
+/// @brief Constructor of the context embedded in a scripted window; pinned (`window_pins.hpp`), never called.
+inline constexpr std::uintptr_t window_context_ctor = 0xBD7D40;
 /// @brief `void Dispatch(context*, selector*)`; button click to effect dispatch, hooked.
 inline constexpr std::uintptr_t window_dispatch = 0xBD9380;
 /// @brief `CExecuteScriptedWindowEffect` constructor, hooked to substitute the record view.
