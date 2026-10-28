@@ -5,7 +5,7 @@
 .DESCRIPTION
     Output: plugin/build/capie-launcher/ (the accepted plugin/build/launcher-candidate is not touched).
       1. Every input binary listed in plugin/capie/deploy/bundle-inputs.json (today the CAPIE 1.5
-         release build plugin/build/capie-v15-dev/capie_core.dll, capie_editor.dll,
+         release build plugin/build/capie-1.5.1/capie_core.dll, capie_editor.dll,
          capie_injector.exe; never debug/ or a console build) must match its SHA-256 there. The
          same file pins the proxy (build_proxy.ps1), and the table in DEPLOYMENT.md must mirror it.
       2. The inputs are copied into runtime\ and launcher_manifest.generated.hpp is written from
@@ -92,6 +92,28 @@ function Get-Sha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
 }
 
+function Get-ProtectedState {
+    <#
+    .SYNOPSIS
+        SHA-256 of a protected file, or 'missing' when it does not exist.
+    .DESCRIPTION
+        The protected files only have to be unchanged by this build. Some of them are artifacts of
+        the monorepo (the accepted launcher candidate) that a fresh checkout does not have; a file
+        that is missing before and after the build is unchanged too.
+    .PARAMETER Path
+        File.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-ProtectedState 'C:\x\a.exe'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return 'missing' }
+    return Get-Sha256 $Path
+}
+
 function New-LauncherManifestHeader {
     <#
     .SYNOPSIS
@@ -171,7 +193,7 @@ function Invoke-Cli {
 
 # 1. Inputs and protected files.
 $before = [ordered]@{}
-foreach ($name in $script:ProtectedNames) { $before[$name] = Get-Sha256 (Join-Path $repoDir $name) }
+foreach ($name in $script:ProtectedNames) { $before[$name] = Get-ProtectedState (Join-Path $repoDir $name) }
 foreach ($entry in $script:BundleInputs) {
     $source = Join-Path $repoDir $entry.source
     if (-not (Test-Path -LiteralPath $source)) { throw "Reviewed CAPIE input missing (bundle-inputs.json): $($entry.source)" }
@@ -184,7 +206,7 @@ foreach ($entry in $script:BundleInputs) {
     Copy-Item -LiteralPath (Join-Path $repoDir $entry.source) -Destination $target -Force
     if ((Get-Sha256 $target).ToLowerInvariant() -cne $entry.sha256) { throw "Bundle copy mismatch: $($entry.name)" }
 }
-Copy-Item -LiteralPath (Join-Path $repoDir 'plugin/build/capie-v15-dev/LICENSE.MinHook.txt') -Destination (Join-Path $outputDir 'LICENSE.MinHook.txt') -Force
+Copy-Item -LiteralPath (Join-Path $repoDir 'plugin/build/capie-1.5.1/LICENSE.MinHook.txt') -Destination (Join-Path $outputDir 'LICENSE.MinHook.txt') -Force
 $launcherHeader = Join-Path $outputDir 'launcher_manifest.generated.hpp'
 [IO.File]::WriteAllText($launcherHeader, (New-LauncherManifestHeader -RuntimeDirectory $runtimeDir), [Text.UTF8Encoding]::new($false))
 # The compiled pins must be the JSON's, and the proxy must not pin another CAPIE build.
@@ -313,7 +335,7 @@ $database = foreach ($file in $tidyUnits) {
 
 # 7. Protected files, review record, checksums.
 foreach ($name in $script:ProtectedNames) {
-    if ((Get-Sha256 (Join-Path $repoDir $name)) -ne $before[$name]) { throw "Protected file changed: $name" }
+    if ((Get-ProtectedState (Join-Path $repoDir $name)) -ne $before[$name]) { throw "Protected file changed: $name" }
 }
 $sources = [ordered]@{}
 $deployFiles = @(Get-Item -LiteralPath (Get-CapieBundleInputPath)) + @(Get-Item -LiteralPath (Join-Path $PSScriptRoot 'deploy\BundleInputs.psm1'))

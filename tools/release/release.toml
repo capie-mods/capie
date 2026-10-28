@@ -100,14 +100,14 @@ slow = true
 # Reviewed CAPIE binaries. bundle-inputs.json is the one list of their hashes: build_launcher.ps1
 # and build_proxy.ps1 compile them in, and this step checks the build folder and the ZIP against
 # it. reviewed_files must name exactly the files that bundle-inputs.json lists.
-capie_output = "plugin/build/capie-v15-dev"
+capie_output = "plugin/build/capie-1.5.1"
 reviewed_hashes = "plugin/capie/deploy/bundle-inputs.json"
 reviewed_files = ["capie_core.dll", "capie_editor.dll", "capie_injector.exe"]
 
 [build.rebuild_capie]
 name = "CAPIE build over the reviewed output (build.ps1)"
 argv = ["{pwsh}", "-NoProfile", "-File", "plugin/capie/build.ps1", "-MinHookDir", "{minhook_dir}",
-        "-GameExe", "{game_exe}"]
+        "-GameExe", "{game_exe}", "-OutputDirectory", "plugin/build/capie-1.5.1"]
 
 [[build.commands]]
 name = "launcher build and tests (build_launcher.ps1)"
