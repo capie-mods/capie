@@ -188,27 +188,27 @@ $script:RaUpdatePublicKeyXml = '<RSAKeyValue><Modulus>21/rZrMx9hLPYwh/QMiCnXaOUe
 # "does NOT support your Hearts of Iron IV build" notice (and the release page and update
 # command), never a silent success. CAPIE 1.5.1 replaces them when it is released.
 $script:RaPinnedRelease = [ordered]@{
-    Version             = '1.5.0'
-    ZipName             = 'CAPIE-1.5.0-win64.zip'
-    ZipSha256           = 'E949DAFE4A1C588F764F6A5D0A9E8DCC9F0EDB5A7D6F158327EE6D78FB20D6C2'
+    Version             = '1.5.1'
+    ZipName             = 'CAPIE-1.5.1-win64.zip'
+    ZipSha256           = 'D3888B5AF618EE960AE7E1D25A6D11E3C8A2A347368BE1E0AA29F0E8F875A8C3'
     Files               = [ordered]@{
-        'RenameAnythingLauncher.exe'                                = '9F4E3BBB8AF2588C6401A601CB15D94F198C47CF62523BBD86E600B05F0A5664'
+        'RenameAnythingLauncher.exe'                                = 'DFDEF459FB091BFB2F5111AB407F222ED2C015E727AAEE4E6A366F95D2043A08'
         'LICENSE.MinHook.txt'                                       = '4F21F857550D7BE854DA6EA5F2DA4E6775CA4E3FBB535E4F3D961C47D0BF3335'
-        'runtime/capie_core.dll'                                    = '7A1C946F8A15F6120A0232453E3013B9F854EC2A6B526D0AB9C86F19959D0DE1'
-        'runtime/capie_editor.dll'                                  = '0DAD2732552305F43E1E87FB6E10E6A5B473E683EA27F1E82D0EBD9B8934D656'
-        'runtime/capie_injector.exe'                                = 'EB5E9FF5F9B944B55CA5EB4B343D18D507584284FB60F5F119A8BE8843484C25'
-        'proxy/version.dll'                                         = '796B55DECC1E391921E7C40F66751073E1D2248C747BA287E48793E28C7E8ADF'
-        'mod/capie.mod'                                             = '618206343DF86601F223E112F2BFDD30974545F5CA9EA956F9245A57804AD977'
-        'mod/capie/descriptor.mod'                                  = '7EB57809FACDD308ACD61F238B6D5B08AC83CE433A689F0FC25447C343C07A53'
+        'runtime/capie_core.dll'                                    = '0CFC527FB9BAC5F64E75921BCFAC24ABB37D7AF60F6C13B7A9626A37B0BB5C61'
+        'runtime/capie_editor.dll'                                  = 'F24631D03F073867A95B0E1D2F98E78BD7885EB6C7325A65560BCB7A53EE98D7'
+        'runtime/capie_injector.exe'                                = '40BBB4E34056771B502496864145848157F5FAD107F145BF4E237CD013336517'
+        'proxy/version.dll'                                         = '9F8ECEA50E7E58E1A72AAA14E7F82BC135AD905FEEBBFD5A9669816BFEFA6F94'
+        'mod/capie.mod'                                             = 'A1512E4AFE21B7092B27D3BA5A6C436404A9895AADC1E41B55FACD42A96E98A0'
+        'mod/capie/descriptor.mod'                                  = '2DE22DF5EC6BAE2CD3DC1A5669BA8E0A0F817625550E63F7D8477075A235EAC4'
         'mod/capie/gfx/interface/capie_menu_mark.dds'               = '6842E6D83D773648EE7A5878EA5B0A2E77C66353C926406CFE95B23C88B2B522'
-        'mod/capie/interface/capie_menu.gfx'                        = '392A554D2286B5C81591946E4E0AA439FCC0D3A1D5471F56D472B656B242E695'
+        'mod/capie/interface/capie_menu.gfx'                        = 'D3B6C8221365C6499CEEE2611FEF7DAEE74884B578AD2C90C4F20490EF11E952'
         'mod/capie/interface/frontendmainview.gui'                  = '901F62142B80FEEF88892A64B0DE4D7B96B2B448967D12156BAF2415C6A15918'
-        'mod/capie/localisation/english/capie_switch_l_english.yml' = 'EE94308AB621CC46BC70AD066F1E223AF2071FA9F4A3728797ABD04AF23ABC3F'
-        'mod/capie/localisation/polish/capie_switch_l_polish.yml'   = 'E59AF5200E9D539A9AD36AC8A6EDEDD1D589C55FC176236B9498DB92C0182CA9'
+        'mod/capie/localisation/english/capie_switch_l_english.yml' = '3959220345820E9F5B03C2882CFC741584451E18757CF7ADBAEBA914CC249437'
+        'mod/capie/localisation/polish/capie_switch_l_polish.yml'   = '613C322D04AF3719E9DFFB912B16356D9ABBCB1FAC770C92380D585400C084FF'
         'mod/capie/thumbnail.png'                                   = 'D4BB22A36F572D354E49DCFB54DCF03F03BF844517F261FF2B9BC2D94CFD66FE'
     }
     # hoi4.exe builds this release's DLLs support (install notice, -Update, -CheckUpdate; the launcher enforces it).
-    SupportedGameSha256 = @('7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5')
+    SupportedGameSha256 = @('B6650C85002374218E60598BD04AAA26CBAD996FEDCE77126FCF92FC6BD6D888')
 }
 #endregion Shared/Configuration.ps1
 
