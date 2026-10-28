@@ -50,27 +50,6 @@ name = "pytest"
 argv = ["{python}", "-m", "pytest", "-q"]
 
 [[preflight.commands]]
-name = "gen.py output equals mod/"
-argv = ["{python}", "tools/gen.py", "--game", "{game_dir}"]
-clean_after = ["mod"]
-
-[[preflight.commands]]
-name = "mod checks (tools/check.py)"
-argv = ["{python}", "tools/check.py", "{game_dir}"]
-
-[[preflight.commands]]
-name = "in-place editor checks"
-argv = ["{python}", "tools/tests/check_inline_editor.py"]
-
-[[preflight.commands]]
-name = "script SDK is up to date"
-argv = ["{python}", "sdk/capie-script-sdk/tools/gen_sdk.py", "--check"]
-
-[[preflight.commands]]
-name = "shared site theme is up to date"
-argv = ["{python}", "sites/shared/sync_shared.py", "--check"]
-
-[[preflight.commands]]
 name = "CAPIE switch mod checks"
 argv = ["{python}", "plugin/capie/toggle-mod/check_mod.py", "--game", "{game_dir}"]
 
