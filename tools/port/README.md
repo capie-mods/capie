@@ -35,7 +35,7 @@ Anchor format (one entry per name; `layout: false` marks a helper that is not in
 | `rtti` (+ `offset`) | `{"rtti": "CEditBox", "offset": 128}` | vtable of that (sub)object |
 | `slot` + `vtable` | `{"slot": "0x50", "vtable": "vt_execute_effect"}` | function in that slot |
 | `string` | `{"string": "window for %s is destroyed.\n"}` | functions referencing the literal |
-| `callees` / `callers` / `refs` | `{"callees": "window_rebuild"}` | direct call targets / callers / users |
+| `callees` / `callers` / `refs` | `{"callees": "window_manager_rebuild"}` | direct call targets / callers / users |
 | `ctor` | `{"ctor": "vt_politics_view"}` | functions storing the vtable, minus its destructors |
 | `near_string` / `near_call` | `{"near_string": "/reply ", "skip": 1}` | the call (or `"what": "rip"` operand) next to the site |
 | `rip_in` | `{"rip_in": "country_of", "then_disp": "0x310"}` | RIP operand targets (globals) |
