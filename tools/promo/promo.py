@@ -10,11 +10,11 @@ one panel-rim hairline. No gradients, glow, shadows or emoji.
 Sources. ``import`` copies only the screenshots listed in ``SOURCES`` from a folder of raw
 captures into ``docs/assets/screenshots/source/<slug>.png``. Each one was reviewed by hand for
 personal data (overlay names, account names, paths), debug output and raw localisation keys
-before it was listed; the review notes are in ``Source.note`` and in
-monorepo archive: docs/evidence/session-20261014/promo/report.txt. Importing re-encodes the pixels, so metadata
-of the capture tool (text chunks, DPI) is not copied. The capture tool drew a small red cursor
-dot into every screenshot; ``build`` paints it out at the listed position and fails if the dot
-is not there, so a replaced source cannot be patched in the wrong place.
+before it was listed; the review notes are in ``Source.note`` and in monorepo archive:
+docs/evidence/session-20261014/promo/report.txt. Importing re-encodes the pixels, so metadata of the
+capture tool (text chunks, DPI) is not copied. The capture tool drew a small red cursor dot into
+every screenshot; ``build`` paints it out at the listed position and fails if the dot is not there,
+so a replaced source cannot be patched in the wrong place.
 
 Outputs (``build``):
 

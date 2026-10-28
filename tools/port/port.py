@@ -2,10 +2,10 @@
 
 Usage::
 
-    python -I tools/port/port.py triage [--exe PATH]        # day 1: what breaks on the installed game?
+    python -I tools/port/port.py triage [--exe PATH]    # day 1: what breaks on the installed game?
     python -I tools/port/port.py --map map_<version>.json generate [--exe PATH]
-    python -I tools/port/port.py apply                       # write tables, constants, test literals
-    python -I tools/port/port.py verify                      # signature checker on the sources
+    python -I tools/port/port.py apply                  # write tables, constants, test literals
+    python -I tools/port/port.py verify                 # signature checker on the sources
 
 ``triage`` needs no map: it scans every pin of the current sources in the new executable and
 writes ``out/triage.md`` (unchanged / moved / bytes changed / not found), the input for the
@@ -34,7 +34,9 @@ REPO = HERE.parents[1]
 OUT = HERE / "out"
 """Scratch output (git-ignored)."""
 
-DEFAULT_EXE = pathlib.Path(r"C:\Program Files (x86)\Steam\steamapps\common\Hearts of Iron IV\hoi4.exe")
+DEFAULT_EXE = pathlib.Path(
+    r"C:\Program Files (x86)\Steam\steamapps\common\Hearts of Iron IV\hoi4.exe"
+)
 """Steam install path of the game."""
 
 MAP_NAME = "map_1.19.4.0.json"
@@ -42,6 +44,9 @@ MAP_NAME = "map_1.19.4.0.json"
 
 DEPS = ["--with-requirements", str(HERE / "requirements.txt")]
 """Python packages of the helpers (pinned in requirements.txt)."""
+
+SHORT_PIN_BYTES = 16
+"""Pins of at least this many bytes may be accepted on one unique hit; shorter pins are not."""
 
 
 def run(script: str, *args: str) -> str:
@@ -53,10 +58,15 @@ def run(script: str, *args: str) -> str:
 
     Returns:
         Captured standard output (also echoed).
+
+    Raises:
+        SystemExit: If the helper exits with a non-zero status.
     """
     cmd = ["uv", "run", "--no-project", *DEPS, "python", "-I", str(HERE / script), *args]
     env = {**os.environ, "CAPIE_PORT_MAP": MAP_NAME}
-    done = subprocess.run(cmd, capture_output=True, text=True, check=False, env=env)
+    done = subprocess.run(  # noqa: S603 - fixed uv command built from this folder's own helpers
+        cmd, capture_output=True, text=True, check=False, env=env
+    )
     sys.stdout.write(done.stdout)
     if done.returncode != 0:
         sys.stderr.write(done.stderr)
@@ -74,7 +84,7 @@ def pinned_build() -> tuple[str, str]:
     text = (REPO / "plugin/capie/src/core/game_build.hpp").read_text(encoding="utf-8")
     sha = re.search(r'game_exe_sha256\[\] = "([0-9a-f]{64})"', text)
     ver = re.search(r'game_version\[\] = "([\d.]+)"', text)
-    return (sha[1] if sha else "", ver[1] if ver else "")
+    return (str(sha[1]) if sha else "", str(ver[1]) if ver else "")
 
 
 def triage(exe: pathlib.Path) -> None:
@@ -96,7 +106,7 @@ def triage(exe: pathlib.Path) -> None:
     rows = []
     for e in scan:
         old = e["old_rva"]
-        if len(e["hits"]) == 1 and e["n"] >= 16:
+        if len(e["hits"]) == 1 and e["n"] >= SHORT_PIN_BYTES:
             new = e["hits"][0]
             state = "unchanged" if new == old else "moved"
             rows.append((state, e["id"], e["file"], old, new, ""))
@@ -105,7 +115,8 @@ def triage(exe: pathlib.Path) -> None:
         if best.get("score") == best.get("of") and best:
             rows.append(("moved (short, check context)", e["id"], e["file"], old, best["rva"], ""))
         elif best:
-            rows.append(("bytes changed", e["id"], e["file"], old, best["rva"], f"{best['score']}/{best['of']} bytes"))
+            note = f"{best['score']}/{best['of']} bytes"
+            rows.append(("bytes changed", e["id"], e["file"], old, best["rva"], note))
         else:
             rows.append(("not found", e["id"], e["file"], old, None, ""))
     counts: dict[str, int] = {}
@@ -125,9 +136,9 @@ def triage(exe: pathlib.Path) -> None:
         "|---|---|---|---|---|---|",
     ]
     for state, ident, file, old, new, note in sorted(rows, key=lambda r: (r[0], r[2], r[1])):
-        lines.append(
-            f"| {state} | `{ident}` | {file} | {old and f'{old:X}'} | {new and f'{new:X}' or '-'} | {note} |"
-        )
+        old_txt = old and f"{old:X}"
+        new_txt = (new and f"{new:X}") or "-"
+        lines.append(f"| {state} | `{ident}` | {file} | {old_txt} | {new_txt} | {note} |")
     (OUT / "triage.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"wrote {OUT / 'triage.md'}")
 
@@ -137,9 +148,14 @@ def main() -> int:
 
     Returns:
         Process exit code.
+
+    Raises:
+        SystemExit: If the map file needed by ``generate`` or ``apply`` is missing.
     """
     global MAP_NAME  # noqa: PLW0603 - one setting shared by every helper call
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = parser.add_subparsers(dest="step", required=True)
     t = sub.add_parser("triage")
     t.add_argument("--exe", type=pathlib.Path, default=DEFAULT_EXE)
@@ -147,11 +163,14 @@ def main() -> int:
     g.add_argument("--exe", type=pathlib.Path, default=DEFAULT_EXE)
     sub.add_parser("apply")
     sub.add_parser("verify")
-    parser.add_argument("--map", default=MAP_NAME, help="map file in tools/port (map_<version>.json)")
+    parser.add_argument(
+        "--map", default=MAP_NAME, help="map file in tools/port (map_<version>.json)"
+    )
     args = parser.parse_args()
     MAP_NAME = args.map
     if args.step in ("generate", "apply") and not (HERE / MAP_NAME).is_file():
-        raise SystemExit(f"map file not found: tools/port/{MAP_NAME}")
+        msg = f"map file not found: tools/port/{MAP_NAME}"
+        raise SystemExit(msg)
     if args.step == "triage":
         triage(args.exe)
     elif args.step == "generate":
@@ -160,8 +179,9 @@ def main() -> int:
         run("apply.py", str(REPO), str(OUT / "new_tables.json"))
         run("retest.py", str(REPO))
     elif args.step == "verify":
-        cmd = ["uv", "run", "--no-project", "python", "-I", str(REPO / "plugin/capie/tests/check_signature_table.py")]
-        return subprocess.run(cmd, check=False).returncode
+        checker = str(REPO / "plugin/capie/tests/check_signature_table.py")
+        cmd = ["uv", "run", "--no-project", "python", "-I", checker]
+        return subprocess.run(cmd, check=False).returncode  # noqa: S603 - fixed uv command, no shell
     return 0
 
 

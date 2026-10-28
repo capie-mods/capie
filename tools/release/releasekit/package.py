@@ -598,7 +598,9 @@ def _run_checked(ctx: Context, name: str, argv: Sequence[str]) -> bool:
 
 
 SUMMARY_LINES = 3
+"""Changelog lines copied into the signed manifest's summary."""
 SUMMARY_LINE_CHARS = 120
+"""Longest summary line in characters; longer lines are cut."""
 
 
 def changelog_summary(ctx: Context) -> list[str]:

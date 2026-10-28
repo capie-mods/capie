@@ -30,18 +30,40 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 HERE = Path(__file__).resolve().parent
+"""Folder of this script (``plugin/capie/toggle-mod``)."""
+
 REPO = HERE.parents[2]
+"""Repository root."""
+
 TOKENS = REPO / "docs" / "design" / "tokens.json"
+"""Design token file that supplies the colours of the mark."""
+
 OUTPUT = HERE / "capie" / "gfx" / "interface" / "capie_menu_mark.dds"
+"""DDS file that the script writes into the mod folder."""
 
 FRAME = 50  # final frame edge in pixels (the DLC medal slot)
+"""Final frame edge in pixels, the size of a vanilla DLC medal slot."""
+
 SCALE = 4  # supersampling factor
+"""Supersampling factor: the mark is drawn at this multiple, then reduced."""
+
 VIEWBOX = 500.0  # source viewBox of the mark
+"""Edge of the square source viewBox of the mark, in its own units."""
+
 STAMP_HEIGHT = 48.0  # final stamp height in pixels, inside the 50 px frame
+"""Final height of the stamp in pixels, inside the frame."""
+
 PERF_RADIUS = 12.5
+"""Radius of each perforation hole, in viewBox units."""
+
 PERF_STEP_X = 33.5
+"""Horizontal distance between neighbouring perforations, in viewBox units."""
+
 PERF_STEP_Y = 32.8
+"""Vertical distance between neighbouring perforations, in viewBox units."""
+
 OVERPRINT_ANGLE = -7.0
+"""Rotation of the vermilion and brass overprint around the centre, in degrees."""
 
 
 def load_colors() -> dict[str, tuple[int, int, int]]:
@@ -63,13 +85,21 @@ class Mark:
     """Maps the 500 px viewBox of the mark onto one supersampled frame."""
 
     def __init__(self, left: float) -> None:
-        """Places the stamp centred in the frame that starts at `left` (supersampled px)."""
+        """Places the stamp centred in the frame that starts at `left` (supersampled px).
+
+        Args:
+            left: Left edge of the frame on the supersampled canvas, in pixels.
+        """
         self.unit = STAMP_HEIGHT * SCALE / (414 - 86 + 2 * PERF_RADIUS)
         self.left = left + FRAME * SCALE / 2 - 250 * self.unit
         self.top = FRAME * SCALE / 2 - 250 * self.unit
 
     def point(self, x: float, y: float) -> tuple[float, float]:
         """Converts a viewBox point.
+
+        Args:
+            x: Horizontal position in viewBox units.
+            y: Vertical position in viewBox units.
 
         Returns:
             The point on the supersampled canvas.
@@ -81,6 +111,12 @@ class Mark:
     ) -> tuple[float, float, float, float]:
         """Converts a viewBox rectangle.
 
+        Args:
+            x: Left edge in viewBox units.
+            y: Top edge in viewBox units.
+            width: Width in viewBox units.
+            height: Height in viewBox units.
+
         Returns:
             (left, top, right, bottom) on the supersampled canvas.
         """
@@ -89,6 +125,12 @@ class Mark:
 
     def rotated(self, x: float, y: float, width: float, height: float) -> list[tuple[float, float]]:
         """Converts a rectangle of the overprint group (turned around the centre).
+
+        Args:
+            x: Left edge in viewBox units, before the turn.
+            y: Top edge in viewBox units, before the turn.
+            width: Width in viewBox units.
+            height: Height in viewBox units.
 
         Returns:
             Its four corners on the supersampled canvas.
@@ -105,7 +147,13 @@ class Mark:
 
 
 def draw_mark(canvas: Image.Image, left: float, palette: dict[str, tuple[int, int, int]]) -> None:
-    """Draws one stamp into the frame that starts at `left`."""
+    """Draws one stamp into the frame that starts at `left`.
+
+    Args:
+        canvas: Supersampled RGBA canvas to draw on.
+        left: Left edge of the frame on the canvas, in pixels.
+        palette: Named RGB colours of the mark.
+    """
     mark = Mark(left)
     layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
     pen = ImageDraw.Draw(layer)
@@ -134,6 +182,9 @@ def draw_mark(canvas: Image.Image, left: float, palette: dict[str, tuple[int, in
 def draw(palette: dict[str, tuple[int, int, int]]) -> Image.Image:
     """Draws the mark.
 
+    Args:
+        palette: Named RGB colours of the mark.
+
     Returns:
         The 50 x 50 RGBA image.
     """
@@ -145,6 +196,9 @@ def draw(palette: dict[str, tuple[int, int, int]]) -> Image.Image:
 
 def encode(image: Image.Image) -> bytes:
     """Encodes the sprite strip as uncompressed 32-bit RGBA DDS.
+
+    Args:
+        image: The RGBA image to encode.
 
     Returns:
         DDS bytes.

@@ -24,6 +24,7 @@ import json
 import pathlib
 import re
 import sys
+from typing import Any
 
 HERE = pathlib.Path(__file__).resolve().parent
 """Folder of this script (``plugin/capie/tests``)."""
@@ -74,7 +75,7 @@ class Results:
             print("FAIL", label)
 
 
-def accepted(results: Results) -> dict:
+def accepted(results: Results) -> dict[str, Any]:
     """Return the accepted table after verifying its SHA-256.
 
     Args:
@@ -85,7 +86,9 @@ def accepted(results: Results) -> dict:
     """
     path = REPO / ACCEPTED
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    results.check(f"{ACCEPTED} is the accepted version ({digest[:8]})", ok=digest == ACCEPTED_SHA256)
+    results.check(
+        f"{ACCEPTED} is the accepted version ({digest[:8]})", ok=digest == ACCEPTED_SHA256
+    )
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -140,9 +143,13 @@ def main() -> int:
     reference = accepted(results)
     layout = layout_values()
     entries = table_entries(layout)
-    results.check(f"{TABLE_SIZE} entries in the table (found {len(entries)})", ok=len(entries) == TABLE_SIZE)
+    results.check(
+        f"{TABLE_SIZE} entries in the table (found {len(entries)})", ok=len(entries) == TABLE_SIZE
+    )
     expected = reference["entries"]
-    results.check(f"{TABLE_SIZE} accepted entries (found {len(expected)})", ok=len(expected) == TABLE_SIZE)
+    results.check(
+        f"{TABLE_SIZE} accepted entries (found {len(expected)})", ok=len(expected) == TABLE_SIZE
+    )
     for identifier, want in expected.items():
         entry = entries.get(identifier)
         ok = entry is not None and entry[0] == int(want["rva"], 16) and entry[1] == want["hex"]
@@ -151,7 +158,10 @@ def main() -> int:
         results.check(f"{identifier} is not in the accepted table", ok=False)
     for name, value in reference["constants"].items():
         results.check(f"{name} == {value}", ok=layout.get(name) == int(value, 16))
-    results.check("accepted table names the pinned executable", ok=reference["game_exe_sha256"] == GAME_EXE_SHA256)
+    results.check(
+        "accepted table names the pinned executable",
+        ok=reference["game_exe_sha256"] == GAME_EXE_SHA256,
+    )
     build = BUILD.read_text(encoding="utf-8")
     results.check("game_build.hpp pins the same executable", ok=f'"{GAME_EXE_SHA256}"' in build)
     print(f"signature table equivalence: {results.checks} checks, {results.failures} failures")

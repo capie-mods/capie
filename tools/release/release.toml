@@ -39,7 +39,8 @@ argv = ["{python}", "-m", "ruff", "format", "--check"]
 
 [[preflight.commands]]
 name = "ty check"
-argv = ["{python}", "-m", "ty", "check"]
+# --python: ty does not detect the environment of the running interpreter by itself.
+argv = ["{python}", "-m", "ty", "check", "--python", "{python}"]
 
 [[preflight.commands]]
 name = "constant and function docstrings"

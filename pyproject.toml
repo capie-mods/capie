@@ -117,7 +117,7 @@ python-platform = "win32"
 # after inserting this directory into sys.path at runtime; mirror that for type checking.
 # tools/ (modgen, rncommon) and tools/tests (inline_checks) are the import roots of the tool
 # scripts and of the pytest unit tests.
-extra-paths = ["probes/rn_inline_pair_qa/tools", "tools", "tools/tests", "tools/release", "tools/release/tests", "tools/promo", "sdk/capie-script-sdk/tools"]
+extra-paths = ["tools", "tools/release", "tools/release/tests", "tools/promo"]
 
 [tool.ty.src]
 # Same exclusions, and the same reasons, as [tool.ruff] extend-exclude above.

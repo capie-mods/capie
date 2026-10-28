@@ -30,12 +30,22 @@ MOD = HERE / "capie"
 """Content folder of the switch mod (uploaded to the Workshop)."""
 
 LOCAL_DESCRIPTOR = HERE / "capie.mod"
-RELEASE_TOML = REPO / "tools" / "release" / "release.toml"
-TEST_SESSION = REPO / "tools" / "test-session.ps1"
-WORKSHOP_NAME = "CAPIE"
-LOCAL_NAME = "CAPIE (local copy)"
-WORKSHOP_ID = "3819929471"
 """Local registration file that points the launcher at ``mod/capie``."""
+
+RELEASE_TOML = REPO / "tools" / "release" / "release.toml"
+"""Release configuration whose descriptor name must equal ``LOCAL_NAME``."""
+
+TEST_SESSION = REPO / "tools" / "test-session.ps1"
+"""Test-session script whose CAPIE descriptor name must differ from the Workshop item."""
+
+WORKSHOP_NAME = "CAPIE"
+"""Name of the Workshop item, as its ``descriptor.mod`` declares it."""
+
+LOCAL_NAME = "CAPIE (local copy)"
+"""Name of the local copy registration, which differs from the Workshop name."""
+
+WORKSHOP_ID = "3819929471"
+"""Steam Workshop ID of the switch mod, which the launcher must know."""
 
 LAUNCHER_CONFIG = REPO / "plugin" / "capie" / "src" / "launcher" / "config.hpp"
 """Launcher source that compiles in the descriptor path it looks for."""
@@ -69,26 +79,60 @@ GAMEPLAY_FOLDERS = ("common", "events", "history", "map", "music", "sound", "por
 """Folders that would carry gameplay content; the switch mod has none of them."""
 
 MENU_FILE = "frontendmainview.gui"
+"""Main-menu interface file that the mod overrides with the CAPIE block."""
+
 MENU_WINDOW = "mainmenu_dlc_ownership"  # created by name by hoi4.exe; shown at every resolution
+"""Front-end window name the engine looks up for the main-menu stamp."""
+
 MENU_ELEMENT = "capie_menu_mark"
+"""Name of the CAPIE stamp element inside the override block."""
+
 MENU_SPRITE = "GFX_capie_menu_mark"
+"""Sprite name that the ``.gfx`` file defines and the stamp element uses."""
+
 MENU_TOOLTIP = "CAPIE_MENU_MARK_TT"
+"""Localisation key of the tooltip shown when hovering the stamp."""
+
 MENU_GFX = "capie_menu.gfx"
+"""Only ``.gfx`` file of the mod, which defines the stamp sprite."""
+
 MENU_TEXTURE = "gfx/interface/capie_menu_mark.dds"
+"""Path of the stamp's DDS texture inside the mod folder."""
+
 MENU_FRAME_EDGE = 50  # one frame, the size of a vanilla DLC medal slot
+"""Edge of the stamp frame in pixels, the size of a vanilla DLC medal slot."""
+
 MENU_FRAMES = 1
+"""Number of frames in the stamp sprite strip."""
+
 DDS_MAGIC = b"DDS "
+"""First four bytes of every DDS file."""
+
 DDS_HEIGHT_OFFSET = 12
+"""Offset of the header height field in a DDS file."""
+
 DDS_WIDTH_OFFSET = 16
+"""Offset of the header width field in a DDS file."""
+
 DDS_BITCOUNT_OFFSET = 88
+"""Offset of the pixel format bit count in a DDS file."""
+
 DDS_RGBA_BITS = 32
+"""Bit count of an uncompressed 32-bit RGBA pixel format."""
+
 FALLBACK_KEYS = ("CAPIE_STATUS",)
+"""Localisation keys whose fallback text must exist and match the CAPIE script SDK."""
+
 BLOCK_BEGIN = "# CAPIE BEGIN"
+"""Marker line that opens the CAPIE block in the menu override."""
+
 BLOCK_END = "# CAPIE END"
+"""Marker line that closes the CAPIE block in the menu override."""
+
 # SHA-256 of interface/frontendmainview.gui of HOI4 1.19.3 (17 757 bytes). A game patch that
 # changes the file makes the check fail: re-create the override from the new file.
 VANILLA_MENU_SHA256 = "17E5F3CDE42D170B9E4AC40BB2312CD2D505767920B6E995C5C58B48C38EFD1B"
-"""Front-end window name the engine looks up for the main-menu stamp."""
+"""SHA-256 of the vanilla main-menu interface file, in upper-case hex."""
 
 STATUS_KEY = "CAPIE_STATUS"
 """Localisation key CAPIE answers with its version."""
@@ -260,6 +304,9 @@ def check_thumbnail(checks: Checks) -> None:
 def strip_capie_block(text: str) -> tuple[str, str]:
     """Splits the menu override into the vanilla text and the CAPIE block.
 
+    Args:
+        text: Full text of the menu override file.
+
     Returns:
         (text without the lines from CAPIE BEGIN to CAPIE END, the block itself); the block
         is empty when the markers are missing or not in order.
@@ -274,6 +321,10 @@ def strip_capie_block(text: str) -> tuple[str, str]:
 
 def window_of(text: str, position: int) -> str:
     """Names the containerWindowType that encloses a position (by brace depth).
+
+    Args:
+        text: Full text of the interface file.
+        position: Character offset in `text` whose enclosing window is wanted.
 
     Returns:
         The window name, or an empty string.
