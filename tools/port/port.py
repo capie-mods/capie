@@ -2,15 +2,20 @@
 
 Usage::
 
+    python -I tools/port/port.py locate [--exe PATH] [--check]  # step 0: RVAs from RTTI/strings
     python -I tools/port/port.py triage [--exe PATH]    # day 1: what breaks on the installed game?
     python -I tools/port/port.py --map map_<version>.json generate [--exe PATH]
     python -I tools/port/port.py apply                  # write tables, constants, test literals
     python -I tools/port/port.py verify                 # signature checker on the sources
 
-``triage`` needs no map: it scans every pin of the current sources in the new executable and
-writes ``out/triage.md`` (unchanged / moved / bytes changed / not found), the input for the
-analysis. ``generate`` builds the new patterns from a finished map (``map_<version>.json``),
-``apply`` writes them into the sources and moves the test literals, ``verify`` runs
+``locate`` resolves the rebuild-proof anchors of ``anchors.json`` (RTTI class names, string
+literals and the call relations around them) and prints the RVA of every function, vtable and
+global of ``game_layout.hpp`` in the given executable; ``--check`` compares them with the
+header and fails on a difference (the self-check on the pinned build). ``triage`` needs no
+map: it scans every pin of the current sources in the new executable and writes
+``out/triage.md`` (unchanged / moved / bytes changed / not found), the input for the analysis.
+``generate`` builds the new patterns from a finished map (``map_<version>.json``), ``apply``
+writes them into the sources and moves the test literals, ``verify`` runs
 ``check_signature_table.py``. The native build (``plugin/capie/build.ps1``) is the final gate.
 
 Every helper runs as ``python -I`` with the dependencies given to ``uv run --with``.
@@ -38,6 +43,9 @@ DEFAULT_EXE = pathlib.Path(
     r"C:\Program Files (x86)\Steam\steamapps\common\Hearts of Iron IV\hoi4.exe"
 )
 """Steam install path of the game."""
+
+LAYOUT = REPO / "plugin/capie/src/core/game_layout.hpp"
+"""The header whose ``namespace rva`` the anchors resolve."""
 
 MAP_NAME = "map_1.19.4.0.json"
 """Old -> new map the helpers read (``--map``; exported to them as ``CAPIE_PORT_MAP``)."""
@@ -143,6 +151,28 @@ def triage(exe: pathlib.Path) -> None:
     print(f"wrote {OUT / 'triage.md'}")
 
 
+def locate(exe: pathlib.Path, *, check: bool) -> int:
+    """Resolve every anchor of ``anchors.json`` in ``exe`` and write ``out/locate.json``.
+
+    Args:
+        exe: The executable (the new build, or the pinned one for the self-check).
+        check: Compare with ``game_layout.hpp`` and fail on any difference.
+
+    Returns:
+        Exit code of ``locate.py`` (0 when every anchor resolved and, with ``check``, matched).
+    """
+    OUT.mkdir(exist_ok=True)
+    args = [str(exe), str(HERE / "anchors.json"), "--json", str(OUT / "locate.json")]
+    if check:
+        args += ["--check", str(LAYOUT)]
+    try:
+        run("locate.py", *args)
+    except SystemExit as failed:
+        print(failed, file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> int:
     """Parse the command line and run one step.
 
@@ -157,6 +187,11 @@ def main() -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = parser.add_subparsers(dest="step", required=True)
+    loc = sub.add_parser("locate")
+    loc.add_argument("--exe", type=pathlib.Path, default=DEFAULT_EXE)
+    loc.add_argument(
+        "--check", action="store_true", help="compare with game_layout.hpp; fail on a difference"
+    )
     t = sub.add_parser("triage")
     t.add_argument("--exe", type=pathlib.Path, default=DEFAULT_EXE)
     g = sub.add_parser("generate")
@@ -171,6 +206,8 @@ def main() -> int:
     if args.step in ("generate", "apply") and not (HERE / MAP_NAME).is_file():
         msg = f"map file not found: tools/port/{MAP_NAME}"
         raise SystemExit(msg)
+    if args.step == "locate":
+        return locate(args.exe, check=args.check)
     if args.step == "triage":
         triage(args.exe)
     elif args.step == "generate":
