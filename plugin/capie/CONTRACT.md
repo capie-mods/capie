@@ -916,14 +916,15 @@ Design: `docs/research/subideology-rename-design.md`.
 
 ### 20.1 What it is
 
-A name a player gives the sub-ideology of a country's ruling party (for example "Sanacja"
-instead of "Despotism"). It is shown in one place: the ideology line of the ruling-party box
-of the country's politics panel. Every other screen (tooltips, diplomacy, events, the
-government change texts) shows the game's name.
+A name a player gives the ideology of a country's ruling party, as the politics panel shows
+it (for example "Sanacja" instead of "Non-Aligned"). It is shown in one place: the ideology
+line of the ruling-party box of the player's politics panel. Every other screen (tooltips,
+diplomacy, events, the government change texts) shows the game's name.
 
-The name belongs to the sub-ideology the ruling party had when the name was committed. When
-the ruling party or its sub-ideology changes (election, coup, `set_politics`, a civil war),
-the panel shows the game's name again, without any script. The variables stay until the mod
+The name belongs to the government the country had when the name was committed: its ruling
+party and that party's leader (20.3). When the ruling party or its leader changes (election,
+coup, `set_politics`, a new country leader, which is also how the sub-ideology changes), the
+panel shows the game's name again, without any script. The variables stay until the mod
 removes them.
 
 ### 20.2 Variables (on the country)
@@ -938,32 +939,38 @@ They are ordinary country variables: written only by script effects, saved, sync
 multiplayer. The text rules are those of the country name layer (14.4): the RN1 guard refuses
 `|`; the section 7 alphabet has no `$` or `§`.
 
-### 20.3 Binding to the sub-ideology
+### 20.3 Binding to the ruling party and its leader
+
+The ideology line of the ruling-party box is filled from the ruling party's ideology object
+(`[party+0x18]`, an `CIdeologyGroup`: its token, for example `neutrality`, is localised). The
+sub-ideology (for example `despotism`) belongs to the country leader. A **binding** is therefore
+the pair: the ruling party's ideology token and the ruling country leader (the character and its
+id, by the chain of 18.6; none when the party has no leader).
 
 CAPIE keeps, per country and per game session, the layer text, the value of `capie_sn_rev` and
-the sub-ideology key it bound them to. Each time it evaluates a country (20.5):
+the binding. Each time it evaluates a country (20.5):
 
 1. no valid layer: the entry is dropped (the game's name);
 2. no entry yet, or the text or `capie_sn_rev` differs from the entry: CAPIE binds the layer to
-   the ruling party's sub-ideology key **now** (no ruling party: no entry);
-3. otherwise the entry keeps the key it was bound to.
+   the current ruling party and leader **now** (no ruling party: no entry);
+3. otherwise the entry keeps the binding it has.
 
-The panel shows the layer only while the ruling party's current sub-ideology key equals the
-bound key. So a commit binds; a later change of the sub-ideology lapses the name; a new commit
-(a new `capie_sn_rev`) binds it again to the current sub-ideology.
+The panel shows the layer only while the current binding equals the stored one. So a commit
+binds; a later change of the ruling party, or of its leader (which is how the sub-ideology
+changes), lapses the name; a new commit (a new `capie_sn_rev`) binds it again.
 
 The binding is not saved (CAPIE writes no state). After a load, CAPIE binds each layer to the
-sub-ideology the country has at load. To keep a save consistent, the mod removes the layer
-(20.4) in `on_ruling_party_change` and `on_government_change` (and whenever its own script
-changes the ruling party's sub-ideology); then a saved layer always belongs to the sub-ideology
-the country has.
+ruling party and leader the country has at load. To keep a save consistent, the mod removes the
+layer (20.4) in `on_ruling_party_change` and `on_government_change` (and whenever its own script
+changes the ruling party or its leader); then a saved layer always belongs to the government the
+country has.
 
 | Status | Condition | Shown |
 |---|---|---|
 | `absent` | `capie_sn_ver` missing (or the country has no variables) | game name |
 | `invalid` | `capie_sn_ver` is not `1`; `capie_sn_n^num` outside `1..32` or a fraction; an element missing, a fraction or outside `1..264`; the RN1 guard refuses the text | game name |
-| `unreadable` | the variables, the ruling party or its key could not be read | game name |
-| `lapsed` | valid, but the ruling party's current sub-ideology key differs from the bound key | game name |
+| `unreadable` | the variables, the ruling party, its ideology token or its leader could not be read | game name |
+| `lapsed` | valid, but the current ruling party's ideology token or ruling leader differs from the binding | game name |
 | `valid` | otherwise | the layer |
 
 ### 20.4 Writing and removing
@@ -998,9 +1005,10 @@ effects `capie_v1_set_subideology_name` (from text slot 1 of ROOT) and
   country when the game recomputes its names (on load, on government and cosmetic tag changes),
   on the logic thread (20.3);
 - hooks the politics panel's ruling-party writer (1622B90, one caller: the politics view's
-  refresh). When the shown country has an entry whose bound key equals the current key, the
-  call runs with a frame on this thread, and the localisation lookup CAPIE already hooks answers
-  that exact key with the layer text while the frame is set. Every other key, and every other
+  refresh). The panel shows the player's country (the in-game idler's tag); when that country
+  has an entry whose binding equals the current one, the call runs with a frame on this thread,
+  and the localisation lookup CAPIE already hooks answers the ruling party's ideology token with
+  the layer text while the frame is set. Every other key, and every other
   thread, gets the game's answer. Nothing is written and no game call is added.
 
 The panel shows a new name at its next refresh (reopening the politics tab is enough; whether
@@ -1008,8 +1016,9 @@ it redraws earlier is an in-game test).
 
 ### 20.6 Activation, multiplayer, without CAPIE
 
-The layer has its own pins (the panel writer, its sub-ideology key read, the localisation
-call in the formatter) and needs the name layer's pins (its UpdateNames and set_variable hooks).
+The layer has its own pins (the panel writer, its ideology key read, the localisation call in
+the formatter, the idler's shown-tag getter, the leader chain) and RTTI checks
+(`CIdeologyGroup`, `CPoliticalParty`, `CInGameIdler`, `CCharacter`), and needs the name layer's pins (its UpdateNames and set_variable hooks).
 If one does not match, the layer is off, the panel shows the game's names, the other layers
 keep working, and Apply commands carry `capie_subideo = 0`. The layer is local display: every
 client holds the same variables; a client without CAPIE (or a save loaded without it) shows the
