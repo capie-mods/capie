@@ -197,12 +197,16 @@ Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
     out.root = root;
     unsigned char flags = 0;
     out.parent_present = parent != 0;
+    // An unreadable flag byte is "unknown", never "hidden" (a parent in teardown must not trigger a
+    // release): every read must succeed, as in the caption core. A detached parent reads nothing.
+    if ((parent != 0 && !rd(mem, parent, off::parent_flags, flags)) || !rd(mem, root, off::root_flags, out.root_flags) ||
+        !rd(mem, window, off::window_desired, out.desired) ||
+        !rd(mem, window, off::window_parent_seen, out.parent_seen)) {
+        return Kind::invalid;
+    }
     // Same hidden criterion as the caption core's own-root check: shown bit, no hidden bit.
-    out.parent_visible = parent && rd(mem, parent, off::parent_flags, flags) && flag::shown_not_hidden(flags);
+    out.parent_visible = parent != 0 && flag::shown_not_hidden(flags);
     out.parent_flags = flags;
-    rd(mem, root, off::root_flags, out.root_flags);
-    rd(mem, window, off::window_desired, out.desired);
-    rd(mem, window, off::window_parent_seen, out.parent_seen);
     out.own_visible = out.desired && flag::shown_not_hidden(out.root_flags);
     return Kind::valid;
 }

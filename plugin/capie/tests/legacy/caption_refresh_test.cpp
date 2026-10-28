@@ -326,6 +326,22 @@ void test_visibility_bits() {
     }
 }
 
+// N10 part 1 (scan H2): Bind returns the PARENT when the window factory fails; a root equal to the
+// parent has the right class but is not the window's root, so the window is invalid (no request).
+void test_root_equal_to_parent_invalid() {
+    Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE);
+    f.env.rev_field(Field::leader, "1");
+    f.close(LE);
+    f.world.mem.put<uptr>(window_addr(LL) + off::window_parent, root_addr(LL));
+    f.world.show(LL, true);
+    OwnWindow own{};
+    CHECK(inspect(f.world.mem, image, window_addr(LL), own) == WindowKind::invalid && own.root == 0);
+    f.tick(LL);
+    CHECK(f.env.calls == 0);
+    f.world.mem.put<uptr>(window_addr(LL) + off::window_parent, politics_root);
+    CHECK(inspect(f.world.mem, image, window_addr(LL), own) == WindowKind::visible);
+}
+
 void test_coalesced_jump_and_both_fields() {
     Fixture f; f.env.armed = false;
     f.env.rev_field(Field::leader, "0"); f.env.rev_field(Field::party, "4");
@@ -769,6 +785,7 @@ int main(int argc, char** argv) {
     test_disarmed_zero_calls();
     test_hidden_preserves_and_no_call_while_hidden();
     test_visibility_bits();
+    test_root_equal_to_parent_invalid();
     test_coalesced_jump_and_both_fields();
     test_failures_no_retry();
     test_readback_revision_rollback_after_call();

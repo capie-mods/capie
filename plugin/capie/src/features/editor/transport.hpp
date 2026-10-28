@@ -37,6 +37,7 @@
 #include "trampolines.hpp"
 #include "window_view.hpp"
 
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <limits>
@@ -209,6 +210,32 @@ inline DWORD country_capabilities() noexcept {
     } __except (core::memory_exception(GetExceptionCode())) {
         return 0;
     }
+}
+
+/**
+ * @brief The game-call fault latch of `capie_core.dll` (`engine::game_call_latch_export`).
+ *
+ * The editor adopts it at initialization so that one fault inside a game call stops the game
+ * calls of both DLLs. The core module is pinned, because the editor keeps this pointer.
+ * @return The core's latch; null when the core or its export is missing (the editor then keeps its own).
+ */
+inline std::atomic<bool>* core_game_call_latch() noexcept {
+    using Query = void*(WINAPI*)();
+    HMODULE module = nullptr;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, core::core_dll_name, &module) == 0 || module == nullptr) {
+        return nullptr;
+    }
+    const auto query = reinterpret_cast<Query>(GetProcAddress(module, engine::game_call_latch_export));
+    if (query == nullptr) {
+        return nullptr;
+    }
+    void* latch = nullptr;
+    __try {
+        latch = query();
+    } __except (core::memory_exception(GetExceptionCode())) {
+        return nullptr;
+    }
+    return static_cast<std::atomic<bool>*>(latch);
 }
 
 /**

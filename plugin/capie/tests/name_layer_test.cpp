@@ -441,8 +441,12 @@ struct Game {
     std::vector<std::string> log;           ///< Log lines.
     int faction_originals{};                ///< Calls of the original CFaction::GetName.
     std::vector<std::string> copied;        ///< Texts the fake string copy received.
+    bool fault_update{};                    ///< UpdateNames faults after its three keys.
+    bool fault_copy{};                      ///< The string copy faults.
 };
 Game game;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake game state
+/// @brief Null, read through a volatile so the compiler keeps the faulting access.
+int* volatile null_target = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 /**
  * @brief Text of a host MSVC string (what BuildNameKey would copy).
@@ -477,6 +481,9 @@ std::uint64_t fake_update(uptr country) {
         static_cast<void>(
             game.layer->build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 1));
     }
+    if (game.fault_update) {
+        *null_target = 1;  // access violation inside the game call
+    }
     return 1;
 }
 
@@ -508,6 +515,9 @@ void* fake_faction_name(uptr /*faction*/, void* out) {
  */
 void* fake_copy(void* out, const void* source) {
     game.copied.push_back(text_of(*static_cast<const capie::engine::MsvcString*>(source)));
+    if (game.fault_copy) {
+        *null_target = 1;  // access violation inside the game call
+    }
     return out;
 }
 
@@ -632,6 +642,36 @@ void hook_tests() {
     check(stats.list_ok && stats.countries == 3 && stats.layers == 1 && stats.invalid == 1 && stats.refreshed == 1 &&
               game.updated == std::vector<uptr>{country_a},
           "refresh counters");
+    game.tags.clear();
+    static_cast<void>(
+        name_layer.build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 0));
+    check(game.tags.size() == 1 && game.tags[0] == "CAN_dominion", "frame cleared after CAPIE's own refresh");
+
+    // H3: CAPIE's own UpdateNames call is guarded. A fault latches, turns the layers off and stops
+    // the pass; the thread's frame is restored.
+    check(capie::engine::game_calls_allowed(), "no game-call fault yet");
+    check(build_table(mem, 0x2100'0000, 0x3100'0000, 127, 16, layer_variables(U"Nowa", U"nowy")), "B gets a layer again");
+    game.fault_update = true;
+    game.updated.clear();
+    const auto faulted = name_layer.refresh_changed();
+    game.fault_update = false;
+    check(faulted.refreshed == 0 && game.updated == std::vector<uptr>{country_b}, "UpdateNames fault: pass stopped");
+    check(!capie::engine::game_calls_allowed() && !name_layer.enabled(), "UpdateNames fault latched, layers off");
+    game.tags.clear();
+    static_cast<void>(
+        name_layer.build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 0));
+    check(game.tags.size() == 1 && game.tags[0] == "CAN_dominion", "frame restored after the fault");
+    capie::engine::game_call_faulted.store(false);
+    name_layer.activate(fake_image, &fake_log, &fake_copy);
+    check(build_table(mem, 0x2100'0000, 0x3100'0000, 127, 16, layer_variables(U"Inna", U"inny")), "B changes");
+    capie::engine::game_call_faulted.store(true);  // a fault in the other DLL (shared latch)
+    game.updated.clear();
+    check(name_layer.refresh_changed().refreshed == 0 && game.updated.empty() && !name_layer.enabled(),
+          "latched: no UpdateNames call, layers off");
+    capie::engine::game_call_faulted.store(false);
+    name_layer.activate(fake_image, &fake_log, &fake_copy);
+    check(build_table(mem, 0x2100'0000, 0x3100'0000, 127, 16, {{"other", fp(1)}}), "B loses the layer again");
+    static_cast<void>(name_layer.refresh_changed());
 
     // Bad country lists refresh nothing.
     mem.put(fake_state + 0x31C, std::int32_t{-1});
@@ -775,9 +815,25 @@ void faction_tests() {
     check(game.copied.size() == 2 && game.copied.back() == "O\xC5\x9B", "faction commit shows the new name");
     const auto stats = name_layer.refresh_factions();
     check(stats.list_ok && stats.countries == 2 && stats.layers == 1, "faction refresh counters");
+    // H3: the string copy is guarded. A fault latches, turns the layers off and lets the original answer.
+    game.fault_copy = true;
+    const auto originals_before = game.faction_originals;
+    check(name_layer.faction_name(faction, &out) == &out && game.faction_originals == originals_before + 1,
+          "string copy fault: the original answers");
+    game.fault_copy = false;
+    check(!capie::engine::game_calls_allowed() && !name_layer.enabled(), "string copy fault latched, layers off");
+    capie::engine::game_call_faulted.store(false);
+    name_layer.activate(fake_image, &fake_log, &fake_copy);
+    capie::engine::game_call_faulted.store(true);
+    const auto copies_latched = game.copied.size();
+    static_cast<void>(name_layer.faction_name(faction, &out));
+    check(game.copied.size() == copies_latched && game.faction_originals == originals_before + 2,
+          "latched: no copy, the original answers");
+    capie::engine::game_call_faulted.store(false);
+    name_layer.activate(fake_image, &fake_log, &fake_copy);
     name_layer.deactivate();
     static_cast<void>(name_layer.faction_name(faction, &out));
-    check(game.faction_originals == 6, "deactivated: the original answers");
+    check(game.faction_originals == originals_before + 3, "deactivated: the original answers");
     bool no_text = true;
     bool commit_line = false;
     for (const auto& line : game.log) {

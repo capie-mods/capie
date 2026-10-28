@@ -149,13 +149,15 @@ with only `capie_cap`, `capie_ver` and `capie_epoch = -code`:
 
 | `capie_epoch` | Reason | What the player can do |
 |---|---|---|
-| `-1` | Opening not ready or changed while capturing (first frame after opening, a rebind, the epoch changed, a field disappeared, prefill still running) | Close and reopen the editor |
+| `-1` | Opening not ready or changed while capturing (first frame after opening, a rebind, the epoch changed, a field disappeared, prefill still running), or the window failed CAPIE's consistency check | Close and reopen the editor |
 | `-2` | Editor registry full (section 3 limits) | Nothing in this session; a mod author issue |
 | `-3` | Editor layout invalid: a fifth field (`__5`), or a gap (field `n + 1` without field `n`) | A mod author issue |
 
-When the editor window is not visible or not consistent, CAPIE drops the click and logs it;
-the game's own effect does not run. This matches Rename Anything's rule for a click that
-cannot belong to a live editor.
+When the editor window is not visible, CAPIE drops the click and logs it; the game's own
+effect does not run. This matches Rename Anything's rule for a click that cannot belong to a
+live editor. When the window fails the consistency check (for example its root is its parent,
+which the game's window factory returns when it fails), the click is forwarded with
+`capie_epoch = -1` and no payload, so the script can tell the player.
 
 ### 5.3 Field errors (`capie_f<n>_err`)
 

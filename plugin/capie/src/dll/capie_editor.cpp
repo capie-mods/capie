@@ -27,7 +27,8 @@
  * co-loading with any predecessor bridge (40), checks the executable SHA-256 (10), the PE
  * headers (11) and `.text` (12), every editor signature (20), every caption signature
  * (20), caption slot pins and tokens (21), focus signatures, slot pins and the manager RIP
- * target (22); opens the log next to the DLL (13), pins the module (14), installs the hooks
+ * target (22), the vtable classes (23); opens the log next to the DLL (13), adopts the
+ * game-call fault latch of `capie_core.dll`, pins the module (14), installs the hooks
  * (30/31/32) and only then arms caption, focus and the master switch. A failed attempt is
  * final for the process (33 on retry). The DLL is never unloaded.
  *
@@ -315,6 +316,13 @@ void __fastcall dispatch_observed(void* context, void* opaque_selector) noexcept
         return;
     }
     if (original_ctor == nullptr || !prepare_transport(current, snapshots) || !still_current(current, snapshots)) {
+        // RN6 again (scan M1): the payload could not be built or the window changed (also: country
+        // hooks not active in capie_core.dll). The script shows the stale sentinel as an error; a
+        // dedicated "core inactive" code would need a contract change in the mod (open).
+        if (original_ctor != nullptr && stale_eligible(context, model) &&
+            dispatch_stale(current, opaque_selector, static_cast<unsigned>(StaleCode::stale))) {
+            return;
+        }
         bridge_rejected(current.id, "own-action-dropped-before-dispatch");
         return;
     }
@@ -510,6 +518,11 @@ InitCode initialize() {
     engine::find_instant = reinterpret_cast<engine::FindWidget>(image_base + rva::find_instant);
     engine::set_text = reinterpret_cast<engine::SetText>(image_base + rva::text_buffer_set);
     engine::refresh_edit = reinterpret_cast<engine::RefreshEdit>(image_base + rva::edit_refresh);
+    // One fault latch for both DLLs (game_calls.hpp); the core loads first in every mode.
+    auto* const shared_latch = core_game_call_latch();
+    engine::share_game_call_latch(shared_latch);
+    write_log(shared_latch != nullptr ? "RN_LIFECYCLE game-call fault latch shared with capie_core.dll\r\n"
+                                      : "RN_LIFECYCLE game-call fault latch own (capie_core.dll not loaded)\r\n");
 #if CAPIE_CONSOLE_CANDIDATE
     // Code bytes only; a failure turns the console feature off and is logged, the editor continues.
     static_cast<void>(console::wiring::prepare(text));

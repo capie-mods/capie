@@ -378,6 +378,15 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
 }
 
 /**
+ * @brief This DLL's game-call fault latch, which `capie_editor.dll` adopts (`engine::share_game_call_latch`).
+ * @return `std::atomic<bool>*` as `void*`; valid for the life of the process (the editor pins this module).
+ */
+// NOLINTNEXTLINE(readability-identifier-naming): exported ABI name
+extern "C" __declspec(dllexport) void* WINAPI RNGameCallLatch() noexcept {
+    return &capie::engine::game_call_faulted;
+}
+
+/**
  * @brief Initializes the country hooks (remote thread from the injector, outside DllMain).
  * @param unused Ignored.
  * @return 0 on success; see `capie::core::InitCode`.
