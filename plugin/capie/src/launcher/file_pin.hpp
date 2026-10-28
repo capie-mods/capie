@@ -9,6 +9,13 @@
  * that stay on disk. It remembers the final path and the volume/file id; before every
  * later step the path is opened again and must still name the same file.
  *
+ * The game pin is the one exception (`PinShare::allow_replace`): it adds `FILE_SHARE_DELETE`,
+ * so Steam can still rename, delete or replace hoi4.exe (a game update) while the launcher
+ * waits for a game that may run for hours. Writing into the file stays impossible, so the
+ * pinned bytes cannot change; a replaced or renamed file has another file id or final path
+ * and fails `still_same_path`, which every injection step checks. Nothing can be loaded
+ * into a game whose image is not the hashed file.
+ *
  * `pe_x64` is a bounded header check (x64, DLL or EXE as expected); it never maps or runs
  * the file. This is the accepted launcher's file guard, reorganised; the hashing itself is
  * CAPIE's `core/sha256.hpp`.
@@ -150,14 +157,22 @@ inline bool pe_x64(HANDLE file, bool dll) noexcept {
            ((nt.FileHeader.Characteristics & IMAGE_FILE_DLL) != 0) == dll;
 }
 
+/// @brief What others may do with a pinned file while the pin lives.
+enum class PinShare : std::uint8_t {
+    strict,         ///< read only: no writing, renaming or deleting (the CAPIE bundle)
+    allow_replace,  ///< read, rename and delete, never write (hoi4.exe: Steam may update the game meanwhile)
+};
+
 /**
- * @brief Opens a file read-only with sharing that forbids writing, renaming and deleting it.
+ * @brief Opens a file read-only with sharing that forbids writing (and, when strict, renaming and deleting).
  * @param path Path.
+ * @param share Sharing of the pin.
  * @return Handle (invalid on failure; `GetLastError` is set).
  */
-inline Handle open_pinned(const std::wstring& path) {
-    return Handle(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                              FILE_ATTRIBUTE_NORMAL, nullptr));
+inline Handle open_pinned(const std::wstring& path, PinShare share = PinShare::strict) {
+    const DWORD mode = share == PinShare::allow_replace ? FILE_SHARE_READ | FILE_SHARE_DELETE : FILE_SHARE_READ;
+    return Handle(CreateFileW(path.c_str(), GENERIC_READ, mode, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                              nullptr));
 }
 
 /// @brief A file held open read-only, with its final path, identity and hash.
@@ -170,15 +185,16 @@ struct PinnedFile {
     /**
      * @brief Pins and hashes a file.
      * @param input Absolute local path.
+     * @param share Sharing of the pin (strict unless the caller re-checks identity before use).
      * @return The pin.
      * @throws LauncherError when the path is not absolute/local or the file cannot be opened or hashed.
      */
-    static PinnedFile open(const std::wstring& input) {
+    static PinnedFile open(const std::wstring& input, PinShare share = PinShare::strict) {
         if (!absolute_local_path(input)) {
             throw LauncherError(ExitCode::usage, L"An absolute path on a local drive is required.");
         }
         PinnedFile result;
-        result.file = open_pinned(input);
+        result.file = open_pinned(input, share);
         if (!result.file) {
             throw LauncherError(ExitCode::invalid_bundle,
                                 L"Missing or busy file: " + input + windows_error(GetLastError()));
@@ -195,8 +211,8 @@ struct PinnedFile {
      */
     [[nodiscard]] bool still_same_path() const noexcept {
         try {
-            const Handle reopened(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                                              FILE_ATTRIBUTE_NORMAL, nullptr));
+            const Handle reopened(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE,
+                                              nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
             return reopened && file_id(reopened.get()) == identity && final_path(reopened.get()) == path;
         } catch (...) {
             return false;

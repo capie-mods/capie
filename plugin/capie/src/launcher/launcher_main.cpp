@@ -6,9 +6,9 @@
  *
  *  - Wrapper (Steam launch option `"...\RenameAnythingLauncher.exe" %command%`, or the
  *    bootstrap's shortcut with `"<game>\dowser.exe"` as its argument): everything after
- *    the launcher options is the game's own command. The program must be the game's
- *    `dowser.exe` or `hoi4.exe`; it is started with its exact arguments, the launcher's
- *    working folder and environment.
+ *    the launcher options is the game's own command. It is started with its exact
+ *    arguments, the launcher's working folder and environment. CAPIE can only load when
+ *    the program is the game's `dowser.exe` or `hoi4.exe`.
  *  - Shortcut / double-click (no arguments, or `--game ABS`): the launcher finds the game
  *    (remembered path, Steam registry entries, Steam libraries, file dialog) and starts its
  *    Paradox Launcher in the game folder, as Steam would.
@@ -18,12 +18,21 @@
  *
  * `--no-dialogs` (before the program) sends notices to the log only.
  *
+ * The game must always start, with or without CAPIE. In wrapper mode only a missing
+ * program (or one outside any game folder, which is not a game command at all) is refused
+ * before anything starts. Everything else that goes wrong before the start (another
+ * program name in the game folder, an internal error while building the policy or checking
+ * the files, a program that needs elevation) starts Steam's command unchanged with CAPIE
+ * off and tells the player why. The outcome of every run is written to `last-status.txt`
+ * next to `launcher.log`.
+ *
  * The production policy pins the game hash from `core/game_build.hpp` and the bundle from
  * `launcher_manifest.generated.hpp`, which the build writes from the reviewed CAPIE
  * binaries. There is no test hook in this file: tests drive `launcher_app.hpp` with their
  * own policy. The launcher has no network code and runs as the invoking user
  * (`asInvoker` manifest).
  */
+#include "../core/build_identity.hpp"
 #include "command_line.hpp"
 #include "config.hpp"
 #include "file_pin.hpp"
@@ -91,10 +100,11 @@ std::wstring own_folder() {
 
 /**
  * @brief The production policy.
+ * @param app_data The launcher's data folder (holds the crash-loop sentinel); empty disables the breaker.
  * @return Pinned game hash, bundle next to the launcher, game.log and dlc_load.json in Documents,
- *         the CAPIE switch mod identity, default timeouts.
+ *         the CAPIE switch mod identity, the crash-loop sentinel, default timeouts.
  */
-capie::launcher::Policy production_policy() {
+capie::launcher::Policy production_policy(const std::wstring& app_data) {
     capie::launcher::Policy policy;
     policy.game_sha256 = capie::core::game_exe_sha256;
     policy.bundle_root = own_folder();
@@ -105,6 +115,9 @@ capie::launcher::Policy production_policy() {
     policy.game_log = capie::launcher::default_game_log();
     policy.dlc_load = capie::launcher::default_dlc_load();
     policy.capie_mod = capie::launcher::capie_mod_identity();
+    if (!app_data.empty()) {
+        policy.crash_sentinel = app_data + L"\\" + capie::launcher::inject_sentinel_name;
+    }
     return policy;
 }
 
@@ -114,7 +127,7 @@ capie::launcher::Policy production_policy() {
  * @return Exit code.
  */
 ExitCode verify_only(const std::wstring& game) {
-    const auto policy = production_policy();
+    const auto policy = production_policy({});
     const auto bundle = capie::launcher::verify_bundle(policy);
     if (!capie::launcher::ends_with_nocase(game, std::wstring(L"\\") + capie::launcher::game_exe_name)) {
         throw LauncherError(ExitCode::unsupported_game, L"--game must name hoi4.exe.");
@@ -147,6 +160,26 @@ std::wstring locate_game(const std::wstring& explicit_game) {
 }
 
 /**
+ * @brief The launcher's data folder, or empty when it cannot be created (no log, no breaker; the game still starts).
+ * @return `%LOCALAPPDATA%\RenameAnything` or empty.
+ */
+std::wstring data_folder_or_empty() noexcept {
+    try {
+        return capie::launcher::app_data_folder(true);
+    } catch (...) {
+        return {};
+    }
+}
+
+/**
+ * @brief Text of the current exception for the log.
+ * @return Message.
+ */
+std::wstring current_error_text() noexcept {
+    return capie::launcher::unexpected_text(std::current_exception());
+}
+
+/**
  * @brief Wrapper and shortcut modes.
  * @param invocation Parsed command line.
  * @param raw Raw command line.
@@ -154,19 +187,42 @@ std::wstring locate_game(const std::wstring& explicit_game) {
  */
 ExitCode launch(capie::launcher::Invocation invocation, std::wstring_view raw) {
     namespace cl = capie::launcher;
-    cl::Log log(cl::app_data_folder(true) + L"\\" + cl::log_file_name);
+    const std::wstring app_data = data_folder_or_empty();
+    cl::Log log(app_data.empty() ? std::wstring{} : app_data + L"\\" + cl::log_file_name);
     cl::Notifier notifier(log, !invocation.options.no_dialogs);
     log.write(cl::Level::info, L"launcher start: " + std::wstring(raw));
     cl::LaunchSpec spec;
     std::wstring game;
+    cl::RunOptions options;
     try {
         if (invocation.wrapped) {
             auto& wrapped = *invocation.wrapped;
-            cl::resolve_program(raw, wrapped, [](const std::wstring& path) { return cl::file_exists(path); });
-            game = cl::validate_wrapped_program(wrapped.program);
-            spec = {.application = wrapped.program,
-                    .command_line = cl::wrapped_command_line(wrapped.program, wrapped.tail),
-                    .working_directory = {}};
+            try {
+                cl::resolve_program(raw, wrapped, [](const std::wstring& path) { return cl::file_exists(path); });
+            } catch (...) {
+                log.write(cl::Level::warning, L"program resolution failed; the program token is used as written");
+            }
+            const auto program = cl::classify_wrapped_program(wrapped.program);  // the only refusal
+            try {
+                spec = {.application = wrapped.program,
+                        .command_line = cl::wrapped_command_line(wrapped.program, wrapped.tail),
+                        .working_directory = {}};
+                if (program.kind == cl::ProgramKind::game) {
+                    game = program.game;
+                } else {
+                    log.write(cl::Level::warning, L"unknown program in the game folder: " + wrapped.program);
+                    options.capie_off = cl::PendingNotice{cl::Notice::unknown_program, wrapped.program};
+                }
+            } catch (...) {
+                // Last resort: Steam's own command, character for character, CAPIE off.
+                const auto text = current_error_text();
+                log.write(cl::Level::error, L"command rebuild failed: " + text + L"; starting Steam's command as is");
+                game.clear();
+                spec = {.application = wrapped.program,
+                        .command_line = std::wstring(raw.substr(wrapped.begin)),
+                        .working_directory = {}};
+                options.capie_off = cl::PendingNotice{cl::Notice::launcher_problem, text};
+            }
         } else {
             game = locate_game(invocation.options.game);
             if (game.empty()) {
@@ -182,16 +238,28 @@ ExitCode launch(capie::launcher::Invocation invocation, std::wstring_view raw) {
         }
     } catch (const LauncherError& error) {
         notifier.notify_blocking(cl::Notice::invalid_command, error.message());
+        log.status(L"not-started", notifier.last_text());
         return error.code();
     }
+    cl::Policy policy;
+    if (!options.capie_off) {
+        try {
+            policy = production_policy(app_data);
+        } catch (...) {
+            const auto text = current_error_text();
+            log.write(cl::Level::error, L"policy failed: " + text);
+            options.capie_off = cl::PendingNotice{cl::Notice::launcher_problem, text};
+        }
+    }
     try {
-        const auto report = cl::run_wrapped(production_policy(), spec, game, log, notifier);
+        const auto report = cl::run_wrapped(policy, spec, game, log, notifier, options);
         log.write(cl::Level::info, L"games handled: " + std::to_wstring(report.games.size()));
         return ExitCode::ok;
     } catch (const LauncherError& error) {
         notifier.notify_blocking(
             error.code() == ExitCode::game_start ? cl::Notice::start_failed : cl::Notice::capie_failed,
             error.message());
+        log.status(error.code() == ExitCode::game_start ? L"not-started" : L"failed", notifier.last_text());
         return error.code();
     }
 }
@@ -208,7 +276,8 @@ int report(const LauncherError& error, std::wstring_view raw, bool console) noex
         if (console || raw.find(capie::launcher::option_verify) != std::wstring_view::npos) {
             print_line(error.message(), true);
         } else if (raw.find(capie::launcher::option_no_dialogs) == std::wstring_view::npos) {
-            MessageBoxW(nullptr, error.message().c_str(), capie::launcher::dialog_title, MB_OK | MB_ICONERROR);
+            MessageBoxW(nullptr, error.message().c_str(), capie::launcher::dialog_title,
+                        capie::launcher::error_box_style);
         }
     } catch (...) {
         print_line(L"Launcher error.", true);

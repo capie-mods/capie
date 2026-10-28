@@ -3,7 +3,7 @@
  * @brief Connects the focus release to the editor bridge's Tick and Bind hooks.
  *
  * Supplies bounded memory, the fresh FindEdit lookup, the SEH-guarded
- * `225E320(manager, nullptr)` call and the editor log. `focus_armed` is set at the end of
+ * `FocusSwitch(manager, nullptr)` call and the editor log. `focus_armed` is set at the end of
  * a successful initialization, after the focus fingerprints, both CEditBox slot pins and
  * the manager RIP target were verified; until then `on_tick` returns immediately.
  */
@@ -36,7 +36,7 @@ struct FocusEnv {
         return reinterpret_cast<uptr>(engine::guarded_find(engine::find_edit, reinterpret_cast<void*>(root), name));
     }
     /**
-     * @brief SEH-guarded `225E320(manager, nullptr)`.
+     * @brief SEH-guarded `FocusSwitch(manager, nullptr)`.
      * @param manager Focus manager.
      * @return `false` on fault.
      */

@@ -6,7 +6,7 @@ $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
     'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
     'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain', 'ListVersions', 'Version',
-    'CloseSteam'
+    'CloseSteam', 'Force'
 )
 
 function Write-RaDone {
@@ -54,6 +54,8 @@ function Initialize-RaRun {
     $script:RaSteamRestartExe = $null
     $script:RaReleaseCache = $null
     $script:RaMpWarningShown = $false
+    $script:RaForce = [bool]$Options['Force']
+    $script:RaUpdateHeldBack = $false
     if (-not $NoBanner) {
         Write-RaHost (Get-RaText 'Title') -Color White
         Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
@@ -137,6 +139,29 @@ function Get-RaSetupPlan {
         }
     }
     return $plan
+}
+
+function Get-RaGameDirOrNull {
+    <#
+    .SYNOPSIS
+        The HOI4 folder found through Steam, or $null when Steam or the game is not found.
+    .DESCRIPTION
+        Never throws: an unreadable Steam library only means the game folder is unknown.
+    .PARAMETER SteamRootPath
+        Steam folder or empty.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaGameDirOrNull $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$SteamRootPath)
+    if (-not $SteamRootPath) { return $null }
+    try { return (Get-RaGameDir $SteamRootPath) } catch {
+        Write-RaLog "Game folder not found through Steam: $($_.Exception.Message)" -Level WARN -NoConsole
+        return $null
+    }
 }
 
 function Invoke-RaSteamStep {
@@ -244,7 +269,10 @@ function Invoke-RaSetupAction {
         [void](New-RaShortcut -State $State -Folder $plan.ShortcutFolder -LauncherPath $launcher -GameDir $gameDir)
         Save-RaState $State
     }
-    if ($plan.Install) { Remove-RaUnusedVersion $State }
+    if ($plan.Install) {
+        Remove-RaUnusedVersion $State
+        [void](Write-RaGameSupportNotice $State (Get-RaGameDirOrNull $SteamRootPath))
+    }
     if ($steamStepFailed) { return $script:RaExitFailure }
     Write-RaDone
     return $script:RaExitSuccess
@@ -257,7 +285,9 @@ function Invoke-RaAction {
     .DESCRIPTION
         Priority: -Uninstall, -Disable, -RemoveSteamLaunchOption, -ListVersions, -CheckUpdate,
         -Rollback, -Update (an install when nothing is installed yet, else update or repair),
-        then the install/integration flow. Exceptions propagate to Invoke-RaMain.
+        then the install/integration flow. Exceptions propagate to Invoke-RaMain. Every action
+        that changes installed files (install, update, rollback, uninstall) first refuses while
+        hoi4.exe or dowser.exe runs, then sweeps the proven leftovers of an interrupted run.
     .PARAMETER Options
         Normalized option table.
     .OUTPUTS
@@ -274,7 +304,12 @@ function Invoke-RaAction {
         if ($Options.SteamRoot) { throw }
         Write-RaLog $_.Exception.Message -Level WARN -NoConsole
     }
-    $gameDir = { if ($steamRootPath) { Get-RaGameDir $steamRootPath } else { $null } }
+    $gameDir = { Get-RaGameDirOrNull $steamRootPath }
+    $readOnly = $Options.Disable -or $Options.RemoveSteamLaunchOption -or $Options['ListVersions'] -or $Options.CheckUpdate
+    if ($Options.Uninstall -or -not $readOnly) {
+        Assert-RaGameClosed
+        try { [void](Clear-RaLeftover $state (& $gameDir)) } catch { Write-RaLog "Leftover sweep skipped: $($_.Exception.Message)" -Level WARN }
+    }
 
     if ($Options.Uninstall) {
         Invoke-RaUninstall $state $steamRootPath
@@ -312,6 +347,7 @@ function Invoke-RaAction {
         Save-RaState $state
         Install-RaPlaysetMod $state
         Save-RaState $state
+        [void](Write-RaGameSupportNotice $state (& $gameDir))
         Write-RaDone
         return $script:RaExitSuccess
     }
@@ -321,7 +357,8 @@ function Invoke-RaAction {
         $Options.Latest = [bool]$Options.ManifestPath -or ((Test-RaUpdateChannel) -and -not $Options.PackagePath)
     } elseif ($Options.Update) {
         $updated = Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath
-        if ($updated) { Save-RaState $state } else { Write-RaLog (Get-RaText 'AlreadyUpToDate' @($state.InstalledVersion)) }
+        if ($updated) { Save-RaState $state }
+        elseif (-not $script:RaUpdateHeldBack) { Write-RaLog (Get-RaText 'AlreadyUpToDate' @($state.InstalledVersion)) }
         Install-RaPlaysetMod $state
         Save-RaState $state
         $steamOk = $true
@@ -330,6 +367,7 @@ function Invoke-RaAction {
             $steamOk = Invoke-RaSteamStep -State $state -SteamRootPath $steamRootPath -AccountSelector $Options.SteamAccount -LoadMethod $method
         }
         if ($updated) { Remove-RaUnusedVersion $state }
+        [void](Write-RaGameSupportNotice $state (& $gameDir))
         if (-not $steamOk) { return $script:RaExitFailure }
         Write-RaDone
         return $script:RaExitSuccess
@@ -410,6 +448,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
         LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation; Latest = $Latest; Purge = $Purge; Disable = $Disable
         NoAnimation = $NoAnimation; Plain = $Plain; ListVersions = $ListVersions; Version = $Version; CloseSteam = $CloseSteam
+        Force = $Force
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

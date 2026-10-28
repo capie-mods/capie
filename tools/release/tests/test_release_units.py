@@ -6,6 +6,8 @@ Run with ``uv run pytest tools/release/tests``. No process, network or game is u
 from __future__ import annotations
 
 import io
+import json
+import re
 from dataclasses import replace
 from pathlib import Path
 from typing import override
@@ -25,6 +27,8 @@ from releasekit.console import Reporter, Status, use_color
 from releasekit.runner import expand_command, quote
 from releasekit.signing import (
     PinnedRelease,
+    SigningError,
+    bundle_inputs,
     pinned_fields,
     public_key_from_xml,
     render_pinned_block,
@@ -55,7 +59,7 @@ def test_real_config_loads_and_targets_the_split_repository() -> None:
     assert config.root == REPO
     assert config.github.repo == "capie-mods/capie"
     assert config.workshop.app_id == 394360  # noqa: PLR2004 - HOI4's Steam app ID
-    assert {item.key for item in config.workshop.items} == {"rename-anything", "capie-switch"}
+    assert {item.key for item in config.workshop.items} == {"capie-switch"}
     assert VISIBILITY_VALUES["hidden"] == HIDDEN_VISIBILITY
     for spec in config.preflight:
         assert spec.argv, spec.name
@@ -142,12 +146,74 @@ def test_signature_verification(key: KeyPair) -> None:
     assert not verify_signature(other, b"manifest", signature)
 
 
-def test_reviewed_hashes_read_the_real_deployment_table() -> None:
-    """DEPLOYMENT.md pins exactly the three CAPIE binaries."""
+def test_bundle_inputs_read_the_real_file() -> None:
+    """bundle-inputs.json pins exactly the three CAPIE binaries, with lower-case hashes."""
+    text = (REPO / "plugin/capie/deploy/bundle-inputs.json").read_text(encoding="utf-8")
+    inputs = bundle_inputs(text)
+    assert {entry.name for entry in inputs} == {
+        "capie_core.dll",
+        "capie_editor.dll",
+        "capie_injector.exe",
+    }
+    assert {entry.name for entry in inputs if entry.dll} == {"capie_core.dll", "capie_editor.dll"}
+    table = reviewed_hashes(text)
+    assert all(digest == digest.upper() for digest in table.values())
+
+
+def test_bundle_inputs_agree_with_build_launcher_while_it_still_lists_hashes() -> None:
+    """While build_launcher.ps1 still has its own $BundleInputs hashes, they equal the JSON file.
+
+    Once the script reads bundle-inputs.json itself there is nothing left to compare.
+    """
+    script = (REPO / "plugin/capie/build_launcher.ps1").read_text(encoding="utf-8")
+    inline = re.findall(r"name = '([^']+)'; dll = \$\w+\s+sha = '([0-9A-Fa-f]{64})'", script)
+    if not inline:
+        pytest.skip("build_launcher.ps1 reads bundle-inputs.json")
     table = reviewed_hashes(
-        (REPO / "plugin/capie/deploy/DEPLOYMENT.md").read_text(encoding="utf-8")
+        (REPO / "plugin/capie/deploy/bundle-inputs.json").read_text(encoding="utf-8")
     )
-    assert set(table) == {"capie_core.dll", "capie_editor.dll", "capie_injector.exe"}
+    assert {name: digest.upper() for name, digest in inline} == table
+
+
+def _inputs(*overrides: dict[str, object]) -> str:
+    """JSON text of bundle-inputs entries, each a valid entry changed by one override.
+
+    Args:
+        *overrides: Keys to change per entry (``None`` removes the key).
+
+    Returns:
+        The JSON text.
+    """
+    entries = []
+    for change in overrides:
+        entry: dict[str, object] = {"name": "a.dll", "source": "s", "sha256": "a" * 64, "dll": True}
+        entry.update(change)
+        entries.append({k: v for k, v in entry.items() if v is not None})
+    return json.dumps(entries)
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("not json", "not valid JSON"),
+        ("[]", "non-empty JSON array"),
+        (_inputs({"sha256": "A" * 64}), "lower-case"),
+        (_inputs({"sha256": "a" * 63}), "lower-case"),
+        (_inputs({"dll": None}), "exactly"),
+        (_inputs({"dll": 1}), "true or false"),
+        (_inputs({"name": "../a.dll"}), "bad name"),
+        (_inputs({}, {"name": "A.DLL", "sha256": "b" * 64}), "twice"),
+    ],
+)
+def test_bundle_inputs_refuse_a_malformed_file(text: str, message: str) -> None:
+    """Every malformed bundle-inputs.json is refused with a reason, never half-read.
+
+    Args:
+        text: File contents.
+        message: Expected part of the error.
+    """
+    with pytest.raises(SigningError, match=message):
+        bundle_inputs(text)
 
 
 def test_pinned_block_round_trip_on_the_real_installer_configuration() -> None:

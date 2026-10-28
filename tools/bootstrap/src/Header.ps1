@@ -102,6 +102,10 @@
     "steam.exe -shutdown" (never killed), wait up to 60 s, and start Steam again afterwards.
     Without -Yes the script asks instead.
 
+.PARAMETER Force
+    With -Update: install the newest release even when it does not support your hoi4.exe build
+    while the installed one does (the game then starts without CAPIE). With -Uninstall: remove
+    the files although Steam was not found, after you cleared the HOI4 launch option by hand.
 .PARAMETER Rollback
     Switch back to the previous version kept on disk.
 
@@ -149,5 +153,6 @@ param(
     [string]$Version,
     [switch]$CloseSteam,
     [switch]$Rollback,
+    [switch]$Force,
     [string]$ManifestPath
 )

@@ -561,8 +561,8 @@ void hook_tests() {
               build_table(mem, 0x2200'0000, 0x3200'0000, 127, 16,
                           with(layer_variables(U"X", U"y"), "capie_cn_ver", fp(3))),
           "country tables build");
-    mem.map(fake_image + 0x332F260, 8);
-    mem.put(fake_image + 0x332F260, fake_state);
+    mem.map(fake_image + 0x33DD6B0, 8);
+    mem.put(fake_image + 0x33DD6B0, fake_state);
     mem.map(fake_state, 0x400);
     mem.put(fake_state + 0x310, fake_list);
     mem.put(fake_state + 0x31C, std::int32_t{4});
@@ -640,7 +640,7 @@ void hook_tests() {
     check(!name_layer.refresh_changed().list_ok, "huge count refused");
     mem.put(fake_state + 0x31C, std::int32_t{6});  // past the mapped list: unreadable slots are skipped
     check(name_layer.refresh_changed().list_ok, "unreadable slots skipped");
-    mem.put(fake_image + 0x332F260, uptr{0});
+    mem.put(fake_image + 0x33DD6B0, uptr{0});
     check(!name_layer.refresh_changed().list_ok, "no game state refused");
 
     // Nested UpdateNames restores the outer frame.
@@ -725,8 +725,8 @@ void faction_tests() {
     mem.map(members, 16);
     mem.put(members, leader);
     mem.put(members + 8, member);
-    mem.map(fake_image + 0x332F260, 8);
-    mem.put(fake_image + 0x332F260, fake_state);
+    mem.map(fake_image + 0x33DD6B0, 8);
+    mem.put(fake_image + 0x33DD6B0, fake_state);
     mem.map(fake_state, 0x400);
     mem.put(fake_state + 0x310, fake_list);
     mem.put(fake_state + 0x31C, std::int32_t{2});

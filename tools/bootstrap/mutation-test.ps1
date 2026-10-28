@@ -84,6 +84,18 @@ $script:Mutations = [ordered]@{
     'no-tty-waits'               = @(
         , @('    if (-not $mode.Interactive -and -not (Test-RaActionOption $options)', '    if ($false -and -not (Test-RaActionOption $options)')
     )
+    'game-running-ignored'       = @(, @('    if ($running.Count -eq 0) { return }', '    return'))
+    'uninstall-without-steam'    = @(, @('    } elseif (Test-RaSteamOptionPossible $State) {', '    } elseif ($false) {'))
+    'steam-unreadable-skipped'   = @(, @("if (`$Strict) { throw (Get-RaText 'SteamConfigUnreadable'", "if (`$false) { throw (Get-RaText 'SteamConfigUnreadable'"))
+    'update-loses-game-support'  = @(
+        , @('    if ($check.Newer -and $check.InstalledSupportsGame -and -not $check.LatestSupportsGame) {', '    if ($false) {')
+    )
+    'game-notice-silent'         = @(, @("Write-RaLog (Get-RaText 'InstalledGameUnsupported'", "Write-Verbose (Get-RaText 'InstalledGameUnsupported'"))
+    'sweep-any-age'              = @(, @('if ($ours -and (Test-RaLeftoverAge $item)) {', 'if ($ours) {'))
+    'sweep-foreign-proxy'        = @(, @('if ($proxyHashes -notcontains (Get-RaFileSha256 $item.FullName)) { continue }', ''))
+    'sweep-follows-links'        = @(, @('-and (Test-RaPlainTree $item.FullName)', ''))
+    'swap-deletes-old-first'     = @(, @('            [IO.Directory]::Move($link, $aside)', '            Remove-RaJunction $link'))
+    'cleanup-throws'             = @(, @('    } catch { Write-RaLog "Could not delete temporary', '    } catch { throw; Write-RaLog "Could not delete temporary'))
 }
 
 function Invoke-MutationRun {

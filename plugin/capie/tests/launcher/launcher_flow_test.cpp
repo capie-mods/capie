@@ -7,7 +7,9 @@
  * are synthetic PE headers, `capie_injector.exe` is the fake) and a policy pinned to those
  * files, then calls `run_wrapped` exactly as the launcher's entry point does. The fakes
  * record what they saw (command line, folder, environment, PIDs, injector arguments) so the
- * test can check the binding and the injection order. Usage:
+ * test can check the binding and the injection order. The "game must always start"
+ * scenarios (elevation fallback, CAPIE switched off up front, crash-loop breaker, a game
+ * update while the launcher waits) use the same fakes. Usage:
  * `launcher_flow_test.exe SCRATCH_DIR FAKE_PROCESS_EXE`.
  */
 #include "../../src/launcher/command_line.hpp"
@@ -17,11 +19,13 @@
 
 #include <windows.h>
 
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -167,7 +171,7 @@ struct Fixture {
 /// @brief Environment variables a scenario may set (cleared before each scenario).
 constexpr const wchar_t* fake_variables[] = {L"FAKE_DOWSER_MODE",      L"FAKE_GAME_MARKERS", L"FAKE_GAME_DELAY_MS",
                                              L"FAKE_GAME_LIFETIME_MS", L"FAKE_GAME_WINDOW",  L"FAKE_INJECT_FAIL_DLL",
-                                             L"FAKE_INJECT_SLEEP_MS"};
+                                             L"FAKE_INJECT_SLEEP_MS",  L"FAKE_INJECT_KILL_GAME"};
 
 /**
  * @brief Builds a scenario folder.
@@ -203,6 +207,8 @@ Fixture make_fixture(const std::wstring& base, const std::wstring& name, const s
     policy.game_log = fixture.root + L"\\logs\\game.log";
     policy.dlc_load = fixture.root + L"\\dlc_load.json";
     policy.capie_mod = {.workshop_id = {}, .descriptors = {"mod/capie.mod"}};
+    policy.crash_sentinel = fixture.root + L"\\capie-inject.pending";
+    DeleteFileW(policy.crash_sentinel.c_str());
     write_file(policy.dlc_load, R"({"enabled_mods":["mod/ugc_820260968.mod","mod/capie.mod"],"disabled_dlcs":[]})");
     policy.timeouts = {.poll_ms = 50,
                        .discovery_ms = 15000,
@@ -233,9 +239,11 @@ struct Run {
  * @param program Program inside the game folder.
  * @param tail Raw argument tail.
  * @param game_exe hoi4.exe pinned before the start (default: the one in the game folder).
+ * @param options CAPIE switched off up front, process creation.
  * @return Run result.
  */
-Run run(const Fixture& fixture, const wchar_t* program, const std::wstring& tail, const std::wstring& game_exe = {}) {
+Run run(const Fixture& fixture, const wchar_t* program, const std::wstring& tail, const std::wstring& game_exe = {},
+        const cl::RunOptions& options = {}) {
     cl::Log log(fixture.root + L"\\launcher.log");
     cl::Notifier notifier(log, false);
     const auto path = fixture.game_dir + L"\\" + program;
@@ -244,12 +252,43 @@ Run run(const Fixture& fixture, const wchar_t* program, const std::wstring& tail
     Run result;
     const ULONGLONG start = GetTickCount64();
     const auto pinned_game = game_exe.empty() ? fixture.game_dir + L"\\hoi4.exe" : game_exe;
-    result.report = cl::run_wrapped(fixture.policy, spec, pinned_game, log, notifier);
+    result.report = cl::run_wrapped(fixture.policy, spec, pinned_game, log, notifier, options);
     result.elapsed_ms = GetTickCount64() - start;
     Sleep(200);  // let detached fakes flush their last record line
     result.lines = read_records(fixture.record);
     result.notices = notifier.count();
     return result;
+}
+
+/**
+ * @brief The status file a run left next to its log.
+ * @param fixture Fixture.
+ * @return Content as UTF-16.
+ */
+std::wstring status_of(const Fixture& fixture) {
+    const std::ifstream file(fixture.root + L"\\last-status.txt", std::ios::binary);
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return cl::from_utf8(buffer.str());
+}
+
+/**
+ * @brief Whether a file exists.
+ * @param path Path.
+ * @return `true` when it exists.
+ */
+bool exists(const std::wstring& path) {
+    return GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
+}
+
+/**
+ * @brief Creation that fails like a program whose manifest requires administrator rights.
+ * @return FALSE with `ERROR_ELEVATION_REQUIRED`.
+ */
+BOOL needs_elevation(const cl::LaunchSpec& /*spec*/, std::wstring& /*line*/, STARTUPINFOW& /*startup*/,
+                     PROCESS_INFORMATION& /*info*/) {
+    SetLastError(ERROR_ELEVATION_REQUIRED);
+    return FALSE;
 }
 
 /**
@@ -303,6 +342,103 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
             check(dowser.size() == 1 && dowser[0].cwd == cwd.data(), "working folder inherited");
             check(dowser.size() == 1 && dowser[0].mark == L"mark-child", "environment inherited");
             check(result.report.capie_enabled && result.notices == 0, "no notice on success");
+            check(status_of(fixture).find(L"outcome=capie-loaded") != std::wstring::npos, "status: CAPIE loaded");
+            check(!exists(fixture.policy.crash_sentinel), "clean injection removes the crash sentinel");
+        }
+        {  // CreateProcess says 740: the same program and arguments go through the shell, CAPIE off, game runs.
+            auto fixture = make_fixture(base, L"elevated", fake);
+            const std::wstring tail = L" -gdpr-compliant \"a b\"";
+            const auto result = run(fixture, L"dowser.exe", tail, {}, {.capie_off = {}, .create = needs_elevation});
+            const auto dowser = of_role(result.lines, L"dowser");
+            check(result.report.shell_started && !result.report.capie_enabled, "elevation: started through the shell");
+            check(dowser.size() == 1 && dowser[0].line.ends_with(tail) && dowser[0].mark == L"mark-elevated",
+                  "elevation: same arguments and environment");
+            check(of_role(result.lines, L"hoi4").size() == 1 && of_role(result.lines, L"injector").empty() &&
+                      result.notices == 1,
+                  "elevation: game runs without CAPIE, one notice");
+            check(result.elapsed_ms >= 3500, "elevation: launcher waits for the shell-started program");
+        }
+        {  // Unknown program or internal error before the start: CAPIE off up front, nothing pinned, game runs.
+            auto fixture = make_fixture(base, L"capie-off", fake);
+            const cl::RunOptions off{.capie_off = cl::PendingNotice{cl::Notice::unknown_program, L"relay.exe"}};
+            const auto result = run(fixture, L"relay.exe", L" -x", {}, off);
+            check(!result.report.capie_enabled && result.report.games.empty() &&
+                      of_role(result.lines, L"relay").size() == 1 && of_role(result.lines, L"hoi4").size() == 1 &&
+                      of_role(result.lines, L"injector").empty() && result.notices == 1,
+                  "CAPIE off up front: program and game run unchanged, one notice");
+            check(status_of(fixture).find(L"outcome=game-without-capie") != std::wstring::npos &&
+                      status_of(fixture).find(L"relay.exe") != std::wstring::npos,
+                  "status: game without CAPIE, with the notice");
+        }
+        {  // Crash-loop breaker: a sentinel from the previous start skips CAPIE once, the next start loads.
+            auto fixture = make_fixture(base, L"crash-guard", fake);
+            check(cl::arm_sentinel(fixture.policy.crash_sentinel, "previous start"), "sentinel planted");
+            const auto skipped = run(fixture, L"dowser.exe", L"");
+            check(skipped.report.crash_guard && !skipped.report.capie_enabled &&
+                      of_role(skipped.lines, L"injector").empty() && of_role(skipped.lines, L"hoi4").size() == 1 &&
+                      skipped.notices == 1,
+                  "sentinel left behind: game runs without CAPIE once, one notice");
+            check(!exists(fixture.policy.crash_sentinel), "skipped start removes the sentinel");
+            DeleteFileW(fixture.record.c_str());
+            expect_loaded_once(run(fixture, L"dowser.exe", L""), true, "the start after the skip loads CAPIE again");
+        }
+        {  // The game dies inside injection: the sentinel stays, so the next start skips CAPIE.
+            auto fixture = make_fixture(base, L"crash-inject", fake);
+            SetEnvironmentVariableW(L"FAKE_INJECT_KILL_GAME", L"1");
+            const auto crashed = run(fixture, L"dowser.exe", L"");
+            check(crashed.report.games.size() == 1 && crashed.report.games[0].outcome == cl::GameOutcome::failed &&
+                      of_role(crashed.lines, L"injector").size() == 1,
+                  "game ended during injection: failed, editor never started");
+            check(exists(fixture.policy.crash_sentinel), "game ended during injection: sentinel kept");
+            SetEnvironmentVariableW(L"FAKE_INJECT_KILL_GAME", nullptr);
+            DeleteFileW(fixture.record.c_str());
+            const auto next = run(fixture, L"dowser.exe", L"");
+            check(next.report.crash_guard && of_role(next.lines, L"injector").empty() &&
+                      of_role(next.lines, L"hoi4").size() == 1,
+                  "start after the crash: CAPIE skipped once, game runs");
+        }
+        {  // Steam updates hoi4.exe while the launcher waits for the running game: the pin does not block it.
+            auto fixture = make_fixture(base, L"update", fake);
+            SetEnvironmentVariableW(L"FAKE_GAME_LIFETIME_MS", L"5000");
+            const auto hoi4 = fixture.game_dir + L"\\hoi4.exe";
+            const auto moved = fixture.game_dir + L"\\hoi4.exe.old";
+            std::atomic<bool> renamed{false};
+            std::thread steam([&] {
+                const ULONGLONG until = GetTickCount64() + 15000;
+                while (GetTickCount64() < until && of_role(read_records(fixture.record), L"injector").size() < 2) {
+                    Sleep(50);
+                }
+                Sleep(200);
+                renamed = MoveFileExW(hoi4.c_str(), moved.c_str(), 0) != 0;
+                if (renamed) {
+                    MoveFileExW(moved.c_str(), hoi4.c_str(), 0);
+                }
+            });
+            const auto result = run(fixture, L"dowser.exe", L"");
+            steam.join();
+            check(result.report.games.size() == 1 && result.report.games[0].outcome == cl::GameOutcome::loaded,
+                  "update: CAPIE loaded");
+            check(renamed.load(), "update: hoi4.exe can be renamed while the launcher holds its pin");
+        }
+        {  // Same with CAPIE off (unknown build): no pin is held at all while the launcher waits.
+            auto fixture = make_fixture(base, L"update-off", fake);
+            fixture.policy.game_sha256 = std::string(64, '0');
+            const auto runtime_dll = fixture.policy.bundle_root + L"\\runtime\\capie_editor.dll";
+            std::atomic<bool> replaced{false};
+            std::thread installer([&] {
+                const ULONGLONG until = GetTickCount64() + 15000;
+                while (GetTickCount64() < until && of_role(read_records(fixture.record), L"hoi4").empty()) {
+                    Sleep(50);
+                }
+                Sleep(300);
+                const cl::Handle writer(CreateFileW(runtime_dll.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
+                                                    FILE_ATTRIBUTE_NORMAL, nullptr));
+                replaced = static_cast<bool>(writer);
+            });
+            const auto result = run(fixture, L"dowser.exe", L"");
+            installer.join();
+            check(!result.report.capie_enabled && replaced.load(),
+                  "CAPIE off: bundle pins released, the installer can update CAPIE meanwhile");
         }
         {
             auto fixture = make_fixture(base, L"grand", fake);
@@ -407,6 +543,8 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
             check(of_role(result.lines, L"hoi4").size() == 1 && of_role(result.lines, L"injector").empty(),
                   "unknown build: game runs, no injector");
             check(result.notices == 1, "unknown build: one notice");
+            check(status_of(fixture).find(cl::release_page_url) != std::wstring::npos,
+                  "unknown build: status names the release page");
             check(result.elapsed_ms >= 3500, "unknown build: launcher lives until the game ends");
         }
         {
@@ -464,6 +602,7 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
                       injections.size() == 1 && injections[0].extra.ends_with(L"\\capie_core.dll") &&
                       result.notices == 1,
                   "core refused: editor never started, one notice");
+            check(!exists(fixture.policy.crash_sentinel), "refused step with the game alive: no crash sentinel");
         }
         {
             auto fixture = make_fixture(base, L"editorfail", fake);

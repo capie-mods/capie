@@ -9,6 +9,37 @@ release notes, so write it for players and mod authors. Format:
 
 ## [Unreleased]
 
+## [1.5.1] - unreleased
+
+Support for Hearts of Iron IV 1.19.4.0 ("Operation Postern" update). The script API is unchanged
+(level 7), so mods built for CAPIE 1.5.0 work without changes.
+
+### Changed
+
+- CAPIE now runs on HOI4 1.19.4.0 only (Steam, x64, `hoi4.exe` SHA-256 `B6650C85…D888`). On
+  1.19.3.0 it stays off and the game starts without it, as on any other unsupported build.
+- Every address, byte signature and structure offset was re-derived for the new build. The game
+  changed the layout of edit boxes, the politics view, scripted windows, the focus manager and
+  the multiplayer session, and now finds GUI widgets by name in per-type tables. CAPIE follows
+  all of it; the details are in `docs/research/port-1.19.4.0.md`.
+
+### Fixed
+
+- CAPIE no longer refuses to start after the 1.19.4.0 game update.
+- The launcher always starts the game. If Steam's command names a program the launcher does not
+  know (in the game folder), the program needs administrator rights, or the launcher hits an
+  internal error before the start, the game now starts unchanged without CAPIE and a notice says
+  why. Only a missing program is still refused.
+- Steam can update `hoi4.exe` while the launcher waits for the game; with CAPIE off the launcher
+  holds no file open at all.
+- Launcher notices now appear on top of the Paradox Launcher and the game. The "unsupported game
+  version" notice says that CAPIE needs an update and where to get it. The outcome of the last
+  run is written to `%LOCALAPPDATA%\RenameAnything\last-status.txt`.
+- Crash-loop breaker: if a start ended while CAPIE was loading (launcher or proxy), the next start
+  runs without CAPIE once, says so, and the start after it tries again.
+- The proxy `version.dll` pins the same CAPIE DLLs as the launcher (one list,
+  `deploy/bundle-inputs.json`); before, it could pin an older build and refuse the shipped DLLs.
+
 ## [1.5.0] - unreleased
 
 First public release of CAPIE (Cyprian's API Extender), a native library that extends what

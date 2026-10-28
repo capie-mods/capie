@@ -11,9 +11,9 @@
  *     capie_pt_ss    the small name, packed like the large one
  *     capie_pt_rev   set last by every change, on a country (refresh trigger, value unused)
  *
- * The character's variable container is inline at character+0xD8 (CCharacter::Write FA688B,
- * Read FA5246), the same container type as a country's. The ruling leader of a country is
- * found with the chain of the `set_country_leader_portrait` effect (2E5680): country+0xF90
+ * The character's variable container is inline at character+0xD8 (CCharacter::Write and
+ * Read), the same container type as a country's. The ruling leader of a country is
+ * found with the chain of the `set_country_leader_portrait` effect: country+0xF90
  * politics, +0xD0 ruling party, first of the leader roles at +0x70 (count +0x7C), role+0x8
  * character. Pure functions templated over the memory policy; no writes, no game calls.
  */
@@ -46,9 +46,9 @@ inline constexpr std::string_view small_length_variable = "capie_pt_slen";
 inline constexpr std::string_view small_array = "capie_pt_ss";
 /// @brief Commit variable (any country scope); every change ends with `set_variable = { capie_pt_rev = 1 }`.
 inline constexpr char commit_variable[] = "capie_pt_rev";
-/// @brief Portrait type of a country leader (`civilian`; 2E5734: edx = 0).
+/// @brief Portrait type of a country leader (`civilian`; the effect passes edx = 0).
 inline constexpr std::int32_t type_civilian = 0;
-/// @brief Portrait size `large` (2E5736: r8d = 1); 0 is `small` (B444C7).
+/// @brief Portrait size `large` (the effect passes r8d = 1); 0 is `small` (`ui.size_small_is_zero`).
 inline constexpr std::int32_t size_large = 1;
 
 /// @brief The portrait layer of one character.

@@ -1,0 +1,4 @@
+# Pinned dependencies of the port tools (versions used for the 1.19.4.0 port).
+capstone==5.0.7
+pefile==2024.8.26
+numpy==2.5.4

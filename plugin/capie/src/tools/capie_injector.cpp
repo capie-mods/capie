@@ -20,6 +20,7 @@
  * 15 timeout.
  */
 #include "../core/game_build.hpp"
+#include "../core/build_identity.hpp"
 #include "../core/sha256.hpp"
 
 #include <tlhelp32.h>
@@ -157,7 +158,7 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
     if (QueryFullProcessImageNameW(process, 0, image, &count) == 0 ||
         _wcsicmp(std::filesystem::path(image).filename().c_str(), capie::core::game_exe_name) != 0 ||
         capie::core::sha256_file(image) != capie::core::game_exe_sha256) {
-        std::wcerr << L"Refused: process image does not match pinned hoi4.exe 1.19.3.0 SHA-256\n";
+        std::wcerr << L"Refused: process image does not match pinned hoi4.exe 1.19.4.0 SHA-256\n";
         CloseHandle(process);
         return exit_wrong_image;
     }

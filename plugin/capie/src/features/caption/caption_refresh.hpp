@@ -7,11 +7,11 @@
  * a plain success counter (`rn_ip_lui_rev` leader, `rn_ip_pui_rev` party) that is shown in
  * a hidden carrier text of the editor and launcher windows. When the counter goes up,
  * this module asks the game once to redraw the politics view with its own native request
- * `B6E210(gui, 12)`. That call only marks the view dirty; the normal frame loop then runs
+ * `RequestViewRefresh(gui, 12)`. That call only marks the view dirty; the normal frame loop then runs
  * the view's observer, which reads current data and rewrites the caption and rows with
  * native formatting. CAPIE never writes a caption, runs a command or rebuilds a widget.
  *
- * Contract (rev7, reviews R1..R6):
+ * Contract (reviews R1..R6):
  *   - Seed only at prefill. `on_prefill(window)` is the only source of a baseline and is
  *     called by the editor bridge after its one-shot opening prefill succeeded. Ticks and
  *     launchers never seed; an existing seed is never overwritten.
@@ -65,9 +65,9 @@ namespace off = core::off;
 inline constexpr std::uint32_t token_politics_tab_value = core::value::token_politics_tab;
 /// @brief Token value of `player_context`.
 inline constexpr std::uint32_t token_player_context_value = core::value::token_player_context;
-/// @brief Politics view index passed to `B6E210`.
+/// @brief Politics view index passed to `RequestViewRefresh`.
 inline constexpr int politics_view_index = core::value::politics_view_index;
-/// @brief View index ignored by `B6E210`.
+/// @brief View index ignored by `RequestViewRefresh`.
 inline constexpr int gui_view_limit = core::value::gui_view_limit;
 /// @brief Offset of the diagnostic allocator copy inside the GUI container.
 inline constexpr uptr gui_structural_offset = off::gui_structural;
@@ -648,14 +648,14 @@ Reject resolve_idler(const M& mem, uptr image, uptr window, ResolveDiag* diag, u
  */
 template <class M>
 Reject resolve_gui(const M& mem, uptr image, uptr idler, ResolveDiag* diag, uptr& gui) noexcept {
-    // Fresh getter: DCCF30 is exactly `mov rax,[rcx+6B8]; ret` (fingerprinted), so the bounded
+    // Fresh getter: `rva::idler_gui_getter` is exactly `mov rax,[rcx+6B8]; ret` (pinned), so the bounded
     // read below is its exact semantics without executing native code.
     uptr gui_word0 = 0;
     uptr gui_idler = 0;
     if (!rd(mem, idler, off::idler_gui, gui) || !gui) {
         return Reject::gui_null;
     }
-    // No gui vtable gate: [idler+6B8] is a non-polymorphic container (R4, ctor B614C0); identity is
+    // No gui vtable gate: [idler+6B8] is a non-polymorphic container (R4); identity is
     // closed by gui+180 == idler and the politics-view checks below. Word 0 and +B8 are logged only.
     uptr gui_b8 = 0;
     if (diag) {
@@ -843,13 +843,16 @@ WindowKind inspect(const M& mem, uptr image, uptr window, OwnWindow& out) noexce
     uptr ctx_root = 0;
     uptr root = 0;
     uptr root_vt = 0;
+    uptr parent = 0;
     unsigned char flags = 0;
     unsigned char desired = 0;
+    // A root equal to the parent is the window factory's failure result, not this window's root.
     if (!rd(mem, context, 0, ctx_vt) || ctx_vt != image + rva::vt_sg_context ||
         !rd(mem, context, off::context_window, ctx_window) || ctx_window != window ||
         !rd(mem, context, off::context_model, ctx_model) || ctx_model != model ||
         !rd(mem, context, off::context_root, ctx_root) || !rd(mem, window, off::window_root, root) || !root ||
-        ctx_root != root || !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
+        ctx_root != root || !rd(mem, window, off::window_parent, parent) || parent == root ||
+        !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
         !rd(mem, root, off::root_flags, flags) || !rd(mem, window, off::window_desired, desired)) {
         return WindowKind::invalid;
     }
@@ -863,7 +866,7 @@ WindowKind inspect(const M& mem, uptr image, uptr window, OwnWindow& out) noexce
  *
  * Env must provide (all noexcept): `const M& mem()`, `uptr image()`,
  * `bool carrier(uptr root, const char* name, char* out, size_t cap, size_t& size)` (fresh lookup),
- * `bool call_refresh(uptr gui, int index)` (SEH-guarded B6E210; false = fault),
+ * `bool call_refresh(uptr gui, int index)` (SEH-guarded `RequestViewRefresh`; false = fault),
  * `bool refresh_armed()` (operational switch) and `void log(const char*)`.
  * @tparam Env Environment adapter.
  */

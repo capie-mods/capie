@@ -497,8 +497,8 @@ void hook_tests() {
     map_country(mem, pol, char_a);
     map_country(mem, ger, char_b);
     map_country(mem, ita, char_c);
-    mem.map(fake_image + 0x332F260, 8);
-    mem.put(fake_image + 0x332F260, fake_state);
+    mem.map(fake_image + 0x33DD6B0, 8);
+    mem.put(fake_image + 0x33DD6B0, fake_state);
     mem.map(fake_state, 0x400);
     mem.put(fake_state + 0x310, fake_list);
     mem.put(fake_state + 0x31C, std::int32_t{4});

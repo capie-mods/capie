@@ -2,10 +2,17 @@
  * @file game_location.hpp
  * @brief Where the game is: validating the wrapped program, finding the game for the shortcut mode.
  *
- * Wrapper mode: the program handed over by Steam (or by the bootstrap's shortcut) must be
- * an absolute local path to `dowser.exe` or `hoi4.exe`, and its folder must contain
- * `hoi4.exe`. Anything else is refused before any process starts: the launcher is not a
- * general "run this" tool, and a wrong launch option should be fixed, not executed.
+ * Wrapper mode: the program handed over by Steam (or by the bootstrap's shortcut) is
+ * classified before anything starts (`classify_wrapped_program`):
+ *
+ *  - an absolute local `dowser.exe` or `hoi4.exe` next to an existing `hoi4.exe`: the game;
+ *    CAPIE may load;
+ *  - any other existing program in a folder that holds `hoi4.exe` (Paradox may rename or
+ *    replace its launcher in a game update): started unchanged, CAPIE off, one notice. The
+ *    game must start with or without CAPIE;
+ *  - a missing program, a relative or network path, or a program in a folder without
+ *    `hoi4.exe`: refused, nothing starts. The launcher is not a general "run this" tool,
+ *    and a launch option that names no game should be fixed, not executed.
  *
  * Shortcut mode (double-click, no arguments): the game folder comes from, in this order,
  * the path remembered by an earlier run (`%LOCALAPPDATA%\RenameAnything\hoi4.path`), the
@@ -81,6 +88,36 @@ inline std::wstring validate_wrapped_program(const std::wstring& program) {
         throw LauncherError(ExitCode::usage, L"No hoi4.exe next to the wrapped program: " + program);
     }
     return game;
+}
+
+/// @brief How the launcher treats the program of a wrapped command.
+enum class ProgramKind : std::uint8_t {
+    game,         ///< `dowser.exe` or `hoi4.exe` next to `hoi4.exe`: CAPIE may load
+    passthrough,  ///< another program in the game folder: started unchanged, CAPIE off
+};
+
+/// @brief Result of `classify_wrapped_program`.
+struct WrappedProgram {
+    ProgramKind kind = ProgramKind::passthrough;  ///< decision
+    std::wstring game;                            ///< `hoi4.exe` in the program's folder
+};
+
+/**
+ * @brief Classifies the program of a wrapped command (see the file comment).
+ * @param program Decoded program path.
+ * @return `game` or `passthrough`, with the path of `hoi4.exe` next to the program.
+ * @throws LauncherError (usage) when the program is missing, not an absolute local path, or not
+ *         in a folder that holds `hoi4.exe`. Nothing may start then.
+ */
+inline WrappedProgram classify_wrapped_program(const std::wstring& program) {
+    if (!absolute_local_path(program) || !file_exists(program)) {
+        throw LauncherError(ExitCode::usage, L"The wrapped program does not exist: " + program);
+    }
+    auto game = parent_folder(program) + L"\\" + game_exe_name;
+    if (!file_exists(game)) {
+        throw LauncherError(ExitCode::usage, L"The wrapped program is not in a game folder (no hoi4.exe): " + program);
+    }
+    return {.kind = names_game_program(program) ? ProgramKind::game : ProgramKind::passthrough, .game = std::move(game)};
 }
 
 /**

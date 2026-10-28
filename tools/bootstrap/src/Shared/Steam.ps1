@@ -154,6 +154,33 @@ function Test-RaSteamAnyProcess {
     return ((@(& $script:RaGetSteamProcess).Count + @(& $script:RaGetSteamHelperProcess).Count) -gt 0)
 }
 
+function Assert-RaGameClosed {
+    <#
+    .SYNOPSIS
+        Refuses to go on while hoi4.exe or dowser.exe (the Paradox Launcher) runs.
+    .DESCRIPTION
+        A running game holds the CAPIE DLLs, the proxy version.dll and the 'current' junction it
+        started from; changing them underneath it can leave a half-switched installation. Only
+        reads the process list (adapter); nothing is closed. In dry-run mode the refusal is only
+        reported.
+    .OUTPUTS
+        None. Throws the GameRunning message when a game process runs.
+    .EXAMPLE
+        Assert-RaGameClosed
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param()
+    $running = @(& $script:RaGetGameProcess | Where-Object { $_ })
+    if ($running.Count -eq 0) { return }
+    $names = (@($running | ForEach-Object { "$($_.Name).exe" } | Sort-Object -Unique)) -join ', '
+    if ($script:RaDry) {
+        Write-RaLog "[dry-run] $names is running: a real run would stop here and change nothing." -Level PLAN
+        return
+    }
+    throw (Get-RaText 'GameRunning' @($names))
+}
+
 function Get-RaSteamExe {
     <#
     .SYNOPSIS

@@ -16,7 +16,7 @@
  *        same steps in `public_dispatch` (no caption gate, `capie_*` records);
  *   effect constructor: substitutes the record vector for our own dispatch frame only.
  * The debug flavor additionally hooks the edit-box key handler and wrapper (key log) and
- * Execute (command observation), exactly as the accepted rev7 bridge did; the release
+ * Execute (command observation), exactly as the original bridge prototype did; the release
  * flavor does not install those three hooks because they only fed diagnostics.
  *
  * Contract of every hook body: call the original exactly once, never under a lock, pass
@@ -34,8 +34,10 @@
  * Exports: `RNInitialize`, and in the debug flavor `RNDebugRequest`.
  */
 #include "../core/game_build.hpp"
+#include "../core/build_identity.hpp"
 #include "../core/hook_set.hpp"
 #include "../core/init_codes.hpp"
+#include "../core/rtti.hpp"
 #include "../core/log.hpp"
 #include "../core/pe_image.hpp"
 #include "../core/sha256.hpp"
@@ -168,7 +170,7 @@ void __fastcall bind_observed(void* window) noexcept {
  */
 bool enter_event(void* event) noexcept {
     int values[core::off::key_event_words]{};
-    // 2273320 active: event[0] != 0 && event[2] != -1; 2272FA0 additionally checks [7].
+    // The game's "key active" test is event[0] != 0 && event[2] != -1; its Enter test also checks [7].
     return engine::guarded_copy(values, event, sizeof(values)) && std::cmp_equal(values[0], core::value::key_enter) &&
            values[event_modifier_word] == 0 && values[event_final_word] == 0;
 }
@@ -410,7 +412,7 @@ constexpr std::size_t init_line_capacity = 1536;
 
 /**
  * @brief Writes the initialization line; every count comes from the tables it describes.
- * @note Debug flavor text is identical to rev7 apart from the CAPIE suffix.
+ * @note Debug flavor text is identical to the bridge prototype's apart from the CAPIE suffix.
  */
 void write_init_line() noexcept {
     char line[init_line_capacity]{};
@@ -420,8 +422,8 @@ void write_init_line() noexcept {
             line, sizeof(line),
             "RN_DEBUG initialized format=1 ring=%zu ttl_ms=%llu models=%zu selectors=%zu fields=%zu; exact image + %zu "
             "bridge + %zu caption + %zu focus unique fingerprints; %zu shared hooks; caption refresh armed (%zu caption "
-            "FP, %zu slot pins, %zu tokens, B6E210(gui,%d) only, seed gate on leader/party Apply); focus release on "
-            "politics hide (%zu FP, %zu slot pins, 225E320(manager,null) once per transition); own copied history, "
+            "FP, %zu slot pins, %zu tokens, RequestViewRefresh(gui,%d) only, seed gate on leader/party Apply); focus release on "
+            "politics hide (%zu FP, %zu slot pins, FocusSwitch(manager,null) once per transition); own copied history, "
             "scalar remote requests, fresh post-Tick snapshots, observed Execute; dispatch is not execution and Execute "
             "is not effect success; no auto-Apply, no synthetic input, focus only released (never set) on politics hide, "
             "Escape not handled; stale Apply -> epoch -1 sentinel; invalid field -> rn_native(b)_err; CAPIE %s "
@@ -435,8 +437,8 @@ void write_init_line() noexcept {
         count = std::snprintf(
             line, sizeof(line),
             "RN_LIFECYCLE initialized; exact image + %zu bridge + %zu caption + %zu focus unique fingerprints; %zu hooks "
-            "(Tick, Bind, Dispatch, effect ctor); caption refresh armed (B6E210(gui,%d) only, seed gate on leader/party "
-            "Apply); focus release on politics hide (225E320(manager,null) once per transition); no auto-Apply, no "
+            "(Tick, Bind, Dispatch, effect ctor); caption refresh armed (RequestViewRefresh(gui,%d) only, seed gate on leader/party "
+            "Apply); focus release on politics hide (FocusSwitch(manager,null) once per transition); no auto-Apply, no "
             "synthetic input, Escape not handled; stale Apply -> epoch -code sentinel; invalid field -> rn_native(b)_err; "
             "log channels error+lifecycle; CAPIE %s capie_editor flavor=release\r\n",
             core::editor_signature_count, core::caption_signature_count, core::focus_signature_count,
@@ -482,6 +484,12 @@ InitCode initialize() {
     }
     if (const auto focus = focus_verify(text); focus != InitCode::ok) {
         return focus;
+    }
+    // Every vtable the editor compares objects against must belong to the expected class; a
+    // constant that points at another class after a port would let a wrong object pass.
+    if (core::first_wrong_class(core::ProcessMemory{}, reinterpret_cast<core::uptr>(base), core::editor_vtable_classes) !=
+        nullptr) {
+        return InitCode::rtti_mismatch;
     }
     wchar_t log_path[max_path_chars]{};
     if (GetModuleFileNameW(own_module, log_path, max_path_chars) == 0) {
@@ -541,7 +549,7 @@ InitCode initialize() {
     auto* image = base;
     InitCode installed = InitCode::ok;
     if constexpr (debug_diagnostics) {
-        // rev7 order: create all seven, enable Execute, Bind, ctor, Dispatch, wrapper, key, Tick last.
+        // Prototype order: create all seven, enable Execute, Bind, ctor, Dispatch, wrapper, key, Tick last.
         constexpr std::size_t enable_order[] = {hook::execute, hook::bind, hook::ctor, hook::dispatch,
                                                 hook::wrapper, hook::key,  hook::tick};
         installed = core::install_in_order(image, hooks, std::size(hooks), enable_order, std::size(enable_order));

@@ -232,8 +232,8 @@ inline void debug_own_action(void* context, const MsvcString* selector) noexcept
             member(context, off::context_root, context_root) && member(window, off::window_root, root) &&
             root == context_root && member(root, 0, root_vt) && root_vt == image_base + rva::vt_sg_root &&
             member(root, off::root_flags, flags) && member(window, off::window_desired, desired) &&
-            readable(root, off::root_readable_span) && bounded_list(root, off::root_edit_list) &&
-            bounded_list(root, off::root_instant_list) && bounded_list(root, off::root_third_list);
+            readable(root, off::root_readable_span) && bounded_list(root, off::root_children) &&
+            bounded_map(root, off::root_edit_map) && bounded_map(root, off::root_instant_map);
         char line[request_line_capacity]{};
         static_cast<void>(std::snprintf(
             line, sizeof(line),

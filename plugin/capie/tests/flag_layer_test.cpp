@@ -491,8 +491,8 @@ void hook_tests() {
               build_table(mem, 0x2100'0000, 0x3100'0000, 127, 16, {{"other", fp(1)}}) &&
               build_table(mem, 0x2200'0000, 0x3200'0000, 127, 16, flag_variables("ENG", "CAN_old")),
           "country tables build");
-    mem.map(fake_image + 0x332F260, 8);
-    mem.put(fake_image + 0x332F260, fake_state);
+    mem.map(fake_image + 0x33DD6B0, 8);
+    mem.put(fake_image + 0x33DD6B0, fake_state);
     mem.map(fake_state, 0x400);
     mem.put(fake_state + 0x310, fake_list);
     mem.put(fake_state + 0x31C, std::int32_t{4});

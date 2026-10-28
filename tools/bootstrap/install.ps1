@@ -102,6 +102,10 @@
     "steam.exe -shutdown" (never killed), wait up to 60 s, and start Steam again afterwards.
     Without -Yes the script asks instead.
 
+.PARAMETER Force
+    With -Update: install the newest release even when it does not support your hoi4.exe build
+    while the installed one does (the game then starts without CAPIE). With -Uninstall: remove
+    the files although Steam was not found, after you cleared the HOI4 launch option by hand.
 .PARAMETER Rollback
     Switch back to the previous version kept on disk.
 
@@ -149,6 +153,7 @@ param(
     [string]$Version,
     [switch]$CloseSteam,
     [switch]$Rollback,
+    [switch]$Force,
     [string]$ManifestPath
 )
 
@@ -171,6 +176,17 @@ $script:RaUpdatePublicKeyXml = '<RSAKeyValue><Modulus>21/rZrMx9hLPYwh/QMiCnXaOUe
 # extra file aborts the install (fail-closed). File hashes below are the current
 # reviewed launcher-candidate bundle; ZipSha256 must be filled when the release ZIP
 # is built. Until then the installer refuses to install anything.
+#
+# Never edit this block by hand. The release step writes all of it, SupportedGameSha256
+# included, from the bundle it just built and signed (tools/release/release.py build
+# --write-pins; SupportedGameSha256 = game_exe_sha256 of plugin/capie/src/core/game_build.hpp,
+# which the build step checks inside every shipped binary), then rebuilds install.ps1.
+# See docs/contributing/release-script.md, "Installer pins".
+#
+# The values below are still those of CAPIE 1.5.0 for HOI4 1.19.3.0 (hoi4.exe 7DC947BE...).
+# On HOI4 1.19.4.0 an install of this pinned release therefore ends with the clear
+# "does NOT support your Hearts of Iron IV build" notice (and the release page and update
+# command), never a silent success. CAPIE 1.5.1 replaces them when it is released.
 $script:RaPinnedRelease = [ordered]@{
     Version             = '1.5.0'
     ZipName             = 'CAPIE-1.5.0-win64.zip'
@@ -191,7 +207,7 @@ $script:RaPinnedRelease = [ordered]@{
         'mod/capie/localisation/polish/capie_switch_l_polish.yml'   = 'E59AF5200E9D539A9AD36AC8A6EDEDD1D589C55FC176236B9498DB92C0182CA9'
         'mod/capie/thumbnail.png'                                   = 'D4BB22A36F572D354E49DCFB54DCF03F03BF844517F261FF2B9BC2D94CFD66FE'
     }
-    # hoi4.exe builds this release's DLLs support (for -CheckUpdate messages; the launcher enforces it).
+    # hoi4.exe builds this release's DLLs support (install notice, -Update, -CheckUpdate; the launcher enforces it).
     SupportedGameSha256 = @('7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5')
 }
 #endregion Shared/Configuration.ps1
@@ -206,6 +222,8 @@ $script:RaPinnedRelease = [ordered]@{
 $script:RaAppId = '394360'                                  # Hearts of Iron IV Steam app id
 $script:RaGameExeName = 'hoi4.exe'
 $script:RaParadoxLauncherExeName = 'dowser.exe'             # what Steam's %command% starts
+# Processes that load our files: no install, update, rollback or uninstall while one runs.
+$script:RaGameProcessNames = @('hoi4', 'dowser')
 $script:RaSteamProcessName = 'steam'
 $script:RaSteamHelperProcessName = 'steamwebhelper'          # must be gone too before localconfig.vdf is edited
 $script:RaSteamExeRegistryValue = 'SteamExe'
@@ -258,6 +276,16 @@ $script:RaStagingPrefix = '.staging-'
 $script:RaDownloadPrefix = 'download-'
 $script:RaBrokenInfix = '.broken-'
 $script:RaJunctionTempInfix = '.new-'
+$script:RaJunctionOldInfix = '.old-'         # the previous 'current' link, kept until the new one is in place
+# Leftovers of an interrupted run (names from New-RaUniqueName: 32 lower-case hex digits). Swept at
+# the start of a run only when the name matches exactly, the item is ours (see Clear-RaLeftover) and
+# it is older than RaLeftoverMinAgeMinutes (so a second setup window running at the same time keeps its files).
+$script:RaLeftoverDownloadPattern = '^download-[0-9a-f]{32}\.zip$'
+$script:RaLeftoverStagingPattern = '^\.staging-[0-9a-f]{32}$'
+$script:RaLeftoverJunctionPattern = '^current\.(new|old)-[0-9a-f]{32}$'
+$script:RaLeftoverMarkerPattern = '^proxy\.enabled\.[0-9a-f]{32}\.remove$'
+$script:RaLeftoverProxyPattern = '^version\.dll\.[0-9a-f]{32}\.(tmp|bak|remove)$'
+$script:RaLeftoverMinAgeMinutes = 30
 $script:RaIconIndexSuffix = ',0'
 # localconfig.vdf backups made by New-RaBackupPath (only these are deleted by -Uninstall -Purge).
 $script:RaBackupNamePattern = '^localconfig\.vdf\.renameanything-backup-\d{8}-\d{6}(-\d+)?$'
@@ -301,6 +329,9 @@ $script:RaNotesSectionPattern = '^\s*##\s+Supported game build'   # the changelo
 $script:RaReleaseShaPrefixLength = 8
 $script:RaVersionCorePattern = '^(\d+\.\d+\.\d+).*$'
 $script:RaGitHubDownloadPrefixFormat = 'https://github.com/{0}/releases/download/'
+# What a player is told to open or run when the installed CAPIE does not support the game build.
+$script:RaGitHubLatestPageFormat = 'https://github.com/{0}/releases/latest'
+$script:RaGitHubLatestInstallerFormat = 'https://github.com/{0}/releases/latest/download/install.ps1'
 $script:RaManifestAssetName = 'release-manifest.json'
 $script:RaSignatureAssetName = 'release-manifest.json.sig'
 $script:RaSignatureFileSuffix = '.sig'
@@ -403,12 +434,15 @@ $script:RaAssumeYes = $false    # -Yes: never prompt
 $script:RaQuiet = $false        # tests: no console output
 $script:RaAfterWriteHook = $null # tests: simulate a bad write before verification
 $script:RaBeforeOwnedRemove = $null # tests: simulate a replacement after ownership verification
+$script:RaBeforeCurrentSwap = $null # tests: runs (with the aside path) after the old 'current' was renamed aside
 $script:RaLogSink = $null       # terminal interface: receives (Level, Message) of console log lines
 $script:RaMpWarningShown = $false # terminal interface already showed the multiplayer note
 $script:RaCloseSteam = $false   # -CloseSteam: with -Yes the script may close and restart Steam
 $script:RaSteamClosedByUs = $false # this run closed Steam (or planned to, in dry-run mode)
 $script:RaSteamRestartExe = $null  # steam.exe to start again after the change
 $script:RaReleaseCache = $null  # releases listed in this run (one GitHub request per run)
+$script:RaForce = $false        # -Force: -Update may install a release that does not support the game; -Uninstall without Steam
+$script:RaUpdateHeldBack = $false # -Update kept the installed version because the newest does not support the game
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -444,6 +478,8 @@ $script:RaSleep = { param([int]$Milliseconds) Start-Sleep -Milliseconds $Millise
 $script:RaGetSteamProcess = { @(Get-Process -Name $script:RaSteamProcessName -ErrorAction SilentlyContinue) }
 # GetSteamHelperProcess() -> array of steamwebhelper processes (they outlive steam.exe briefly)
 $script:RaGetSteamHelperProcess = { @(Get-Process -Name $script:RaSteamHelperProcessName -ErrorAction SilentlyContinue) }
+# GetGameProcess() -> array of running hoi4.exe / dowser.exe processes (objects with a Name); empty when none
+$script:RaGetGameProcess = { @(Get-Process -Name $script:RaGameProcessNames -ErrorAction SilentlyContinue) }
 # StartProcess(FilePath, Arguments) -> nothing; starts a program without waiting (Steam shutdown/start only)
 $script:RaStartProcess = {
     param([string]$FilePath, [string[]]$Arguments)
@@ -707,7 +743,38 @@ $script:RaMessages = @{
         'Your hoi4.exe build ({0}...) is not supported yet. The launcher starts the game without CAPIE. Check again ',
         'later (release notes, versions.json).'
     ) -join ''
-    DisableDone                = 'Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
+    InstalledGameUnsupported   = @(
+        "NOTE: CAPIE {0} does NOT support your Hearts of Iron IV build (hoi4.exe SHA-256 {1}...). The game still `n",
+        "starts, but without CAPIE. Get a CAPIE version made for your game build:`n",
+        "  open    {2}`n",
+        "  or run  & ([scriptblock]::Create((irm {3}))) -Update`n",
+        'If that already is the newest release, CAPIE has not been updated for this game build yet; check the page again later.'
+    ) -join ''
+    InstalledGameUnknown       = @(
+        'hoi4.exe was not found through Steam, so it was not checked whether CAPIE {0} supports your game build. ',
+        'Releases and their game builds: {1}'
+    ) -join ''
+    UpdateHeldBack             = @(
+        'CAPIE {0} is available but does not support your hoi4.exe build ({2}...); the installed CAPIE {1} does, ',
+        'so it was kept. To install {0} anyway (the game would then start without CAPIE), run -Update -Force.'
+    ) -join ''
+    GameRunning                = @(
+        'Hearts of Iron IV or the Paradox Launcher is running ({0}). Close the game and the launcher completely, ',
+        'then run this setup again. Nothing was changed.'
+    ) -join ''
+    UninstallSteamNotFound     = @(
+        "Steam was not found, but the HOI4 Steam launch options may still start {0}. Removing the files now would leave `n",
+        "Steam unable to start the game, so nothing was removed. Either run -Uninstall -SteamRoot `"<your Steam folder>`", `n",
+        "or clear the option by hand: in Steam open Library > Hearts of Iron IV > Properties > General > Launch Options, `n",
+        "delete the quoted ...\RenameAnythingLauncher.exe part (and -capie), keep %command% and your own options, `n",
+        'then run -Uninstall -Force.'
+    ) -join ''
+    SteamConfigUnreadable      = @(
+        'Account {0}: localconfig.vdf cannot be read ({1}), so its launch option may still point at the CAPIE launcher. ',
+        'Nothing was removed. Close what locks the file and run -Uninstall again, or clear the option in Steam by hand ',
+        '(Library > Hearts of Iron IV > Properties > General > Launch Options) and run -Uninstall -Force.'
+    ) -join ''
+    DisableDone                ='Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
     PurgeDone                  = 'Uninstalled. No files of this setup are left, and the Steam launch options are as they were before.'
     ReleaseVerified            = 'Release {0}: signed manifest verified.'
     WorkshopModPresent         = @(
@@ -1945,6 +2012,33 @@ function Test-RaSteamAnyProcess {
     return ((@(& $script:RaGetSteamProcess).Count + @(& $script:RaGetSteamHelperProcess).Count) -gt 0)
 }
 
+function Assert-RaGameClosed {
+    <#
+    .SYNOPSIS
+        Refuses to go on while hoi4.exe or dowser.exe (the Paradox Launcher) runs.
+    .DESCRIPTION
+        A running game holds the CAPIE DLLs, the proxy version.dll and the 'current' junction it
+        started from; changing them underneath it can leave a half-switched installation. Only
+        reads the process list (adapter); nothing is closed. In dry-run mode the refusal is only
+        reported.
+    .OUTPUTS
+        None. Throws the GameRunning message when a game process runs.
+    .EXAMPLE
+        Assert-RaGameClosed
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param()
+    $running = @(& $script:RaGetGameProcess | Where-Object { $_ })
+    if ($running.Count -eq 0) { return }
+    $names = (@($running | ForEach-Object { "$($_.Name).exe" } | Sort-Object -Unique)) -join ', '
+    if ($script:RaDry) {
+        Write-RaLog "[dry-run] $names is running: a real run would stop here and change nothing." -Level PLAN
+        return
+    }
+    throw (Get-RaText 'GameRunning' @($names))
+}
+
 function Get-RaSteamExe {
     <#
     .SYNOPSIS
@@ -2327,12 +2421,49 @@ function Install-RaVersion {
         }
         Move-Item -LiteralPath $staging -Destination $dir
     } finally {
-        if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
-        if ($package.Downloaded -and (Test-Path -LiteralPath $package.Path)) { Remove-Item -LiteralPath $package.Path -Force }
+        # Cleanup never replaces the outcome: a locked leftover is logged (and swept by a later run).
+        Remove-RaTempItem $staging -Recurse
+        if ($package.Downloaded) { Remove-RaTempItem $package.Path }
     }
     Save-RaStoredManifest $Manifest
     Write-RaLog "Installed version $($Manifest.Version) to $dir"
     return $dir
+}
+
+function Remove-RaTempItem {
+    <#
+    .SYNOPSIS
+        Deletes a temporary file or folder of this run; logs instead of throwing on failure.
+    .DESCRIPTION
+        For cleanup in finally blocks: once the real work succeeded (or failed with its own
+        error), a temporary item that cannot be deleted (locked by an antivirus scan, for
+        example) must not turn the result into a failure or hide the first error. A
+        reparse point is only unlinked, never recursed into. A missing path is a no-op.
+    .PARAMETER Path
+        Temporary item.
+    .PARAMETER Recurse
+        The item is a folder of our own (staging) and may be deleted with its content.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Remove-RaTempItem $staging -Recurse
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param(
+        [Parameter(Mandatory, Position = 0)][AllowEmptyString()][AllowNull()][string]$Path,
+        [switch]$Recurse
+    )
+    if (-not $Path) { return }
+    try {
+        $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+        if (-not $item) { return }
+        if (Test-RaReparsePoint $item) { [IO.Directory]::Delete($item.FullName, $false) }
+        elseif ($item.PSIsContainer) {
+            if (-not $Recurse) { throw 'folder given without -Recurse' }
+            Remove-Item -LiteralPath $item.FullName -Recurse -Force -ErrorAction Stop
+        } else { [IO.File]::Delete($item.FullName) }
+    } catch { Write-RaLog "Could not delete temporary $Path (a later run removes it): $($_.Exception.Message)" -Level WARN }
 }
 
 function Test-RaReparsePoint {
@@ -2404,8 +2535,12 @@ function Switch-RaCurrent {
     .SYNOPSIS
         Points <root>\current at <root>\<version>.
     .DESCRIPTION
-        Creates the new junction under a temporary name first, then replaces the old one;
-        on failure the previous link is restored. Verifies the result.
+        Creates the new junction under a temporary name first (current.new-<id>), renames
+        the old link aside (current.old-<id>), renames the new one to 'current', verifies it
+        and only then deletes the old link. The old link is never deleted before the new one
+        is in place: on any failure it is renamed back. (The two renames are back to back;
+        Windows has no rename that replaces a directory link in one step.) A 'current' that
+        is not a junction is refused, never deleted.
     .PARAMETER Version
         Version to activate (folder must exist).
     .OUTPUTS
@@ -2424,20 +2559,34 @@ function Switch-RaCurrent {
     }
     if (-not (Test-Path -LiteralPath $target -PathType Container)) { throw "Version folder missing: $target" }
     $old = Get-RaJunctionTarget $link
-    $tmp = "$link$($script:RaJunctionTempInfix)" + (New-RaUniqueName)
+    $existing = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+    if ($existing -and -not (Test-RaReparsePoint $existing)) { throw "$link is not a junction; refusing to replace it." }
+    $id = New-RaUniqueName
+    $tmp = "$link$($script:RaJunctionTempInfix)$id"
+    $aside = $null
     New-Item -ItemType Junction -Path $tmp -Target $target | Out-Null
     try {
-        if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
+        if ($existing) {
+            $aside = "$link$($script:RaJunctionOldInfix)$id"
+            [IO.Directory]::Move($link, $aside)
+        }
+        if ($script:RaBeforeCurrentSwap) { & $script:RaBeforeCurrentSwap $aside }
         [IO.Directory]::Move($tmp, $link)
         if ((Get-RaJunctionTarget $link) -ne [IO.Path]::GetFullPath($target)) { throw 'current junction verification failed.' }
-        Write-RaLog "Active version: $Version ($link)"
     } catch {
         $err = $_.Exception.Message
         if (Test-Path -LiteralPath $tmp) { [IO.Directory]::Delete($tmp, $false) }
-        if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
-        if ($old) { New-Item -ItemType Junction -Path $link -Target $old | Out-Null }
+        if ($aside -and (Test-Path -LiteralPath $aside)) {
+            if (Test-Path -LiteralPath $link) { Remove-RaJunction $link }
+            [IO.Directory]::Move($aside, $link)
+        } else {
+            if ((Test-Path -LiteralPath $link) -and (Get-RaJunctionTarget $link) -ne $old) { Remove-RaJunction $link }
+            if ($old -and -not (Test-Path -LiteralPath $link)) { New-Item -ItemType Junction -Path $link -Target $old | Out-Null }
+        }
         throw "Could not switch the current version: $err"
     }
+    Write-RaLog "Active version: $Version ($link)"
+    if ($aside) { Remove-RaTempItem $aside }
 }
 
 function Set-RaActiveVersion {
@@ -2485,7 +2634,9 @@ function Remove-RaUnusedVersion {
         Deletes installed versions other than the active and the previous one.
     .DESCRIPTION
         Never fails the run: a folder in use is logged and kept. Junctions are skipped.
-        The stored manifest of a removed version is deleted too.
+        A version folder that a recorded Steam launch option starts directly (older setups
+        wrote <root>\<version>\RenameAnythingLauncher.exe) is kept too. The stored manifest
+        of a removed version is deleted too.
     .PARAMETER State
         State object (read only).
     .OUTPUTS
@@ -2496,7 +2647,16 @@ function Remove-RaUnusedVersion {
     [CmdletBinding()]
     [OutputType([void])]
     param([Parameter(Mandatory, Position = 0)][psobject]$State)
-    $keep = @($State.InstalledVersion, $State.PreviousVersion) | Where-Object { $_ }
+    $keep = @(@($State.InstalledVersion, $State.PreviousVersion) | Where-Object { $_ })
+    $rootFull = [IO.Path]::GetFullPath($script:RaRoot).TrimEnd('\')
+    foreach ($entry in @($State.SteamEntries | Where-Object { $_ })) {
+        $launcherPath = if ($entry.PSObject.Properties['LauncherPath']) { [string]$entry.LauncherPath } else { '' }
+        if (-not $launcherPath) { continue }
+        try {
+            $versionDir = Split-Path -Parent ([IO.Path]::GetFullPath($launcherPath))
+            if ((Split-Path -Parent $versionDir) -ieq $rootFull) { $keep += (Split-Path -Leaf $versionDir) }
+        } catch { Write-Verbose "Unusable launcher path in state: $launcherPath" }
+    }
     if (-not (Test-Path -LiteralPath $script:RaRoot)) { return }
     foreach ($d in Get-ChildItem -LiteralPath $script:RaRoot -Directory -Force) {
         if (Test-RaReparsePoint $d) { continue }
@@ -2513,6 +2673,164 @@ function Remove-RaUnusedVersion {
             } catch { Write-RaLog "Could not remove $($d.FullName) (in use?): $($_.Exception.Message)" -Level WARN }
         }
     }
+}
+
+function Test-RaLeftoverAge {
+    <#
+    .SYNOPSIS
+        Tests whether a leftover is old enough to belong to a finished (crashed) run.
+    .DESCRIPTION
+        Uses the later of creation and last write time (a copied file keeps the source's write
+        time), so the temporary files of a second setup window that runs right now are kept.
+    .PARAMETER Item
+        File or folder.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaLeftoverAge (Get-Item -LiteralPath $p -Force)
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][System.IO.FileSystemInfo]$Item)
+    $touched = if ($Item.CreationTime -gt $Item.LastWriteTime) { $Item.CreationTime } else { $Item.LastWriteTime }
+    return (((Get-RaNow) - $touched).TotalMinutes -ge $script:RaLeftoverMinAgeMinutes)
+}
+
+function Test-RaPlainTree {
+    <#
+    .SYNOPSIS
+        Tests that a folder holds only plain files and folders (no junction or symlink anywhere).
+    .DESCRIPTION
+        A staging folder is deleted recursively only when this holds, so a planted link can never
+        make the sweep delete something outside our root folder. Never follows reparse points.
+    .PARAMETER Path
+        Folder to check.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaPlainTree $staging
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$Path)
+    $pending = New-Object System.Collections.Generic.Stack[string]
+    $pending.Push($Path)
+    while ($pending.Count -gt 0) {
+        $dir = New-Object System.IO.DirectoryInfo($pending.Pop())
+        if (Test-RaReparsePoint $dir) { return $false }
+        foreach ($child in $dir.GetFileSystemInfos()) {
+            if (Test-RaReparsePoint $child) { return $false }
+            if ($child -is [System.IO.DirectoryInfo]) { $pending.Push($child.FullName) }
+        }
+    }
+    return $true
+}
+
+function Get-RaKnownProxyHash {
+    <#
+    .SYNOPSIS
+        Lists the SHA-256 of every signed proxy/version.dll this setup knows.
+    .DESCRIPTION
+        From the pinned release and every stored manifest under <root>\manifests. A leftover
+        version.dll copy in the game folder is ours only when its hash is in this list.
+    .OUTPUTS
+        System.String[] (upper-case hashes)
+    .EXAMPLE
+        Get-RaKnownProxyHash
+    #>
+    [CmdletBinding()]
+    [OutputType([string[]], [object[]])]
+    param()
+    $hashes = @()
+    $manifests = @($script:RaPinnedRelease)
+    $store = Join-Path $script:RaRoot $script:RaManifestStoreDirName
+    if (Test-Path -LiteralPath $store -PathType Container) {
+        foreach ($f in @(Get-ChildItem -LiteralPath $store -File -Force -Filter '*.json')) {
+            $m = Read-RaStoredManifest ([IO.Path]::GetFileNameWithoutExtension($f.Name))
+            if ($m) { $manifests += $m }
+        }
+    }
+    foreach ($m in $manifests) {
+        if ($m.Files.Contains($script:RaProxyBundlePath)) { $hashes += ([string]$m.Files[$script:RaProxyBundlePath]).ToUpperInvariant() }
+    }
+    return @($hashes | Sort-Object -Unique)
+}
+
+function Clear-RaLeftover {
+    <#
+    .SYNOPSIS
+        Removes what an interrupted earlier run left behind, after proving each item is ours.
+    .DESCRIPTION
+        In the root folder: download-<id>.zip files, .staging-<id> folders that hold only plain
+        files, current.new-<id> / current.old-<id> junctions that point into the root folder,
+        and proxy.enabled.<id>.remove files whose bytes are exactly our activation marker. In the
+        game folders of the recorded proxy and of the found game: the files version.dll.<id>.tmp,
+        version.dll.<id>.bak and version.dll.<id>.remove whose SHA-256 is a signed CAPIE proxy
+        (Get-RaKnownProxyHash); a .bak is
+        kept while no version.dll exists next to it (it may be the only copy). <id> is the
+        32-digit name New-RaUniqueName makes, and every item must be older than
+        RaLeftoverMinAgeMinutes. Anything else is left alone. Never fails the run: a locked item
+        is logged and tried again next time. Dry-run mode only lists what would go.
+    .PARAMETER State
+        State object (read only).
+    .PARAMETER GameDir
+        Game folder found through Steam, or empty.
+    .OUTPUTS
+        System.Int32 (number of removed, or in dry-run mode listed, items)
+    .EXAMPLE
+        [void](Clear-RaLeftover $state $gameDir)
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$GameDir
+    )
+    $found = New-Object System.Collections.ArrayList
+    if ($script:RaRoot -and (Test-Path -LiteralPath $script:RaRoot -PathType Container)) {
+        $rootFull = [IO.Path]::GetFullPath($script:RaRoot).TrimEnd('\') + '\'
+        foreach ($item in @(Get-ChildItem -LiteralPath $script:RaRoot -Force)) {
+            try {
+                $reparse = Test-RaReparsePoint $item
+                $ours = $false
+                $plainFile = -not $item.PSIsContainer -and -not $reparse
+                if ($item.Name -match $script:RaLeftoverDownloadPattern) { $ours = $plainFile }
+                elseif ($item.Name -match $script:RaLeftoverStagingPattern) {
+                    $ours = $item.PSIsContainer -and -not $reparse -and (Test-RaPlainTree $item.FullName)
+                } elseif ($item.Name -match $script:RaLeftoverJunctionPattern) {
+                    $target = Get-RaJunctionTarget $item.FullName
+                    $ours = $reparse -and $target -and ($target.TrimEnd('\') + '\').StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)
+                } elseif ($item.Name -match $script:RaLeftoverMarkerPattern -and $plainFile) {
+                    $ours = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($item.FullName)) -ceq $script:RaProxyConfigContent
+                }
+                if ($ours -and (Test-RaLeftoverAge $item)) { [void]$found.Add($item) }
+            } catch { Write-RaLog "Leftover check of $($item.FullName) failed; kept: $($_.Exception.Message)" -Level WARN }
+        }
+    }
+    $gameDirs = @()
+    if ($State.Proxy -and $State.Proxy.Path) { $gameDirs += (Split-Path -Parent ([string]$State.Proxy.Path)) }
+    if ($GameDir) { $gameDirs += $GameDir }
+    $proxyHashes = $null
+    foreach ($dir in @($gameDirs | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Sort-Object -Unique)) {
+        foreach ($item in @(Get-ChildItem -LiteralPath $dir -File -Force | Where-Object { $_.Name -match $script:RaLeftoverProxyPattern })) {
+            try {
+                if ((Test-RaReparsePoint $item) -or -not (Test-RaLeftoverAge $item)) { continue }
+                if ($null -eq $proxyHashes) { $proxyHashes = @(Get-RaKnownProxyHash) }
+                if ($proxyHashes -notcontains (Get-RaFileSha256 $item.FullName)) { continue }
+                if ($item.Name.EndsWith('.bak') -and -not (Test-Path -LiteralPath (Join-Path $dir $script:RaProxyFileName))) {
+                    Write-RaLog "Kept $($item.FullName): no $($script:RaProxyFileName) next to it, so it may be the only copy." -Level WARN
+                    continue
+                }
+                [void]$found.Add($item)
+            } catch { Write-RaLog "Leftover check of $($item.FullName) failed; kept: $($_.Exception.Message)" -Level WARN }
+        }
+    }
+    foreach ($item in $found) {
+        if ($script:RaDry) { Write-RaLog "[dry-run] would remove leftover $($item.FullName)" -Level PLAN; continue }
+        Remove-RaTempItem $item.FullName -Recurse
+        if (-not (Test-Path -LiteralPath $item.FullName)) { Write-RaLog "Removed leftover of an interrupted run: $($item.FullName)" }
+    }
+    return $found.Count
 }
 #endregion Shared/VersionStore.ps1
 
@@ -3429,9 +3747,11 @@ function Install-RaProxy {
         elseif ($installed -and (Test-Path -LiteralPath $path) -and (Get-RaFileSha256 $path) -eq $sha) { [IO.File]::Delete($path) }
         throw
     } finally {
-        if (Test-Path -LiteralPath $tmp) { [IO.File]::Delete($tmp) }
+        # Cleanup is logged, never thrown: after the success point a locked temporary file must not
+        # report a working proxy as failed, and on failure it must not hide the first error.
+        Remove-RaTempItem $tmp
         # A failed restoration must retain its recovery copy.
-        if ($success -and (Test-Path -LiteralPath $backup)) { [IO.File]::Delete($backup) }
+        if ($success) { Remove-RaTempItem $backup }
     }
 }
 
@@ -4121,12 +4441,15 @@ function Remove-RaSteamLaunchOption {
         Removes our wrapper from every Steam account that has it.
     .DESCRIPTION
         Accounts without our fragment are not touched (no backup either). Unreadable
-        accounts are logged and skipped. Returns $false when Steam is running and the
-        user did not close it.
+        accounts are logged and skipped, or with -Strict (uninstall: the files are about to be
+        deleted) make it throw before anything is changed. Returns $false when Steam is running
+        and the user did not close it.
     .PARAMETER State
         State object (modified; the caller saves it).
     .PARAMETER SteamRootPath
         Steam folder.
+    .PARAMETER Strict
+        Throw when an account's localconfig.vdf cannot be read (its option may still point at us).
     .OUTPUTS
         System.Boolean
     .EXAMPLE
@@ -4136,7 +4459,8 @@ function Remove-RaSteamLaunchOption {
     [OutputType([bool])]
     param(
         [Parameter(Mandatory, Position = 0)][psobject]$State,
-        [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$SteamRootPath
+        [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$SteamRootPath,
+        [switch]$Strict
     )
     $accounts = @(Get-RaSteamAccount $SteamRootPath)
     $targets = @()
@@ -4144,7 +4468,10 @@ function Remove-RaSteamLaunchOption {
         try {
             $info = Get-RaAppLaunchInfo (Read-RaTextFile $acc.ConfigPath).Text
             if ((Test-RaHasWrapper $info.Value) -or (Test-RaHasCapieFlag $info.Value)) { $targets += $acc }
-        } catch { Write-RaLog "Account $($acc.Id): cannot read localconfig.vdf ($($_.Exception.Message)); skipped." -Level WARN }
+        } catch {
+            if ($Strict) { throw (Get-RaText 'SteamConfigUnreadable' @($acc.Id, $_.Exception.Message)) }
+            Write-RaLog "Account $($acc.Id): cannot read localconfig.vdf ($($_.Exception.Message)); skipped." -Level WARN
+        }
     }
     if ($targets.Count -eq 0) {
         Write-RaLog 'No Steam launch option with Rename Anything found.'
@@ -4420,7 +4747,10 @@ function Invoke-RaUpdate {
         Installs the newest signed release and activates it.
     .DESCRIPTION
         Returns $false when already up to date and the installed files verify; a
-        failed verification triggers a reinstall of the same version.
+        failed verification triggers a reinstall of the same version. Also returns $false
+        (and sets $script:RaUpdateHeldBack) when the installed version supports the installed
+        hoi4.exe and the newest does not: an update would turn a working setup into one that
+        starts the game without CAPIE. -Force installs it anyway.
     .PARAMETER State
         State object (modified; the caller saves it).
     .PARAMETER GameDir
@@ -4444,6 +4774,15 @@ function Invoke-RaUpdate {
     )
     $check = Invoke-RaCheckUpdate -State $State -GameDir $GameDir -LocalManifestPath $LocalManifestPath
     $m = $check.Remote.Manifest
+    if ($check.Newer -and $check.InstalledSupportsGame -and -not $check.LatestSupportsGame) {
+        if (-not $script:RaForce) {
+            $script:RaUpdateHeldBack = $true
+            $shortSha = $check.GameSha.Substring(0, $script:RaGameHashDisplayLength)
+            Write-RaLog (Get-RaText 'UpdateHeldBack' @($m.Version, $State.InstalledVersion, $shortSha)) -Level WARN
+            return $false
+        }
+        Write-RaLog "-Force: installing $($m.Version) although it does not support this hoi4.exe build." -Level WARN
+    }
     if (-not $check.Newer) {
         if (Test-RaInstalledVersion $m (Get-RaVersionDir $m.Version)) { return $false }
         Write-RaLog "Installed files of $($m.Version) failed verification; reinstalling." -Level WARN
@@ -4451,6 +4790,54 @@ function Invoke-RaUpdate {
     [void](Install-RaVersion -Manifest $m -LocalZip $LocalZip -ZipUrl $check.Remote.ZipUrl)
     Set-RaActiveVersion $State $m.Version
     return $true
+}
+
+function Write-RaGameSupportNotice {
+    <#
+    .SYNOPSIS
+        Tells the player clearly when the active CAPIE version does not support their hoi4.exe.
+    .DESCRIPTION
+        Compares the SHA-256 of the installed hoi4.exe with supportedGameSha256 of the active
+        version's (signed or pinned) manifest. A match is logged quietly. A mismatch is a WARN
+        that names the latest release page and the full command that updates CAPIE, so a
+        finished install never looks like a working one when CAPIE cannot load. When hoi4.exe
+        is not found the check is reported as not done.
+    .PARAMETER State
+        State object (read only).
+    .PARAMETER GameDir
+        Game folder or empty.
+    .OUTPUTS
+        System.Boolean ($false when the game build is known and not supported)
+    .EXAMPLE
+        [void](Write-RaGameSupportNotice $state $gameDir)
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$GameDir
+    )
+    $version = $State.InstalledVersion
+    if (-not $version) { return $true }
+    $page = $script:RaGitHubLatestPageFormat -f $script:RaGitHubRepo
+    $gameSha = Get-RaGameSha256 $GameDir
+    if (-not $gameSha) {
+        Write-RaLog (Get-RaText 'InstalledGameUnknown' @($version, $page)) -Level WARN
+        return $true
+    }
+    $m = Read-RaStoredManifest $version
+    if (-not $m) {
+        # Only in dry-run mode: the manifest of a version that was not really installed is not stored.
+        Write-RaLog "No stored manifest of CAPIE $version; game build support not checked." -Level WARN
+        return $true
+    }
+    if (@($m.SupportedGameSha256) -contains $gameSha) {
+        Write-RaLog (Get-RaText 'GameSupportedInstalled')
+        return $true
+    }
+    $installer = $script:RaGitHubLatestInstallerFormat -f $script:RaGitHubRepo
+    Write-RaLog (Get-RaText 'InstalledGameUnsupported' @($version, $gameSha.Substring(0, $script:RaGameHashDisplayLength), $page, $installer)) -Level WARN
+    return $false
 }
 
 function Invoke-RaRollback {
@@ -5278,8 +5665,11 @@ function Invoke-RaUninstall {
         Removes the Steam launch option part, our shortcuts and the installed files.
     .DESCRIPTION
         Steam first: while Steam keeps the launch option pointing at the launcher, no
-        file is removed. Then the proxy, shortcuts and the "CAPIE" switch mod (earlier files
-        restored), then the 'current' junction (so nothing can be
+        file is removed. That includes the cases where Steam is not found but this setup
+        recorded a launch option (or has no state to tell), and where an account's
+        localconfig.vdf cannot be read: the run stops and explains how to clear the option by
+        hand; -Force then skips the Steam step. Then the proxy, shortcuts and the "CAPIE"
+        switch mod (earlier files restored), then the 'current' junction (so nothing can be
         deleted through it), then everything under the root folder except bootstrap.log.
     .PARAMETER State
         State object (modified).
@@ -5297,11 +5687,14 @@ function Invoke-RaUninstall {
         [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$SteamRootPath
     )
     if ($SteamRootPath) {
-        if (-not (Remove-RaSteamLaunchOption $State $SteamRootPath)) {
+        if (-not (Remove-RaSteamLaunchOption $State $SteamRootPath -Strict:(-not $script:RaForce))) {
             throw 'Steam is running: the launch option still points to the launcher, so no files were removed. Close Steam and run -Uninstall again.'
         }
+    } elseif (Test-RaSteamOptionPossible $State) {
+        if (-not $script:RaForce) { throw (Get-RaText 'UninstallSteamNotFound' @((Get-RaLauncherPath))) }
+        Write-RaLog 'Steam not found; -Force: the launch option is taken as cleared by hand.' -Level WARN
     } else {
-        Write-RaLog 'Steam not found; skipping launch options.' -Level WARN
+        Write-RaLog 'Steam not found; this setup recorded no Steam launch option.' -Level WARN
     }
     Remove-RaProxy $State
     Remove-RaOwnShortcut $State
@@ -5325,6 +5718,28 @@ function Invoke-RaUninstall {
         Remove-Item -LiteralPath $item.FullName -Recurse -Force
     }
     Write-RaLog "Removed files in $($script:RaRoot) (kept $($script:RaLogFileName))"
+}
+
+function Test-RaSteamOptionPossible {
+    <#
+    .SYNOPSIS
+        Tests whether a HOI4 Steam launch option may still point at our files.
+    .DESCRIPTION
+        True when the state records a Steam entry, or when there is no state.json but the
+        launcher is installed (the state was lost, so nothing proves the option is gone).
+        Used when Steam itself cannot be found to look.
+    .PARAMETER State
+        State object (read only).
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        if (Test-RaSteamOptionPossible $state) { 'clear it by hand first' }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$State)
+    if (@($State.SteamEntries | Where-Object { $_ }).Count -gt 0) { return $true }
+    return ((-not (Test-Path -LiteralPath (Get-RaStatePath))) -and (Test-Path -LiteralPath (Get-RaLauncherPath)))
 }
 
 function Invoke-RaDisable {
@@ -5824,7 +6239,7 @@ $script:RaOptionNames = @(
     'Install', 'Shortcut', 'ShortcutPath', 'SteamLaunchOption', 'SteamAccount', 'RemoveSteamLaunchOption',
     'Uninstall', 'DryRun', 'Yes', 'PackagePath', 'SteamRoot', 'CheckUpdate', 'Update', 'Rollback', 'ManifestPath',
     'LoadMethod', 'ProxyActivation', 'Latest', 'Purge', 'Disable', 'NoAnimation', 'Plain', 'ListVersions', 'Version',
-    'CloseSteam'
+    'CloseSteam', 'Force'
 )
 
 function Write-RaDone {
@@ -5872,6 +6287,8 @@ function Initialize-RaRun {
     $script:RaSteamRestartExe = $null
     $script:RaReleaseCache = $null
     $script:RaMpWarningShown = $false
+    $script:RaForce = [bool]$Options['Force']
+    $script:RaUpdateHeldBack = $false
     if (-not $NoBanner) {
         Write-RaHost (Get-RaText 'Title') -Color White
         Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
@@ -5955,6 +6372,29 @@ function Get-RaSetupPlan {
         }
     }
     return $plan
+}
+
+function Get-RaGameDirOrNull {
+    <#
+    .SYNOPSIS
+        The HOI4 folder found through Steam, or $null when Steam or the game is not found.
+    .DESCRIPTION
+        Never throws: an unreadable Steam library only means the game folder is unknown.
+    .PARAMETER SteamRootPath
+        Steam folder or empty.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaGameDirOrNull $steam
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$SteamRootPath)
+    if (-not $SteamRootPath) { return $null }
+    try { return (Get-RaGameDir $SteamRootPath) } catch {
+        Write-RaLog "Game folder not found through Steam: $($_.Exception.Message)" -Level WARN -NoConsole
+        return $null
+    }
 }
 
 function Invoke-RaSteamStep {
@@ -6062,7 +6502,10 @@ function Invoke-RaSetupAction {
         [void](New-RaShortcut -State $State -Folder $plan.ShortcutFolder -LauncherPath $launcher -GameDir $gameDir)
         Save-RaState $State
     }
-    if ($plan.Install) { Remove-RaUnusedVersion $State }
+    if ($plan.Install) {
+        Remove-RaUnusedVersion $State
+        [void](Write-RaGameSupportNotice $State (Get-RaGameDirOrNull $SteamRootPath))
+    }
     if ($steamStepFailed) { return $script:RaExitFailure }
     Write-RaDone
     return $script:RaExitSuccess
@@ -6075,7 +6518,9 @@ function Invoke-RaAction {
     .DESCRIPTION
         Priority: -Uninstall, -Disable, -RemoveSteamLaunchOption, -ListVersions, -CheckUpdate,
         -Rollback, -Update (an install when nothing is installed yet, else update or repair),
-        then the install/integration flow. Exceptions propagate to Invoke-RaMain.
+        then the install/integration flow. Exceptions propagate to Invoke-RaMain. Every action
+        that changes installed files (install, update, rollback, uninstall) first refuses while
+        hoi4.exe or dowser.exe runs, then sweeps the proven leftovers of an interrupted run.
     .PARAMETER Options
         Normalized option table.
     .OUTPUTS
@@ -6092,7 +6537,12 @@ function Invoke-RaAction {
         if ($Options.SteamRoot) { throw }
         Write-RaLog $_.Exception.Message -Level WARN -NoConsole
     }
-    $gameDir = { if ($steamRootPath) { Get-RaGameDir $steamRootPath } else { $null } }
+    $gameDir = { Get-RaGameDirOrNull $steamRootPath }
+    $readOnly = $Options.Disable -or $Options.RemoveSteamLaunchOption -or $Options['ListVersions'] -or $Options.CheckUpdate
+    if ($Options.Uninstall -or -not $readOnly) {
+        Assert-RaGameClosed
+        try { [void](Clear-RaLeftover $state (& $gameDir)) } catch { Write-RaLog "Leftover sweep skipped: $($_.Exception.Message)" -Level WARN }
+    }
 
     if ($Options.Uninstall) {
         Invoke-RaUninstall $state $steamRootPath
@@ -6130,6 +6580,7 @@ function Invoke-RaAction {
         Save-RaState $state
         Install-RaPlaysetMod $state
         Save-RaState $state
+        [void](Write-RaGameSupportNotice $state (& $gameDir))
         Write-RaDone
         return $script:RaExitSuccess
     }
@@ -6139,7 +6590,8 @@ function Invoke-RaAction {
         $Options.Latest = [bool]$Options.ManifestPath -or ((Test-RaUpdateChannel) -and -not $Options.PackagePath)
     } elseif ($Options.Update) {
         $updated = Invoke-RaUpdate -State $state -GameDir (& $gameDir) -LocalManifestPath $Options.ManifestPath -LocalZip $Options.PackagePath
-        if ($updated) { Save-RaState $state } else { Write-RaLog (Get-RaText 'AlreadyUpToDate' @($state.InstalledVersion)) }
+        if ($updated) { Save-RaState $state }
+        elseif (-not $script:RaUpdateHeldBack) { Write-RaLog (Get-RaText 'AlreadyUpToDate' @($state.InstalledVersion)) }
         Install-RaPlaysetMod $state
         Save-RaState $state
         $steamOk = $true
@@ -6148,6 +6600,7 @@ function Invoke-RaAction {
             $steamOk = Invoke-RaSteamStep -State $state -SteamRootPath $steamRootPath -AccountSelector $Options.SteamAccount -LoadMethod $method
         }
         if ($updated) { Remove-RaUnusedVersion $state }
+        [void](Write-RaGameSupportNotice $state (& $gameDir))
         if (-not $steamOk) { return $script:RaExitFailure }
         Write-RaDone
         return $script:RaExitSuccess
@@ -6228,6 +6681,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         CheckUpdate = $CheckUpdate; Update = $Update; Rollback = $Rollback; ManifestPath = $ManifestPath
         LoadMethod = $LoadMethod; ProxyActivation = $ProxyActivation; Latest = $Latest; Purge = $Purge; Disable = $Disable
         NoAnimation = $NoAnimation; Plain = $Plain; ListVersions = $ListVersions; Version = $Version; CloseSteam = $CloseSteam
+        Force = $Force
     }
     if ($MyInvocation.MyCommand.CommandType -eq 'ExternalScript') { exit ([int]@($raExit)[-1]) }
     # Under `irm | iex` never call exit (it would close the user's terminal).

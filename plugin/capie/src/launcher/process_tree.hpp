@@ -26,6 +26,13 @@
  * A game that started and was already handled is remembered by PID and creation time, so
  * it is never handled twice, and a second game started while the first one runs is not
  * touched.
+ *
+ * A program whose manifest requires administrator rights makes `CreateProcess` fail with
+ * `ERROR_ELEVATION_REQUIRED` (740); the launcher itself runs `asInvoker`. The game must
+ * still start, so the launcher then hands the same program, arguments and folder to
+ * `ShellExecuteExW`, which shows the Windows consent prompt exactly as a double-click
+ * would. Such a tree has no job and CAPIE stays off (`shell_started`): an elevated game is
+ * out of reach for an unelevated injector anyway. The launcher waits for that program only.
  */
 #pragma once
 #include "config.hpp"
@@ -35,6 +42,8 @@
 
 #include <windows.h>
 
+#include <objbase.h>
+#include <shellapi.h>
 #include <tlhelp32.h>
 
 #include <algorithm>
@@ -191,6 +200,80 @@ struct LaunchSpec {
     std::wstring working_directory;  ///< empty: inherit the launcher's
 };
 
+/**
+ * @brief Creates the wrapped program suspended; the production value is `create_suspended`.
+ *
+ * Same contract as `CreateProcessW`: nonzero on success, zero with `GetLastError` set on
+ * failure. Tests pass a function that fails with a chosen error (for example 740).
+ */
+using CreateFn = BOOL (*)(const LaunchSpec& spec, std::wstring& line, STARTUPINFOW& startup, PROCESS_INFORMATION& info);
+
+/**
+ * @brief `CreateProcessW` of the wrapped program, suspended, inheriting folder and environment.
+ * @param spec Program, command line and working folder.
+ * @param line Mutable command line.
+ * @param startup Startup information.
+ * @param info Receives the process and thread.
+ * @return `CreateProcessW` result.
+ */
+inline BOOL create_suspended(const LaunchSpec& spec, std::wstring& line, STARTUPINFOW& startup,
+                             PROCESS_INFORMATION& info) {
+    return CreateProcessW(spec.application.c_str(), line.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr,
+                          spec.working_directory.empty() ? nullptr : spec.working_directory.c_str(), &startup, &info);
+}
+
+/**
+ * @brief Arguments of a launch: the command line after the quoted program, verbatim.
+ * @param spec Program and command line (built by `wrapped_command_line`).
+ * @return Text after the program (quoted or, for Steam's raw command, unquoted) without the one
+ *         separating blank, or the whole line when it does not start with the program.
+ */
+inline std::wstring launch_arguments(const LaunchSpec& spec) {
+    const std::wstring quoted = L"\"" + spec.application + L"\"";
+    std::size_t skip = 0;
+    if (spec.command_line.starts_with(quoted)) {
+        skip = quoted.size();
+    } else if (spec.command_line.starts_with(spec.application)) {
+        skip = spec.application.size();
+    } else {
+        return spec.command_line;
+    }
+    std::wstring rest = spec.command_line.substr(skip);
+    if (!rest.empty() && (rest.front() == L' ' || rest.front() == L'\t')) {
+        rest.erase(0, 1);
+    }
+    return rest;
+}
+
+/**
+ * @brief Starts the wrapped program through the shell (consent prompt for an elevated program).
+ * @param spec Program, command line and working folder.
+ * @param show `nShow` value.
+ * @return Process handle; empty when the shell started it without returning one.
+ * @throws LauncherError (game_start) when the shell cannot start it or the player declined the prompt.
+ */
+inline Handle shell_start(const LaunchSpec& spec, int show) {
+    const std::wstring arguments = launch_arguments(spec);
+    const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    SHELLEXECUTEINFOW info{};
+    info.cbSize = sizeof(info);
+    info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+    info.lpVerb = L"open";
+    info.lpFile = spec.application.c_str();
+    info.lpParameters = arguments.empty() ? nullptr : arguments.c_str();
+    info.lpDirectory = spec.working_directory.empty() ? nullptr : spec.working_directory.c_str();
+    info.nShow = show;
+    const BOOL started = ShellExecuteExW(&info);
+    const DWORD error = GetLastError();
+    if (SUCCEEDED(com)) {
+        CoUninitialize();
+    }
+    if (started == 0) {
+        throw LauncherError(ExitCode::game_start, L"Cannot start " + spec.application + windows_error(error));
+    }
+    return Handle(info.hProcess);
+}
+
 /// @brief A game process bound to the launcher's tree.
 struct BoundGame {
     Handle process;        ///< query + synchronize access
@@ -206,10 +289,12 @@ public:
      * @brief Starts the program suspended, assigns it to a new job, resumes it.
      * @param spec Program, command line and working folder.
      * @param log Log for the job decision.
-     * @return The tree.
+     * @param create Process creation (tests replace it).
+     * @return The tree. When the program requires elevation it was started through the shell
+     *         instead (`shell_started`), without a job.
      * @throws LauncherError (game_start) when the program cannot be created or resumed.
      */
-    static ProcessTree start(const LaunchSpec& spec, Log& log) {
+    static ProcessTree start(const LaunchSpec& spec, Log& log, CreateFn create = create_suspended) {
         ProcessTree tree;
         tree.started_ = now_ticks();
         tree.job_.reset(CreateJobObjectW(nullptr, nullptr));
@@ -226,11 +311,22 @@ public:
         startup.dwFlags = own.dwFlags & STARTF_USESHOWWINDOW;
         startup.wShowWindow = own.wShowWindow;
         PROCESS_INFORMATION info{};
-        if (CreateProcessW(spec.application.c_str(), line.data(), nullptr, nullptr, FALSE, CREATE_SUSPENDED, nullptr,
-                           spec.working_directory.empty() ? nullptr : spec.working_directory.c_str(), &startup,
-                           &info) == 0) {
-            throw LauncherError(ExitCode::game_start,
-                                L"Cannot start " + spec.application + windows_error(GetLastError()));
+        if (create(spec, line, startup, info) == 0) {
+            const DWORD error = GetLastError();
+            if (error != ERROR_ELEVATION_REQUIRED) {
+                throw LauncherError(ExitCode::game_start, L"Cannot start " + spec.application + windows_error(error));
+            }
+            log.write(Level::warning, L"the program requires elevation" + windows_error(error) +
+                                          L"; starting it through the shell, CAPIE off");
+            const int show = (own.dwFlags & STARTF_USESHOWWINDOW) != 0 ? own.wShowWindow : SW_SHOWNORMAL;
+            tree.root_ = shell_start(spec, show);
+            tree.shell_ = true;
+            tree.job_.reset();
+            const DWORD pid = tree.root_ ? GetProcessId(tree.root_.get()) : 0;
+            tree.root_stamp_ = {.pid = pid, .created = tree.root_ ? creation_time(tree.root_.get()).value_or(0) : 0};
+            log.write(Level::info, L"started through the shell pid=" + std::to_wstring(pid) + L" program=" +
+                                       spec.application + (tree.root_ ? L"" : L" (no process handle; not waited for)"));
+            return tree;
         }
         tree.root_.reset(info.hProcess);
         const Handle thread(info.hThread);
@@ -252,6 +348,8 @@ public:
 
     /// @brief Whether the started program is inside the job.
     [[nodiscard]] bool job_attached() const noexcept { return attached_; }
+    /// @brief Whether the program was started through the shell (elevation required; CAPIE off).
+    [[nodiscard]] bool shell_started() const noexcept { return shell_; }
     /// @brief The started program's identity.
     [[nodiscard]] ProcessStamp root_stamp() const noexcept { return root_stamp_; }
     /// @brief The started program's handle.
@@ -321,6 +419,7 @@ private:
     ProcessStamp root_stamp_;
     ULONGLONG started_ = 0;
     bool attached_ = false;
+    bool shell_ = false;
 };
 
 /// @brief Access the launcher needs on a game process.

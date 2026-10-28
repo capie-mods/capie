@@ -9,6 +9,7 @@
  * This startup-import proxy is kept in memory until process exit; hot unloading is
  * unsupported. There are no process opens, remote threads or injection helpers.
  */
+#include "../core/build_identity.hpp"
 #include "loader.hpp"
 #include "proxy_manifest.generated.hpp"
 
@@ -79,7 +80,8 @@ DWORD WINAPI startup(void*) noexcept {
                                                : "activation=config; verifying game and bundle");
         const capie::proxy::Policy policy{path, app_data + L"\\current", capie::core::game_exe_sha256,
                                            {capie::proxy::manifest::dll_hashes[0],
-                                            capie::proxy::manifest::dll_hashes[1]}};
+                                            capie::proxy::manifest::dll_hashes[1]},
+                                           app_data + L"\\" + capie::proxy::init_sentinel_file};
         const auto outcome = capie::proxy::load_payload(policy);
         capie::proxy::write_log(app_data, std::string(capie::proxy::result_name(outcome.result)) +
                                            "; code=" + std::to_string(outcome.init_code));

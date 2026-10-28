@@ -88,7 +88,7 @@ struct FakeWindow {
  */
 int main(int argc, char** argv) {
     static_cast<void>(std::setvbuf(stdout, nullptr, _IONBF, 0));
-    void* memory = VirtualAlloc(nullptr, 0x3454000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    void* memory = VirtualAlloc(nullptr, 0x3502000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     check(memory != nullptr, "fake image");
     image_base = reinterpret_cast<std::uintptr_t>(memory);
     log_file = CreateFileW(L"editor_hotpath_test.log", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr,
@@ -216,14 +216,14 @@ int main(int argc, char** argv) {
             debug_diagnostics
                 ? "RN_DEBUG initialized format=1 ring=256 ttl_ms=10000 models=7 selectors=10 fields=5; exact image + 11 bridge + "
                   "25 caption + 8 focus unique fingerprints; 7 shared hooks; caption refresh armed (25 caption FP, 4 slot pins, 2 "
-                  "tokens, B6E210(gui,12) only, seed gate on leader/party Apply); focus release on politics hide (8 FP, 2 slot "
-                  "pins, 225E320(manager,null) once per transition); own copied history, scalar remote requests, fresh post-Tick "
+                  "tokens, RequestViewRefresh(gui,12) only, seed gate on leader/party Apply); focus release on politics hide (8 FP, 2 slot "
+                  "pins, FocusSwitch(manager,null) once per transition); own copied history, scalar remote requests, fresh post-Tick "
                   "snapshots, observed Execute; dispatch is not execution and Execute is not effect success; no auto-Apply, no "
                   "synthetic input, focus only released (never set) on politics hide, Escape not handled; stale Apply -> epoch -1 "
                   "sentinel; invalid field -> rn_native(b)_err; CAPIE 1.5 capie_editor flavor=debug"
                 : "RN_LIFECYCLE initialized; exact image + 11 bridge + 25 caption + 8 focus unique fingerprints; 4 hooks (Tick, "
-                  "Bind, Dispatch, effect ctor); caption refresh armed (B6E210(gui,12) only, seed gate on leader/party Apply); "
-                  "focus release on politics hide (225E320(manager,null) once per transition); no auto-Apply, no synthetic input, "
+                  "Bind, Dispatch, effect ctor); caption refresh armed (RequestViewRefresh(gui,12) only, seed gate on leader/party Apply); "
+                  "focus release on politics hide (FocusSwitch(manager,null) once per transition); no auto-Apply, no synthetic input, "
                   "Escape not handled; stale Apply -> epoch -code sentinel; invalid field -> rn_native(b)_err; log channels "
                   "error+lifecycle; CAPIE 1.5 capie_editor flavor=release";
         const auto before_init = logs().size();

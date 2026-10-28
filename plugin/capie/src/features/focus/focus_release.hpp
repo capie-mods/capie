@@ -6,8 +6,8 @@
  * keyboard focus, so later key presses went into a hidden field. When the politics root
  * (our editor window's parent) goes from visible to not visible and one of OUR exact-named
  * edit boxes holds focus, this module calls the game's own focus switch
- * `225E320(manager, nullptr)` once. That runs the edit box's normal unfocus path
- * (`22F4770` -> `22FBEC0` -> `225E3B0`), the same code the game runs whenever focus moves
+ * `22BD0E0(manager, nullptr)` once. That runs the edit box's normal unfocus path
+ * (`2371A40` -> `2379B70` -> `22BD170`), the same code the game runs whenever focus moves
  * away from an edit box.
  *
  * What it does not do: no script flag, epoch or draft write, no retry, no focus *set*,
@@ -16,8 +16,8 @@
  * source classified from copied bits, so runtime logs show whether hides other than a
  * panel close exist.
  *
- * Evidence (pinned EXE, `focus_signatures`): 225E320 stores the new focus at
- * manager+158 and calls old->slot C8 / new->slot C0; the null branch is explicit code.
+ * Evidence (pinned EXE, `focus_signatures`): 22BD0E0 stores the new focus at
+ * manager+138 and calls old->slot C8 / new->slot C0; the null branch is explicit code.
  * OPEN: no native caller passes nullptr (three callers, all non-null).
  *
  * Threading: UI thread; the mutex guards only scalar state and is never held during the
@@ -191,8 +191,8 @@ Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
         !rd(mem, context, off::context_model, ctx_model) || ctx_model != model ||
         !rd(mem, context, off::context_root, ctx_root) || !rd(mem, window, off::window_root, root) || !root ||
         root != ctx_root || !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
-        !rd(mem, window, off::window_parent, parent)) {
-        return Kind::invalid;
+        !rd(mem, window, off::window_parent, parent) || parent == root) {
+        return Kind::invalid;  // also a root equal to the parent: the window factory's failure result
     }
     out.root = root;
     unsigned char flags = 0;
@@ -211,7 +211,7 @@ Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
  * @brief Focus release service.
  *
  * Env: `const M& mem()`, `uptr image()`, `uptr find_edit(uptr root, const char* name)`,
- * `bool call_focus_null(uptr manager)` (SEH-guarded 225E320(manager, nullptr)),
+ * `bool call_focus_null(uptr manager)` (SEH-guarded 22BD0E0(manager, nullptr)),
  * `bool armed()`, `void log(const char*)`.
  * @tparam Env Environment adapter.
  */

@@ -97,15 +97,17 @@ slow = true
 
 # --- Step 2: build ----------------------------------------------------------------
 [build]
-# Reviewed CAPIE binaries: the launcher and the proxy compile in these hashes.
-capie_output = "plugin/build/capie-v15-dev"
-reviewed_hashes = "plugin/capie/deploy/DEPLOYMENT.md"
+# Reviewed CAPIE binaries. bundle-inputs.json is the one list of their hashes: build_launcher.ps1
+# and build_proxy.ps1 compile them in, and this step checks the build folder and the ZIP against
+# it. reviewed_files must name exactly the files that bundle-inputs.json lists.
+capie_output = "plugin/build/capie-1.5.1"
+reviewed_hashes = "plugin/capie/deploy/bundle-inputs.json"
 reviewed_files = ["capie_core.dll", "capie_editor.dll", "capie_injector.exe"]
 
 [build.rebuild_capie]
 name = "CAPIE build over the reviewed output (build.ps1)"
 argv = ["{pwsh}", "-NoProfile", "-File", "plugin/capie/build.ps1", "-MinHookDir", "{minhook_dir}",
-        "-GameExe", "{game_exe}"]
+        "-GameExe", "{game_exe}", "-OutputDirectory", "plugin/build/capie-1.5.1"]
 
 [[build.commands]]
 name = "launcher build and tests (build_launcher.ps1)"
@@ -189,17 +191,6 @@ steam_user = ""   # account NAME only, or pass --steam-user
 # Developer files never uploaded (matched against the path and each path part).
 exclude = ["*.md", "*.py", "*.pyc", "__pycache__", ".*", "*.ps1", "*.psd", "*.xcf", "*.kra",
            "*.bak", "*.orig", "*.tmp", "*.log", "Thumbs.db", "desktop.ini"]
-
-[[workshop.items]]
-key = "rename-anything"
-title = "Rename Anything"
-content_dir = "mod"
-# Required by Steam and the Paradox Launcher (512 x 512 PNG under 1 MB). Drawn by
-# tools/promo/promo.py build; also the picture of mod/descriptor.mod.
-preview_file = "mod/thumbnail.png"
-description_file = "docs/assets/promo/workshop/rename-anything.bbcode"
-changelog = "CHANGELOG.md"
-published_file_id = 3819937546
 
 [[workshop.items]]
 key = "capie-switch"

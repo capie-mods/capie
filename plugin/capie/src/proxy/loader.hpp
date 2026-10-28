@@ -6,8 +6,15 @@
  * File pins and resolved paths use the launcher's existing verification implementation.
  * Successfully mapped modules and their file pins live until process exit: RNInitialize
  * may retain hook trampolines even when initialization reports failure.
+ *
+ * Crash-loop breaker (crash_guard.hpp): `proxy-init.pending` is written right before the
+ * first RNInitialize and deleted once both initializers returned. A sentinel still present
+ * at the next start means the previous game ended inside an initializer; that start loads
+ * no CAPIE (only the Windows forwards stay), logs it and deletes the sentinel, so the start
+ * after it tries again.
  */
 #pragma once
+#include "../launcher/crash_guard.hpp"
 #include "../launcher/file_pin.hpp"
 #include "../launcher/game_location.hpp"
 
@@ -22,6 +29,8 @@ namespace capie::proxy {
 inline constexpr char activation_marker[] = "CAPIE_PROXY_ENABLED_V1\n";
 inline constexpr wchar_t activation_file[] = L"proxy.enabled";
 inline constexpr wchar_t log_file[] = L"proxy.log";
+/// @brief Crash-loop sentinel of the proxy in the app data folder.
+inline constexpr wchar_t init_sentinel_file[] = L"proxy-init.pending";
 
 /// @brief Case-sensitive, whole Windows argument only; argv[0] never activates CAPIE.
 inline bool has_activation_flag(const wchar_t* command_line) noexcept {
@@ -84,6 +93,7 @@ struct Policy {
     std::wstring current_dir;
     std::string game_hash;
     std::array<std::string, 2> dll_hashes;
+    std::wstring sentinel;  ///< crash-loop sentinel path; empty disables the breaker
 };
 
 struct VerifiedPayload {
@@ -106,7 +116,8 @@ inline VerifiedPayload verify_payload(const Policy& policy) {
 }
 
 enum class LoadResult { loaded, unsupported_game, invalid_bundle, co_load_refused, load_failed,
-                        initializer_missing, core_init_failed, editor_init_failed, unexpected };
+                        initializer_missing, core_init_failed, editor_init_failed, crash_guard_skipped,
+                        unexpected };
 
 struct Outcome {
     LoadResult result = LoadResult::unexpected;
@@ -122,6 +133,9 @@ struct Session {
 /// @brief Called only on the worker, never from DllMain or a forwarded API.
 inline Outcome load_payload(const Policy& policy) noexcept {
     try {
+        if (launcher::consume_sentinel(policy.sentinel)) {
+            return {LoadResult::crash_guard_skipped};  // the previous start ended inside RNInitialize
+        }
         auto session = std::make_unique<Session>();
         session->files = verify_payload(policy);
         constexpr std::array names{core::core_dll_name, core::editor_dll_name};
@@ -163,11 +177,15 @@ inline Outcome load_payload(const Policy& policy) noexcept {
         }
         // Both modules, paths and ABI exports are checked before enabling any hooks.
         // No game-readiness heuristic: these are ordinary in-process initializers.
+        // A crash inside them leaves the sentinel behind for the next start.
+        static_cast<void>(launcher::arm_sentinel(policy.sentinel, "proxy RNInitialize in hoi4.exe"));
         const DWORD core_code = initializers[0](nullptr);
         if (core_code != 0) {
+            launcher::disarm_sentinel(policy.sentinel);
             return {LoadResult::core_init_failed, core_code};
         }
         const DWORD editor_code = initializers[1](nullptr);
+        launcher::disarm_sentinel(policy.sentinel);
         if (editor_code != 0) {
             return {LoadResult::editor_init_failed, editor_code};
         }
@@ -190,6 +208,8 @@ inline const char* result_name(LoadResult result) noexcept {
     case LoadResult::initializer_missing: return "initializer_missing; CAPIE not initialized";
     case LoadResult::core_init_failed: return "core_init_failed; editor not initialized";
     case LoadResult::editor_init_failed: return "editor_init_failed; core remains active; restart required";
+    case LoadResult::crash_guard_skipped:
+        return "crash_guard_skipped; the previous start ended during CAPIE initialization; CAPIE skipped once";
     default: return "unexpected; CAPIE initialization refused";
     }
 }

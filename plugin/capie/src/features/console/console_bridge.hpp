@@ -12,7 +12,7 @@
  *    three CAPIE entries. It then reads the array again and requires every CAPIE name to
  *    point at CAPIE's action. Entries have no aliases (the game copies alias pointers raw).
  * 2. **Run.** The game's dispatcher calls `console_action` only after its own
- *    multiplayer/ironman gate and lookup (`24B4D60`). CAPIE reads the tokens, plans the
+ *    multiplayer/ironman gate and lookup (`console.dispatch`). CAPIE reads the tokens, plans the
  *    command (`console_commands.hpp`), and either writes a message with the game's string
  *    assign or calls the planned vanilla action, found again by name, with the
  *    dispatcher's own result storage.
@@ -21,7 +21,7 @@
  *
  * Inactive by default: `CAPIE_CONSOLE_CANDIDATE` must be defined to 1, and the caller must
  * pass a `NativeApi` whose `verified` flag says the signature checks of
- * `re-evidence.md` section 7 passed. Not wired into any DLL in this candidate.
+ * `re-evidence.md` section 7 passed. Only `console_wiring.hpp` (developer builds) wires it in.
  *
  * Threading: registration and actions run on the game thread that runs Tick and the
  * console (open item O1). The bridge keeps no lock; it must not be shared across threads.
@@ -58,15 +58,15 @@ inline constexpr std::int32_t max_tokens = 64;
 /// @brief Game addresses the bridge needs; built by the caller from the verified image.
 struct NativeApi {
     uptr console_slot{};                      ///< Address of the console singleton pointer.
-    layout::AddOrReplaceFn add_or_replace{};  ///< `24B4920`.
-    layout::AssignFn assign{};                ///< `129CA0`.
+    layout::AddOrReplaceFn add_or_replace{};  ///< `layout::add_or_replace_rva`.
+    layout::AssignFn assign{};                ///< `layout::string_assign_rva`.
     uptr set_cosmetic_tag{};                  ///< Expected action of `set_cosmetic_tag`.
     uptr drop_cosmetic_tag{};                 ///< Expected action of `drop_cosmetic_tag`.
     uptr eval_effect{};                       ///< Expected action of `eval_effect`.
-    layout::TagParseFn tag_parse{};           ///< `10E10C0`: country tag from a name (read only).
-    layout::CountryOfFn country_of{};         ///< `BB4390`: country object of a tag (read only).
-    layout::SpriteFindFn sprite_find{};       ///< `2238DF0`: sprite of a name (read only; may be null).
-    uptr sprite_database_slot{};              ///< Address of the sprite database pointer (`3453090`).
+    layout::TagParseFn tag_parse{};           ///< Tag parser: country tag from a name (read only).
+    layout::CountryOfFn country_of{};         ///< `country_of`: country object of a tag (read only).
+    layout::SpriteFindFn sprite_find{};       ///< `FindSprite`: sprite of a name (read only; may be null).
+    uptr sprite_database_slot{};              ///< Address of the sprite database pointer.
     layout::ThreadIdFn current_thread{};      ///< `GetCurrentThreadId` in the game; a fake in tests.
     layout::LogFn log{};                      ///< One log line (may be null).
     bool verified{};                          ///< Signature, hash and layout checks passed.
@@ -111,7 +111,7 @@ constexpr const char* registration_name(Registration state) noexcept {
 namespace detail {
 
 /**
- * @brief ASCII case-insensitive comparison (the game's lookup `25529C8` ignores case).
+ * @brief ASCII case-insensitive comparison (the game's command lookup ignores case).
  * @param a First.
  * @param b Second.
  * @return `true` when equal ignoring ASCII case.
@@ -381,7 +381,7 @@ public:
 private:
     /// @brief Longest cosmetic tag CAPIE reads (an RN1 tag is at most 4 + 128 + 1 + 128 + 1 bytes).
     static constexpr std::size_t max_cosmetic_bytes = 512;
-    /// @brief Storage of a country tag object written by `10E10C0` (the game uses at most 8 bytes).
+    /// @brief Storage of a country tag object written by the tag parser (the game uses at most 8 bytes).
     static constexpr std::size_t tag_object_bytes = 16;
     /// @brief A cosmetic tag copied out of the country.
     using CosmeticText = detail::ReadText<max_cosmetic_bytes>;
@@ -410,7 +410,7 @@ private:
         api_.tag_parse(tag_object.data(), &name);
         std::int32_t index = 0;
         if (!mem_.read(reinterpret_cast<uptr>(tag_object.data()), &index, sizeof(index)) || index <= 0) {
-            return false;  // 282593: the vanilla command treats tag <= 0 as invalid
+            return false;  // the vanilla set_cosmetic_tag treats tag <= 0 as invalid
         }
         const auto country = reinterpret_cast<uptr>(api_.country_of(tag_object.data()));
         return country != 0 && detail::read_string(mem_, country + layout::country_cosmetic_tag, out);

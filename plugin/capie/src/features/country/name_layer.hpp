@@ -15,7 +15,7 @@
  *
  * This file reads those variables from game memory and turns them into the localisation key
  * `RN1|<name>|<adjective>|` that the existing country hooks already answer and cache
- * (`country_names.hpp`). It reproduces the game's own variable lookup (`BC7E80` -> `BC4960`,
+ * (`country_names.hpp`). It reproduces the game's own variable lookup (`rva::variable_get` -> `rva::variable_find`,
  * pinned in `name_layer_pins.hpp`):
  *
  *     container = [country + 0x218]
@@ -85,15 +85,15 @@ inline constexpr std::uint64_t max_key_capacity = 1048576;
 inline constexpr std::size_t max_variable_name = 32;
 /// @brief Longest key `RN1|` + 128 + `|` + 128 + `|`.
 inline constexpr std::size_t max_key_size = protocol_prefix.size() + (2 * max_field_bytes) + 2;
-/// @brief FNV-1a offset basis (BC4981).
+/// @brief FNV-1a offset basis (variable find).
 inline constexpr std::uint32_t fnv_basis = 0x811C9DC5U;
-/// @brief FNV-1a prime (BC499B).
+/// @brief FNV-1a prime (variable find).
 inline constexpr std::uint32_t fnv_prime = 0x01000193U;
 /// @brief Inline capacity of an MSVC string.
 inline constexpr std::uint64_t sso_capacity = 15;
 
 /**
- * @brief The engine's 32-bit FNV-1a over the variable name bytes (BC4960).
+ * @brief The engine's 32-bit FNV-1a over the variable name bytes (variable find).
  * @param name Name bytes.
  * @return Hash.
  */
@@ -109,7 +109,7 @@ constexpr std::uint32_t fnv1a(std::string_view name) noexcept {
 struct Table {
     uptr entries{};         ///< First entry (0 = no variables).
     std::int64_t mask{};    ///< Bucket mask (sign-extended int32, as `movsxd r12,[rcx+14]`).
-    std::uint64_t slots{};  ///< Readable entries: mask + extra + 1 (end of `BC7EA3`).
+    std::uint64_t slots{};  ///< Readable entries: mask + extra + 1 (as variable get computes the end).
 };
 
 /// @brief Raw entry layout (0x30 bytes).
@@ -193,7 +193,7 @@ bool key_equals(const M& mem, const Entry& entry, std::string_view name, bool& e
 }
 
 /**
- * @brief Finds a variable exactly as `BC4960` does (bounded by `slots` and `max_probe`).
+ * @brief Finds a variable exactly as `rva::variable_find` does (bounded by `slots` and `max_probe`).
  * @param mem Memory policy.
  * @param table Table of the container.
  * @param name Variable name (at most `max_variable_name` bytes).

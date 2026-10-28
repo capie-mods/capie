@@ -113,17 +113,17 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0x123FE20 + 5, "flag.atlas_update");
-    flip(0x123F7E0 + 6, "flag.load_country_flag");
-    flip(0x147D990 + 9, "flag.build_candidates");
-    flip(0x12403C0 + 3, "atlas.cosmetic_keys");       // displacement 0xC0
-    flip(0x124008A + 3, "atlas.cosmetic_count");      // displacement 0xCC
-    flip(0x12401B9 + 3, "atlas.slot_is_list_index");  // scale of the list index
-    flip(0x123F84D + 3, "load.cosmetic_argument");    // displacement 0x1488
-    flip(0xBB54A3 + 1, "tag.index_is_int");
-    flip(0x123F85C, "load.calls_candidates");
-    flip(0x1240A71, "incremental.calls_load");
-    flip(0x123D77C, "threaded.calls_load");
+    flip(0x12CDFB0 + 5, "flag.atlas_update");
+    flip(0x12CD970 + 6, "flag.load_country_flag");
+    flip(0x1518DE0 + 9, "flag.build_candidates");
+    flip(0x12CE550 + 3, "atlas.cosmetic_keys");       // displacement 0xC0
+    flip(0x12CE21A + 3, "atlas.cosmetic_count");      // displacement 0xCC
+    flip(0x12CE349 + 3, "atlas.slot_is_list_index");  // scale of the list index
+    flip(0x12CD9DD + 3, "load.cosmetic_argument");    // displacement 0x1488
+    flip(0xC08733 + 1, "tag.index_is_int");
+    flip(0x12CD9EC, "load.calls_candidates");
+    flip(0x12CEC01, "incremental.calls_load");
+    flip(0x12CB87F, "threaded.calls_load");
     check(pins::first_failed_pin(text) == nullptr, "restored image passes again");
 }
 

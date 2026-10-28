@@ -14,7 +14,7 @@
  * 64 records per slot.
  *
  * The release flavor does not install the key and wrapper hooks at all, so none of this
- * runs there. In the debug flavor the behaviour and line format equal the accepted rev7.
+ * runs there. In the debug flavor the behaviour and line format equal the original bridge prototype.
  */
 #pragma once
 #include "../../core/log.hpp"
@@ -50,10 +50,10 @@ inline std::atomic<std::uint64_t> key_record_sequence{0};
 /// @brief Bits of `KeyStatus::mask`: which reads succeeded.
 namespace status_bit {
 inline constexpr unsigned flags75 = 1;                                      ///< edit+75 read.
-inline constexpr unsigned flags271 = 2;                                     ///< edit+271 read.
+inline constexpr unsigned flags271 = 2;                                     ///< edit+281 read.
 inline constexpr unsigned manager = 4;                                      ///< Manager global read.
-inline constexpr unsigned widget = 8;                                       ///< manager+158 read.
-inline constexpr unsigned receiver = 16;                                    ///< manager+230 read.
+inline constexpr unsigned widget = 8;                                       ///< manager+138 read.
+inline constexpr unsigned receiver = 16;                                    ///< manager+210 read.
 inline constexpr unsigned lifecycle = 32;                                   ///< Lifecycle copied.
 inline constexpr unsigned manager_relations = manager | widget | receiver;  ///< All manager reads.
 }  // namespace status_bit
@@ -64,14 +64,14 @@ inline constexpr unsigned wrapper_type = 2;  ///< Wrapper type DWORD copied.
 }  // namespace record_bit
 /// @brief Routing bits retained for transition detection (wrapper proof).
 inline constexpr unsigned char routing_mask75 = core::flag::shown;
-/// @brief Routing bits of edit+271 (active, disabled).
+/// @brief Routing bits of edit+281 (active, disabled).
 inline constexpr unsigned char routing_mask271 = core::flag::edit_active | core::flag::edit_disabled;
 
 /// @brief Copied routing/focus/lifecycle status of one field.
 struct KeyStatus {
     unsigned mask{};                                    ///< `status_bit` read mask.
     unsigned char flags75{};                            ///< edit+75.
-    unsigned char flags271{};                           ///< edit+271.
+    unsigned char flags271{};                           ///< edit+281.
     bool manager_present{};                             ///< Manager global non-null.
     bool widget_is_edit{};                              ///< Manager focus is this edit.
     bool receiver_is_edit{};                            ///< Manager receiver is this edit's receiver.
@@ -107,9 +107,9 @@ inline SRWLOCK logger_lock = SRWLOCK_INIT;
 
 /// @brief Result of taking a budget slot.
 enum class LogSlot { record, cap, drop };
-/// @brief Event word holding modifiers (zero for a plain Enter; 2272FA0).
+/// @brief Event word holding modifiers (zero for a plain Enter; the game's Enter test).
 inline constexpr std::size_t event_modifier_word = 2;
-/// @brief Last event word, also checked by the native Enter predicate (2272FA0).
+/// @brief Last event word, also checked by the native Enter predicate.
 inline constexpr std::size_t event_final_word = 7;
 /// @brief Size of a key log line buffer.
 inline constexpr std::size_t key_line_capacity = 2048;

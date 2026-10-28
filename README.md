@@ -7,7 +7,7 @@
 
 # CAPIE
 
-<img src="docs/assets/readme/capie-badges.svg" alt="HOI4 1.19.3.0 only. Status: beta. Multiplayer: not tested. API level 7. License: MIT, planned." width="734">
+<img src="docs/assets/readme/capie-badges.svg" alt="HOI4 1.19.4.0 only. Status: beta. Multiplayer: not tested. API level 7. License: MIT, planned." width="734">
 
 **CAPIE (Cyprian's API Extender) is a small native library for Hearts of Iron IV.** It gives mods
 a few things HOI4 script cannot do on its own: read what the player typed into the game's own
@@ -21,8 +21,9 @@ The first mod built on it is [Rename Anything](https://github.com/capie-mods/ren
 
 > **Beta, nothing released yet.** There is no download, no Workshop item and no GitHub release.
 > Everything described as working was checked in the game on HOI4 1.19.3.0, in single player, on
-> development builds. Multiplayer has never been tested with two players, and we make no claim
-> that it works.
+> development builds. CAPIE 1.5.1 moves to HOI4 1.19.4.0: it passes every offline check against the
+> new executable, but has not been tested in the game yet. Multiplayer has never been tested with
+> two players, and we make no claim that it works.
 
 Websites: [Rename Anything](https://capie-mods.github.io/rename-anything/) and [CAPIE](https://capie-mods.github.io/capie/).
 
@@ -111,7 +112,7 @@ uninstall it.
 
 ## Status
 
-CAPIE supports one game build: HOI4 1.19.3.0 on Windows, from Steam. On any other build it stays
+CAPIE supports one game build: HOI4 1.19.4.0 on Windows, from Steam (CAPIE 1.5.0 supported 1.19.3.0). On any other build it stays
 off and mods fall back to plain script. Developer builds of CAPIE 1.2 to 1.5 exist; nothing is
 published.
 
@@ -145,7 +146,7 @@ about it. The source is here and you can build it yourself.
 
 ## How it starts
 
-<img src="sites/capie/docs/assets/shared/diagrams/launch-chain.svg" alt="Launch chain: Steam Play or a shortcut starts the CAPIE launcher, which starts the Paradox Launcher with your playset. On version 1.19.3.0 CAPIE is loaded into that game only. On an unknown version the game starts without CAPIE." width="880">
+<img src="sites/capie/docs/assets/shared/diagrams/launch-chain.svg" alt="Launch chain: Steam Play or a shortcut starts the CAPIE launcher, which starts the Paradox Launcher with your playset. On version 1.19.4.0 CAPIE is loaded into that game only. On an unknown version the game starts without CAPIE." width="880">
 
 The launcher goes through the Paradox Launcher, so you keep your playsets. It waits for the main
 menu, then loads `capie_core.dll` and `capie_editor.dll` into the `hoi4.exe` it started, and only
@@ -159,7 +160,7 @@ More detail: [architecture](docs/contributing/architecture.md),
 ## Building and testing
 
 You need Windows 10 or 11, Visual Studio 2022 with the C++ x64 tools and a Windows SDK, a local
-checkout of MinHook, [uv](https://docs.astral.sh/uv/) for Python, and HOI4 1.19.3.0 on disk for
+checkout of MinHook, [uv](https://docs.astral.sh/uv/) for Python, and HOI4 1.19.4.0 on disk for
 the pin checks.
 
 ```powershell

@@ -5,16 +5,16 @@
  * HOI4 keeps country flags in three texture atlases with one slot per country and reloads a
  * slot only when its key (ideology group, flag tag, cosmetic id) changes. Three hooks:
  *
- * - `load_flag(atlas, country, ...)` = `LoadCountryFlag` (123F7E0). When the cache says the
+ * - `load_flag(atlas, country, ...)` = `LoadCountryFlag` (`rva::load_country_flag`). When the cache says the
  *   country shows a flag layer, it sets a thread-local frame {country, stem} and calls the
  *   original. If the original's status is not success (0 or 5), it calls the original a second
  *   time without the frame, which loads the game's own flag (fail-closed; the incremental path
  *   would otherwise mark the slot empty).
- * - `candidates(out, tag, cosmetic, group)` = `BuildFlagCandidates` (147D990). Inside such a
+ * - `candidates(out, tag, cosmetic, group)` = `BuildFlagCandidates` (`rva::build_flag_candidates`). Inside such a
  *   frame, and only when `cosmetic` is the frame country's own cosmetic tag field (proof that the
  *   call comes from `load_flag` for that country), the original runs with tag = stem, cosmetic =
  *   "" and no ideology group, so the only candidate is `<stem>.tga`.
- * - `atlas_update(atlas, gfx)` = `UpdateFlagAtlas` (123FE20), per frame per atlas. When the cache
+ * - `atlas_update(atlas, gfx)` = `UpdateFlagAtlas` (`rva::flag_atlas_update`), per frame per atlas. When the cache
  *   generation moved since this atlas last looked, it writes an impossible cosmetic id (all ones)
  *   into the slot key of every country whose layer changed, before the original runs; the
  *   original then reloads those slots through its own path.
@@ -57,7 +57,7 @@ using CandidatesFn = void* (*)(void*, const void*, const void*, void*);
 /// @brief Log sink.
 using LogFn = void (*)(core::logging::Channel, const char*);
 
-/// @brief The incremental loader's success statuses (123F7E0 loop, 12405C0).
+/// @brief The incremental loader's success statuses (`LoadCountryFlag` loop).
 inline constexpr int status_loaded = 0;
 /// @brief Second success status.
 inline constexpr int status_loaded_alt = 5;

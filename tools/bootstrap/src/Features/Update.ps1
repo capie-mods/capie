@@ -174,7 +174,10 @@ function Invoke-RaUpdate {
         Installs the newest signed release and activates it.
     .DESCRIPTION
         Returns $false when already up to date and the installed files verify; a
-        failed verification triggers a reinstall of the same version.
+        failed verification triggers a reinstall of the same version. Also returns $false
+        (and sets $script:RaUpdateHeldBack) when the installed version supports the installed
+        hoi4.exe and the newest does not: an update would turn a working setup into one that
+        starts the game without CAPIE. -Force installs it anyway.
     .PARAMETER State
         State object (modified; the caller saves it).
     .PARAMETER GameDir
@@ -198,6 +201,15 @@ function Invoke-RaUpdate {
     )
     $check = Invoke-RaCheckUpdate -State $State -GameDir $GameDir -LocalManifestPath $LocalManifestPath
     $m = $check.Remote.Manifest
+    if ($check.Newer -and $check.InstalledSupportsGame -and -not $check.LatestSupportsGame) {
+        if (-not $script:RaForce) {
+            $script:RaUpdateHeldBack = $true
+            $shortSha = $check.GameSha.Substring(0, $script:RaGameHashDisplayLength)
+            Write-RaLog (Get-RaText 'UpdateHeldBack' @($m.Version, $State.InstalledVersion, $shortSha)) -Level WARN
+            return $false
+        }
+        Write-RaLog "-Force: installing $($m.Version) although it does not support this hoi4.exe build." -Level WARN
+    }
     if (-not $check.Newer) {
         if (Test-RaInstalledVersion $m (Get-RaVersionDir $m.Version)) { return $false }
         Write-RaLog "Installed files of $($m.Version) failed verification; reinstalling." -Level WARN
@@ -205,6 +217,54 @@ function Invoke-RaUpdate {
     [void](Install-RaVersion -Manifest $m -LocalZip $LocalZip -ZipUrl $check.Remote.ZipUrl)
     Set-RaActiveVersion $State $m.Version
     return $true
+}
+
+function Write-RaGameSupportNotice {
+    <#
+    .SYNOPSIS
+        Tells the player clearly when the active CAPIE version does not support their hoi4.exe.
+    .DESCRIPTION
+        Compares the SHA-256 of the installed hoi4.exe with supportedGameSha256 of the active
+        version's (signed or pinned) manifest. A match is logged quietly. A mismatch is a WARN
+        that names the latest release page and the full command that updates CAPIE, so a
+        finished install never looks like a working one when CAPIE cannot load. When hoi4.exe
+        is not found the check is reported as not done.
+    .PARAMETER State
+        State object (read only).
+    .PARAMETER GameDir
+        Game folder or empty.
+    .OUTPUTS
+        System.Boolean ($false when the game build is known and not supported)
+    .EXAMPLE
+        [void](Write-RaGameSupportNotice $state $gameDir)
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$GameDir
+    )
+    $version = $State.InstalledVersion
+    if (-not $version) { return $true }
+    $page = $script:RaGitHubLatestPageFormat -f $script:RaGitHubRepo
+    $gameSha = Get-RaGameSha256 $GameDir
+    if (-not $gameSha) {
+        Write-RaLog (Get-RaText 'InstalledGameUnknown' @($version, $page)) -Level WARN
+        return $true
+    }
+    $m = Read-RaStoredManifest $version
+    if (-not $m) {
+        # Only in dry-run mode: the manifest of a version that was not really installed is not stored.
+        Write-RaLog "No stored manifest of CAPIE $version; game build support not checked." -Level WARN
+        return $true
+    }
+    if (@($m.SupportedGameSha256) -contains $gameSha) {
+        Write-RaLog (Get-RaText 'GameSupportedInstalled')
+        return $true
+    }
+    $installer = $script:RaGitHubLatestInstallerFormat -f $script:RaGitHubRepo
+    Write-RaLog (Get-RaText 'InstalledGameUnsupported' @($version, $gameSha.Substring(0, $script:RaGameHashDisplayLength), $page, $installer)) -Level WARN
+    return $false
 }
 
 function Invoke-RaRollback {

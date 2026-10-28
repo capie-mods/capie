@@ -13,7 +13,8 @@
     editor input, country status), the new tests (signature table vs EXE file, country
     differential vs the accepted candidate source, hot-path benchmarks), the public-contract
     tests (grammar and alphabet, CAPIE_* keys, grammar editors in both flavors) and the Python
-    checks (signature table, status localisation, native alphabet vs the SDK table).
+    checks (signature table, status localisation, native alphabet vs the SDK table, addresses in
+    comments).
 
     It never starts, inspects, injects into or reads memory of a game process. The EXE is
     only read as a file for the static fingerprint checks. Refuses to overwrite a locked
@@ -258,7 +259,7 @@ $tidyFiles = @('dll\capie_core.cpp', 'dll\capie_editor.cpp', 'tools\capie_inject
         ForEach-Object { Join-Path $script:TestDir $_ })
 $tidyFiles += @('public_names_test.cpp', 'public_keys_test.cpp', 'public_editor_test.cpp') | ForEach-Object { Join-Path $script:TestDir $_ }
 $tidyFiles += @('name_layer_test.cpp', 'name_layer_pins_exe_test.cpp', 'flag_layer_test.cpp', 'flag_layer_pins_exe_test.cpp',
-    'host_probe_test.cpp', 'host_pins_exe_test.cpp', 'portrait_layer_test.cpp', 'portrait_layer_pins_exe_test.cpp') |
+    'host_probe_test.cpp', 'host_pins_exe_test.cpp', 'rtti_exe_test.cpp', 'portrait_layer_test.cpp', 'portrait_layer_pins_exe_test.cpp') |
     ForEach-Object { Join-Path $script:TestDir $_ }
 $database = foreach ($file in $tidyFiles) {
     [ordered]@{
@@ -295,6 +296,8 @@ Invoke-Test -Source 'portrait_layer_test.cpp' -Output 'portrait_layer_test_relea
 Invoke-Test -Source 'portrait_layer_pins_exe_test.cpp' -Output 'portrait_layer_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 Invoke-Test -Source 'host_probe_test.cpp' -Output 'host_probe_test.exe' | Out-Null
 Invoke-Test -Source 'host_pins_exe_test.cpp' -Output 'host_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
+# Every vtable constant belongs to the expected class (MSVC RTTI, core/rtti.hpp).
+Invoke-Test -Source 'rtti_exe_test.cpp' -Output 'rtti_exe_test.exe' -Arguments $exeArgs | Out-Null
 # The inherited suite loads capie_editor.dll into its own (non-game) process for the wrong-host check.
 Copy-Item -LiteralPath $debugEditor -Destination (Join-Path $script:TestOutDir 'capie_editor.dll') -Force
 Invoke-Test 'legacy\editor_inherited_test.cpp' 'editor_inherited_test.exe' @('/UNDEBUG', '/DCAPIE_DEBUG_DIAGNOSTICS=1') @() $script:MinHookObjects | Out-Null
@@ -320,6 +323,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Signature table differs from the accepted sour
 if ($LASTEXITCODE -ne 0) { throw 'CAPIE status localisation contract failed' }
 & $Python -I (Join-Path $script:TestDir 'check_alphabet.py')
 if ($LASTEXITCODE -ne 0) { throw 'Native alphabet differs from the SDK character table' }
+& $Python -I (Join-Path $script:RepoDir 'tools\lint\check_comment_addresses.py')
+if ($LASTEXITCODE -ne 0) { throw 'A comment names an address the code does not pin (name the function instead)' }
 
 # 5. Benchmarks (old rev7/country-status sources vs CAPIE release/debug).
 if (-not $SkipBenchmarks) {

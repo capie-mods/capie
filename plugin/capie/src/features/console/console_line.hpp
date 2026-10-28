@@ -2,7 +2,7 @@
  * @file console_line.hpp
  * @brief Rebuilds a console line from the game's tokens and splits it into arguments.
  *
- * The game's tokenizer (`24CD080`) cuts the typed line at every space and does not know
+ * The game's tokenizer cuts the typed line at every space and does not know
  * quotes, so `"Neues Reich"` reaches a command as the two tokens `"Neues` and `Reich"`.
  * CAPIE joins the tokens again with single spaces and parses the result itself:
  *

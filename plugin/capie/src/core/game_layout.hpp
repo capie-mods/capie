@@ -23,203 +23,229 @@ namespace capie::core {
 namespace rva {
 // ---- Localisation (hooked by capie_core.dll) --------------------------------------------
 /// @brief `const char* lookup(const char* key, int length)`; FNV-1a lookup entry, hooked.
-inline constexpr std::uintptr_t loc_lookup_n = 0x239EE20;
+inline constexpr std::uintptr_t loc_lookup_n = 0x241ECE0;
 /// @brief `const char* lookup(const char* key)`; NUL-terminated lookup entry, hooked.
-inline constexpr std::uintptr_t loc_lookup_z = 0x239ED40;
+inline constexpr std::uintptr_t loc_lookup_z = 0x241EC00;
 /// @brief `bool exists(const char* key)`; key-existence test, hooked.
-inline constexpr std::uintptr_t loc_exists = 0x239D0F0;
+inline constexpr std::uintptr_t loc_exists = 0x241CFB0;
 
-// ---- Country name layer (hooked or read by capie_core.dll; session-20261013/custom-name-layer)
+// ---- Country name layer (hooked or read by capie_core.dll) ------------------------------
 /// @brief `u64 CCountry_UpdateNames(CCountry*)`; recomputes the cached name/adjective/definite name, hooked.
-inline constexpr std::uintptr_t update_names = 0x716580;
+inline constexpr std::uintptr_t update_names = 0x75E660;
 /// @brief `string* CCountry_BuildNameKey(string* out, const string* tag, ...)` (8 arguments), hooked.
-inline constexpr std::uintptr_t build_name_key = 0x6ECFF0;
-/// @brief `CSetVariableEffect::Execute(effect*, context*)` (vtable 2775698 slot +0x68), hooked.
-inline constexpr std::uintptr_t set_variable_execute = 0x364C60;
+inline constexpr std::uintptr_t build_name_key = 0x734B60;
+/// @brief `CSetVariableEffect::Execute(effect*, context*)` (vtable slot +0x68), hooked.
+inline constexpr std::uintptr_t set_variable_execute = 0x37D1C0;
 /// @brief Variable table find (FNV-1a, robin-hood probe); pinned, never called.
-inline constexpr std::uintptr_t variable_find = 0xBC4960;
+inline constexpr std::uintptr_t variable_find = 0xC1A2A0;
 /// @brief Variable get (`container+0x10` table, value at entry+0x28); pinned, never called.
-inline constexpr std::uintptr_t variable_get = 0xBC7E80;
+inline constexpr std::uintptr_t variable_get = 0xC1D7C0;
 /// @brief Country of a tag (`[gamestate+0x310][index]`); pinned, never called by capie_core.
-inline constexpr std::uintptr_t country_of = 0xBB4390;
+inline constexpr std::uintptr_t country_of = 0xC07620;
 /// @brief Global pointer to the game state (read, never written).
-inline constexpr std::uintptr_t gamestate_global = 0x332F260;
+inline constexpr std::uintptr_t gamestate_global = 0x33DD6B0;
 /// @brief `string* CFaction::GetName(faction*, string* out)`: +0x18 text, else template name; hooked.
-inline constexpr std::uintptr_t faction_get_name = 0xD8BB80;
+inline constexpr std::uintptr_t faction_get_name = 0xDF6370;
 /// @brief `u64 UpdateFlagAtlas(atlas*, gfx*)`: per-frame key check and reload of one flag atlas; hooked.
-inline constexpr std::uintptr_t flag_atlas_update = 0x123FE20;
+inline constexpr std::uintptr_t flag_atlas_update = 0x12CDFB0;
 /// @brief `int LoadCountryFlag(atlas*, country*, dst*, int, int, int, int, void*)`: one atlas slot; hooked.
-inline constexpr std::uintptr_t load_country_flag = 0x123F7E0;
+inline constexpr std::uintptr_t load_country_flag = 0x12CD970;
 /// @brief `vector* BuildFlagCandidates(vector* out, const string* tag, const string* cosmetic, group*)`; hooked.
-inline constexpr std::uintptr_t build_flag_candidates = 0x147D990;
+inline constexpr std::uintptr_t build_flag_candidates = 0x1518DE0;
 /// @brief `string* string_copy(string* out, const string* source)` (MSVC copy-construct on the game heap); called.
-inline constexpr std::uintptr_t string_copy = 0x11E010;
+inline constexpr std::uintptr_t string_copy = 0x11F770;
 /// @brief `entry* ResolvePortrait(map*, entry* out, int type, int size, character*, const char* fallback)`; hooked.
-inline constexpr std::uintptr_t portrait_resolve = 0x139DF20;
+inline constexpr std::uintptr_t portrait_resolve = 0x1439B80;
 /// @brief `bool PortraitEntryValid(const entry*)` (sprite exists for kind 0); called by the portrait hook.
-inline constexpr std::uintptr_t portrait_valid = 0x139D1E0;
+inline constexpr std::uintptr_t portrait_valid = 0x1438E40;
 /// @brief `sprite* FindSprite(database*, const string* name)`; called by the console (sprite check).
-inline constexpr std::uintptr_t sprite_find = 0x2238DF0;
-/// @brief Global pointer to the sprite database (read by 139D211).
-inline constexpr std::uintptr_t sprite_database_global = 0x3453090;
+inline constexpr std::uintptr_t sprite_find = 0x22A0B80;
+/// @brief Global pointer to the sprite database (read by `PortraitEntryValid`).
+inline constexpr std::uintptr_t sprite_database_global = 0x3500ED0;
 /// @brief `CCharacter` primary vtable (hierarchy CCharacter, CReferenceObject, CPersistent).
-inline constexpr std::uintptr_t vt_character = 0x297EA60;
+inline constexpr std::uintptr_t vt_character = 0x29FAF30;
+/// @brief `politics* GetPolitics(country*)`: `mov rax,[rcx+F90]; ret`; pinned, never called.
+inline constexpr std::uintptr_t country_politics_getter = 0x717370;
+/// @brief First leader role of a party (count +7C, roles +70); pinned, never called.
+inline constexpr std::uintptr_t party_first_leader_role = 0x1230500;
+/// @brief `mov rax,[rcx]; ret`, the tail jump of `party_first_leader_role`; pinned, never called.
+inline constexpr std::uintptr_t pointer_load = 0x1B6B80;
+/// @brief Character of a leader role: `mov rax,[rcx+8]; ret`; pinned, never called.
+inline constexpr std::uintptr_t role_character_getter = 0x2C1410;
+/// @brief Portrait write of `set_country_leader_portrait` (civilian, large); pinned, never called.
+inline constexpr std::uintptr_t leader_portrait_write = 0x143ADA0;
 
 // ---- Scripted window manager and widgets (hooked or called by capie_editor.dll) ---------
 /// @brief `void Tick(window*, char force)`; per-frame scripted window update, hooked.
-inline constexpr std::uintptr_t window_tick = 0xB88950;
+inline constexpr std::uintptr_t window_tick = 0xBDB500;
 /// @brief `void Bind(window*)`; scripted window (re)bind, hooked.
-inline constexpr std::uintptr_t window_bind = 0xB86320;
+inline constexpr std::uintptr_t window_bind = 0xBD8ED0;
 /// @brief `void Dispatch(context*, selector*)`; button click to effect dispatch, hooked.
-inline constexpr std::uintptr_t window_dispatch = 0xB867D0;
+inline constexpr std::uintptr_t window_dispatch = 0xBD9380;
 /// @brief `CExecuteScriptedWindowEffect` constructor, hooked to substitute the record view.
-inline constexpr std::uintptr_t effect_ctor = 0x1144840;
-/// @brief `CExecuteScriptedWindowEffect::Execute` (vtable 2996ED0 slot 0x50), hooked (debug flavor).
-inline constexpr std::uintptr_t effect_execute = 0x1156950;
+inline constexpr std::uintptr_t effect_ctor = 0x11CE6B0;
+/// @brief `CExecuteScriptedWindowEffect::Execute` (vtable 2A12ED0 slot 0x50), hooked (debug flavor).
+inline constexpr std::uintptr_t effect_execute = 0x11E0700;
 /// @brief CEditBox text-buffer key handler (subobject +0x80), hooked (debug flavor).
-inline constexpr std::uintptr_t edit_key_handler = 0x22F1030;
+inline constexpr std::uintptr_t edit_key_handler = 0x236E2A0;
 /// @brief CEditBox primary key wrapper (vtable slot +0x10), hooked (debug flavor).
-inline constexpr std::uintptr_t edit_key_wrapper = 0x22F4580;
+inline constexpr std::uintptr_t edit_key_wrapper = 0x23717E0;
 /// @brief `widget* FindEdit(root*, const string*, bool, bool)`; called.
-inline constexpr std::uintptr_t find_edit = 0x22BAD40;
+inline constexpr std::uintptr_t find_edit = 0x23331C0;
 /// @brief `widget* FindInstantText(root*, const string*, bool, bool)`; called.
-inline constexpr std::uintptr_t find_instant = 0x22BC600;
+inline constexpr std::uintptr_t find_instant = 0x2334D40;
 /// @brief `void SetText(textbuffer*, const string*)` SSO thunk; called.
-inline constexpr std::uintptr_t text_buffer_set = 0x22F27C0;
+inline constexpr std::uintptr_t text_buffer_set = 0x236FB60;
 /// @brief `void Refresh(CEditBox*)`; native edit-box refresh after SetText; called.
-inline constexpr std::uintptr_t edit_refresh = 0x22F4D80;
+inline constexpr std::uintptr_t edit_refresh = 0x2372230;
 
 // ---- Caption refresh chain ----------------------------------------------------------------
-/// @brief `void RequestViewRefresh(gui*, int index)`; the only caption call (B6E210).
-inline constexpr std::uintptr_t request_view_refresh = 0xB6E210;
+/// @brief `void RequestViewRefresh(gui*, int index)`; the only caption call (BC1690).
+inline constexpr std::uintptr_t request_view_refresh = 0xBC1690;
 /// @brief `mov byte [rcx+14],1; ret` (observer dirty mark); pinned, never called.
-inline constexpr std::uintptr_t observer_mark_dirty = 0x1236950;
+inline constexpr std::uintptr_t observer_mark_dirty = 0x12C4200;
 /// @brief Frame-loop consumer: observer slot 0x48 then clears dirty; pinned, never called.
-inline constexpr std::uintptr_t observer_consume = 0x1236980;
+inline constexpr std::uintptr_t observer_consume = 0x12C4230;
 /// @brief `mov rax,[rcx+6B8]; ret` (idler slot B8 getter); pinned, its semantics are read directly.
-inline constexpr std::uintptr_t idler_gui_getter = 0xDCCF30;
+inline constexpr std::uintptr_t idler_gui_getter = 0xE3A930;
 /// @brief Politics view visibility (primary slot 0x28); pinned.
-inline constexpr std::uintptr_t view_is_visible = 0x1237520;
-/// @brief Politics view root getter `[rcx+578]`; pinned.
-inline constexpr std::uintptr_t view_get_root = 0x12374F0;
+inline constexpr std::uintptr_t view_is_visible = 0x12C4EA0;
+/// @brief Politics view root getter `[rcx+5F8]`; pinned.
+inline constexpr std::uintptr_t view_get_root = 0x12C4E70;
 /// @brief Politics observer slot 0x38; pinned.
-inline constexpr std::uintptr_t observer_frame = 0x1582820;
+inline constexpr std::uintptr_t observer_frame = 0x161DB40;
 /// @brief Politics observer slot 0x48 (leader and party writers); pinned.
-inline constexpr std::uintptr_t observer_refresh = 0x15863F0;
+inline constexpr std::uintptr_t observer_refresh = 0x1620890;
+/// @brief Politics observer bind: `[observer+8] = gui`, `[observer+14] = 0`; pinned, never called.
+inline constexpr std::uintptr_t observer_bind = 0x12C3B50;
+/// @brief Politics view base constructor (stores the idler and the view root); pinned, never called.
+inline constexpr std::uintptr_t view_base_ctor = 0x12C4AD0;
 
 // ---- Focus release chain -------------------------------------------------------------------
 /// @brief `void FocusSwitch(manager*, widget*)`; called with `nullptr` once per politics hide.
-inline constexpr std::uintptr_t focus_switch = 0x225E320;
+inline constexpr std::uintptr_t focus_switch = 0x22BD0E0;
 /// @brief CEditBox unfocus (vtable slot 0xC8); pinned.
-inline constexpr std::uintptr_t edit_unfocus = 0x22F4770;
+inline constexpr std::uintptr_t edit_unfocus = 0x2371A40;
 /// @brief CEditBox focus (vtable slot 0xC0); pinned.
-inline constexpr std::uintptr_t edit_focus = 0x22F3FB0;
-/// @brief RVA of the rel32 displacement in `22FBEC3: mov rcx,[rip+disp]`.
-inline constexpr std::uintptr_t focus_manager_rip_displacement = 0x22FBEC6;
+inline constexpr std::uintptr_t edit_focus = 0x2371210;
+/// @brief Receiver release thunk: `mov rdx,rcx; mov rcx,[manager_global]; jmp manager_release`; pinned.
+inline constexpr std::uintptr_t receiver_release = 0x2379B70;
+/// @brief Manager release: releases `[manager+210]` and zeroes it; pinned, never called.
+inline constexpr std::uintptr_t manager_release = 0x22BD170;
+/// @brief RVA of the displacement of `mov rcx,[rip+disp]` in the receiver release thunk (`focus.2379B70`).
+inline constexpr std::uintptr_t focus_manager_rip_displacement = 0x2379B76;
 /// @brief RVA of the instruction after that `mov` (RIP base).
-inline constexpr std::uintptr_t focus_manager_rip_next = 0x22FBECA;
+inline constexpr std::uintptr_t focus_manager_rip_next = 0x2379B7A;
 
 // ---- Vtables (.rdata) -----------------------------------------------------------------------
 /// @brief Scripted GUI model (runtime-proven by the render bridge).
-inline constexpr std::uintptr_t vt_sg_model = 0x29DB558;
+inline constexpr std::uintptr_t vt_sg_model = 0x2A54398;
 /// @brief Scripted GUI window context (runtime-proven).
-inline constexpr std::uintptr_t vt_sg_context = 0x294E568;
+inline constexpr std::uintptr_t vt_sg_context = 0x29CB310;
 /// @brief Scripted GUI root widget (runtime-proven).
-inline constexpr std::uintptr_t vt_sg_root = 0x2B45278;
+inline constexpr std::uintptr_t vt_sg_root = 0x2BB9FE0;
 /// @brief instantTextBox widget used as a text carrier (runtime-proven).
-inline constexpr std::uintptr_t vt_instant_text = 0x2B468C8;
+inline constexpr std::uintptr_t vt_instant_text = 0x2BBB568;
 /// @brief CEditBox primary vtable.
-inline constexpr std::uintptr_t vt_edit = 0x2B4A940;
+inline constexpr std::uintptr_t vt_edit = 0x2BBF068;
 /// @brief CEditBox text-buffer subobject vtable (at edit+0x80).
-inline constexpr std::uintptr_t vt_text_buffer = 0x2B4ABD0;
+inline constexpr std::uintptr_t vt_text_buffer = 0x2BBF308;
 /// @brief CEditBox definition object vtable.
-inline constexpr std::uintptr_t vt_edit_definition = 0x2B54050;
+inline constexpr std::uintptr_t vt_edit_definition = 0x2BC6978;
 /// @brief `CExecuteScriptedWindowEffect` vtable.
-inline constexpr std::uintptr_t vt_execute_effect = 0x2996ED0;
+inline constexpr std::uintptr_t vt_execute_effect = 0x2A12ED0;
 /// @brief `CCountryPoliticsView` primary vtable.
-inline constexpr std::uintptr_t vt_politics_view = 0x29D9648;
+inline constexpr std::uintptr_t vt_politics_view = 0x2A524D0;
 /// @brief Politics view observer subobject vtable (view+0x30).
-inline constexpr std::uintptr_t vt_politics_observer = 0x29D96F0;
+inline constexpr std::uintptr_t vt_politics_observer = 0x2A52580;
 /// @brief In-game idler vtable.
-inline constexpr std::uintptr_t vt_ingame_idler = 0x2968FF0;
+inline constexpr std::uintptr_t vt_ingame_idler = 0x29E5828;
 
 // ---- Data -------------------------------------------------------------------------------------
 /// @brief Global pointer to the GUI focus/input manager.
-inline constexpr std::uintptr_t manager_global = 0x3453230;
+inline constexpr std::uintptr_t manager_global = 0x3500FC0;
 /// @brief DWORD token id of `politics_tab` (expected 0x3AB2).
-inline constexpr std::uintptr_t token_politics_tab = 0x294E4CC;
+inline constexpr std::uintptr_t token_politics_tab = 0x29CB040;
 /// @brief DWORD token id of `player_context` (expected 0x3A70).
-inline constexpr std::uintptr_t token_player_context = 0x2AECB3C;
+inline constexpr std::uintptr_t token_player_context = 0x2B3025C;
 /// @brief Shared allocator global stored at container+B8 (diagnostic only, never a pin; R5-NOTE-1).
-inline constexpr std::uintptr_t gui_structural = 0x3085170;
+inline constexpr std::uintptr_t gui_structural = 0x30FD000;
 }  // namespace rva
 
 /// @brief Byte offsets inside engine objects.
 namespace off {
-// ---- Country name layer (session-20261013/custom-name-layer report, sections 1.4-1.6) ------
-inline constexpr std::uintptr_t country_variables = 0x218;    ///< Variable container pointer (54265B, 542922).
-inline constexpr std::uintptr_t variables_entries = 0x18;     ///< Entry array (table +8; BC49CA, BC7EBD).
-inline constexpr std::uintptr_t variables_mask = 0x24;        ///< int32 bucket mask (table +0x14; BC49A8).
-inline constexpr std::uintptr_t variables_extra = 0x28;       ///< Byte: slots past the mask (table +0x18; BC7EA3).
-inline constexpr std::uintptr_t variable_entry_size = 0x30;   ///< Entry stride (BC49C2/BC49C6, BC4A18).
-inline constexpr std::uintptr_t variable_entry_probe = 0x4;   ///< Byte: probe distance, 0 = empty (BC49CE).
-inline constexpr std::uintptr_t variable_entry_key = 0x8;     ///< MSVC string key (BC49F5).
-inline constexpr std::uintptr_t variable_entry_value = 0x28;  ///< int64 fixed-point value (BC7EC6).
+// ---- Country name layer (pinned in features/country/name_layer_pins.hpp) -----------------
+inline constexpr std::uintptr_t country_variables = 0x218;    ///< Variable container pointer (`country.variables`).
+inline constexpr std::uintptr_t variables_entries = 0x18;     ///< Entry array (table +8; variable find/get).
+inline constexpr std::uintptr_t variables_mask = 0x24;        ///< int32 bucket mask (table +0x14; variable find).
+inline constexpr std::uintptr_t variables_extra = 0x28;       ///< Byte: slots past the mask (table +0x18).
+inline constexpr std::uintptr_t variable_entry_size = 0x30;   ///< Entry stride (variable find).
+inline constexpr std::uintptr_t variable_entry_probe = 0x4;   ///< Byte: probe distance, 0 = empty (variable find).
+inline constexpr std::uintptr_t variable_entry_key = 0x8;     ///< MSVC string key (variable find).
+inline constexpr std::uintptr_t variable_entry_value = 0x28;  ///< int64 fixed-point value (variable get).
 inline constexpr std::uintptr_t set_variable_name =
-    0xC8;  ///< Effect +0x58 scoped variable, +0x70 name (364C75, 54502F).
-inline constexpr std::uintptr_t gamestate_countries = 0x310;       ///< Country pointer array (1A645B, BB44A7).
-inline constexpr std::uintptr_t gamestate_country_count = 0x31C;   ///< int32 number of countries (1A6462).
-inline constexpr std::uintptr_t flag_atlas_cosmetic_keys = 0xC0;   ///< int64 cosmetic id per slot (12403C0).
-inline constexpr std::uintptr_t flag_atlas_cosmetic_count = 0xCC;  ///< int32 slots of that array (124008A).
-inline constexpr std::uintptr_t country_cosmetic_tag = 0x1488;     ///< Cosmetic tag string (123F84D, 711279).
-inline constexpr std::uintptr_t country_tag = 0x8;                 ///< Tag; its int is the slot index (BB54A3).
-inline constexpr std::uintptr_t faction_members = 0x58;       ///< Member country pointer array; [0] = leader (4ABB81).
-inline constexpr std::uintptr_t faction_member_count = 0x64;  ///< int32 member count (C5E2EF).
-// ---- Leader portrait layer (session-20261014/portrait-layer, design and review) ----------------
-inline constexpr std::uintptr_t character_id = 0xC;            ///< int32 character id (139DFC9).
-inline constexpr std::uintptr_t character_variables = 0xD8;    ///< Inline variable container (FA688B, FA5246).
-inline constexpr std::uintptr_t country_politics = 0xF90;      ///< Politics object pointer (6CF890).
-inline constexpr std::uintptr_t politics_ruling_party = 0xD0;  ///< Ruling party pointer (2E56B7).
-inline constexpr std::uintptr_t party_leaders = 0x70;          ///< Leader role pointer array (11A3309).
-inline constexpr std::uintptr_t party_leader_count = 0x7C;     ///< int32 leader count (11A3300).
-inline constexpr std::uintptr_t leader_role_character = 0x8;   ///< Character pointer of a leader role (2AA270).
-inline constexpr std::uintptr_t portrait_entry_kind = 0x4;     ///< int32 0 = sprite name, 1 = .dds path (139D1EF).
-inline constexpr std::uintptr_t portrait_entry_name = 0x8;     ///< MSVC string (139D20D).
-inline constexpr std::uintptr_t portrait_entry_handle = 0x28;  ///< Texture handle of a path entry (139D1F7).
+    0xC8;  ///< Effect +0x58 scoped variable, +0x70 name (`scoped_variable.name_*`).
+inline constexpr std::uintptr_t gamestate_countries = 0x310;       ///< Country pointer array (`gamestate.countries`).
+inline constexpr std::uintptr_t gamestate_country_count = 0x31C;   ///< int32 country count (`gamestate.country_count`).
+inline constexpr std::uintptr_t flag_atlas_cosmetic_keys = 0xC0;   ///< int64 cosmetic id per slot (atlas pins).
+inline constexpr std::uintptr_t flag_atlas_cosmetic_count = 0xCC;  ///< int32 slots of that array (atlas pins).
+inline constexpr std::uintptr_t country_cosmetic_tag = 0x1488;     ///< Cosmetic tag string (`load.cosmetic_argument`).
+inline constexpr std::uintptr_t country_tag = 0x8;                 ///< Tag; its int is the slot index (tag pin).
+inline constexpr std::uintptr_t faction_members = 0x58;       ///< Member country array; [0] = leader (faction pins).
+inline constexpr std::uintptr_t faction_member_count = 0x64;  ///< int32 member count (`faction.member_count`).
+// ---- Leader portrait layer (pinned in features/country/portrait_layer_pins.hpp) ----------------
+inline constexpr std::uintptr_t character_id = 0xC;            ///< int32 character id (`resolve.character_id`).
+inline constexpr std::uintptr_t character_variables = 0xD8;    ///< Inline variable container (`character.*_variables`).
+inline constexpr std::uintptr_t country_politics = 0xF90;      ///< Politics object pointer (`leader.politics`).
+inline constexpr std::uintptr_t politics_ruling_party = 0xD0;  ///< Ruling party pointer (`leader.ruling_party`).
+inline constexpr std::uintptr_t party_leaders = 0x70;          ///< Leader role pointer array (`leader.first_role`).
+inline constexpr std::uintptr_t party_leader_count = 0x7C;     ///< int32 leader count (`leader.first_role`).
+inline constexpr std::uintptr_t leader_role_character = 0x8;   ///< Character of a leader role (`leader.character`).
+inline constexpr std::uintptr_t portrait_entry_kind = 0x4;     ///< int32 0 = sprite name, 1 = .dds path (`valid.kind`).
+inline constexpr std::uintptr_t portrait_entry_name = 0x8;     ///< MSVC string (`valid.name`).
+inline constexpr std::uintptr_t portrait_entry_handle = 0x28;  ///< Texture handle of a path entry.
 // ---- Scripted window ----------------------------------------------------------------------
-inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (B88BEE).
+inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (BDB79E).
 inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model pointer (runtime-proven).
 /// @brief Token-map owner; manager identity is OPEN (used as an equality guard only).
 inline constexpr std::uintptr_t window_manager = 0xF0;
 inline constexpr std::uintptr_t window_root = 0xF8;          ///< Root widget (runtime-proven).
-inline constexpr std::uintptr_t window_parent = 0x100;       ///< Parent root (B863F9).
-inline constexpr std::uintptr_t window_parent_sg = 0x108;    ///< Parent scripted GUI (B8649E).
+inline constexpr std::uintptr_t window_parent = 0x100;       ///< Parent root (BD8FA9).
+inline constexpr std::uintptr_t window_parent_sg = 0x108;    ///< Parent scripted GUI (BD904E).
 inline constexpr std::uintptr_t window_context = 0x110;      ///< Embedded context object (runtime-proven).
-inline constexpr std::uintptr_t window_parent_seen = 0xB78;  ///< Parent-visible cache byte (diagnostic copy only).
-inline constexpr std::uintptr_t window_desired = 0xB79;      ///< Visible-trigger result byte (runtime-proven).
+inline constexpr std::uintptr_t window_parent_seen = 0xBF8;  ///< Parent-visible cache byte (diagnostic copy only).
+inline constexpr std::uintptr_t window_desired = 0xBF9;      ///< Visible-trigger result byte (runtime-proven).
 
 // ---- Window context (at window + window_context) -------------------------------------------
 inline constexpr std::uintptr_t context_window = 0x10;    ///< Back-pointer to the window.
 inline constexpr std::uintptr_t context_model = 0x20;     ///< Model pointer.
 inline constexpr std::uintptr_t context_root = 0x28;      ///< Root widget pointer.
-inline constexpr std::uintptr_t context_scope = 0x3C0;    ///< Scope passed to the effect constructor (B867EE).
-inline constexpr std::uintptr_t context_records = 0x470;  ///< Temp-variable record vector (B8684D).
+inline constexpr std::uintptr_t context_scope = 0x3C0;    ///< Scope passed to the effect constructor (Dispatch).
+inline constexpr std::uintptr_t context_records = 0x470;  ///< Temp-variable record vector (Dispatch).
 /// @brief Highest context offset used; the context address must not wrap when it is added.
 inline constexpr std::uintptr_t context_extent = context_records;
 
 // ---- Scripted GUI model ---------------------------------------------------------------------
 inline constexpr std::uintptr_t model_name = 0x8;                ///< Model name (MSVC string).
-inline constexpr std::uintptr_t model_context_token = 0x28;      ///< Context token (B88B27).
-inline constexpr std::uintptr_t model_parent_token = 0x2C;       ///< Parent window token (B86346, 159F33D).
-inline constexpr std::uintptr_t model_parent_window_len = 0x60;  ///< parent_window name length (B864F1).
-inline constexpr std::uintptr_t model_parent_sg_len = 0x80;      ///< parent_scripted_gui name length (B86414).
+inline constexpr std::uintptr_t model_context_token = 0x28;      ///< Context token (BDB6D7).
+inline constexpr std::uintptr_t model_parent_token = 0x2C;       ///< Parent window token (BD8EF6, 163B7BD).
+inline constexpr std::uintptr_t model_parent_window_len = 0x60;  ///< parent_window name length (BD90A1).
+inline constexpr std::uintptr_t model_parent_sg_len = 0x80;      ///< parent_scripted_gui name length (BD8FC4).
 
 // ---- Root widget ------------------------------------------------------------------------------
 inline constexpr std::uintptr_t root_flags = 0xA5;           ///< Visibility flag byte.
-inline constexpr std::uintptr_t root_instant_list = 0x11E0;  ///< instantTextBox child list.
-inline constexpr std::uintptr_t root_edit_list = 0x1240;     ///< Edit-box child list.
-inline constexpr std::uintptr_t root_third_list = 0x1330;    ///< Third child list checked by the render bridge.
-inline constexpr std::size_t root_readable_span = 0x1360;    ///< Bytes of the root checked readable by the bridge.
+// CContainerWindow keeps one name hash map per widget type (0x38 apart, +12A0..+15E8, initialised
+// by its constructor) and one vector of all children (docs/research/port-1.19.4.0.md).
+inline constexpr std::uintptr_t root_instant_map = 0x1380;  ///< CInstantTextBox name map (FindInstantText 2334D40).
+inline constexpr std::uintptr_t root_edit_map = 0x13F0;     ///< CEditBox name map (FindEdit 23331C0).
+inline constexpr std::uintptr_t root_children = 0x1508;     ///< Vector of all children, list layout (FindX recursion).
+inline constexpr std::uintptr_t root_definition = 0x17D0;   ///< Window definition pointer (FindX error path).
+inline constexpr std::size_t root_readable_span = 0x17D8;   ///< Bytes of the root checked readable (through +17D0).
+
+// ---- Name hash map (lookup helper shared by the FindX functions) ----------------------------
+inline constexpr std::uintptr_t map_entries = 0x20;     ///< Entry array pointer.
+inline constexpr std::uintptr_t map_mask = 0x2C;        ///< int32 bucket mask.
+inline constexpr std::uintptr_t map_entry_size = 0x30;  ///< Entry stride.
 
 // ---- Bounded child list (data, capacity, count) ---------------------------------------------
 inline constexpr std::uintptr_t list_data = 0x0;      ///< Element pointer array.
@@ -234,15 +260,15 @@ inline constexpr std::uintptr_t edit_text = 0xB0;              ///< UTF-32 text 
 inline constexpr std::uintptr_t edit_size = 0xC0;              ///< UTF-32 length.
 inline constexpr std::uintptr_t edit_capacity = 0xC8;          ///< UTF-32 capacity.
 inline constexpr std::uintptr_t edit_receiver = 0x1A0;         ///< Text-receiver subobject.
-inline constexpr std::uintptr_t edit_flags = 0x271;            ///< Bit 0 focused/active, bit 1 disabled.
+inline constexpr std::uintptr_t edit_flags = 0x281;            ///< Bit 0 focused/active, bit 1 disabled.
 inline constexpr std::uintptr_t definition_name = 0x28;        ///< Edit definition name (MSVC string).
 
 // ---- instantTextBox carrier --------------------------------------------------------------------
 inline constexpr std::uintptr_t instant_text = 0x110;  ///< Displayed text (MSVC string).
 
 // ---- Focus/input manager -------------------------------------------------------------------------
-inline constexpr std::uintptr_t manager_focus = 0x158;     ///< Focused widget.
-inline constexpr std::uintptr_t manager_receiver = 0x230;  ///< Active text receiver.
+inline constexpr std::uintptr_t manager_focus = 0x138;     ///< Focused widget.
+inline constexpr std::uintptr_t manager_receiver = 0x210;  ///< Active text receiver.
 inline constexpr std::uintptr_t manager_idler = 0x18;      ///< Idler of the token-map owner (equality guard).
 
 // ---- Key event ------------------------------------------------------------------------------------
@@ -258,15 +284,15 @@ inline constexpr std::uintptr_t command_model = 0x78;           ///< Model name.
 inline constexpr std::uintptr_t effect_records = 0x28;          ///< Record vector of a constructed effect.
 
 // ---- Idler, GUI container, politics view -------------------------------------------------------------
-inline constexpr std::uintptr_t idler_gui = 0x6B8;      ///< GUI container (DCCF30 body).
-inline constexpr std::uintptr_t gui_idler = 0x180;      ///< Back-pointer to the idler (B62D55).
-inline constexpr std::uintptr_t gui_views = 0xC8;       ///< View pointer array (B6E225).
+inline constexpr std::uintptr_t idler_gui = 0x6B8;      ///< GUI container (E3A930 body).
+inline constexpr std::uintptr_t gui_idler = 0x180;      ///< Back-pointer to the idler (`caption.BB6085`).
+inline constexpr std::uintptr_t gui_views = 0xC8;       ///< View pointer array (`caption.BC1690`).
 inline constexpr std::uintptr_t gui_structural = 0xB8;  ///< Allocator global copy (diagnostic only).
-inline constexpr std::uintptr_t view_observer = 0x30;   ///< Observer subobject (B6E242).
-inline constexpr std::uintptr_t view_gui = 0x38;        ///< GUI container back-pointer (12371DB).
+inline constexpr std::uintptr_t view_observer = 0x30;   ///< Observer subobject (`caption.BC1690`).
+inline constexpr std::uintptr_t view_gui = 0x38;        ///< GUI container back-pointer (12C4B4B).
 inline constexpr std::uintptr_t view_dirty = 0x44;      ///< Dirty byte (observer+0x14).
-inline constexpr std::uintptr_t view_idler = 0x570;     ///< Idler (1237358).
-inline constexpr std::uintptr_t view_root = 0x578;      ///< View root (12374F0).
+inline constexpr std::uintptr_t view_idler = 0x5F0;     ///< Idler (12C4CDF).
+inline constexpr std::uintptr_t view_root = 0x5F8;      ///< View root (12C4E70).
 
 // ---- Vtable slots ---------------------------------------------------------------------------------------
 inline constexpr std::uintptr_t slot_view_visible = 0x28;      ///< Politics view visibility.
@@ -284,8 +310,8 @@ inline constexpr unsigned char hidden_a = 0x04;                   ///< Hidden (b
 inline constexpr unsigned char shown = 0x08;                      ///< Shown (bit 3).
 inline constexpr unsigned char hidden_b = 0x10;                   ///< Hidden (bit 4).
 inline constexpr unsigned char hidden_any = hidden_a | hidden_b;  ///< Any hidden bit.
-inline constexpr unsigned char edit_active = 0x01;                ///< edit+271 bit 0: focused/receiving input.
-inline constexpr unsigned char edit_disabled = 0x02;              ///< edit+271 bit 1: disabled.
+inline constexpr unsigned char edit_active = 0x01;                ///< edit+281 bit 0: focused/receiving input.
+inline constexpr unsigned char edit_disabled = 0x02;              ///< edit+281 bit 1: disabled.
 
 /**
  * @brief Visible test shared by every guard: shown bit set and no hidden bit.
@@ -301,8 +327,8 @@ constexpr bool shown_not_hidden(unsigned char flags) noexcept {
 namespace value {
 inline constexpr std::uint32_t token_politics_tab = 0x3AB2;    ///< `politics_tab` token id.
 inline constexpr std::uint32_t token_player_context = 0x3A70;  ///< `player_context` token id.
-inline constexpr int politics_view_index = 12;                 ///< Politics view slot in gui+C8 ((128-C8)/8, B62D69).
-inline constexpr int gui_view_limit = 0x17;                    ///< B6E210 ignores index 23 (`cmp edx,17`).
+inline constexpr int politics_view_index = 12;                 ///< Politics view slot in gui+C8 ((128-C8)/8).
+inline constexpr int gui_view_limit = 0x17;                    ///< BC1690 ignores index 23 (`cmp edx,17`).
 inline constexpr std::uint32_t key_enter = 0x0D;               ///< Enter in key event word 0.
 inline constexpr std::uint32_t wrapper_type_key = 1;           ///< Wrapper event type of a key event.
 inline constexpr std::size_t inline_utf32_capacity = 3;        ///< Edit text is stored inline up to this capacity.

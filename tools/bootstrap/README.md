@@ -159,7 +159,8 @@ purpose: ASCII needs none, and a BOM at the start of the downloaded text would b
 | `-Version <x.y.z>` | install that signed release instead of the newest (implies `-Install`; same verification); `-Update` returns to the newest |
 | `-CloseSteam` | with `-Yes`: close a running Steam with `steam.exe -shutdown` (never killed, at most 60 s) before the launch option is changed, and start it again afterwards |
 | `-Rollback` | switch back to the previous version (kept on disk) |
-| `-Uninstall` | remove the launch option part, our shortcuts and `%LOCALAPPDATA%\RenameAnything` (the log is kept) |
+| `-Uninstall` | remove the launch option part, our shortcuts and `%LOCALAPPDATA%\RenameAnything` (the log is kept); refuses while a Steam launch option may still point at the files (see "Safety rules") |
+| `-Force` | with `-Update`: install the newest release even when it does not support your `hoi4.exe` while the installed one does; with `-Uninstall`: remove the files although Steam was not found, after you cleared the launch option by hand |
 | `-DryRun` (alias `-WhatIf`) | show what would happen, write nothing (not even the log) |
 | `-Yes` | no questions; actions must be given as switches |
 | `-SteamRoot <dir>` | Steam folder override (default: `HKCU\Software\Valve\Steam\SteamPath`) |
@@ -252,6 +253,46 @@ asks "Start Steam again? [Y/n]" and starts the same `steam.exe` without argument
 wait for it). With `-Yes` Steam is closed only when `-CloseSteam` is given, and then started
 again without a question; `-DryRun` only prints this plan.
 
+## Safety rules
+
+The installer never leaves the game unstartable and never quietly installs a CAPIE that cannot
+work on your game build:
+
+* **Game build notice.** After every install, update and rollback the SHA-256 of `hoi4.exe` is
+  compared with `supportedGameSha256` of the active version's manifest. When it is not listed
+  the run ends with a WARN that says so (the game still starts, without CAPIE) and names the
+  release page and the full update command:
+  `https://github.com/capie-mods/capie/releases/latest` and
+  `& ([scriptblock]::Create((irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1))) -Update`.
+  When `hoi4.exe` is not found through Steam the notice says that the check was not done.
+* **`-Update` never trades a working version for one that is not.** If the installed version
+  supports your `hoi4.exe` and the newest release does not, the installed one is kept (exit 0,
+  WARN line). `-Update -Force` installs it anyway.
+* **The game must be closed.** Install, update, rollback and uninstall stop with "Nothing was
+  changed" while `hoi4.exe` or `dowser.exe` (the Paradox Launcher) runs. `-Disable`,
+  `-CheckUpdate` and `-ListVersions` still work; `-DryRun` only reports it.
+* **Steam before files.** `-Uninstall` removes the launch option first and deletes no file
+  while it may still start our launcher: Steam running (and not closed), an account whose
+  `localconfig.vdf` cannot be read, or Steam not found while `state.json` records a launch
+  option (or there is no `state.json` but the launcher is installed). The message says how to
+  clear the option by hand (Steam > Library > Hearts of Iron IV > Properties > General > Launch
+  Options); then `-Uninstall -Force`. Old version folders that a recorded launch option starts
+  directly are not pruned.
+* **No gap in `current`.** A switch creates the new junction as `current.new-<id>`, renames
+  the old one to `current.old-<id>`, renames the new one to `current`, verifies it and only then
+  deletes the old link; on any failure the old link is renamed back. (Windows cannot replace a
+  directory link in one rename, so the two renames run back to back.)
+* **Cleanup never turns success into failure.** A temporary file that cannot be deleted after
+  the work succeeded (antivirus lock) is logged as WARN.
+* **Leftovers of an interrupted run** are swept at the start of every install, update,
+  rollback and uninstall, only when proven ours and older than 30 minutes (so a second setup
+  window keeps its files): `download-<id>.zip`; `.staging-<id>` folders that hold no junction or
+  symlink; `current.new-<id>` / `current.old-<id>` junctions into our root folder;
+  `proxy.enabled.<id>.remove` with exactly our marker bytes; and in the game folder
+  `version.dll.<id>.tmp|.bak|.remove` whose SHA-256 is a signed CAPIE proxy (a `.bak` is kept
+  while no `version.dll` is next to it). `<id>` is exactly 32 lower-case hex digits. Anything
+  else is left alone.
+
 ## Integrity and updates
 
 * `-Install` uses the release manifest **pinned in the script**: the ZIP SHA256 is checked
@@ -277,6 +318,14 @@ again without a question; `-DryRun` only prints this plan.
 * Maintainers: `sign-release-manifest.ps1 -NewKey | -MakeManifest | -Sign` (offline).
   Keep the private key outside the repository. Paste the public key into
   `src/Shared/Configuration.ps1` and rebuild `install.ps1`.
+* Maintainers: the pinned release block (`$script:RaPinnedRelease` in
+  `src/Shared/Configuration.ps1`, including `SupportedGameSha256`) is written by the release
+  step, never by hand: `python tools/release/release.py build --signing-key <key> --write-pins`
+  renders it from the bundle it just built (`SupportedGameSha256` = `game_exe_sha256` of
+  `plugin/capie/src/core/game_build.hpp`, which the build checks inside every shipped binary)
+  and rebuilds `install.ps1`; commit both before `release`. Until CAPIE 1.5.1 is released the
+  block still names CAPIE 1.5.0 for HOI4 1.19.3.0, so `-Install` without `-Latest` on HOI4
+  1.19.4.0 ends with the game build notice above.
 
 ## Release installer and signing
 

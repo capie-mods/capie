@@ -97,10 +97,27 @@ inline bool bounded_list(const void* container, std::size_t offset) noexcept {
            readable(data, static_cast<std::size_t>(count) * sizeof(void*));
 }
 
+/// @brief Largest bucket mask accepted for a child name map (65536 buckets).
+inline constexpr int max_map_mask = 0xFFFF;
+
+/**
+ * @brief Checks a child name hash map (entries pointer, bucket mask) inside a container.
+ * @param container Container object.
+ * @param offset Offset of the map.
+ * @return `true` when the mask is sane and the bucket array is readable.
+ */
+inline bool bounded_map(const void* container, std::size_t offset) noexcept {
+    void* entries = nullptr;
+    int mask = -1;
+    return member(container, offset + off::map_entries, entries) && member(container, offset + off::map_mask, mask) &&
+           mask >= 0 && mask <= max_map_mask &&
+           readable(entries, (static_cast<std::size_t>(mask) + 1) * off::map_entry_size);
+}
+
 /**
  * @brief Reads whether `edit` currently receives keyboard input.
  * @param edit CEditBox.
- * @param result Receives `true` when the manager's receiver is this edit and edit+271 bit 0 is set.
+ * @param result Receives `true` when the manager's receiver is this edit and edit+281 bit 0 is set.
  * @return `false` when the manager or flags are unreadable.
  */
 inline bool read_input_active(void* edit, bool& result) noexcept {

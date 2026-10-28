@@ -3,15 +3,18 @@
  * @brief Component tests of the CAPIE launcher: command lines, file pins, game location, readiness, ancestry.
  *
  * Pure functions are driven with synthetic data; Windows behaviour (argument parsing,
- * file sharing, job membership) is checked against the real API with files and processes
- * the test creates itself in its scratch folder. No game, Steam or injector is involved.
+ * file sharing, job membership, the status file, the crash-loop sentinel) is checked
+ * against the real API with files and processes the test creates itself in its scratch
+ * folder. No game, Steam or injector is involved.
  * Usage: `launcher_unit_test.exe SCRATCH_DIR FAKE_PROCESS_EXE`.
  */
 #include "../../src/launcher/command_line.hpp"
 #include "../../src/launcher/config.hpp"
+#include "../../src/launcher/crash_guard.hpp"
 #include "../../src/launcher/file_pin.hpp"
 #include "../../src/launcher/game_location.hpp"
 #include "../../src/launcher/injection.hpp"
+#include "../../src/launcher/launcher_app.hpp"
 #include "../../src/launcher/launcher_log.hpp"
 #include "../../src/launcher/playset_gate.hpp"
 #include "../../src/launcher/process_tree.hpp"
@@ -22,7 +25,9 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <map>
+#include <sstream>
 #include <shellapi.h>
 #include <stdexcept>
 #include <string>
@@ -92,6 +97,18 @@ void write_file(const std::wstring& path, const std::string& bytes) {
     check(file && WriteFile(file.get(), bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) != 0 &&
               written == bytes.size(),
           "fixture write");
+}
+
+/**
+ * @brief Reads a whole file as bytes.
+ * @param path Path.
+ * @return Content (empty when missing).
+ */
+std::string read_file(const std::wstring& path) {
+    const std::ifstream file(path, std::ios::binary);
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
 }
 
 /// @brief Tokenizer must agree with CommandLineToArgvW.
@@ -326,6 +343,26 @@ void file_pins(const std::wstring& dir) {
     check(throws_code([&] { static_cast<void>(cl::verify_file(pe, digest, true, cl::ExitCode::invalid_bundle)); },
                       cl::ExitCode::invalid_bundle),
           "verify refuses the wrong PE kind");
+
+    // The game pin: Steam may rename, delete or replace hoi4.exe, never write into it.
+    const auto game = dir + L"\\game-pin.exe";
+    const auto renamed = dir + L"\\game-pin.old";
+    DeleteFileW(renamed.c_str());
+    write_file(game, "abc");
+    {
+        const auto game_pin = cl::PinnedFile::open(game, cl::PinShare::allow_replace);
+        check(game_pin.digest == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "game game_pin hashes");
+        const cl::Handle writer(CreateFileW(game.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE |
+                                                FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr));
+        check(!writer && GetLastError() == ERROR_SHARING_VIOLATION, "game game_pin still blocks writers");
+        check(game_pin.still_same_path(), "game game_pin: path names the pinned file");
+        check(MoveFileExW(game.c_str(), renamed.c_str(), 0) != 0, "game game_pin allows a rename (game update)");
+        check(!game_pin.still_same_path(), "renamed game is no longer the pinned path");
+        write_file(game, "abc");
+        check(!game_pin.still_same_path(), "replaced game (same bytes, new file) is detected");
+        check(cl::hash_handle(game_pin.file.get()) == game_pin.digest, "pinned bytes unchanged after the replacement");
+    }
+    check(DeleteFileW(renamed.c_str()) != 0 && DeleteFileW(game.c_str()) != 0, "game pin released");
 }
 
 /// @brief Wrapped program validation and shortcut-mode helpers.
@@ -348,6 +385,22 @@ void game_location(const std::wstring& dir) {
     check(throws_code([&] { static_cast<void>(cl::validate_wrapped_program(dir + L"\\none\\hoi4.exe")); },
                       cl::ExitCode::usage),
           "missing program refused");
+    using cl::ProgramKind;
+    const auto dowser = cl::classify_wrapped_program(game_dir + L"\\dowser.exe");
+    check(dowser.kind == ProgramKind::game && dowser.game == game_dir + L"\\hoi4.exe", "classify: dowser is the game");
+    check(cl::classify_wrapped_program(game_dir + L"\\HOI4.EXE").kind == ProgramKind::game, "classify: hoi4 is the game");
+    const auto other = cl::classify_wrapped_program(game_dir + L"\\other.exe");
+    check(other.kind == ProgramKind::passthrough && other.game == game_dir + L"\\hoi4.exe",
+          "classify: another program in the game folder starts unchanged, CAPIE off");
+    check(throws_code([&] { static_cast<void>(cl::classify_wrapped_program(game_dir + L"\\missing.exe")); },
+                      cl::ExitCode::usage),
+          "classify: a missing program is the one hard error");
+    check(throws_code([] { static_cast<void>(cl::classify_wrapped_program(L"other.exe")); }, cl::ExitCode::usage),
+          "classify: relative program refused");
+    write_file(dir + L"\\loose.exe", "x");
+    check(throws_code([&] { static_cast<void>(cl::classify_wrapped_program(dir + L"\\loose.exe")); },
+                      cl::ExitCode::usage),
+          "classify: a program outside any game folder is refused");
     check(cl::default_program(game_dir + L"\\hoi4.exe") == game_dir + L"\\dowser.exe", "shortcut starts dowser");
     DeleteFileW((game_dir + L"\\dowser.exe").c_str());
     check(cl::default_program(game_dir + L"\\hoi4.exe") == game_dir + L"\\hoi4.exe", "no dowser: game itself");
@@ -390,8 +443,72 @@ void log_and_notices(const std::wstring& dir) {
               "every notice has PL and EN text");
     }
     cl::Notifier quiet(log, false);
+    check(quiet.last_text().empty(), "no notice yet");
     quiet.notify(cl::Notice::unknown_game_build, L"detail");
     check(quiet.count() == 1, "notice counted without a dialog");
+    const std::wstring expected_text(cl::notice_text(cl::Notice::unknown_game_build, cl::polish_ui()));
+    check(quiet.last_text().starts_with(expected_text) &&
+              quiet.last_text().ends_with(L"\n\ndetail"),
+          "latest notice text kept for the status file");
+    for (const bool polish : {false, true}) {
+        const auto text = cl::notice_text(cl::Notice::unknown_game_build, polish);
+        check(text.find(cl::release_page_url) != std::wstring_view::npos && text.find(L"CAPIE") == 0,
+              "unsupported build notice is actionable (update, release page)");
+    }
+    constexpr UINT on_top = MB_TOPMOST | MB_SETFOREGROUND;
+    check((cl::notice_box_style & on_top) == on_top && (cl::error_box_style & on_top) == on_top,
+          "notice boxes are topmost and take the foreground");
+
+    check(log.status_path() == dir + L"\\last-status.txt", "status file next to the log");
+    log.status(L"capie-loaded", L"first");
+    log.status(L"game-without-capie", L"line one\r\n\r\nline two\t");
+    const auto status = read_file(dir + L"\\last-status.txt");
+    check(status.starts_with("time=") &&
+              status.find("\r\noutcome=game-without-capie\r\nmessage=line one line two\r\nlog=") != std::string::npos &&
+              status.find("first") == std::string::npos,
+          "status file replaced with one-line fields");
+    WIN32_FIND_DATAW leftover{};
+    const HANDLE search = FindFirstFileW((dir + L"\\last-status.txt.*.tmp").c_str(), &leftover);
+    check(search == INVALID_HANDLE_VALUE, "no temporary status file left behind");
+    if (search != INVALID_HANDLE_VALUE) {
+        FindClose(search);
+    }
+    cl::Log disabled(L"");
+    check(disabled.status_path().empty(), "no log, no status file");
+    disabled.status(L"x", L"y");  // must not throw or write anywhere
+}
+
+/// @brief Status outcome of a finished run (pure).
+void run_status_rules() {
+    using cl::GameOutcome;
+    cl::RunReport report;
+    check(cl::run_status(report, {}).first == L"no-game", "no game: no-game");
+    check(cl::run_status(report, L"notice").first == L"game-without-capie" &&
+              cl::run_status(report, L"notice").second == L"notice",
+          "a notice explains a run without CAPIE");
+    report.games.push_back({.stamp = {.pid = 7, .created = 1}, .via_job = true, .outcome = GameOutcome::playset_off});
+    check(cl::run_status(report, {}).first == L"game-without-capie", "playset off: game without CAPIE");
+    report.games.push_back({.stamp = {.pid = 8, .created = 2}, .via_job = true, .outcome = GameOutcome::loaded});
+    const auto loaded = cl::run_status(report, L"older notice");
+    check(loaded.first == L"capie-loaded" && loaded.second.find(L"pid=8") != std::wstring::npos,
+          "a loaded game wins over an earlier notice");
+}
+
+/// @brief Crash-loop sentinel life cycle.
+void crash_guard_rules(const std::wstring& dir) {
+    const auto sentinel = dir + L"\\capie-inject.pending";
+    DeleteFileW(sentinel.c_str());
+    check(!cl::consume_sentinel(sentinel), "no sentinel: CAPIE may load");
+    check(cl::arm_sentinel(sentinel, "test") && cl::sentinel_present(sentinel), "sentinel written before loading");
+    check(read_file(sentinel).find("pid=") != std::string::npos, "sentinel names the loader process");
+    cl::disarm_sentinel(sentinel);
+    check(!cl::sentinel_present(sentinel), "clean load removes the sentinel");
+    check(cl::arm_sentinel(sentinel, "test"), "sentinel written again");
+    check(cl::consume_sentinel(sentinel), "a sentinel left behind skips CAPIE");
+    check(!cl::consume_sentinel(sentinel), "only once: the next start tries again");
+    check(!cl::arm_sentinel({}, "x") && !cl::consume_sentinel({}) && !cl::sentinel_present({}),
+          "empty path disables the breaker");
+    check(!cl::arm_sentinel(dir + L"\\missing-folder\\x.pending", "x"), "unwritable sentinel reported, no throw");
 }
 
 /// @brief Marker counting and the readiness decision table.
@@ -607,6 +724,23 @@ void job_membership(const std::wstring& dir, const std::wstring& fake) {
     WaitForSingleObject(tree.root(), INFINITE);
     check(!tree.active(), "tree inactive after the program ended");
     WaitForSingleObject(outside_process.get(), INFINITE);
+
+    // Any creation error other than 740 stays a start failure; nothing is started through the shell.
+    const cl::CreateFn denied = [](const cl::LaunchSpec&, std::wstring&, STARTUPINFOW&, PROCESS_INFORMATION&) -> BOOL {
+        SetLastError(ERROR_ACCESS_DENIED);
+        return FALSE;
+    };
+    check(throws_code([&] { static_cast<void>(cl::ProcessTree::start({.application = hoi4, .command_line = line},
+                                                                     log, denied)); },
+                      cl::ExitCode::game_start),
+          "creation error other than elevation: start failure");
+    const auto arguments = [](const wchar_t* text) {
+        return cl::launch_arguments({.application = L"C:\\g\\dowser.exe", .command_line = text});
+    };
+    check(arguments(L"\"C:\\g\\dowser.exe\" -a \"b c\"") == L"-a \"b c\"", "shell arguments: verbatim tail");
+    check(arguments(L"\"C:\\g\\dowser.exe\"").empty(), "shell arguments: none");
+    check(arguments(L"C:\\g\\dowser.exe -x") == L"-x", "shell arguments: unquoted program (Steam's raw command)");
+    check(arguments(L"other -x") == L"other -x", "shell arguments: unexpected line kept whole");
 }
 
 }  // namespace
@@ -633,6 +767,8 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
         file_pins(dir);
         game_location(dir);
         log_and_notices(dir);
+        run_status_rules();
+        crash_guard_rules(dir);
         readiness_rules(dir);
         playset_rules(dir);
         ancestry_rules();

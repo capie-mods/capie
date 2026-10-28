@@ -12,7 +12,7 @@
  * The release flavor writes `error` and `lifecycle` only; `debug` call sites are compiled
  * out with `if constexpr`, so they cost nothing, not even string formatting. The debug
  * flavor (`CAPIE_DEBUG_DIAGNOSTICS=1`) writes all three channels with exactly the line
- * format of the accepted rev7 bridge, including the ring stamp suffix.
+ * format of the original bridge prototype, including the ring stamp suffix.
  *
  * I/O. A line is appended with one `WriteFile` under a short SRW lock. Lines are produced
  * only on transitions and events, never per frame in steady state, so the hot path does

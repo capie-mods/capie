@@ -64,13 +64,22 @@ void check(bool value, const std::string& label) {
  * @param offset Offset.
  * @param value Value.
  */
+/// @brief Shared empty bucket of a child name map (the game points empty maps at a static one).
+alignas(8) std::array<unsigned char, capie::core::off::map_entry_size> empty_map_bucket{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief Gives a fixture root the two empty child name maps a 1.19.4.0 CContainerWindow has.
+void put_empty_maps(void* root) {
+    for (const auto map : {capie::core::off::root_edit_map, capie::core::off::root_instant_map}) {
+        void* bucket = empty_map_bucket.data();
+        std::memcpy(static_cast<unsigned char*>(root) + map + capie::core::off::map_entries, &bucket, sizeof(bucket));
+    }
+}
 template <class T>
 void put(void* object, std::size_t offset, const T& value) {
     std::memcpy(static_cast<unsigned char*>(object) + offset, static_cast<const void*>(&value), sizeof(value));
 }
 
 /// @brief Fake edit box size.
-constexpr std::size_t edit_bytes = 0x280;
+constexpr std::size_t edit_bytes = 0x290;
 /// @brief Fake edit definition size.
 constexpr std::size_t definition_bytes = 0x50;
 /// @brief Fake instantTextBox size.
@@ -82,7 +91,7 @@ constexpr std::size_t model_bytes = 0x100;
 /// @brief UTF-32 capacity of a fake edit box.
 constexpr std::size_t edit_text_capacity = 64;
 /// @brief Fake image size (covers the focus manager global).
-constexpr std::size_t image_bytes = 0x3454000;
+constexpr std::size_t image_bytes = 0x3502000;
 /// @brief Root flag byte "shown".
 constexpr unsigned char shown = 8;
 /// @brief HOI4 fixed-point scale.
@@ -216,6 +225,7 @@ FakeWindow& make_window(const std::string& model_name, unsigned field_mask, cons
     put(win, off::window_context + off::context_model, static_cast<void*>(w.model.data()));
     put(win, off::window_context + off::context_root, static_cast<void*>(w.root.data()));
     put(w.root.data(), 0, image_base + rva::vt_sg_root);
+    put_empty_maps(w.root.data());
     const auto id = grammar::parse_model(model_name);
     for (std::size_t n = 0; n <= grammar::max_fields; ++n) {
         auto& e = w.edits[n];
@@ -255,7 +265,9 @@ FakeWindow* window_of(void* root) {
 }
 
 /// @brief CNullEditBox primary vtable: FindEdit's result for a miss (day2-native-editor-contract.txt 3).
-constexpr std::uintptr_t vt_null_edit = 0x2B558B0;
+constexpr std::uintptr_t vt_null_edit = 0x2BC80B0;
+/// @brief When set, a miss returns another field's real CEditBox instead of the null edit box.
+bool miss_returns_stray_edit = false;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 /// @brief The game's null edit box (FindEdit never returns nullptr for a miss).
 alignas(
     8) std::array<unsigned char, edit_bytes> null_edit{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
@@ -270,7 +282,9 @@ unsigned change_lookups = 0;  // NOLINT(cppcoreguidelines-avoid-non-const-global
 unsigned change_on_lookup = 0;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 /// @brief Fake FindEdit: like the game, a miss returns the null edit box, never nullptr.
-void* __fastcall fake_find_edit(void* root, const MsvcString* name, bool /*a*/, bool /*b*/) {
+void* __fastcall fake_find_edit(void* root, const capie::engine::NameView* view, bool /*a*/, bool /*b*/) {
+    const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
+    const MsvcString* name = &name_text;
     auto* w = window_of(root);
     if (w == nullptr) {
         return null_edit.data();
@@ -283,11 +297,20 @@ void* __fastcall fake_find_edit(void* root, const MsvcString* name, bool /*a*/, 
             return e.edit.data();
         }
     }
+    if (miss_returns_stray_edit) {
+        for (auto& e : w->edits) {
+            if (e.present) {
+                return e.edit.data();  // a real CEditBox with another name: only the name check rejects it
+            }
+        }
+    }
     return null_edit.data();
 }
 
 /// @brief Fake FindInstantText.
-void* __fastcall fake_find_instant(void* root, const MsvcString* name, bool /*a*/, bool /*b*/) {
+void* __fastcall fake_find_instant(void* root, const capie::engine::NameView* view, bool /*a*/, bool /*b*/) {
+    const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
+    const MsvcString* name = &name_text;
     auto* w = window_of(root);
     if (w == nullptr) {
         return null_instant.data();
@@ -458,7 +481,7 @@ void payload_tests() {
     check(dispatch_originals == before + 1 && !captured.empty(), "Apply dispatched once");
     check(count_of("user_key") == 1 && value_of("user_key") == 7, "non-reserved original kept");
     check(count_of("capie_cap") == 1 && value_of("capie_cap") == 7, "capie_cap = 7 (spoof removed)");
-    check(count_of("capie_ver") == 1 && value_of("capie_ver") == 10500, "capie_ver = 10500");
+    check(count_of("capie_ver") == 1 && value_of("capie_ver") == 10501, "capie_ver = 10501");
     check(count_of("capie_flag") == 1 && value_of("capie_flag") == 0,
           "capie_flag = 0 without an initialized capie_core.dll (API level 6)");
     check(count_of("capie_epoch") == 1 && value_of("capie_epoch") == 3, "capie_epoch from the carrier");
@@ -554,7 +577,7 @@ void sentinel_tests() {
     // Apply before the first Tick of the window: registered at Dispatch, not ready -> -1.
     auto& late = make_window("capie_v1_ed__mymod__late", 0b1, "5");
     click(late, apply_of(late));
-    check(value_of("capie_epoch") == -1 && value_of("capie_cap") == 7 && value_of("capie_ver") == 10500 &&
+    check(value_of("capie_epoch") == -1 && value_of("capie_cap") == 7 && value_of("capie_ver") == 10501 &&
               count_of("capie_nf") == 0 && capie_records() == 3,
           "stale sentinel -1 with cap and ver only");
 
@@ -563,6 +586,13 @@ void sentinel_tests() {
     tick_observed(gap.window.data(), 0);
     click(gap, apply_of(gap));
     check(value_of("capie_epoch") == -3 && capie_records() == 3, "gap -> layout sentinel -3");
+    // A miss answered with another field's CEditBox is still a miss (the name decides, not the vtable).
+    miss_returns_stray_edit = true;
+    auto& stray = make_window("capie_v1_ed__mymod__stray", 0b1, "1");
+    tick_observed(stray.window.data(), 0);
+    click(stray, apply_of(stray));
+    miss_returns_stray_edit = false;
+    check(value_of("capie_epoch") == 1, "stray CEditBox for a missing field -> one field, layout valid");
     auto& five = make_window("capie_v1_ed__mymod__five", 0b11111, "1");
     tick_observed(five.window.data(), 0);
     click(five, apply_of(five));
@@ -797,6 +827,11 @@ void registry_tests() {
     auto& ninth = make_window("capie_v1_ed__mymod__ninth", 0b1, "1");
     tick_observed(ninth.window.data(), 0);
     check(public_editor_count.load() == count, "ninth editor of one mod refused");
+    std::size_t registered_mymod = 0;
+    for (std::size_t i = 0; i < public_editor_count.load(); ++i) {
+        registered_mymod += public_editors[i].id.mod_view() == "mymod" ? 1U : 0U;
+    }
+    check(registered_mymod == max_editors_per_mod, "exactly max_editors_per_mod editors of one mod registered");
     click(ninth, apply_of(ninth));
     check(value_of("capie_epoch") == -2 && capie_records() == 3, "per-mod limit -> sentinel -2");
     for (unsigned i = 0; public_editor_count.load() < max_public_editors && i < 2 * max_public_editors; ++i) {
