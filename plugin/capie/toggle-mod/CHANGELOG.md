@@ -6,6 +6,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-28
+
 - The main-menu status line is now the CAPIE mark in the bottom left corner, beside the last DLC icon and anchored to the
   same corner as the DLC column, so it shows at every resolution. It
   means only that the CAPIE switch is on: the menu is built and localised before CAPIE loads, so
@@ -16,7 +18,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   does not create in release builds. New: `interface/capie_menu.gfx` and the one-image sprite
   `gfx/interface/capie_menu_mark.dds`.
 
-## [1.0.0] - unreleased
+## [1.0.0]
 
 - First Workshop release: the switch that turns CAPIE on and off through the playset, and the
   CAPIE status line in the main menu (in preparation).

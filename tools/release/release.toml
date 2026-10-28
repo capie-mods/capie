@@ -193,17 +193,6 @@ exclude = ["*.md", "*.py", "*.pyc", "__pycache__", ".*", "*.ps1", "*.psd", "*.xc
            "*.bak", "*.orig", "*.tmp", "*.log", "Thumbs.db", "desktop.ini"]
 
 [[workshop.items]]
-key = "rename-anything"
-title = "Rename Anything"
-content_dir = "mod"
-# Required by Steam and the Paradox Launcher (512 x 512 PNG under 1 MB). Drawn by
-# tools/promo/promo.py build; also the picture of mod/descriptor.mod.
-preview_file = "mod/thumbnail.png"
-description_file = "docs/assets/promo/workshop/rename-anything.bbcode"
-changelog = "CHANGELOG.md"
-published_file_id = 3819937546
-
-[[workshop.items]]
 key = "capie-switch"
 title = "CAPIE"
 content_dir = "plugin/capie/toggle-mod/capie"
