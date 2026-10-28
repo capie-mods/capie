@@ -199,6 +199,9 @@ inline const char* override_value(std::string_view key) {
     return country_value(key);
 }
 
+// The three hook bodies below are not `noexcept`: an exception of the original passes
+// through to the game (capie_core.cpp, scan N6). CAPIE's own work is inside `try`.
+
 /// @brief `const char* lookup(const char* key, int length)`.
 using LookupN = const char* (*)(const char*, int);
 /// @brief `const char* lookup(const char* key)`.
@@ -219,7 +222,7 @@ inline Exists original_exists = nullptr;
  * @param length Key length.
  * @return CAPIE text or the original result.
  */
-inline const char* lookup_n(const char* key, int length) noexcept {
+inline const char* lookup_n(const char* key, int length) {
     try {
         if (key != nullptr && length >= 0 && std::cmp_less_equal(length, max_key_bytes) &&
             may_claim(key, static_cast<std::size_t>(length))) {
@@ -237,7 +240,7 @@ inline const char* lookup_n(const char* key, int length) noexcept {
  * @param key NUL-terminated key.
  * @return CAPIE text or the original result.
  */
-inline const char* lookup_z(const char* key) noexcept {
+inline const char* lookup_z(const char* key) {
     try {
         if (key != nullptr && may_claim_z(key)) {
             const auto n = strnlen_s(key, max_key_bytes + 1);
@@ -257,7 +260,7 @@ inline const char* lookup_z(const char* key) noexcept {
  * @param key NUL-terminated key.
  * @return `true` for a valid RN1 key while active, otherwise the original result.
  */
-inline bool exists(const char* key) noexcept {
+inline bool exists(const char* key) {
     try {
         if (key != nullptr && key[0] == claim_prefix[0] && key[1] == claim_prefix[1] && active.load()) {
             const auto n = strnlen_s(key, max_key_bytes + 1);

@@ -44,6 +44,7 @@
 #include "../../core/game_layout.hpp"
 #include "../../core/log.hpp"
 #include "../../core/memory.hpp"
+#include "../../core/scoped_frame.hpp"
 #include "../../engine/game_calls.hpp"
 #include "../../engine/msvc_string.hpp"
 #include "name_layer.hpp"
@@ -143,9 +144,10 @@ public:
      * @brief Hook body of UpdateNames.
      * @param country Country object.
      * @return The original's result.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
      */
-    std::uint64_t update_names(uptr country) noexcept {
-        return in_frame(country, [this, country]() noexcept { return originals_.update(country); });
+    std::uint64_t update_names(uptr country) {
+        return in_frame(country, [this, country]() { return originals_.update(country); });
     }
 
     /**
@@ -180,9 +182,10 @@ public:
      * @param a7 Suffix string, passed through.
      * @param a8 Passed through.
      * @return The original's result.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
      */
     void* build_name_key(void* out, const void* tag, void* a3, void* a4, void* a5, void* a6, void* a7,
-                         char a8) noexcept {
+                         char a8) {
         const Frame* const frame = active_frame;
         if (frame != nullptr && frame->layer.status == Status::valid && enabled_.load()) {
             const auto key = frame->layer.view();
@@ -196,8 +199,9 @@ public:
      * @brief Hook body of SetVariable::Execute.
      * @param effect Effect object.
      * @param context Execution context.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
      */
-    void set_variable(uptr effect, uptr context) noexcept {
+    void set_variable(uptr effect, uptr context) {
         originals_.set_variable(effect, context);
         if (!enabled_.load()) {
             return;
@@ -289,8 +293,9 @@ public:
      * @param faction Faction object.
      * @param out Result string (constructed here or by the original).
      * @return `out`.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
      */
-    void* faction_name(uptr faction, void* out) noexcept {
+    void* faction_name(uptr faction, void* out) {
         if (faction_layers_.load(std::memory_order_acquire) != 0 && enabled_.load()) {
             std::array<char, max_field_bytes> text{};
             std::size_t size = 0;
@@ -336,20 +341,20 @@ public:
 private:
     /**
      * @brief Runs one UpdateNames call with this thread's frame set to the country's layer.
-     * @tparam Call `noexcept` callable that calls UpdateNames.
+     *
+     * The previous frame comes back in a destructor, so an exception of the game's UpdateNames
+     * passes through without leaving this thread pointing at a dead frame (scan N6).
+     * @tparam Call Callable that calls UpdateNames (the game's own call may throw).
      * @param country Country object.
      * @param call The call.
      * @return What `call` returns.
      */
     template <class Call>
-    auto in_frame(uptr country, Call call) noexcept {
+    auto in_frame(uptr country, Call call) {
         Frame frame{};
         enter(country, frame);
-        Frame* const previous = active_frame;
-        active_frame = &frame;
-        const auto result = call();
-        active_frame = previous;
-        return result;
+        const core::ScopedFrame<Frame> scope(active_frame, &frame);
+        return call();
     }
 
     /**

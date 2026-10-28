@@ -17,6 +17,15 @@
  * filter for access violations, so a stale object makes the call fail instead of
  * crashing the game. No lock is held while a game function runs (callers guarantee it).
  *
+ * A C++ exception thrown inside one of these calls (scan N6; in practice only the game's
+ * fatal kinds: allocation failure, length error, a broken variant) cannot pass through
+ * CAPIE's `noexcept` callers: `std::terminate` would end the process with a `__fastfail` that
+ * skips the game's crash reporter. The filter therefore latches and hands the exception to
+ * the process's unhandled-exception filter, which is the game's reporter (minidump.dmp and
+ * exception.txt), exactly as if nothing had caught it, and then ends the process the way
+ * Windows does after an unhandled exception. Under a debugger the reporter declines and the
+ * exception continues to the debugger.
+ *
  * Fault latch: the first fault inside a game call stops every later game call of BOTH DLLs.
  * Each DLL has its own copy of the inline variables here, so the core exports its latch
  * (`game_call_latch_export`) and the editor adopts it at initialization
@@ -120,17 +129,55 @@ inline void share_game_call_latch(std::atomic<bool>* shared) noexcept {
     game_call_latch.store(shared, std::memory_order_release);
 }
 
+/// @brief Exception code of an MSVC C++ `throw` (`'msc' | 0xE0000000`).
+inline constexpr unsigned long cpp_exception_code = 0xE06D7363;
+
+/// @brief `LONG UnhandledExceptionFilter(EXCEPTION_POINTERS*)`: runs the process's top-level filter.
+using UnhandledReport = LONG(WINAPI*)(EXCEPTION_POINTERS*);
+/// @brief Ends the process after an exception that was reported as unhandled.
+using EndProcess = void (*)(unsigned long code);
+
 /**
- * @brief Records a fault inside a game call (see `game_call_faulted`).
- * @return `EXCEPTION_EXECUTE_HANDLER` when `code` is a memory fault, else `EXCEPTION_CONTINUE_SEARCH`.
- * @param code Exception code.
+ * @brief Default `EndProcess`: what Windows does after an unhandled exception.
+ * @param code Exception code, used as the exit code.
  */
-inline int game_call_exception(unsigned long code) noexcept {
-    const int verdict = memory_exception(code);
-    if (verdict == EXCEPTION_EXECUTE_HANDLER) {
+inline void terminate_process(unsigned long code) noexcept {
+    static_cast<void>(TerminateProcess(GetCurrentProcess(), static_cast<UINT>(code)));
+}
+
+/// @brief Reporter of a C++ exception inside a game call (the game's crash reporter); tests replace it.
+inline UnhandledReport unhandled_report = &UnhandledExceptionFilter;
+/// @brief Called when the reporter asks for the process to end; tests replace it.
+inline EndProcess end_process = &terminate_process;
+
+/**
+ * @brief SEH filter of every game call: latches memory faults and reports C++ exceptions.
+ *
+ * Memory fault: latch, then the wrapper returns failure. C++ exception: latch, then the
+ * game's reporter sees it with the throw's own context (nothing is unwound yet); when the
+ * reporter asks for the end of the process (`EXCEPTION_EXECUTE_HANDLER`), the process ends here.
+ * Any other verdict (a debugger, or a test's `end_process` that returns) is passed on.
+ * Every other exception continues its normal search.
+ * @param info Exception information from `GetExceptionInformation()`.
+ * @return The SEH verdict.
+ */
+inline int game_call_exception(EXCEPTION_POINTERS* info) noexcept {
+    const unsigned long code =
+        info != nullptr && info->ExceptionRecord != nullptr ? info->ExceptionRecord->ExceptionCode : 0;
+    if (memory_exception(code) == EXCEPTION_EXECUTE_HANDLER) {
         game_call_latch.load(std::memory_order_acquire)->store(true, std::memory_order_release);
+        return EXCEPTION_EXECUTE_HANDLER;
     }
-    return verdict;
+    if (code != cpp_exception_code) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    game_call_latch.load(std::memory_order_acquire)->store(true, std::memory_order_release);
+    const LONG verdict = unhandled_report(info);
+    if (verdict == EXCEPTION_EXECUTE_HANDLER) {
+        end_process(code);
+        return EXCEPTION_EXECUTE_HANDLER;  // only reached when a test's end_process returns
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
 }
 
 /**
@@ -176,7 +223,7 @@ inline void* guarded_find(FindWidget lookup, void* root, const char* name) noexc
     void* widget = nullptr;
     __try {
         widget = lookup(root, &view, false, false);
-    } __except (game_call_exception(GetExceptionCode())) {
+    } __except (game_call_exception(GetExceptionInformation())) {
         return nullptr;
     }
     // The type check is a CAPIE read: guarded, and never counted as a game-call fault.
@@ -202,7 +249,7 @@ inline bool guarded_set(void* edit, const MsvcString* text) noexcept {
     __try {
         set_text(reinterpret_cast<void*>(reinterpret_cast<std::uintptr_t>(edit) + core::off::edit_buffer), text);
         return true;
-    } __except (game_call_exception(GetExceptionCode())) {
+    } __except (game_call_exception(GetExceptionInformation())) {
         return false;
     }
 }
@@ -219,7 +266,7 @@ inline bool guarded_refresh(void* edit) noexcept {
     __try {
         refresh_edit(edit);
         return true;
-    } __except (game_call_exception(GetExceptionCode())) {
+    } __except (game_call_exception(GetExceptionInformation())) {
         return false;
     }
 }
@@ -238,7 +285,7 @@ inline bool caption_call(void* gui, int index) noexcept {
     __try {
         caption_request(gui, index);
         return true;
-    } __except (game_call_exception(GetExceptionCode())) {
+    } __except (game_call_exception(GetExceptionInformation())) {
         return false;
     }
 }
@@ -255,7 +302,7 @@ inline bool focus_call_null(void* manager) noexcept {
     __try {
         focus_switch(manager, nullptr);
         return true;
-    } __except (game_call_exception(GetExceptionCode())) {
+    } __except (game_call_exception(GetExceptionInformation())) {
         return false;
     }
 }
@@ -275,7 +322,7 @@ inline bool guarded_portrait_valid(PortraitValid valid, const void* entry, bool&
     __try {
         result = valid(entry);
         return true;
-    } __except (game_call_exception(GetExceptionCode())) {
+    } __except (game_call_exception(GetExceptionInformation())) {
         return false;
     }
 }
@@ -297,7 +344,7 @@ inline bool guarded_string_copy(StringCopy copy, void* out, const void* source) 
     __try {
         copy(out, source);
         return true;
-    } __except (game_call_exception(GetExceptionCode())) {
+    } __except (game_call_exception(GetExceptionInformation())) {
         return false;
     }
 }
@@ -315,7 +362,7 @@ inline bool guarded_update_names(UpdateNames update, std::uintptr_t country) noe
     __try {
         static_cast<void>(update(country));
         return true;
-    } __except (game_call_exception(GetExceptionCode())) {
+    } __except (game_call_exception(GetExceptionInformation())) {
         return false;
     }
 }

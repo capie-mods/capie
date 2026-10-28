@@ -109,6 +109,7 @@ inline constexpr VtableClass editor_vtable_classes[] = {
     {"vt_edit_definition", rva::vt_edit_definition, ".?AVCEditBoxType@@", 0},
     {"vt_execute_effect", rva::vt_execute_effect, ".?AVCExecuteScriptedWindowEffect@@", 0},
     {"vt_sg_model", rva::vt_sg_model, ".?AVCScriptedWindowTemplate@@", 0},
+    {"vt_sg_manager", rva::vt_sg_manager, ".?AVCScriptedWindowManager@@", 0},
     {"vt_sg_context", rva::vt_sg_context, ".?AVCScriptedWindowGUIUpdater@@", 0},
     {"vt_sg_root", rva::vt_sg_root, ".?AVCContainerWindow@@", 0},
     {"vt_politics_view", rva::vt_politics_view, ".?AVCCountryPoliticsView@@", 0},

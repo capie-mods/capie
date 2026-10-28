@@ -12,7 +12,8 @@
  * writes, and it does not keep pointers. Callers copy scalars out and drop the address.
  * The `VirtualQuery` check runs on every call on purpose: game objects can be freed
  * between two frames, and the check is what keeps a stale pointer from touching a guard
- * page (a guard-page fault is not caught by the handler below).
+ * page (a guard-page fault is not caught by the handler below). The one exception is
+ * `seh_copy`, an SEH-only copy for fields the game read in the same call (Tick hot path).
  *
  * Contracts: all functions are `noexcept` and callable from any thread. `rd()` is the
  * template the feature code uses with either `ProcessMemory` (in the game) or a fake
@@ -118,6 +119,43 @@ inline bool guarded_copy(void* target, const void* source, std::size_t size) noe
         }
         return true;
     } __except (memory_exception(GetExceptionCode())) {
+        return false;
+    }
+}
+
+/**
+ * @brief SEH filter of `seh_copy`: memory faults, including a guard-page hit.
+ * @param code Exception code from `GetExceptionCode()`.
+ * @return `EXCEPTION_EXECUTE_HANDLER` for access violations, in-page errors and guard pages,
+ *         otherwise `EXCEPTION_CONTINUE_SEARCH`.
+ */
+inline int seh_copy_exception(DWORD code) noexcept {
+    return code == STATUS_GUARD_PAGE_VIOLATION ? EXCEPTION_EXECUTE_HANDLER : memory_exception(code);
+}
+
+/**
+ * @brief Copies `size` bytes under an SEH guard only, without the `VirtualQuery` check.
+ *
+ * Only for memory the game has just used in the same call, such as the fields of the window
+ * the original Tick read a moment ago (a live heap object, never a guard page). It saves the
+ * system call that `guarded_copy` pays per read. A fault still returns `false`; a guard-page
+ * hit is also caught, because the game's own read would already have consumed that guard.
+ * @param target Destination buffer owned by the caller (at least `size` bytes).
+ * @param source Engine address to read; null or a wrapping range fails.
+ * @param size Number of bytes.
+ * @return `true` when the full range was copied.
+ */
+inline bool seh_copy(void* target, const void* source, std::size_t size) noexcept {
+    const auto address = reinterpret_cast<uptr>(source);
+    if (address == 0 || size > uptr_max - address) {
+        return false;
+    }
+    __try {
+        if (size != 0) {
+            std::memcpy(target, source, size);
+        }
+        return true;
+    } __except (seh_copy_exception(GetExceptionCode())) {
         return false;
     }
 }

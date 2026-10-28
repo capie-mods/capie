@@ -2,6 +2,7 @@
 // hooks, in an owned fake image. No game process, no hooks installed, no real native call.
 #include "../compat/rn_editor_bridge.hpp"
 #include <array>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -75,6 +76,7 @@ void build_world(World& w) {
     put(w.view.data(), 0, image_base + crva::vt_politics_view); put(w.view.data(), off::view_observer, image_base + crva::vt_politics_observer);
     put(w.view.data(), off::view_gui, static_cast<void*>(w.gui.data())); put(w.view.data(), off::view_idler, static_cast<void*>(w.idler.data()));
     put(w.view.data(), off::view_root, static_cast<void*>(w.politics_root.data()));
+    put(w.manager.data(), 0, image_base + crva::vt_sg_manager);
     put(w.manager.data(), off::manager_idler, static_cast<void*>(w.idler.data()));
     for (std::size_t m = 0; m < rn::caption::model_count; ++m) {
         auto& o = w.own[m]; auto* win = o.window.data();
@@ -163,6 +165,13 @@ void* __fastcall fake_ctor(void* self, const MsvcString*, const MsvcString*, con
 void __fastcall fake_dispatch_ctor(void*, void*) {
     ++dispatch_originals;
     if (origin) constructor_bridged(fake_effect, origin->model_name, origin->selector, origin->scope, origin->source);
+}
+// Scan N6: a native dispatch that throws after the effect was built (records whether our frame was set).
+bool throw_saw_frame = false;
+void __fastcall throwing_dispatch(void* context, void* selector) {
+    throw_saw_frame = origin != nullptr;
+    fake_dispatch_ctor(context, selector);
+    throw std::runtime_error("dispatch");
 }
 std::size_t captured_count(const char* key) {
     std::size_t n = 0;
@@ -485,6 +494,40 @@ int main() {
     const auto m1_hidden = dispatch_originals;
     dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
     check(dispatch_originals == m1_hidden, "M1: hidden editor still drops (no sentinel)");
+
+    // 19. Ghidra review G3: root flag 0x04 means "being destroyed": invalid (no game call), not hidden.
+    show(LE, true);
+    {
+        View v{};
+        check(inspect_window(le, v) == ViewResult::visible, "G3: control window visible");
+        put(w->own[LE].root.data(), 0xA5, static_cast<unsigned char>(8 | 4));
+        check(inspect_window(le, v) == ViewResult::invalid, "G3: destroyed root is invalid");
+        put(w->own[LE].root.data(), 0xA5, static_cast<unsigned char>(8 | 0x10));
+        check(inspect_window(le, v) == ViewResult::hidden, "G3: script-hidden root stays valid (hidden)");
+    }
+    show(LE, true); tick_observed(le, 0);
+
+    // 20. Scan N6: an exception of the original Dispatch passes through the hook body, and the
+    //     dispatch frame is restored on the way out (no dangling frame for the next constructor).
+    check(lifecycle[0].prefilled, "N6: leader prefilled");
+    original_dispatch = throwing_dispatch;
+    bool caught = false;
+    try {
+        dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    } catch (const std::runtime_error&) {
+        caught = true;
+    }
+    check(caught && throw_saw_frame, "N6: the exception of the original Dispatch reaches the caller (frame was set)");
+    check(origin == nullptr, "N6: dispatch frame restored after the exception");
+    caught = false;
+    const auto foreign_apply = selector("vanilla_button_click");
+    try {
+        dispatch_observed(le_context, const_cast<MsvcString*>(&foreign_apply));
+    } catch (const std::runtime_error&) {
+        caught = true;
+    }
+    check(caught && origin == nullptr, "N6: a forwarded (foreign) click lets the exception through too");
+    original_dispatch = fake_dispatch_ctor;
 
     std::printf("caption refresh bridge integration: %u checks, %u failures\n", checks, failures);
     std::fflush(stdout);

@@ -525,9 +525,10 @@ inline bool frame_names(const Origin& current, const MsvcString* gui, const Msvc
  * @param scope Scope argument.
  * @param source Record vector argument.
  * @return The original constructor's result, unchanged.
+ * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
  */
 inline void* __fastcall constructor_bridged(void* self, const MsvcString* gui, const MsvcString* selector,
-                                            const void* scope, const TempVector* source) noexcept {
+                                            const void* scope, const TempVector* source) {
     Origin* current = origin;
     if (!active.load(std::memory_order_acquire) || current == nullptr || gui != current->model_name ||
         selector != current->selector || scope != current->scope || source != current->source ||
@@ -583,8 +584,9 @@ inline const char* stale_reason(unsigned code) noexcept {
  * @param opaque_selector Selector argument of Dispatch.
  * @param code Sentinel code (1 stale, 2 no counter, 3 counter limit; anything else becomes 1).
  * @return `false` when the vector could not be copied (the caller then drops and logs).
+ * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
  */
-inline bool dispatch_stale(Origin& current, void* opaque_selector, unsigned code) noexcept {
+inline bool dispatch_stale(Origin& current, void* opaque_selector, unsigned code) {
     const auto context_address = reinterpret_cast<std::uintptr_t>(current.context);
     if (code < static_cast<unsigned>(StaleCode::stale) || code > static_cast<unsigned>(StaleCode::counter_limit)) {
         code = static_cast<unsigned>(StaleCode::stale);

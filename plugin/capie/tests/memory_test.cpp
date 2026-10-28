@@ -7,7 +7,9 @@
  * one; `guarded_copy()` and `member()` must then fail without touching the memory. For a
  * guard page the test also checks that the guard is still armed afterwards, i.e. nothing
  * was read (a read would consume the guard or raise STATUS_GUARD_PAGE_VIOLATION, which
- * the SEH filter deliberately does not handle). Owned pages only; no game process.
+ * the SEH filter deliberately does not handle). `seh_copy()` (Tick hot path) skips the check
+ * and must still return false, without a crash, on every one of those pages, the guard page
+ * included. Owned pages only; no game process.
  */
 #include "../src/core/memory.hpp"
 
@@ -84,6 +86,13 @@ int main() {
     check(!readable(nullptr, 1) && !member(nullptr, 0, word), "null is refused");
     check(!readable(reinterpret_cast<const void*>(uptr_max - 3), 8), "address overflow is refused");
     check(!member(pages, uptr_max, word), "offset overflow is refused");
+    // seh_copy (review P1): no VirtualQuery, the SEH guard alone; every fault reads as failure.
+    check(seh_copy(&byte, pages, 1) && byte == marker, "seh_copy reads a read/write page");
+    check(!seh_copy(&byte, pages + (2 * page), 1), "seh_copy fails on the no-access page, no crash");
+    check(!seh_copy(&byte, pages + (3 * page), 1), "seh_copy fails on the uncommitted page, no crash");
+    check(!seh_copy(&byte, nullptr, 1) && !seh_copy(&word, reinterpret_cast<const void*>(uptr_max - 3), 8),
+          "seh_copy refuses null and a wrapping range");
+    check(!seh_copy(&byte, pages + page, 1), "seh_copy fails on the guard page, no crash");
     check(VirtualFree(pages, 0, MEM_RELEASE) != 0, "release");
     static_cast<void>(std::printf("memory tests: %d checks, %d failures\n", checks, failures));
     return failures != 0 ? 1 : 0;

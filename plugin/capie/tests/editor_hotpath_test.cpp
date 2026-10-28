@@ -9,6 +9,12 @@
  *    Completeness: every model name an observer accepts passes the pre-filter.
  * 2. Tick on foreign windows forwards the original exactly once and leaves no log line and
  *    no caption/focus state change.
+ * 2b. Remembered verdicts (review P1/P2): the Tick pre-filter equals the fresh one for thousands
+ *    of models (the table clears itself when full), a Bind replaces the verdict of a reused
+ *    model address, a failed read is never remembered (and a failed read at Bind forgets
+ *    everything), and an unreadable or guard-page window reads as "not ours" without a crash.
+ * 2c. Scan N6: a C++ exception thrown by the original Tick or Bind passes through the hook body
+ *    to the caller (a `noexcept` hook would end the process instead).
  * 3. Release flavor: `RN_INLINE` lines carry no typed text; debug flavor keeps it.
  * 4. Exports of the built DLL (path argument): `RNDebugRequest` only in the debug flavor.
  * No game process, no hooks installed.
@@ -17,6 +23,8 @@
 
 #include <array>
 #include <cstdio>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -53,6 +61,18 @@ void put(void* object, std::size_t offset, const T& value) {
 unsigned tick_calls = 0;
 void __fastcall fake_tick(void*, char) {
     ++tick_calls;
+}
+unsigned bind_calls = 0;
+void __fastcall fake_bind(void*) {
+    ++bind_calls;
+}
+/// @brief An original Tick that throws, the way a game helper reports a fatal error.
+void __fastcall throwing_tick(void*, char) {
+    throw std::runtime_error("tick");
+}
+/// @brief An original Bind that throws.
+void __fastcall throwing_bind(void*) {
+    throw std::runtime_error("bind");
 }
 
 /**
@@ -197,6 +217,107 @@ int main(int argc, char** argv) {
     check(tick_calls == 2000, "foreign ticks forward the original exactly once each");
     check(logs().size() == log_before, "foreign ticks write nothing");
     check(std::memcmp(&before, &after, sizeof(before)) == 0, "foreign ticks leave caption state unchanged");
+
+    // ---- 2b. Remembered verdicts of the Tick pre-filter (review P1/P2) -----------------------
+    {
+        static constexpr char own_name[] = "rn_ip_country_gui";  // 17 bytes: heap string layout
+        static constexpr char other_name[] = "vanilla_politics_gui";
+        const auto name_model = [](unsigned char* model, const char* name) {
+            put(model, 0, image_base + capie::core::rva::vt_sg_model);
+            put(model, 8, borrowed_string(name, std::strlen(name)));
+        };
+        // Many models: the remembered verdict always equals the fresh one, also after the table
+        // filled up and cleared itself.
+        constexpr std::size_t model_total = 3000;
+        const auto many = std::make_unique<FakeWindow[]>(model_total);
+        bool same = true;
+        unsigned own_seen = 0;
+        model_verdicts.clear();
+        for (int pass = 0; pass < 2; ++pass) {
+            for (std::size_t i = 0; i < model_total; ++i) {
+                auto& f = many[i];
+                if (pass == 0) {
+                    put(f.window.data(), 0xE8, static_cast<void*>(f.model.data()));
+                    name_model(f.model.data(), i % 3 == 0 ? own_name : other_name);
+                }
+                const bool cached = tick_window_may_be_own(f.window.data());
+                same = same && cached == window_may_be_own(f.window.data()) && cached == (i % 3 == 0);
+                own_seen += cached ? 1U : 0U;
+            }
+        }
+        check(same && own_seen == 2 * 1000, "remembered verdicts equal the fresh ones for 3000 models, twice");
+
+        // A Bind replaces the verdict of a reused model address (both directions).
+        original_bind = fake_bind;
+        FakeWindow reused{};
+        put(reused.window.data(), 0xE8, static_cast<void*>(reused.model.data()));
+        name_model(reused.model.data(), other_name);
+        check(!tick_window_may_be_own(reused.window.data()), "foreign model: not ours");
+        name_model(reused.model.data(), own_name);  // the game freed the model; a new one took its address
+        check(!tick_window_may_be_own(reused.window.data()), "without a Bind the remembered verdict holds");
+        bind_observed(reused.window.data());
+        check(bind_calls == 1 && tick_window_may_be_own(reused.window.data()),
+              "Bind gives the reused address its new verdict");
+        name_model(reused.model.data(), other_name);
+        bind_observed(reused.window.data());
+        check(!tick_window_may_be_own(reused.window.data()), "Bind also turns an own verdict into a foreign one");
+
+        // A failed read is never remembered.
+        auto* page = static_cast<unsigned char*>(VirtualAlloc(nullptr, 4096, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+        name_model(page, own_name);
+        DWORD old_protect = 0;
+        VirtualProtect(page, 4096, PAGE_NOACCESS, &old_protect);
+        FakeWindow late{};
+        put(late.window.data(), 0xE8, static_cast<void*>(page));
+        check(!tick_window_may_be_own(late.window.data()), "unreadable model: not ours");
+        VirtualProtect(page, 4096, PAGE_READWRITE, &old_protect);
+        check(tick_window_may_be_own(late.window.data()), "the unreadable verdict was not remembered");
+
+        // A failed read at Bind forgets every verdict (the old one for that address must not survive).
+        check(!tick_window_may_be_own(reused.window.data()), "foreign verdict remembered");
+        VirtualProtect(page, 4096, PAGE_NOACCESS, &old_protect);
+        bind_observed(late.window.data());  // the model of the bound window is unreadable
+        VirtualProtect(page, 4096, PAGE_READWRITE, &old_protect);
+        name_model(reused.model.data(), own_name);  // reused address, no Bind of its own
+        check(tick_window_may_be_own(reused.window.data()), "a failed read at Bind cleared the old verdicts");
+
+        // The window itself unreadable or on a guard page: "not ours", no crash, original still once.
+        auto* window_page =
+            static_cast<unsigned char*>(VirtualAlloc(nullptr, 4096, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS));
+        const auto ticks = tick_calls;
+        check(!tick_window_may_be_own(window_page), "unreadable window: not ours");
+        tick_observed(window_page, 0);
+        check(tick_calls == ticks + 1, "unreadable window: original forwarded once, no crash");
+        VirtualProtect(window_page, 4096, PAGE_READWRITE | PAGE_GUARD, &old_protect);
+        check(!tick_window_may_be_own(window_page), "guard-page window: not ours, no crash");
+        check(!tick_window_may_be_own(nullptr), "null window: not ours");
+        VirtualFree(window_page, 0, MEM_RELEASE);
+        VirtualFree(page, 0, MEM_RELEASE);
+        model_verdicts.clear();
+    }
+
+    // ---- 2c. Scan N6: exceptions of the originals pass through the hook bodies ---------------
+    {
+        FakeWindow window{};
+        bool caught = false;
+        original_tick = throwing_tick;
+        try {
+            tick_observed(window.window.data(), 0);
+        } catch (const std::runtime_error&) {
+            caught = true;
+        }
+        check(caught, "an exception of the original Tick reaches the caller");
+        caught = false;
+        original_bind = throwing_bind;
+        try {
+            bind_observed(window.window.data());
+        } catch (const std::runtime_error&) {
+            caught = true;
+        }
+        check(caught, "an exception of the original Bind reaches the caller");
+        original_tick = fake_tick;
+        original_bind = fake_bind;
+    }
 
     // ---- 3. Text in RN_INLINE lines only in the debug flavor ---------------------------------
     InputSnapshot sample{};

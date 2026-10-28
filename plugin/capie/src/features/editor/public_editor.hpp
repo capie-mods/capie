@@ -752,8 +752,9 @@ inline bool prepare_public(Origin& current, const PublicSnapshot& snapshot) noex
  * @param opaque_selector Selector argument of Dispatch.
  * @param code Sentinel code.
  * @return `false` when the vector could not be copied (the caller then drops and logs).
+ * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
  */
-inline bool dispatch_public_sentinel(Origin& current, void* opaque_selector, PublicSentinel code) noexcept {
+inline bool dispatch_public_sentinel(Origin& current, void* opaque_selector, PublicSentinel code) {
     TempVector source{};
     std::size_t kept = 0;
     if (original_ctor == nullptr || !copy_public_originals(current, kept, source) ||
@@ -814,8 +815,9 @@ inline bool public_still_current(const Origin& current, const PublicCommit& comm
  * @param opaque_selector Selector argument of Dispatch.
  * @return `false` when the click is not a grammar Apply (the caller forwards it unchanged);
  *         `true` when it was dispatched once, forwarded as a sentinel or dropped (logged).
+ * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
  */
-inline bool public_dispatch(void* context, void* opaque_selector) noexcept {
+inline bool public_dispatch(void* context, void* opaque_selector) {
     const auto* selector = static_cast<const MsvcString*>(opaque_selector);
     PublicCommit commit{};
     if (!public_commit(context, selector, commit)) {

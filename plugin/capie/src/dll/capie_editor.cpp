@@ -23,6 +23,13 @@
  * its result through unchanged; observers run after it (Tick, Bind) or before it without
  * changing its arguments (Dispatch, constructor).
  *
+ * The hook bodies are not `noexcept` (scan N6, Ghidra review G7): a C++ exception thrown by
+ * the original must reach the game's own handlers as if CAPIE were not there. Through a
+ * `noexcept` frame it would end in `std::terminate`, which in CAPIE's static CRT is a
+ * `__fastfail` that skips the game's crash reporter (no minidump.dmp, no exception.txt).
+ * CAPIE's own work stays in `noexcept` helpers; anything a hook body sets up around the
+ * original (the dispatch frame) is undone by a destructor.
+ *
  * Initialization (`RNInitialize`, called once by the injector on a remote thread): refuses
  * co-loading with any predecessor bridge (40), checks the executable SHA-256 (10), the PE
  * headers (11) and `.text` (12), every editor signature (20), every caption signature
@@ -106,8 +113,9 @@ constexpr DWORD max_path_chars = 32768;
  * @brief Hook body of Tick: original first, then the observers (pre-filtered per window).
  * @param window Scripted window.
  * @param force Original argument.
+ * @note Not `noexcept`: an exception of the original passes through unchanged (file comment).
  */
-void __fastcall tick_observed(void* window, char force) noexcept {
+void __fastcall tick_observed(void* window, char force) {
     original_tick(window, force);
     if (!active.load(std::memory_order_acquire)) {
         return;
@@ -115,9 +123,10 @@ void __fastcall tick_observed(void* window, char force) noexcept {
 #if CAPIE_CONSOLE_CANDIDATE
     console::wiring::on_tick();  // registers the console commands once, on this (game) thread
 #endif
-    // Performance: one cheap identity read decides whether any observer can care about this
-    // window; for every other window the observers would all return "unrelated".
-    const bool own = window_may_be_own(window);
+    // Performance: one SEH-only read of the model pointer and a lookup of its remembered
+    // verdict decide whether any observer can care about this window (review P1/P2); for every
+    // other window the observers would all return "unrelated".
+    const bool own = tick_window_may_be_own(window);
     if (own) {
         observe_tick(window);
         public_observe_tick(window);
@@ -139,14 +148,18 @@ void __fastcall tick_observed(void* window, char force) noexcept {
 /**
  * @brief Hook body of Bind: original first, then caption/focus/lifecycle resets.
  * @param window Scripted window.
+ * @note Not `noexcept`: an exception of the original passes through unchanged (file comment).
  */
-void __fastcall bind_observed(void* window) noexcept {
+void __fastcall bind_observed(void* window) {
     // Native construction/rebind and recursive widget binding finish first. Forward once;
     // do not access an old root or cache a window/widget pointer.
     original_bind(window);
     if (!active.load(std::memory_order_acquire)) {
         return;
     }
+    // Every window is bound before its first Tick, so this keeps the Tick pre-filter's verdict
+    // for this model current (a model address the game reused gets its new verdict here).
+    remember_bound_model(window);
     caption_bind(window);
     focus_bind(window);
     public_bind(window);
@@ -184,7 +197,7 @@ bool enter_event(void* event) noexcept {
  * @param event Key event.
  * @return Original RAX, unchanged.
  */
-std::uint64_t __fastcall key_observed(void* buffer, void* event) noexcept {
+std::uint64_t __fastcall key_observed(void* buffer, void* event) {
     key_prelog_from_buffer(buffer, event);  // Before the unchanged Enter predicate.
     std::size_t field = field_count;
     std::uint64_t epoch = 0;
@@ -240,7 +253,7 @@ std::uint64_t __fastcall key_observed(void* buffer, void* event) noexcept {
  * @param event Key event.
  * @return Original RAX, unchanged (no bool normalisation, no post-call dereference).
  */
-__declspec(noinline) std::uint64_t __fastcall wrapper_observed(void* edit, void* event) noexcept {
+__declspec(noinline) std::uint64_t __fastcall wrapper_observed(void* edit, void* event) {
     key_prelog(edit, event, true);
     return original_wrapper(edit, event);
 }
@@ -249,7 +262,7 @@ __declspec(noinline) std::uint64_t __fastcall wrapper_observed(void* edit, void*
  * @brief Hook body of Execute (debug flavor): copy headers, forward once, log the return.
  * @param command Command (may be destroyed by the original).
  */
-void __fastcall execute_observed(void* command) noexcept {
+void __fastcall execute_observed(void* command) {
     ExecuteObservation copied{};
     if (active.load(std::memory_order_acquire)) {
         copied = debug_execute_command(command);
@@ -271,7 +284,7 @@ void __fastcall execute_observed(void* command) noexcept {
  * @param context Window context.
  * @param opaque_selector Selector string.
  */
-void __fastcall dispatch_observed(void* context, void* opaque_selector) noexcept {
+void __fastcall dispatch_observed(void* context, void* opaque_selector) {
     const auto* selector = static_cast<const MsvcString*>(opaque_selector);
     if constexpr (debug_diagnostics) {
         if (active.load(std::memory_order_acquire)) {

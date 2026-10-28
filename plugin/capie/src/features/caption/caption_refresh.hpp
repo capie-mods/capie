@@ -492,6 +492,7 @@ enum class Reject : unsigned {
     root_null,
     parent_root,
     dirty_read,
+    manager_vt,  ///< window+F0 is not a `CScriptedWindowManager` (appended: earlier values keep their numbers).
 };
 /**
  * @brief Log name of a `Reject`.
@@ -504,7 +505,7 @@ inline const char* reject_name(Reject r) noexcept {
                                             "idler-null",    "idler-vt",     "idler-slot",      "manager-idler",
                                             "gui-null",      "gui-idler",    "view-null",       "view-vt",
                                             "observer-vt",   "view-slots",   "view-gui",        "view-idler",
-                                            "root-null",     "parent-root",  "dirty-read"};
+                                            "root-null",     "parent-root",  "dirty-read",      "manager-vt"};
     const auto i = static_cast<unsigned>(r);
     return i < sizeof(names) / sizeof(names[0]) ? names[i] : "unknown";
 }
@@ -628,9 +629,16 @@ Reject resolve_idler(const M& mem, uptr image, uptr window, ResolveDiag* diag, u
         return Reject::idler_slot;
     }
     uptr manager = 0;
+    uptr manager_vt = 0;
     uptr manager_idler = 0;
-    if (!rd(mem, window, off::window_manager, manager) || !rd(mem, manager, off::manager_idler, manager_idler) ||
-        manager_idler != idler) {
+    if (!rd(mem, window, off::window_manager, manager) || !manager) {
+        return Reject::manager_idler;
+    }
+    // The owner is the CScriptedWindowManager (Ghidra review G1); its idler is the window's.
+    if (!rd(mem, manager, 0, manager_vt) || manager_vt != image + rva::vt_sg_manager) {
+        return vt_reject(diag, image, Reject::manager_vt, manager_vt, image + rva::vt_sg_manager);
+    }
+    if (!rd(mem, manager, off::manager_idler, manager_idler) || manager_idler != idler) {
         return Reject::manager_idler;
     }
     return Reject::none;
@@ -846,14 +854,16 @@ WindowKind inspect(const M& mem, uptr image, uptr window, OwnWindow& out) noexce
     uptr parent = 0;
     unsigned char flags = 0;
     unsigned char desired = 0;
-    // A root equal to the parent is the window factory's failure result, not this window's root.
+    // A root equal to the parent is the window factory's failure result, not this window's root;
+    // a root with the destroyed bit is being dropped by the game (review G3). Both are invalid.
     if (!rd(mem, context, 0, ctx_vt) || ctx_vt != image + rva::vt_sg_context ||
         !rd(mem, context, off::context_window, ctx_window) || ctx_window != window ||
         !rd(mem, context, off::context_model, ctx_model) || ctx_model != model ||
         !rd(mem, context, off::context_root, ctx_root) || !rd(mem, window, off::window_root, root) || !root ||
         ctx_root != root || !rd(mem, window, off::window_parent, parent) || parent == root ||
         !rd(mem, root, 0, root_vt) || root_vt != image + rva::vt_sg_root ||
-        !rd(mem, root, off::root_flags, flags) || !rd(mem, window, off::window_desired, desired)) {
+        !rd(mem, root, off::root_flags, flags) || core::flag::is_destroyed(flags) ||
+        !rd(mem, window, off::window_desired, desired)) {
         return WindowKind::invalid;
     }
     out.root = root;

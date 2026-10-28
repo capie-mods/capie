@@ -78,8 +78,14 @@ inline constexpr std::uintptr_t leader_portrait_write = 0x143ADA0;
 // ---- Scripted window manager and widgets (hooked or called by capie_editor.dll) ---------
 /// @brief `void Tick(window*, char force)`; per-frame scripted window update, hooked.
 inline constexpr std::uintptr_t window_tick = 0xBDB500;
-/// @brief `void Bind(window*)`; scripted window (re)bind, hooked.
+/// @brief `void Bind(window*)`; scripted window (re)bind, hooked. Called by the manager's rebuild
+/// (`window_manager_rebuild`) for each new window before it enters the window array, and by
+/// the window's rebind (vtable slot 0x10, which unbinds first).
 inline constexpr std::uintptr_t window_bind = 0xBD8ED0;
+/// @brief `CScriptedWindowManager::Rebuild(manager*)`: destroys every window, then builds one per
+/// scripted GUI template (window construction inlined) and binds it. The only place windows are
+/// created; documentation only (pinned through `window_pins.hpp`), never called.
+inline constexpr std::uintptr_t window_manager_rebuild = 0xBDBAB0;
 /// @brief Constructor of the context embedded in a scripted window; pinned (`window_pins.hpp`), never called.
 inline constexpr std::uintptr_t window_context_ctor = 0xBD7D40;
 /// @brief `void Dispatch(context*, selector*)`; button click to effect dispatch, hooked.
@@ -140,8 +146,10 @@ inline constexpr std::uintptr_t focus_manager_rip_displacement = 0x2379B76;
 inline constexpr std::uintptr_t focus_manager_rip_next = 0x2379B7A;
 
 // ---- Vtables (.rdata) -----------------------------------------------------------------------
-/// @brief Scripted GUI model (runtime-proven by the render bridge).
+/// @brief Scripted GUI model, `CScriptedWindowTemplate` (runtime-proven by the render bridge, RTTI-checked).
 inline constexpr std::uintptr_t vt_sg_model = 0x2A54398;
+/// @brief `CScriptedWindowManager` primary vtable (RTTI-checked; slot 0x38 is the per-frame Tick loop).
+inline constexpr std::uintptr_t vt_sg_manager = 0x29CB368;
 /// @brief Scripted GUI window context (runtime-proven).
 inline constexpr std::uintptr_t vt_sg_context = 0x29CB310;
 /// @brief Scripted GUI root widget (runtime-proven).
@@ -208,8 +216,8 @@ inline constexpr std::uintptr_t portrait_entry_name = 0x8;     ///< MSVC string 
 inline constexpr std::uintptr_t portrait_entry_handle = 0x28;  ///< Texture handle of a path entry.
 // ---- Scripted window ----------------------------------------------------------------------
 inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (BDB79E).
-inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model pointer (runtime-proven).
-/// @brief Token-map owner; manager identity is OPEN (used as an equality guard only).
+inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model (`CScriptedWindowTemplate`) pointer (runtime-proven).
+/// @brief The owning `CScriptedWindowManager` (stored by the rebuild; vtable `vt_sg_manager`).
 inline constexpr std::uintptr_t window_manager = 0xF0;
 inline constexpr std::uintptr_t window_root = 0xF8;          ///< Root widget (runtime-proven).
 inline constexpr std::uintptr_t window_parent = 0x100;       ///< Parent root (BD8FA9).
@@ -217,6 +225,10 @@ inline constexpr std::uintptr_t window_parent_sg = 0x108;    ///< Parent scripte
 inline constexpr std::uintptr_t window_context = 0x110;      ///< Embedded context object (runtime-proven).
 inline constexpr std::uintptr_t window_parent_seen = 0xBF8;  ///< Parent-visible cache byte (diagnostic copy only).
 inline constexpr std::uintptr_t window_desired = 0xBF9;      ///< Visible-trigger result byte (runtime-proven).
+/// @brief Byte: 1 forces the next Tick to refresh (set by the unbind before every rebind, cleared by
+/// Tick); diagnostic knowledge only, CAPIE never reads or writes it. The unbind also destroys the
+/// old root, which is why no root pointer is ever kept.
+inline constexpr std::uintptr_t window_force_refresh = 0xBFA;
 
 // ---- Window context (at window + window_context) -------------------------------------------
 inline constexpr std::uintptr_t context_window = 0x10;    ///< Back-pointer to the window.
@@ -235,7 +247,7 @@ inline constexpr std::uintptr_t model_parent_window_len = 0x60;  ///< parent_win
 inline constexpr std::uintptr_t model_parent_sg_len = 0x80;      ///< parent_scripted_gui name length (BD8FC4).
 
 // ---- Root widget ------------------------------------------------------------------------------
-inline constexpr std::uintptr_t root_flags = 0xA5;           ///< Visibility flag byte.
+inline constexpr std::uintptr_t root_flags = 0xA5;           ///< Flag byte (`flag::destroyed`, `shown`, `hidden`).
 // CContainerWindow keeps one name hash map per widget type (0x38 apart, +12A0..+15E8, initialised
 // by its constructor) and one vector of all children (docs/research/port-1.19.4.0.md).
 inline constexpr std::uintptr_t root_instant_map = 0x1380;  ///< CInstantTextBox name map (FindInstantText 2334D40).
@@ -256,7 +268,7 @@ inline constexpr std::uintptr_t list_count = 0xC;     ///< int32 count.
 
 // ---- CEditBox ----------------------------------------------------------------------------------
 inline constexpr std::uintptr_t edit_definition = 0x60;        ///< Definition object pointer.
-inline constexpr std::uintptr_t edit_visibility_flags = 0x75;  ///< Widget flag byte (bit 3 shown, bits 2/4 hidden).
+inline constexpr std::uintptr_t edit_visibility_flags = 0x75;  ///< Widget flag byte (same bits as `root_flags`).
 inline constexpr std::uintptr_t edit_buffer = 0x80;            ///< Text-buffer subobject (SetText `this`).
 inline constexpr std::uintptr_t edit_text = 0xB0;              ///< UTF-32 text (inline when capacity <= 3).
 inline constexpr std::uintptr_t edit_size = 0xC0;              ///< UTF-32 length.
@@ -271,7 +283,7 @@ inline constexpr std::uintptr_t instant_text = 0x110;  ///< Displayed text (MSVC
 // ---- Focus/input manager -------------------------------------------------------------------------
 inline constexpr std::uintptr_t manager_focus = 0x138;     ///< Focused widget.
 inline constexpr std::uintptr_t manager_receiver = 0x210;  ///< Active text receiver.
-inline constexpr std::uintptr_t manager_idler = 0x18;      ///< Idler of the token-map owner (equality guard).
+inline constexpr std::uintptr_t manager_idler = 0x18;      ///< Idler of the `CScriptedWindowManager` (window+E0 copies it).
 
 // ---- Key event ------------------------------------------------------------------------------------
 inline constexpr std::size_t key_event_words = 8;         ///< DWORDs copied from a key event.
@@ -306,12 +318,15 @@ inline constexpr std::uintptr_t slot_edit_unfocus = 0xC8;      ///< CEditBox unf
 inline constexpr std::uintptr_t parent_flags = root_flags;     ///< Parent root visibility byte (same layout as a root).
 }  // namespace off
 
-/// @brief Widget/root visibility bits in the flag byte at `root_flags` / `edit_visibility_flags`.
+/// @brief Widget/root bits in the flag byte at `root_flags` / `edit_visibility_flags`.
 namespace flag {
-inline constexpr unsigned char hidden_a = 0x04;                   ///< Hidden (bit 2).
-inline constexpr unsigned char shown = 0x08;                      ///< Shown (bit 3).
-inline constexpr unsigned char hidden_b = 0x10;                   ///< Hidden (bit 4).
-inline constexpr unsigned char hidden_any = hidden_a | hidden_b;  ///< Any hidden bit.
+/// @brief Bit 2: being destroyed. Tick logs "window for %s is destroyed." (or "Parent window ...")
+/// and drops the root and parent pointers. Every guard treats it as invalid, not hidden, so no
+/// game call is made for such a window.
+inline constexpr unsigned char destroyed = 0x04;
+inline constexpr unsigned char shown = 0x08;                      ///< Bit 3: shown.
+inline constexpr unsigned char hidden = 0x10;                     ///< Bit 4: hidden by script (Tick sets it on hide).
+inline constexpr unsigned char hidden_any = destroyed | hidden;  ///< Any bit that means "not shown".
 inline constexpr unsigned char edit_active = 0x01;                ///< edit+281 bit 0: focused/receiving input.
 inline constexpr unsigned char edit_disabled = 0x02;              ///< edit+281 bit 1: disabled.
 
@@ -322,6 +337,15 @@ inline constexpr unsigned char edit_disabled = 0x02;              ///< edit+281 
  */
 constexpr bool shown_not_hidden(unsigned char flags) noexcept {
     return (flags & shown) != 0 && (flags & hidden_any) == 0;
+}
+
+/**
+ * @brief Whether the destroyed bit is set (the guards then return "invalid").
+ * @param flags Flag byte.
+ * @return `true` when the object is being destroyed.
+ */
+constexpr bool is_destroyed(unsigned char flags) noexcept {
+    return (flags & destroyed) != 0;
 }
 }  // namespace flag
 

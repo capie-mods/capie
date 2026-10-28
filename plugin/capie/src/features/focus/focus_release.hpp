@@ -204,6 +204,11 @@ Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
         !rd(mem, window, off::window_parent_seen, out.parent_seen)) {
         return Kind::invalid;
     }
+    // A root or parent with the destroyed bit is being dropped by the game (review G3): invalid, so
+    // no FocusSwitch is made for a window in teardown (it is not a "hide").
+    if (flag::is_destroyed(out.root_flags) || (parent != 0 && flag::is_destroyed(flags))) {
+        return Kind::invalid;
+    }
     // Same hidden criterion as the caption core's own-root check: shown bit, no hidden bit.
     out.parent_visible = parent != 0 && flag::shown_not_hidden(flags);
     out.parent_flags = flags;

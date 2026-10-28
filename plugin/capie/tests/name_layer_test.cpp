@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -443,6 +444,7 @@ struct Game {
     std::vector<std::string> copied;        ///< Texts the fake string copy received.
     bool fault_update{};                    ///< UpdateNames faults after its three keys.
     bool fault_copy{};                      ///< The string copy faults.
+    bool throw_update{};                    ///< UpdateNames throws a C++ exception after its three keys.
 };
 Game game;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake game state
 /// @brief Null, read through a volatile so the compiler keeps the faulting access.
@@ -483,6 +485,9 @@ std::uint64_t fake_update(uptr country) {
     }
     if (game.fault_update) {
         *null_target = 1;  // access violation inside the game call
+    }
+    if (game.throw_update) {
+        throw std::length_error("update");  // a game STL helper reporting a fatal error
     }
     return 1;
 }
@@ -615,6 +620,24 @@ void hook_tests() {
         name_layer.build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 0));
     check(game.tags.size() == 1 && game.tags[0] == "CAN_dominion",
           "BuildNameKey outside UpdateNames (set_cosmetic_tag tooltip) is unchanged");
+
+    // Scan N6: an exception of the game's UpdateNames passes through the hook, and the thread's
+    // frame is restored on the way out (a later BuildNameKey must not see country A's layer).
+    game.tags.clear();
+    game.throw_update = true;
+    bool caught = false;
+    try {
+        static_cast<void>(name_layer.update_names(country_a));
+    } catch (const std::length_error&) {
+        caught = true;
+    }
+    game.throw_update = false;
+    check(caught && game.tags.size() == 3 && game.tags[0] == "RN1|Kanadia|kanadyjski|",
+          "N6: the exception of UpdateNames reaches the caller after the layered keys");
+    game.tags.clear();
+    static_cast<void>(
+        name_layer.build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 0));
+    check(game.tags.size() == 1 && game.tags[0] == "CAN_dominion", "N6: the frame was restored after the exception");
 
     // Commit: A already shows its layer, B and C show none -> nothing to refresh.
     game.updated.clear();

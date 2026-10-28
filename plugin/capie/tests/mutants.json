@@ -363,7 +363,7 @@
   "name": "focus-bit16-ignored",
   "file": "src/features/focus/focus_release.hpp",
   "find": "out.parent_visible = parent != 0 && flag::shown_not_hidden(flags);",
-  "replace": "out.parent_visible = parent != 0 && (flags & flag::shown) != 0 && (flags & flag::hidden_a) == 0;",
+  "replace": "out.parent_visible = parent != 0 && (flags & flag::shown) != 0 && (flags & flag::destroyed) == 0;",
   "suite": "tests/legacy/focus_release_test.cpp",
   "summary": "focus release tests:"
  },
@@ -387,7 +387,7 @@
   "name": "focus-own-visible-bit16",
   "file": "src/features/focus/focus_release.hpp",
   "find": "out.own_visible = out.desired && flag::shown_not_hidden(out.root_flags);",
-  "replace": "out.own_visible = out.desired && (out.root_flags & flag::shown) != 0 && (out.root_flags & flag::hidden_a) == 0;",
+  "replace": "out.own_visible = out.desired && (out.root_flags & flag::shown) != 0 && (out.root_flags & flag::destroyed) == 0;",
   "suite": "tests/legacy/focus_release_test.cpp",
   "summary": "focus release tests:"
  },
@@ -706,8 +706,8 @@
  {
   "name": "public-prefilter-blocks-grammar",
   "file": "src/features/editor/window_view.hpp",
-  "find": "    return grammar::may_be_model(std::string_view(bytes, static_cast<std::size_t>(header.size)));",
-  "replace": "    return false;",
+  "find": "    return grammar::may_be_model(std::string_view(bytes, static_cast<std::size_t>(header.size))) ? ModelClass::maybe_own",
+  "replace": "    return false ? ModelClass::maybe_own",
   "suite": "tests/public_editor_test.cpp",
   "summary": "public editor tests:"
  },
@@ -842,8 +842,8 @@
  {
   "name": "name-layer-frame-not-restored",
   "file": "src/features/country/name_layer_hooks.hpp",
-  "find": "        const auto result = call();\n        active_frame = previous;",
-  "replace": "        const auto result = call();\n        static_cast<void>(previous);",
+  "find": "        const core::ScopedFrame<Frame> scope(active_frame, &frame);\n        return call();",
+  "replace": "        active_frame = &frame;\n        return call();",
   "suite": "tests/name_layer_test.cpp",
   "summary": "name layer tests:"
  },
@@ -1242,8 +1242,8 @@
  {
   "name": "latch-no-store",
   "file": "src/engine/game_calls.hpp",
-  "find": "game_call_latch.load(std::memory_order_acquire)->store(true, std::memory_order_release);",
-  "replace": "static_cast<void>(0);",
+  "find": "game_call_latch.load(std::memory_order_acquire)->store(true, std::memory_order_release);\n        return EXCEPTION_EXECUTE_HANDLER;",
+  "replace": "static_cast<void>(0);\n        return EXCEPTION_EXECUTE_HANDLER;",
   "suite": "tests/game_calls_test.cpp",
   "summary": "game calls tests:"
  },
@@ -1446,5 +1446,197 @@
   "replace": "",
   "suite": "tests/legacy/editor_integration_test.cpp",
   "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "seh-copy-no-handler",
+  "file": "src/core/memory.hpp",
+  "find": "return code == STATUS_GUARD_PAGE_VIOLATION ? EXCEPTION_EXECUTE_HANDLER : memory_exception(code);",
+  "replace": "return EXCEPTION_CONTINUE_SEARCH;",
+  "suite": "tests/memory_test.cpp",
+  "summary": "memory tests:"
+ },
+ {
+  "name": "seh-copy-guard-page-unhandled",
+  "file": "src/core/memory.hpp",
+  "find": "return code == STATUS_GUARD_PAGE_VIOLATION ? EXCEPTION_EXECUTE_HANDLER : memory_exception(code);",
+  "replace": "return memory_exception(code);",
+  "suite": "tests/memory_test.cpp",
+  "summary": "memory tests:"
+ },
+ {
+  "name": "tick-window-read-unguarded",
+  "file": "src/features/editor/window_view.hpp",
+  "find": "!core::seh_copy(&model, reinterpret_cast<const void*>(address + off::window_model), sizeof(model)) ||",
+  "replace": "(std::memcpy(&model, reinterpret_cast<const void*>(address + off::window_model), sizeof(model)), false) ||",
+  "suite": "tests/editor_hotpath_test.cpp",
+  "summary": "editor hot path"
+ },
+ {
+  "name": "bind-keeps-old-verdict",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "    remember_bound_model(window);\n",
+  "replace": "",
+  "suite": "tests/editor_hotpath_test.cpp",
+  "summary": "editor hot path"
+ },
+ {
+  "name": "verdict-remembers-unreadable",
+  "file": "src/features/editor/window_view.hpp",
+  "find": "if (!cacheable(model) || verdict == ModelClass::unreadable) {",
+  "replace": "if (!cacheable(model)) {",
+  "suite": "tests/editor_hotpath_test.cpp",
+  "summary": "editor hot path"
+ },
+ {
+  "name": "bind-unreadable-keeps-verdicts",
+  "file": "src/features/editor/window_view.hpp",
+  "find": "        model_verdicts.clear();  // an old verdict for this address must not survive (rare)\n",
+  "replace": "",
+  "suite": "tests/editor_hotpath_test.cpp",
+  "summary": "editor hot path"
+ },
+ {
+  "name": "verdict-find-ignores-key",
+  "file": "src/features/editor/window_view.hpp",
+  "find": "            if ((entry & ~tag_mask) == model) {\n                maybe_own",
+  "replace": "            if (entry != 0) {\n                maybe_own",
+  "suite": "tests/editor_hotpath_test.cpp",
+  "summary": "editor hot path"
+ },
+ {
+  "name": "view-destroyed-not-invalid",
+  "file": "src/features/editor/window_view.hpp",
+  "find": "!member(out.root, off::root_flags, flags) || flag::is_destroyed(flags) ||",
+  "replace": "!member(out.root, off::root_flags, flags) ||",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "caption-destroyed-not-invalid",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "!rd(mem, root, off::root_flags, flags) || core::flag::is_destroyed(flags) ||",
+  "replace": "!rd(mem, root, off::root_flags, flags) ||",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "focus-root-destroyed-not-invalid",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "if (flag::is_destroyed(out.root_flags) || (parent != 0 && flag::is_destroyed(flags))) {",
+  "replace": "if (parent != 0 && flag::is_destroyed(flags)) {",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-parent-destroyed-not-invalid",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "if (flag::is_destroyed(out.root_flags) || (parent != 0 && flag::is_destroyed(flags))) {",
+  "replace": "if (flag::is_destroyed(out.root_flags)) {",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "caption-manager-vt-unchecked",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "if (!rd(mem, manager, 0, manager_vt) || manager_vt != image + rva::vt_sg_manager) {",
+  "replace": "if (false) {",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "tick-hook-noexcept",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "void __fastcall tick_observed(void* window, char force) {",
+  "replace": "void __fastcall tick_observed(void* window, char force) noexcept {",
+  "suite": "tests/editor_hotpath_test.cpp",
+  "summary": "editor hot path"
+ },
+ {
+  "name": "bind-hook-noexcept",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "void __fastcall bind_observed(void* window) {",
+  "replace": "void __fastcall bind_observed(void* window) noexcept {",
+  "suite": "tests/editor_hotpath_test.cpp",
+  "summary": "editor hot path"
+ },
+ {
+  "name": "dispatch-hook-noexcept",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "void __fastcall dispatch_observed(void* context, void* opaque_selector) {",
+  "replace": "void __fastcall dispatch_observed(void* context, void* opaque_selector) noexcept {",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "origin-frame-not-restored",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "        const OriginFrame frame(&current);\n        original_dispatch(context, opaque_selector);",
+  "replace": "        origin = &current;\n        original_dispatch(context, opaque_selector);\n        origin = nullptr;",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "name-update-noexcept",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "    std::uint64_t update_names(uptr country) {",
+  "replace": "    std::uint64_t update_names(uptr country) noexcept {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-frame-not-restored",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "        const core::ScopedFrame<Frame> scope(active_frame, &frame);\n        return call();",
+  "replace": "        active_frame = &frame;\n        const auto result = call();\n        active_frame = nullptr;\n        return result;",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "flag-load-noexcept",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "int load_flag(uptr atlas, uptr country, void* dst, int a4, int a5, int a6, int a7, void* a8) {",
+  "replace": "int load_flag(uptr atlas, uptr country, void* dst, int a4, int a5, int a6, int a7, void* a8) noexcept {",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "flag-frame-not-restored",
+  "file": "src/features/country/flag_layer_hooks.hpp",
+  "find": "                const core::ScopedFrame<Frame> scope(active_frame, &frame);\n                status = originals_.load_flag(atlas, country, dst, a4, a5, a6, a7, a8);",
+  "replace": "                active_frame = &frame;\n                status = originals_.load_flag(atlas, country, dst, a4, a5, a6, a7, a8);\n                active_frame = nullptr;",
+  "suite": "tests/flag_layer_test.cpp",
+  "summary": "flag layer tests:"
+ },
+ {
+  "name": "cpp-exception-no-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "        return EXCEPTION_CONTINUE_SEARCH;\n    }\n    game_call_latch.load(std::memory_order_acquire)->store(true, std::memory_order_release);\n    const LONG",
+  "replace": "        return EXCEPTION_CONTINUE_SEARCH;\n    }\n    const LONG",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "cpp-exception-not-reported",
+  "file": "src/engine/game_calls.hpp",
+  "find": "const LONG verdict = unhandled_report(info);",
+  "replace": "const LONG verdict = EXCEPTION_EXECUTE_HANDLER;",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "cpp-exception-process-kept",
+  "file": "src/engine/game_calls.hpp",
+  "find": "        end_process(code);\n",
+  "replace": "",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "other-exception-latched",
+  "file": "src/engine/game_calls.hpp",
+  "find": "    if (code != cpp_exception_code) {\n        return EXCEPTION_CONTINUE_SEARCH;",
+  "replace": "    if (code != cpp_exception_code && code != 0xE0000001) {\n        return EXCEPTION_CONTINUE_SEARCH;",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
  }
 ]

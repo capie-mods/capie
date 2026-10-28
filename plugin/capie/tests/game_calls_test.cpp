@@ -7,6 +7,8 @@
  * is set, and that every wrapper afterwards refuses WITHOUT calling its fake. A fault in a CAPIE
  * read (the vtable check of a lookup on a no-access page) must not set the latch. The latch shared
  * between the two DLLs (`share_game_call_latch`) is checked with a stand-in for the core's latch.
+ * A C++ exception inside a game call (scan N6) must latch and reach the crash reporter (a stand-in
+ * for `UnhandledExceptionFilter`), any other exception must pass on unlatched.
  * Owned memory only; no game process.
  */
 #include "../src/engine/game_calls.hpp"
@@ -14,6 +16,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <stdexcept>
 
 namespace {
 
@@ -96,6 +99,37 @@ std::uint64_t faulting_update(std::uintptr_t) {
     ++calls.update;
     fault();
     return 1;
+}
+/// @brief A game function that throws a C++ exception (an STL helper's fatal error).
+void __fastcall throwing_set(void*, const MsvcString*) {
+    ++calls.set;
+    throw std::length_error("set");
+}
+/// @brief A game function that raises a non-C++, non-memory exception.
+void __fastcall raising_refresh(void*) {
+    ++calls.refresh;
+    RaiseException(0xE0000001, 0, 0, nullptr);
+}
+
+/// @brief What the stand-in for the game's crash reporter saw.
+struct Reported {
+    int reports{};               ///< Calls of the reporter.
+    unsigned long code{};        ///< Exception code it saw.
+    int ends{};                  ///< Calls of the process end.
+    unsigned long end_code{};    ///< Code passed to the process end.
+    LONG verdict{EXCEPTION_EXECUTE_HANDLER};  ///< What the reporter answers.
+} reported;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake reporter state
+
+/// @brief Stand-in for `UnhandledExceptionFilter` (the game's crash reporter behind it).
+LONG WINAPI fake_report(EXCEPTION_POINTERS* info) {
+    ++reported.reports;
+    reported.code = info->ExceptionRecord->ExceptionCode;
+    return reported.verdict;
+}
+/// @brief Stand-in for the process end (returns, so the test continues).
+void fake_end(unsigned long code) {
+    ++reported.ends;
+    reported.end_code = code;
 }
 
 /// @brief Clears the latch, the counters and the shared latch; installs the well-behaved fakes.
@@ -244,6 +278,48 @@ void shared_latch_tests() {
     reset();
 }
 
+/**
+ * @brief Scan N6: a C++ exception inside a game call latches, goes to the game's crash reporter
+ *        (the unhandled-exception filter) and then ends the process; other exceptions pass on.
+ */
+void cpp_exception_tests() {
+    reset();
+    unhandled_report = &fake_report;
+    end_process = &fake_end;
+    reported = Reported{};
+    set_text = throwing_set;
+    const MsvcString text = borrowed_string("x", 1);
+    check(!guarded_set(edit, &text), "C++ exception: the wrapper does not return normally");
+    check(!game_calls_allowed(), "C++ exception: the latch is set");
+    check(reported.reports == 1 && reported.code == cpp_exception_code, "C++ exception: the reporter saw it");
+    check(reported.ends == 1 && reported.end_code == cpp_exception_code, "C++ exception: the process is ended");
+    expect_editor_refused("C++ exception: every later call refused");
+
+    // Under a debugger the reporter declines: no process end here, the search goes on.
+    reset();
+    reported = Reported{};
+    reported.verdict = EXCEPTION_CONTINUE_SEARCH;
+    refresh_edit = raising_refresh;
+    bool passed_on = false;
+    __try {
+        static_cast<void>(guarded_refresh(edit));
+    } __except (GetExceptionCode() == 0xE0000001 ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
+        passed_on = true;
+    }
+    check(passed_on && game_calls_allowed() && reported.reports == 0 && reported.ends == 0,
+          "other exception: passed on, no latch, no report");
+
+    // A memory fault keeps its old path: latched, no report.
+    reset();
+    reported = Reported{};
+    set_text = faulting_set;
+    check(!guarded_set(edit, &text) && !game_calls_allowed() && reported.reports == 0 && reported.ends == 0,
+          "memory fault: latched, not reported");
+    unhandled_report = &UnhandledExceptionFilter;
+    end_process = &terminate_process;
+    reset();
+}
+
 }  // namespace
 
 /**
@@ -258,6 +334,7 @@ int main() {
     capie_read_tests();
     core_wrapper_tests();
     shared_latch_tests();
+    cpp_exception_tests();
     static_cast<void>(std::printf("game calls tests: %d checks, %d failures\n", checks, failures));
     return failures != 0 ? 1 : 0;
 }

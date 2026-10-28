@@ -198,6 +198,7 @@ int main() {
     put(w->view.data(), 0x38, static_cast<void*>(w->gui.data()));
     put(w->view.data(), 0x5F0, static_cast<void*>(w->idler.data()));
     put(w->view.data(), 0x5F8, static_cast<void*>(w->politics_root.data()));
+    put(w->manager.data(), 0, image_base + capie::core::rva::vt_sg_manager);
     put(w->manager.data(), 0x18, static_cast<void*>(w->idler.data()));
     put(w->politics_root.data(), 0xA5, static_cast<unsigned char>(8));
     make_own(w->editor, "rn_ip_leader_gui", *w);

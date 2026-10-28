@@ -39,6 +39,12 @@
  * `country_capabilities_v1` while active without it. The editor bridge queries it before
  * every country Apply and requires v2.
  *
+ * Hook bodies are not `noexcept` (scan N6, Ghidra review G7): a C++ exception thrown by an
+ * original passes through to the game's own handlers, as without CAPIE. Through a `noexcept`
+ * frame it would end in `std::terminate`, a `__fastfail` in CAPIE's static CRT that skips the
+ * game's crash reporter. CAPIE's own work stays `noexcept`; thread-local frames set around an
+ * original are restored by destructors (`core/scoped_frame.hpp`).
+ *
  * Log: `capie_core.log` next to this DLL (lifecycle in every flavor, layer diagnostics in the
  * debug flavor; counts only, never the text of a name). A missing log does not stop CAPIE.
  */
@@ -121,7 +127,7 @@ void write_line(core::logging::Channel channel, const char* line) noexcept {
  * @param country Country object.
  * @return The original's result.
  */
-std::uint64_t update_names_hook(core::uptr country) noexcept {
+std::uint64_t update_names_hook(core::uptr country) {
     const auto result = name_layer.update_names(country);
     static_cast<void>(flag_layer.update(country));  // after the original: the cosmetic tag is current
     static_cast<void>(portrait_layer.update(country));
@@ -141,7 +147,7 @@ std::uint64_t update_names_hook(core::uptr country) noexcept {
  * @return The original's result.
  */
 void* build_name_key_hook(void* out, const void* tag, void* a3, void* a4, void* a5, void* a6, void* a7,
-                          char a8) noexcept {
+                          char a8) {
     return name_layer.build_name_key(out, tag, a3, a4, a5, a6, a7, a8);
 }
 
@@ -150,7 +156,7 @@ void* build_name_key_hook(void* out, const void* tag, void* a3, void* a4, void* 
  * @param effect Effect object.
  * @param context Execution context.
  */
-void set_variable_hook(core::uptr effect, core::uptr context) noexcept {
+void set_variable_hook(core::uptr effect, core::uptr context) {
     name_layer.set_variable(effect, context);
     if (flag_layer.enabled() &&
         engine::string_equals(layer_memory, effect + core::off::set_variable_name, flag::commit_variable)) {
@@ -168,7 +174,7 @@ void set_variable_hook(core::uptr effect, core::uptr context) noexcept {
  * @param gfx Graphics object.
  * @return The original's result.
  */
-std::uint64_t flag_atlas_hook(core::uptr atlas, core::uptr gfx) noexcept {
+std::uint64_t flag_atlas_hook(core::uptr atlas, core::uptr gfx) {
     return flag_layer.atlas_update(atlas, gfx);
 }
 
@@ -176,7 +182,7 @@ std::uint64_t flag_atlas_hook(core::uptr atlas, core::uptr gfx) noexcept {
  * @brief Hook body of `LoadCountryFlag` (8 arguments, forwarded unchanged).
  * @return The original's status.
  */
-int load_flag_hook(core::uptr atlas, core::uptr country, void* dst, int a4, int a5, int a6, int a7, void* a8) noexcept {
+int load_flag_hook(core::uptr atlas, core::uptr country, void* dst, int a4, int a5, int a6, int a7, void* a8) {
     return flag_layer.load_flag(atlas, country, dst, a4, a5, a6, a7, a8);
 }
 
@@ -188,7 +194,7 @@ int load_flag_hook(core::uptr atlas, core::uptr country, void* dst, int a4, int 
  * @param group Ideology group.
  * @return The original's result.
  */
-void* flag_candidates_hook(void* out, const void* tag, const void* cosmetic, void* group) noexcept {
+void* flag_candidates_hook(void* out, const void* tag, const void* cosmetic, void* group) {
     return flag_layer.candidates(out, tag, cosmetic, group);
 }
 
@@ -203,7 +209,7 @@ void* flag_candidates_hook(void* out, const void* tag, const void* cosmetic, voi
  * @return `out`.
  */
 void* portrait_resolve_hook(void* map, void* out, std::int32_t type, std::int32_t size, core::uptr character,
-                            const void* fallback) noexcept {
+                            const void* fallback) {
     return portrait_layer.resolve(map, out, type, size, character, fallback);
 }
 
@@ -213,7 +219,7 @@ void* portrait_resolve_hook(void* map, void* out, std::int32_t type, std::int32_
  * @param out Result string.
  * @return `out`.
  */
-void* faction_name_hook(core::uptr faction, void* out) noexcept {
+void* faction_name_hook(core::uptr faction, void* out) {
     return name_layer.faction_name(faction, out);
 }
 

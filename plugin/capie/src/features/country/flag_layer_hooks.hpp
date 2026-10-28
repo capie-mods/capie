@@ -30,6 +30,7 @@
 #pragma once
 #include "../../core/game_layout.hpp"
 #include "../../core/log.hpp"
+#include "../../core/scoped_frame.hpp"
 #include "../../core/memory.hpp"
 #include "../../engine/msvc_string.hpp"
 #include "flag_layer.hpp"
@@ -180,8 +181,9 @@ public:
      * @param atlas Atlas object.
      * @param gfx Graphics object.
      * @return The original's result.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
      */
-    std::uint64_t atlas_update(uptr atlas, uptr gfx) noexcept {
+    std::uint64_t atlas_update(uptr atlas, uptr gfx) {
         if (enabled_.load()) {
             const auto now = generation_.load(std::memory_order_acquire);
             auto& seen = seen_slot(atlas);
@@ -196,15 +198,18 @@ public:
     /**
      * @brief Hook body of `LoadCountryFlag` (also on TBB worker threads).
      * @return The original's status.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6); the
+     *       frame is restored by a destructor.
      */
-    int load_flag(uptr atlas, uptr country, void* dst, int a4, int a5, int a6, int a7, void* a8) noexcept {
+    int load_flag(uptr atlas, uptr country, void* dst, int a4, int a5, int a6, int a7, void* a8) {
         Frame frame{};
         if (enabled_.load() && shown_stem(country, frame.stem)) {
             frame.country = country;
-            Frame* const previous = active_frame;
-            active_frame = &frame;
-            const int status = originals_.load_flag(atlas, country, dst, a4, a5, a6, a7, a8);
-            active_frame = previous;
+            int status = 0;
+            {
+                const core::ScopedFrame<Frame> scope(active_frame, &frame);
+                status = originals_.load_flag(atlas, country, dst, a4, a5, a6, a7, a8);
+            }
             if (status == status_loaded || status == status_loaded_alt) {
                 if (applied_lines_.fetch_add(1) < max_debug_lines) {
                     note(core::logging::Channel::debug, "CAPIE_FLAG slot loaded from the layer stem=%s status=%d",
@@ -227,8 +232,9 @@ public:
      * @param cosmetic Cosmetic tag string.
      * @param group Ideology group (may be null).
      * @return The original's result.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
      */
-    void* candidates(void* out, const void* tag, const void* cosmetic, void* group) noexcept {
+    void* candidates(void* out, const void* tag, const void* cosmetic, void* group) {
         const Frame* const frame = active_frame;
         if (frame != nullptr && frame->country != 0 &&
             reinterpret_cast<uptr>(cosmetic) == frame->country + core::off::country_cosmetic_tag) {
@@ -238,6 +244,12 @@ public:
         }
         return originals_.candidates(out, tag, cosmetic, group);
     }
+
+    /**
+     * @brief Whether this thread is inside a layered LoadCountryFlag call (tests and diagnostics).
+     * @return `true` while a load frame is set.
+     */
+    [[nodiscard]] static bool in_load() noexcept { return active_frame != nullptr; }
 
     /**
      * @brief Whether a country shows a layer, and its stem (tests and diagnostics).

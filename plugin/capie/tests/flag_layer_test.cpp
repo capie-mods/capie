@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <new>
 #include <set>
 #include <string>
 #include <thread>
@@ -384,6 +385,7 @@ struct Game {
     std::vector<std::string> log;          ///< Log lines.
     void* group{};                         ///< The country's ideology group pointer.
     uptr cosmetic{};                       ///< Cosmetic field the loader passes (0 = the loaded country's).
+    bool throw_load{};                     ///< LoadCountryFlag throws a C++ exception after its candidates.
 };
 Game game;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake game state
 
@@ -417,6 +419,9 @@ int fake_load(uptr /*atlas*/, uptr country, void* /*dst*/, int /*a4*/, int /*a5*
     const uptr owner = game.cosmetic != 0 ? game.cosmetic : country;
     static_cast<void>(
         game.layer->candidates(nullptr, &fake_tag, reinterpret_cast<const void*>(owner + 0x1488), game.group));
+    if (game.throw_load) {
+        throw std::bad_alloc();  // a game allocation failing inside the load
+    }
     if (game.statuses.empty()) {
         return 0;
     }
@@ -566,6 +571,21 @@ void hook_tests() {
     game.tags.clear();
     static_cast<void>(flags.candidates(nullptr, &fake_tag, reinterpret_cast<const void*>(pol + 0x1488), nullptr));
     check(game.tags == std::vector<std::string>{"POL"}, "candidates outside a load: unchanged");
+    // Scan N6: an exception of the game's load passes through, and the load frame is restored.
+    game.tags.clear();
+    game.throw_load = true;
+    bool caught = false;
+    try {
+        static_cast<void>(flags.load_flag(fake_atlas_object, pol, nullptr, 0, 0, 0, 0, nullptr));
+    } catch (const std::bad_alloc&) {
+        caught = true;
+    }
+    game.throw_load = false;
+    check(caught && game.tags == std::vector<std::string>{"POL_KINGDOM"}, "N6: the load's exception reaches the caller");
+    check(!flags.in_load(), "N6: no load frame is left set after the exception");
+    game.tags.clear();
+    static_cast<void>(flags.candidates(nullptr, &fake_tag, reinterpret_cast<const void*>(pol + 0x1488), nullptr));
+    check(game.tags == std::vector<std::string>{"POL"}, "N6: the load frame was restored after the exception");
     game.tags.clear();
     game.cosmetic = ger;
     static_cast<void>(flags.load_flag(fake_atlas_object, pol, nullptr, 0, 0, 0, 0, nullptr));

@@ -77,7 +77,8 @@ struct World {
         mem.put<uptr>(fake_view + off::view_gui, fake_gui); mem.put<uptr>(fake_view + off::view_idler, fake_idler);
         mem.put<uptr>(fake_view + off::view_root, politics_root);
         mem.add(politics_root, 0x100);
-        mem.add(fake_manager, 0x100); mem.put<uptr>(fake_manager + off::manager_idler, fake_idler);
+        mem.add(fake_manager, 0x100); mem.put<uptr>(fake_manager, image + rva::vt_sg_manager);
+        mem.put<uptr>(fake_manager + off::manager_idler, fake_idler);
         for (std::size_t m = 0; m < model_count; ++m) add_window(m);
     }
     void add_window(std::size_t m) {
@@ -311,7 +312,7 @@ void test_hidden_preserves_and_no_call_while_hidden() {
     CHECK(f.env.calls == 1 && f.t().state(Field::leader).acked == 1);
 }
 
-// Root+A5 bits 8 (shown), 4/16 (hidden/disabled) and window+B79 desired are all required.
+// Root+A5 bit 8 (shown), no bit 4 (destroyed) or 16 (hidden) and window+BF9 desired are all required.
 void test_visibility_bits() {
     struct Case { unsigned char desired, flags; bool visible; };
     for (const Case c : {Case{1, 8, true}, Case{0, 8, false}, Case{1, 0, false}, Case{1, 8 | 4, false}, Case{1, 8 | 16, false},
@@ -324,6 +325,13 @@ void test_visibility_bits() {
         OwnWindow own{};
         CHECK((inspect(f.world.mem, image, window_addr(LL), own) == WindowKind::visible) == c.visible);
     }
+    // Ghidra review G3: bit 4 means "being destroyed", so the window is invalid, not merely hidden.
+    Fixture f;
+    OwnWindow own{};
+    f.world.flags(LL, 1, 8 | 4);
+    CHECK(inspect(f.world.mem, image, window_addr(LL), own) == WindowKind::invalid);
+    f.world.flags(LL, 1, 8 | 16);
+    CHECK(inspect(f.world.mem, image, window_addr(LL), own) == WindowKind::hidden);
 }
 
 // N10 part 1 (scan H2): Bind returns the PARENT when the window factory fails; a root equal to the
@@ -501,6 +509,8 @@ void test_guard_rejections() {
         {"idler slot", [](World& w) { w.mem.put<uptr>(image + rva::vt_ingame_idler + off::slot_idler_gui, image + 0x1); }, Reject::idler_slot},
         {"manager+18", [](World& w) { w.mem.put<uptr>(fake_manager + off::manager_idler, fake_idler + 8); }, Reject::manager_idler},
         {"manager null", [](World& w) { w.mem.put<uptr>(window_addr(LE) + off::window_manager, 0); }, Reject::manager_idler},
+        {"manager vt", [](World& w) { w.mem.put<uptr>(fake_manager, image + rva::vt_sg_model); }, Reject::manager_vt},
+        {"manager unreadable", [](World& w) { w.mem.regions.erase(fake_manager); }, Reject::manager_vt},
         {"gui null", [](World& w) { w.mem.put<uptr>(fake_idler + off::idler_gui, 0); }, Reject::gui_null},
         {"gui idler", [](World& w) { w.mem.put<uptr>(fake_gui + off::gui_idler, fake_idler + 8); }, Reject::gui_idler},
         {"view null", [](World& w) { w.mem.put<uptr>(fake_gui + off::gui_views + 96, 0); }, Reject::view_null},

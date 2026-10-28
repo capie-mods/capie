@@ -208,9 +208,10 @@ public:
      * @param character Character object.
      * @param fallback Name the caller shows when nothing is valid.
      * @return `out`.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
      */
     void* resolve(void* map, void* out, std::int32_t type, std::int32_t size, uptr character,
-                  const void* fallback) noexcept {
+                  const void* fallback) {
         Text name{};
         if (enabled_.load() && type == type_civilian && out != nullptr && chosen(character, size, name)) {
             Entry candidate{};
@@ -268,9 +269,10 @@ private:
      * @param character Passed through.
      * @param fallback Passed through.
      * @return The original's result.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
      */
     void* game_call_failed(void* map, void* out, std::int32_t type, std::int32_t size, uptr character,
-                           const void* fallback) noexcept {
+                           const void* fallback) {
         if (enabled_.exchange(false)) {
             note(core::logging::Channel::lifecycle, "CAPIE_PORTRAIT game call failed or refused (fault latch); layer off");
         }

@@ -154,8 +154,21 @@ void test_no_call_without_own_focus() {
 void test_party_second_field_and_country() {
     Fixture f; f.w.focus(edit_of(1, 1)); f.tick(1); f.w.parent_flags(0); f.tick(1);
     CHECK(f.env.calls == 1 && f.env.logged("field=rn_ip_party_neutrality_long_edit") == 1);
-    Fixture g; g.w.focus(edit_of(2, 1)); g.tick(2); g.w.parent_flags(8 | 4); g.tick(2);  // bit4 => hidden
+    Fixture g; g.w.focus(edit_of(2, 1)); g.tick(2); g.w.parent_flags(8 | 0x10); g.tick(2);  // bit 4 => hidden by script
     CHECK(g.env.calls == 1 && g.env.logged("field=rn_ip_country_adj_edit") == 1);
+}
+void test_destroyed_is_invalid() {  // Ghidra review G3: root/parent flag 0x04 = being destroyed, never a hide
+    Fixture f; f.w.focus(edit_of(2, 1)); f.tick(2); f.w.parent_flags(8 | 4); f.tick(2, 3);
+    CHECK(f.env.calls == 0);                                 // parent destroyed: no FocusSwitch
+    Own own{};
+    CHECK(inspect(f.w.m, k_image, window_of(2), own) == Kind::invalid);
+    Fixture g; g.w.focus(edit_of(0, 0)); g.tick(0);
+    g.w.m.put<unsigned char>(root_of(0) + off::root_flags, 8 | 4);
+    CHECK(inspect(g.w.m, k_image, window_of(0), own) == Kind::invalid);
+    g.w.parent_flags(0); g.tick(0, 3);
+    CHECK(g.env.calls == 0);                                 // own root destroyed: no FocusSwitch either
+    Fixture h; h.w.m.put<unsigned char>(root_of(0) + off::root_flags, 8 | 0x10);
+    CHECK(inspect(h.w.m, k_image, window_of(0), own) == Kind::valid && !own.own_visible);  // hidden stays valid
 }
 void test_disarmed_bind_invalid() {
     Fixture f; f.env.arm = false; f.w.focus(edit_of(0, 0)); f.tick(0); f.w.parent_flags(0); f.tick(0);
@@ -291,6 +304,7 @@ int main(int argc, char** argv) {
     test_release_once_per_transition();
     test_no_call_without_own_focus();
     test_party_second_field_and_country();
+    test_destroyed_is_invalid();
     test_disarmed_bind_invalid();
     test_failures_and_draft();
     test_no_lock_across_call();

@@ -44,8 +44,8 @@ First pass: 55 of 112 patterns unique and unchanged, 16 placed by a local delta,
 | session machine id | `+0xA4` | `+0x84` | `22C37A2`: `mov dword [rcx+84h],1` |
 
 Unchanged (observed): scripted window `+0xE0` idler, `+0xE8` model, `+0xF0` manager, `+0xF8` root,
-`+0x100` parent, `+0x108` parent scripted GUI, `+0x110` context (window ctor `BDBEAA..BDBEE6`,
-pinned store by store in `plugin/capie/src/features/editor/window_pins.hpp`; the ctor allocates
+`+0x100` parent, `+0x108` parent scripted GUI, `+0x110` context (window construction inside the manager rebuild `BDBAB0`, `BDBEAA..BDBEE6`,
+pinned store by store in `plugin/capie/src/features/editor/window_pins.hpp`; the rebuild allocates
 `0xC10` bytes, the test fixtures use `0xC00`, which covers every offset CAPIE reads);
 context `+0x10` window, `+0x20`, `+0x28`, `+0x3C0` scope, `+0x470` records (context ctor
 `BD7D40`); politics view observer at `+0x30`, observer `+0x8` GUI, `+0x14` dirty (`12C3B50`);
@@ -228,7 +228,7 @@ ironman mode.").
 |---|---|---|
 | Effect ctor copies CAPIE's record vector (H2) | confirmed | `11CE6B0` → `11EADE0(this+0x28, count, data, count)` → `BDA9D0` copies each 0x28-byte record with `11F770` (std::string copy ctor) and the value qword; no pointer into the caller's buffer survives. Dispatch evaluates selector triggers against the game's own `context+0x470` records before the ctor. |
 | Portrait entry layout (H3) | confirmed | entry 0x30 bytes at `[rsp+30h]` of `B96450`; `+0` set byte, `+4` kind, `+8` string, `+0x28` non-owning texture handle used only for kind 1; the caller frees only the string. `PortraitEntryValid` asserts `_ThreadForbidCount == 0`: call it only inside the hook (UI thread). |
-| `vt_sg_model` / `vt_sg_root` / `vt_edit_definition` (M1) | confirmed | template ctor `1639990`; window ctor `BDBAB0` stores the template at `+0xE8` (`BDBEB1`); Bind `BD8ED0` fills `+0xF8` from a factory that returns the PARENT on failure; CEditBox base ctor `231B8B0` stores the definition at `+0x60`. Also checked at runtime by `core/rtti.hpp`. |
+| `vt_sg_model` / `vt_sg_root` / `vt_edit_definition` (M1) | confirmed | template ctor `1639990`; the window construction inlined in `CScriptedWindowManager::Rebuild` `BDBAB0` (not a constructor, see Ghidra review G2) stores the template at `+0xE8` (`BDBEB1`) and the manager at `+0xF0`; Bind `BD8ED0` fills `+0xF8` from a factory that returns the PARENT on failure; CEditBox base ctor `231B8B0` stores the definition at `+0x60`. Also checked at runtime by `core/rtti.hpp`. |
 | `window_desired` `+0xBF9` | confirmed | Tick `BDB500` is its only writer: parent visible (`+0xBF8`) AND the model's visible trigger AND a valid scope. Tick also clears `+0xF8`/`+0x100` when the root or parent is destroyed (root `+0xA5` bit 4). |
 
 Hook points: localisation wrappers, UpdateNames, BuildNameKey, flag atlas, ResolvePortrait and the
