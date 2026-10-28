@@ -39,10 +39,9 @@
     Python interpreter for check_signature_table.py.
 
 .PARAMETER SkipBenchmarks
-    Do not run the hot-path benchmarks. Without it, the comparisons with the old sources run
-    only when those sources exist (plugin\probes\caption_refresh_candidate, and the staged
-    country DLL that its country-status-candidate\build.ps1 writes); otherwise they are
-    skipped with a notice and only the CAPIE benchmarks run.
+    Do not run the hot-path benchmarks. Without it only the CAPIE benchmarks run; the old
+    comparisons with the rev7 bridge and country-status sources are skipped with a notice
+    (those sources target HOI4 1.19.3.0).
 
 .PARAMETER OutputDirectory
     Output folder relative to the repository root (default plugin\build\capie). The reviewed
@@ -345,23 +344,15 @@ if ($LASTEXITCODE -ne 0) { throw 'Native alphabet differs from the SDK character
 & $Python -I (Join-Path $script:RepoDir 'tools\lint\check_comment_addresses.py')
 if ($LASTEXITCODE -ne 0) { throw 'A comment names an address the code does not pin (name the function instead)' }
 
-# 5. Benchmarks (old rev7/country-status sources vs CAPIE release/debug). The old sources are
-# optional: the country one is a staged copy that only country-status-candidate\build.ps1 writes.
+# 5. Benchmarks (CAPIE release/debug). The comparisons with the old rev7 bridge and country-status
+# sources (CAPIE_BENCH_LEGACY=1 in hotpath_bench.cpp) are not run: those sources target HOI4 1.19.3.0
+# and no longer compile against the 1.19.4.0 fixture, and the country one is a staged copy that only
+# country-status-candidate\build.ps1 writes. The numbers from before the port are in the git history.
 if (-not $SkipBenchmarks) {
-    $legacyBridge = Join-Path $script:RepoDir 'plugin\probes\caption_refresh_candidate'
-    $legacyCountry = Join-Path $script:RepoDir 'plugin\build\country-status-candidate\stage'
     Write-Host 'Benchmarks (ns per call, median of runs):'
-    if (Test-Path -LiteralPath (Join-Path $legacyBridge 'caption_refresh_bridge.cpp')) {
-        Invoke-Test 'bench\hotpath_bench.cpp' 'bench_editor_legacy.exe' @('/DCAPIE_BENCH_LEGACY=1', ('/I' + $legacyBridge)) @() $script:MinHookObjects | Out-Null
-    } else { Write-Host "  (bench_editor_legacy skipped: $legacyBridge\caption_refresh_bridge.cpp not found)" }
+    Write-Host '  (legacy rev7/country-status comparisons skipped: their sources target HOI4 1.19.3.0)'
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_editor_release.exe' @('/DCAPIE_BENCH_LEGACY=0', '/DCAPIE_DEBUG_DIAGNOSTICS=0') @() $script:MinHookObjects | Out-Null
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_editor_debug.exe' @('/DCAPIE_BENCH_LEGACY=0', '/DCAPIE_DEBUG_DIAGNOSTICS=1') @() $script:MinHookObjects | Out-Null
-    if (Test-Path -LiteralPath (Join-Path $legacyCountry 'country.cpp')) {
-        Invoke-Test 'bench\hotpath_bench.cpp' 'bench_country_legacy.exe' @('/DCAPIE_BENCH_PART=1', '/DCAPIE_BENCH_LEGACY=1', ('/I' + $legacyCountry)) @() $script:MinHookObjects | Out-Null
-    } else {
-        Write-Host "  (bench_country_legacy skipped: $legacyCountry\country.cpp not found;"
-        Write-Host '   plugin\probes\caption_refresh_candidate\country-status-candidate\build.ps1 stages it)'
-    }
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_country_capie.exe' @('/DCAPIE_BENCH_PART=1', '/DCAPIE_BENCH_LEGACY=0') @() $script:MinHookObjects | Out-Null
 }
 if ($Console) {
