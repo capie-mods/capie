@@ -8,15 +8,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.1.0] - 2026-10-28
 
-- The main-menu status line is now the CAPIE mark in the bottom left corner, beside the last DLC icon and anchored to the
-  same corner as the DLC column, so it shows at every resolution. It
-  means only that the CAPIE switch is on: the menu is built and localised before CAPIE loads, so
-  it cannot show a live status (Rename Anything's editors show the CAPIE version in game). Its
-  tooltip is static text. It comes from a minimal copy of the vanilla
-  `interface/frontendmainview.gui` (one added icon, marked `CAPIE BEGIN/END`, stored byte for byte
-  with `-text` in `.gitattributes`) instead of the `frontend_alpha_stamp` window, which the game
-  does not create in release builds. New: `interface/capie_menu.gfx` and the one-image sprite
-  `gfx/interface/capie_menu_mark.dds`.
+- HOI4 1.19.4.0 support (together with CAPIE 1.5.1).
+- New: a CAPIE mark in the bottom left corner of the main menu, next to the DLC icons. It shows
+  that the CAPIE switch is on in your playset; Rename Anything's editors show the loaded CAPIE
+  version in game.
 
 ## [1.0.0]
 
