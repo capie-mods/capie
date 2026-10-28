@@ -10,7 +10,7 @@
     Compiles MinHook (third-party C, /W4 without /WX), then every CAPIE source with
     /MT /W4 /WX /std:c++20. Runs the ported accepted suites (inherited debug-bridge suite,
     caption core, focus release, integration in both flavors, trace ring, country protocol,
-    editor input, country status), the new tests (signature table vs EXE file, country
+    editor input, country status), the game-call fault latch, the new tests (signature table vs EXE file, country
     differential vs the accepted candidate source, hot-path benchmarks), the public-contract
     tests (grammar and alphabet, CAPIE_* keys, grammar editors in both flavors) and the Python
     checks (signature table, status localisation, native alphabet vs the SDK table, addresses in
@@ -271,11 +271,11 @@ Write-Host "Built release flavor in $script:OutDir and debug flavor in $script:D
 # tidy script with /DCAPIE_DEBUG_DIAGNOSTICS=0.
 $tidyFiles = @('dll\capie_core.cpp', 'dll\capie_editor.cpp', 'tools\capie_injector.cpp', 'tools\capie_debug_control.cpp' |
         ForEach-Object { Join-Path $script:SourceDir $_ }) +
-    @('memory_test.cpp', 'signature_exe_test.cpp', 'country_cache_test.cpp', 'editor_hotpath_test.cpp', 'bench\hotpath_bench.cpp' |
+    @('memory_test.cpp', 'game_calls_test.cpp', 'signature_exe_test.cpp', 'country_cache_test.cpp', 'editor_hotpath_test.cpp', 'bench\hotpath_bench.cpp' |
         ForEach-Object { Join-Path $script:TestDir $_ })
 $tidyFiles += @('public_names_test.cpp', 'public_keys_test.cpp', 'public_editor_test.cpp') | ForEach-Object { Join-Path $script:TestDir $_ }
 $tidyFiles += @('name_layer_test.cpp', 'name_layer_pins_exe_test.cpp', 'flag_layer_test.cpp', 'flag_layer_pins_exe_test.cpp',
-    'host_probe_test.cpp', 'host_pins_exe_test.cpp', 'rtti_exe_test.cpp', 'portrait_layer_test.cpp', 'portrait_layer_pins_exe_test.cpp') |
+    'host_probe_test.cpp', 'host_pins_exe_test.cpp', 'window_pins_exe_test.cpp', 'rtti_exe_test.cpp', 'portrait_layer_test.cpp', 'portrait_layer_pins_exe_test.cpp') |
     ForEach-Object { Join-Path $script:TestDir $_ }
 $database = foreach ($file in $tidyFiles) {
     [ordered]@{
@@ -299,6 +299,8 @@ Invoke-Test 'legacy\caption_refresh_test.cpp' 'caption_refresh_test.exe' @() $ex
 Invoke-Test 'legacy\focus_release_test.cpp' 'focus_release_test.exe' @() $exeArgs | Out-Null
 Invoke-Test 'legacy\country_status_test.cpp' 'country_status_test.exe' @() @() $script:MinHookObjects | Out-Null
 Invoke-Test 'memory_test.cpp' 'memory_test.exe' | Out-Null
+# Game-call fault latch of both DLLs (scan H1, H3): a fault inside a game call stops every later one.
+Invoke-Test 'game_calls_test.cpp' 'game_calls_test.exe' | Out-Null
 Invoke-Test 'signature_exe_test.cpp' 'signature_exe_test.exe' @() $exeArgs | Out-Null
 Invoke-Test 'country_cache_test.cpp' 'country_cache_test.exe' @() @() $script:MinHookObjects | Out-Null
 # Country name layer, API level 4 (custom-name-layer report): lookup, decoding and hook bodies, both flavors; pins vs the EXE file.
@@ -314,6 +316,8 @@ Invoke-Test -Source 'portrait_layer_test.cpp' -Output 'portrait_layer_test_relea
 Invoke-Test -Source 'portrait_layer_pins_exe_test.cpp' -Output 'portrait_layer_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 Invoke-Test -Source 'host_probe_test.cpp' -Output 'host_probe_test.exe' | Out-Null
 Invoke-Test -Source 'host_pins_exe_test.cpp' -Output 'host_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
+# Scripted-window layout pins (N10): the game's own stores of the window offsets, vs the EXE file.
+Invoke-Test -Source 'window_pins_exe_test.cpp' -Output 'window_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 # Every vtable constant belongs to the expected class (MSVC RTTI, core/rtti.hpp).
 Invoke-Test -Source 'rtti_exe_test.cpp' -Output 'rtti_exe_test.exe' -Arguments $exeArgs | Out-Null
 # The inherited suite loads capie_editor.dll into its own (non-game) process for the wrong-host check.

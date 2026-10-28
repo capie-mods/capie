@@ -612,6 +612,24 @@ void sentinel_tests() {
     click(hidden, apply_of(hidden));
     check(dispatch_originals == before && captured.empty(), "hidden editor: click dropped");
 
+    // N10 part 1 (scan H2): Bind returns the PARENT when the window factory fails, so a root equal to
+    // the parent is invalid, never visible. Scan M2: the Apply of such a window is not swallowed; it
+    // is forwarded once as the stale sentinel, without payload, so the other mod's script can show it.
+    auto& orphan = make_window("capie_v1_ed__thirdmod__orphan", 0b1, "1");
+    tick_observed(orphan.window.data(), 0);
+    View probe{};
+    check(inspect_chain(orphan.window.data(), orphan.model.data(), probe) == ViewResult::visible,
+          "own root, other parent: visible");
+    put(orphan.window.data(), off::window_parent, static_cast<void*>(orphan.root.data()));
+    check(inspect_chain(orphan.window.data(), orphan.model.data(), probe) == ViewResult::invalid,
+          "root equal to the parent: invalid");
+    const auto orphan_before = dispatch_originals;
+    click(orphan, apply_of(orphan));
+    check(dispatch_originals == orphan_before + 1 && value_of("capie_epoch") == -1 && capie_records() == 3 &&
+              count_of("capie_nf") == 0,
+          "invalid chain: forwarded once as the stale sentinel, no payload");
+    put(orphan.window.data(), off::window_parent, static_cast<void*>(nullptr));
+
     // Lookalikes are not editors: forwarded unchanged, no records added.
     std::array<Record, 1> plain{source_record("user_key", 1)};
     for (const char* name :

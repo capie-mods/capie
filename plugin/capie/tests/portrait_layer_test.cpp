@@ -415,8 +415,12 @@ struct Game {
     int copies{};                   ///< Calls of the string copy.
     int resolves{};                 ///< Calls of the original ResolvePortrait.
     int valid_calls{};              ///< Calls of the validity check.
+    bool fault_valid{};             ///< The validity check faults (stale sprite database).
+    bool fault_copy{};              ///< The string copy faults.
 };
 Game* game = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake game state
+/// @brief Null, read through a volatile so the compiler keeps the faulting access.
+int* volatile null_target = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 /**
  * @brief Text of a host MSVC string.
@@ -430,6 +434,9 @@ std::string text_of(const capie::engine::MsvcString& value) {
 
 void* fake_copy(void* out, const void* source) {
     ++game->copies;
+    if (game->fault_copy) {
+        *null_target = 1;  // access violation inside the game call
+    }
     const auto& stored = *game->heap.insert(text_of(*static_cast<const capie::engine::MsvcString*>(source))).first;
     *static_cast<capie::engine::MsvcString*>(out) = capie::engine::borrowed_string(stored.data(), stored.size());
     if (stored.size() <= 15) {
@@ -440,6 +447,9 @@ void* fake_copy(void* out, const void* source) {
 
 bool fake_valid(const void* entry) {
     ++game->valid_calls;
+    if (game->fault_valid) {
+        *null_target = 1;  // access violation inside the game call
+    }
     const auto* e = static_cast<const portrait::Entry*>(entry);
     return e->set != 0 && e->kind == 0 && game->sprites.contains(text_of(e->name));
 }
@@ -605,6 +615,33 @@ void hook_tests() {
     stop.store(true);
     reader.join();
     check(bad.load() == 0, "concurrent readers see a whole entry");
+
+    // H3: both game calls are guarded. A fault latches, turns the layer off and shows the game's portrait.
+    const auto game_portrait = std::string("gfx/leaders/game_portrait.dds");
+    check(capie::engine::game_calls_allowed(), "no game-call fault yet");
+    game->fault_valid = true;
+    game->resolves = 0;
+    check(resolve_of(layer, char_a, 0, 1, entry) == game_portrait && game->resolves == 1,
+          "PortraitEntryValid fault: the game's portrait");
+    check(!capie::engine::game_calls_allowed() && !layer.enabled(), "PortraitEntryValid fault latched, layer off");
+    game->fault_valid = false;
+    capie::engine::game_call_faulted.store(false);
+    layer.activate(fake_image, nullptr);
+    game->fault_copy = true;
+    check(resolve_of(layer, char_a, 0, 1, entry) == game_portrait && game->resolves == 2,
+          "string copy fault: the game's portrait built from scratch");
+    check(!capie::engine::game_calls_allowed() && !layer.enabled(), "string copy fault latched, layer off");
+    game->fault_copy = false;
+    capie::engine::game_call_faulted.store(false);
+    layer.activate(fake_image, nullptr);
+    capie::engine::game_call_faulted.store(true);  // a fault in the other DLL (shared latch)
+    const auto valid_latched = game->valid_calls;
+    check(resolve_of(layer, char_a, 0, 1, entry) == game_portrait && game->valid_calls == valid_latched &&
+              !layer.enabled(),
+          "latched: no game call, layer off, the game's portrait");
+    capie::engine::game_call_faulted.store(false);
+    layer.activate(fake_image, nullptr);
+    check(resolve_of(layer, char_a, 0, 1, entry) == "GFX_portrait_GER_chosen", "latch cleared (test only): chosen again");
 
     layer.deactivate();
     game->resolves = 0;

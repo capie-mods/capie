@@ -193,6 +193,41 @@ void test_no_lock_across_call() {
     f->w.parent_flags(0); f->tick(0);
     CHECK(f->env.calls == 1 && progressed);
 }
+// N10 part 1 (scan H2): a root equal to the parent is the window factory's failure result: invalid.
+void test_root_equal_to_parent_invalid() {
+    Fixture f; f.w.focus(edit_of(0, 0)); f.tick(0);
+    Own own{};
+    f.w.m.put<uptr>(window_of(0) + rn::caption::off::window_parent, root_of(0));
+    CHECK(inspect(f.w.m, k_image, window_of(0), own) == Kind::invalid);
+    f.w.m.put<unsigned char>(root_of(0) + rn::caption::off::root_flags, 0);  // the "parent" now reads hidden
+    f.tick(0);
+    CHECK(f.env.calls == 0);                                  // invalid forgets, no release
+    f.w.m.put<uptr>(window_of(0) + rn::caption::off::window_parent, k_parent);
+    CHECK(inspect(f.w.m, k_image, window_of(0), own) == Kind::valid);
+}
+// Scan M3: an unreadable flag byte is "unknown", never "parent hidden": invalid, no release.
+void test_unreadable_flags_invalid() {
+    Fixture f; f.w.focus(edit_of(0, 0)); f.tick(0);
+    f.w.m.regions.erase(k_parent);                            // parent page decommitted (teardown)
+    Own own{};
+    CHECK(inspect(f.w.m, k_image, window_of(0), own) == Kind::invalid);
+    f.tick(0, 3);
+    CHECK(f.env.calls == 0);
+    f.w.m.add(k_parent, 0x100); f.w.parent_flags(8); f.tick(0);
+    f.w.parent_flags(0); f.tick(0);
+    CHECK(f.env.calls == 1);                                  // readable again: a real hide still releases
+    struct Case { uptr base; std::size_t offset; };
+    for (const Case c : {Case{root_of(0), rn::caption::off::root_flags}, Case{window_of(0), rn::caption::off::window_desired},
+                         Case{window_of(0), rn::caption::off::window_parent_seen}}) {
+        World w;                                              // only this one byte is unreadable
+        auto tail = w.m.regions[c.base];
+        w.m.regions[c.base].resize(c.offset);
+        tail.erase(tail.begin(), tail.begin() + static_cast<std::ptrdiff_t>(c.offset + 1));
+        w.m.regions[c.base + c.offset + 1] = tail;
+        Own o{};
+        CHECK(inspect(w.m, k_image, window_of(0), o) == Kind::invalid);
+    }
+}
 // R3-MINOR-3: parent bit 16 means hidden, same criterion as the caption core.
 void test_parent_bit16_hidden() {
     Fixture f; f.w.focus(edit_of(0, 0)); f.tick(0);
@@ -260,6 +295,8 @@ int main(int argc, char** argv) {
     test_failures_and_draft();
     test_no_lock_across_call();
     test_parent_bit16_hidden();
+    test_root_equal_to_parent_invalid();
+    test_unreadable_flags_invalid();
     test_hide_source_log();
     if (argc > 1) exe_check(argv[1]);
     std::printf("focus release tests: %d checks, %d failures\n", checks, failures);

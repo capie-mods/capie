@@ -460,6 +460,32 @@ int main() {
     }
     put(le_context, 0x470, TempVector{});
 
+    // 18. Scan M1: the payload is built but the opening changes before dispatch (generation bumped
+    //     on the final re-check's lookup) -> forwarded as the stale sentinel, never dropped silently.
+    caption_armed.store(false);                                       // gate transparent
+    put(w->leader_edit.data(), 0x281, static_cast<unsigned char>(0));
+    put(w->focus_manager.data(), 0x210, static_cast<void*>(nullptr));
+    show(LE, true); tick_observed(le, 0);
+    check(lifecycle[0].prefilled, "M1: leader prefilled");
+    const auto payload_before = dispatch_originals;
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    check(dispatch_originals == payload_before + 1 && captured_count("rn_native_ok") == 1 &&
+              captured_count("rn_ip_cmd_epoch") == 1 && captured_raw("rn_ip_cmd_epoch") > 0,
+          "M1: control Apply carries the payload");
+    const auto m1_dropped = count(logs(), "own-action-dropped-before-dispatch");
+    leader_lookups = 0; bump_generation_on_lookup = 2;                // capture (1), final re-check (2)
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    bump_generation_on_lookup = 0;
+    check(count(logs(), "pre-dispatch-epoch-generation-changed") >= 1, "M1: the final re-check failed");
+    check(dispatch_originals == payload_before + 2 && captured_raw("rn_ip_cmd_epoch") == -100000 &&
+              captured_count("rn_native_ok") == 0,
+          "M1: forwarded once as the stale sentinel, no payload");
+    check(count(logs(), "own-action-dropped-before-dispatch") == m1_dropped, "M1: no silent drop");
+    show(LE, false); tick_observed(le, 0);
+    const auto m1_hidden = dispatch_originals;
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    check(dispatch_originals == m1_hidden, "M1: hidden editor still drops (no sentinel)");
+
     std::printf("caption refresh bridge integration: %u checks, %u failures\n", checks, failures);
     std::fflush(stdout);
     std::_Exit(failures ? 1 : 0);

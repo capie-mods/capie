@@ -23,6 +23,7 @@
 #include "../../core/game_layout.hpp"
 #include "../../core/log.hpp"
 #include "../../core/memory.hpp"
+#include "../../engine/game_calls.hpp"
 #include "../../engine/msvc_string.hpp"
 #include "portrait_layer.hpp"
 
@@ -58,9 +59,9 @@ static_assert(sizeof(Entry) == entry_size && offsetof(Entry, kind) == core::off:
 /// @brief `entry* ResolvePortrait(map*, entry* out, int type, int size, character*, const char* fallback)`.
 using ResolveFn = void* (*)(void*, void*, std::int32_t, std::int32_t, uptr, const void*);
 /// @brief `bool PortraitEntryValid(const entry*)`.
-using ValidFn = bool (*)(const void*);
+using ValidFn = engine::PortraitValid;
 /// @brief `string* string_copy(string* out, const string* source)` (copy-construct).
-using CopyFn = void* (*)(void*, const void*);
+using CopyFn = engine::StringCopy;
 /// @brief Log sink.
 using LogFn = void (*)(core::logging::Channel, const char*);
 
@@ -216,12 +217,20 @@ public:
             candidate.set = 1;
             candidate.kind = 0;
             candidate.name = engine::borrowed_string(name.bytes.data(), name.size);
-            if (originals_.valid(&candidate)) {
+            // Both game calls are guarded (`game_calls.hpp`); a fault latches, turns the layer off and
+            // lets the original build the entry from scratch.
+            bool valid = false;
+            if (!engine::guarded_portrait_valid(originals_.valid, &candidate, valid)) {
+                return game_call_failed(map, out, type, size, character, fallback);
+            }
+            if (valid) {
                 auto* entry = static_cast<Entry*>(out);
                 entry->set = candidate.set;
                 entry->padding = {};
                 entry->kind = 0;
-                originals_.copy(&entry->name, &candidate.name);
+                if (!engine::guarded_string_copy(originals_.copy, &entry->name, &candidate.name)) {
+                    return game_call_failed(map, out, type, size, character, fallback);
+                }
                 entry->handle = 0;
                 if (applied_lines_.fetch_add(1) < max_debug_lines) {
                     note(core::logging::Channel::debug, "CAPIE_PORTRAIT shown size=%d sprite=%s", size,
@@ -250,6 +259,24 @@ public:
     }
 
 private:
+    /**
+     * @brief A guarded game call failed or was refused: layer off, the original runs unchanged.
+     * @param map Passed through.
+     * @param out Passed through (the original constructs it).
+     * @param type Passed through.
+     * @param size Passed through.
+     * @param character Passed through.
+     * @param fallback Passed through.
+     * @return The original's result.
+     */
+    void* game_call_failed(void* map, void* out, std::int32_t type, std::int32_t size, uptr character,
+                           const void* fallback) noexcept {
+        if (enabled_.exchange(false)) {
+            note(core::logging::Channel::lifecycle, "CAPIE_PORTRAIT game call failed or refused (fault latch); layer off");
+        }
+        return originals_.resolve(map, out, type, size, character, fallback);
+    }
+
     /// @brief Ruling leader -> chosen sprites.
     using Map = std::unordered_map<uptr, Shown>;
 

@@ -44,6 +44,7 @@
 #include "../../core/game_layout.hpp"
 #include "../../core/log.hpp"
 #include "../../core/memory.hpp"
+#include "../../engine/game_calls.hpp"
 #include "../../engine/msvc_string.hpp"
 #include "name_layer.hpp"
 
@@ -63,7 +64,7 @@
 namespace capie::country::layer {
 
 /// @brief `u64 UpdateNames(CCountry*)`.
-using UpdateNamesFn = std::uint64_t (*)(uptr);
+using UpdateNamesFn = engine::UpdateNames;
 /// @brief `string* BuildNameKey(string* out, const string* tag, ...)`, 8 arguments.
 using BuildNameKeyFn = void* (*)(void*, const void*, void*, void*, void*, void*, void*, char);
 /// @brief `void Execute(effect*, context*)`.
@@ -71,7 +72,7 @@ using SetVariableFn = void (*)(uptr, uptr);
 /// @brief `string* CFaction::GetName(faction*, string* out)`.
 using FactionNameFn = void* (*)(uptr, void*);
 /// @brief `string* copy(string* out, const string* source)` (game heap).
-using StringCopyFn = void* (*)(void*, const void*);
+using StringCopyFn = engine::StringCopy;
 /// @brief Log sink: one NUL-terminated line without line break.
 using LogFn = void (*)(core::logging::Channel, const char*);
 
@@ -144,21 +145,28 @@ public:
      * @return The original's result.
      */
     std::uint64_t update_names(uptr country) noexcept {
-        Frame frame{};
-        if (enabled_.load()) {
-            frame.layer = read_layer(mem_, country);
-            remember(country, frame.layer);
-            update_faction(country);
-            if (!first_update_logged_.exchange(true)) {
-                note(core::logging::Channel::debug, "CAPIE_NAME first UpdateNames on thread %lu",
-                     static_cast<unsigned long>(GetCurrentThreadId()));
-            }
+        return in_frame(country, [this, country]() noexcept { return originals_.update(country); });
+    }
+
+    /**
+     * @brief A refresh CAPIE starts itself: the hook body's work around a GUARDED UpdateNames call.
+     *
+     * The game's own UpdateNames calls run unwrapped through `update_names`; this call is CAPIE's,
+     * so it runs under SEH and the fault latch (`game_calls.hpp`). A fault turns the layers off.
+     * @param country Country object.
+     * @return `false` when the call was refused or faulted.
+     */
+    bool refresh_country(uptr country) noexcept {
+        if (!engine::game_calls_allowed()) {
+            game_call_failed("UpdateNames");
+            return false;
         }
-        Frame* const previous = active_frame;
-        active_frame = &frame;
-        const auto result = originals_.update(country);
-        active_frame = previous;
-        return result;
+        const bool returned = in_frame(
+            country, [this, country]() noexcept { return engine::guarded_update_names(originals_.update, country); });
+        if (!returned) {
+            game_call_failed("UpdateNames");
+        }
+        return returned;
     }
 
     /**
@@ -245,7 +253,9 @@ public:
                  "CAPIE_NAME refresh slot=%d status=%s ver_raw=%lld name_points=%zu adjective_points=%zu", index,
                  status_name(layer.status), static_cast<long long>(layer.version_raw), layer.name_points,
                  layer.adjective_points);
-            static_cast<void>(update_names(country));
+            if (!refresh_country(country)) {
+                break;  // refused or faulted: no further game call
+            }
             ++stats.refreshed;
         }
         return stats;
@@ -286,7 +296,10 @@ public:
             std::size_t size = 0;
             if (faction_text(faction, text, size)) {
                 const auto borrowed = engine::borrowed_string(text.data(), size);
-                return copy_(out, &borrowed);
+                if (engine::guarded_string_copy(copy_, out, &borrowed)) {
+                    return out;
+                }
+                game_call_failed("string copy");  // the original constructs `out` from scratch
             }
         }
         return originals_.faction_name(faction, out);
@@ -321,6 +334,34 @@ public:
     }
 
 private:
+    /**
+     * @brief Runs one UpdateNames call with this thread's frame set to the country's layer.
+     * @tparam Call `noexcept` callable that calls UpdateNames.
+     * @param country Country object.
+     * @param call The call.
+     * @return What `call` returns.
+     */
+    template <class Call>
+    auto in_frame(uptr country, Call call) noexcept {
+        Frame frame{};
+        enter(country, frame);
+        Frame* const previous = active_frame;
+        active_frame = &frame;
+        const auto result = call();
+        active_frame = previous;
+        return result;
+    }
+
+    /**
+     * @brief A guarded game call failed or was refused: both name layers off (hooks pass through).
+     * @param what Function name for the log.
+     */
+    void game_call_failed(const char* what) noexcept {
+        if (enabled_.exchange(false)) {
+            note(core::logging::Channel::lifecycle, "CAPIE_NAME %s failed or refused (fault latch); layers off", what);
+        }
+    }
+
     /// @brief Country -> the key it shows (absent = no layer).
     using ShownMap = std::unordered_map<uptr, std::string>;
 
@@ -328,6 +369,24 @@ private:
     struct Frame {
         Layer layer;  ///< Layer read at the start of the call.
     };
+
+    /**
+     * @brief Reads the layer for an UpdateNames call (both entry points).
+     * @param country Country object.
+     * @param frame Receives the layer.
+     */
+    void enter(uptr country, Frame& frame) noexcept {
+        if (!enabled_.load()) {
+            return;
+        }
+        frame.layer = read_layer(mem_, country);
+        remember(country, frame.layer);
+        update_faction(country);
+        if (!first_update_logged_.exchange(true)) {
+            note(core::logging::Channel::debug, "CAPIE_NAME first UpdateNames on thread %lu",
+                 static_cast<unsigned long>(GetCurrentThreadId()));
+        }
+    }
 
     /**
      * @brief Records what a country will show (called before the original runs).

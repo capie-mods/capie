@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract, encoder via public_names_test the country and faction name layers, the flag layer, the host probe and the leader portrait layer (155 mutants).
+    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract, encoder via public_names_test the country and faction name layers, the flag layer, the host probe, the leader portrait layer and the game-call fault latch (181 mutants).
 
 .DESCRIPTION
     Reads tests/mutants.json: each mutant is one exact, unique textual replacement in one
@@ -14,7 +14,7 @@
     problem, not a kill). A compile error is a kill only when it is not an include/path
     error (C1083 or C1041 stop the script). Editor-bridge and public-editor mutants run in both flavors
     (CAPIE_DEBUG_DIAGNOSTICS=1 and 0) and are killed only when killed in both; the
-    caption, focus, memory and public-keys suites do not depend on the flavor and run once.
+    caption, focus, memory, game-call and public-keys suites do not depend on the flavor and run once.
     A mutant is killed by a compile error, failing checks, a crash or the timeout. Any
     survivor fails the script. Never touches a game process.
 

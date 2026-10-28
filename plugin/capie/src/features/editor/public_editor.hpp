@@ -30,7 +30,9 @@
  * once; the effect constructor hook substitutes the vector for this frame only
  * (`transport.hpp`). When the window is live but no payload can be built, the click is
  * forwarded once with `capie_cap`, `capie_ver` and `capie_epoch = -code` (`PublicSentinel`).
- * When the window is not live, the click is dropped and logged.
+ * When the window fails CAPIE's chain check (`inspect_chain` says invalid), the click is forwarded
+ * the same way with `capie_epoch = -1`, so another mod's script can show it. When the window is
+ * hidden, the click is dropped and logged.
  *
  * What it does not do: no permission check (that is the script's job), no focus set or
  * release, no select-all, no typing cap, no Escape handling, no caption refresh. Typed text
@@ -516,6 +518,26 @@ inline bool public_commit(void* context, const MsvcString* selector, PublicCommi
 }
 
 /**
+ * @brief Inspects the window of a context freshly.
+ * @param context Window context.
+ * @param model Model object.
+ * @param view Receives the root (when valid).
+ * @return `visible`, `hidden`, or `invalid` (also when the context does not lead back to its window).
+ */
+inline ViewResult public_view(void* context, void* model, View& view) noexcept {
+    void* window = nullptr;
+    if (!member(context, off::context_window, window)) {
+        return ViewResult::invalid;
+    }
+    const auto address = reinterpret_cast<std::uintptr_t>(window);
+    if (address == 0 || address > core::uptr_max - off::window_context ||
+        reinterpret_cast<std::uintptr_t>(context) != address + off::window_context) {
+        return ViewResult::invalid;
+    }
+    return inspect_chain(window, model, view);
+}
+
+/**
  * @brief The visible window of a grammar Apply's context.
  * @param context Window context.
  * @param model Model object of the context.
@@ -523,14 +545,7 @@ inline bool public_commit(void* context, const MsvcString* selector, PublicCommi
  * @return `true` when the context is embedded in a visible, consistent window of that model.
  */
 inline bool public_live(void* context, void* model, View& view) noexcept {
-    void* window = nullptr;
-    if (!member(context, off::context_window, window)) {
-        return false;
-    }
-    const auto address = reinterpret_cast<std::uintptr_t>(window);
-    return address != 0 && address <= core::uptr_max - off::window_context &&
-           reinterpret_cast<std::uintptr_t>(context) == address + off::window_context &&
-           inspect_chain(window, model, view) == ViewResult::visible;
+    return public_view(context, model, view) == ViewResult::visible;
 }
 
 /// @brief Field texts of one grammar Apply.
@@ -812,17 +827,29 @@ inline bool public_dispatch(void* context, void* opaque_selector) noexcept {
     current.selector = selector;
     current.id = next_observation_id();
     View view{};
-    const bool live = public_live(context, commit.model, view);
+    const ViewResult seen = public_view(context, commit.model, view);
     const bool registered = commit.registration == Registration::found || commit.registration == Registration::added;
+    grammar::Name apply{};
     if (registered) {
         current.public_model = public_editors[commit.slot].model.c_str();
         current.public_apply = public_editors[commit.slot].apply.c_str();
     } else {
         // Unregistered (registry full): names point at storage that lives for this call only.
         current.public_model = commit.name;
-        current.public_apply = nullptr;
+        const auto id = grammar::parse_model(std::string_view(commit.name, commit.size));
+        apply = id ? grammar::apply_name(*id) : grammar::Name{};
+        current.public_apply = apply.c_str();
     }
-    if (!live) {
+    if (seen == ViewResult::invalid) {
+        // Scan M2: CAPIE's own chain check failed (a factory failure, or a wrong offset after a port).
+        // The editor belongs to another mod, so its script still learns of the click: forwarded once
+        // as the stale sentinel, no payload. A hidden window keeps the drop below (CONTRACT 5.2).
+        if (!dispatch_public_sentinel(current, opaque_selector, PublicSentinel::stale)) {
+            bridge_rejected(current.id, "public-editor-invalid-sentinel-dropped");
+        }
+        return true;
+    }
+    if (seen != ViewResult::visible) {
         bridge_rejected(current.id, "public-editor-not-live-dropped");
         return true;
     }
@@ -835,12 +862,6 @@ inline bool public_dispatch(void* context, void* opaque_selector) noexcept {
         code = capture_public(commit, view, snapshot);
     }
     if (code != 0) {
-        grammar::Name apply{};
-        if (!registered) {
-            const auto id = grammar::parse_model(std::string_view(commit.name, commit.size));
-            apply = id ? grammar::apply_name(*id) : grammar::Name{};
-            current.public_apply = apply.c_str();
-        }
         if (!dispatch_public_sentinel(current, opaque_selector, static_cast<PublicSentinel>(code))) {
             bridge_rejected(current.id, "public-sentinel-dropped");
         }

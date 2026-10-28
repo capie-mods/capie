@@ -354,16 +354,16 @@
  {
   "name": "focus-bit4-visible",
   "file": "src/features/focus/focus_release.hpp",
-  "find": "rd(mem, parent, off::parent_flags, flags) && flag::shown_not_hidden(flags);",
-  "replace": "rd(mem, parent, off::parent_flags, flags) && (flags & flag::shown) != 0;",
+  "find": "out.parent_visible = parent != 0 && flag::shown_not_hidden(flags);",
+  "replace": "out.parent_visible = parent != 0 && (flags & flag::shown) != 0;",
   "suite": "tests/legacy/focus_release_test.cpp",
   "summary": "focus release tests:"
  },
  {
   "name": "focus-bit16-ignored",
   "file": "src/features/focus/focus_release.hpp",
-  "find": "rd(mem, parent, off::parent_flags, flags) && flag::shown_not_hidden(flags);",
-  "replace": "rd(mem, parent, off::parent_flags, flags) && (flags & flag::shown) != 0 && (flags & flag::hidden_a) == 0;",
+  "find": "out.parent_visible = parent != 0 && flag::shown_not_hidden(flags);",
+  "replace": "out.parent_visible = parent != 0 && (flags & flag::shown) != 0 && (flags & flag::hidden_a) == 0;",
   "suite": "tests/legacy/focus_release_test.cpp",
   "summary": "focus release tests:"
  },
@@ -842,8 +842,8 @@
  {
   "name": "name-layer-frame-not-restored",
   "file": "src/features/country/name_layer_hooks.hpp",
-  "find": "active_frame = previous;",
-  "replace": "static_cast<void>(previous);",
+  "find": "        const auto result = call();\n        active_frame = previous;",
+  "replace": "        const auto result = call();\n        static_cast<void>(previous);",
   "suite": "tests/name_layer_test.cpp",
   "summary": "name layer tests:"
  },
@@ -922,8 +922,8 @@
  {
   "name": "faction-layer-not-read-on-update",
   "file": "src/features/country/name_layer_hooks.hpp",
-  "find": "            update_faction(country);",
-  "replace": "            static_cast<void>(0);",
+  "find": "        update_faction(country);\n        if (!first_update_logged_",
+  "replace": "        static_cast<void>(0);\n        if (!first_update_logged_",
   "suite": "tests/name_layer_test.cpp",
   "summary": "name layer tests:"
  },
@@ -1154,8 +1154,8 @@
  {
   "name": "portrait-no-valid-check",
   "file": "src/features/country/portrait_layer_hooks.hpp",
-  "find": "if (originals_.valid(&candidate)) {",
-  "replace": "if (true) {",
+  "find": "            if (valid) {",
+  "replace": "            if (true) {",
   "suite": "tests/portrait_layer_test.cpp",
   "summary": "portrait layer tests:"
  },
@@ -1238,5 +1238,213 @@
   "replace": "(value & ~capability_bits) == country_capabilities_v4",
   "suite": "tests/portrait_layer_test.cpp",
   "summary": "portrait layer tests:"
+ },
+ {
+  "name": "latch-no-store",
+  "file": "src/engine/game_calls.hpp",
+  "find": "game_call_latch.load(std::memory_order_acquire)->store(true, std::memory_order_release);",
+  "replace": "static_cast<void>(0);",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "latch-own-only",
+  "file": "src/engine/game_calls.hpp",
+  "find": "return !game_call_latch.load(std::memory_order_acquire)->load(std::memory_order_acquire);",
+  "replace": "return !game_call_faulted.load(std::memory_order_acquire);",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "latch-share-clears",
+  "file": "src/engine/game_calls.hpp",
+  "find": "    if (game_call_faulted.load(std::memory_order_acquire)) {\n        shared->store(true, std::memory_order_release);\n    }\n",
+  "replace": "",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "find-ignores-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (lookup == nullptr || root == nullptr || name == nullptr || !game_calls_allowed()) {",
+  "replace": "if (lookup == nullptr || root == nullptr || name == nullptr) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "set-ignores-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (set_text == nullptr || edit == nullptr || text == nullptr || !game_calls_allowed()) {",
+  "replace": "if (set_text == nullptr || edit == nullptr || text == nullptr) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "refresh-ignores-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (refresh_edit == nullptr || edit == nullptr || !game_calls_allowed()) {",
+  "replace": "if (refresh_edit == nullptr || edit == nullptr) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "caption-call-ignores-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "index != core::value::politics_view_index ||\n        !game_calls_allowed()) {",
+  "replace": "index != core::value::politics_view_index) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "focus-call-ignores-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (focus_switch == nullptr || manager == nullptr || !game_calls_allowed()) {",
+  "replace": "if (focus_switch == nullptr || manager == nullptr) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "valid-ignores-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (valid == nullptr || entry == nullptr || !game_calls_allowed()) {",
+  "replace": "if (valid == nullptr || entry == nullptr) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "copy-ignores-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (copy == nullptr || out == nullptr || source == nullptr || !game_calls_allowed()) {",
+  "replace": "if (copy == nullptr || out == nullptr || source == nullptr) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "update-ignores-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (update == nullptr || country == 0 || !game_calls_allowed()) {",
+  "replace": "if (update == nullptr || country == 0) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "portrait-valid-unguarded",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "if (!engine::guarded_portrait_valid(originals_.valid, &candidate, valid)) {",
+  "replace": "valid = originals_.valid(&candidate);\n            if (!engine::game_calls_allowed()) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-copy-unguarded",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "if (!engine::guarded_string_copy(originals_.copy, &entry->name, &candidate.name)) {",
+  "replace": "if (originals_.copy(&entry->name, &candidate.name) == nullptr) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-fault-keeps-layer",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "if (enabled_.exchange(false)) {",
+  "replace": "if (enabled_.load()) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "refresh-unguarded",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "return engine::guarded_update_names(originals_.update, country); });",
+  "replace": "return originals_.update(country) != 0; });",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "faction-copy-unguarded",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "if (engine::guarded_string_copy(copy_, out, &borrowed)) {",
+  "replace": "if (copy_(out, &borrowed) != nullptr) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "name-fault-keeps-layers",
+  "file": "src/features/country/name_layer_hooks.hpp",
+  "find": "if (enabled_.exchange(false)) {",
+  "replace": "if (enabled_.load()) {",
+  "suite": "tests/name_layer_test.cpp",
+  "summary": "name layer tests:"
+ },
+ {
+  "name": "view-parent-root",
+  "file": "src/features/editor/window_view.hpp",
+  "find": "!member(window, off::window_parent, parent) || parent == out.root ||",
+  "replace": "!member(window, off::window_parent, parent) ||",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "focus-parent-root",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "!rd(mem, window, off::window_parent, parent) || parent == root) {",
+  "replace": "!rd(mem, window, off::window_parent, parent)) {",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "caption-parent-root",
+  "file": "src/features/caption/caption_refresh.hpp",
+  "find": "!rd(mem, window, off::window_parent, parent) || parent == root ||",
+  "replace": "!rd(mem, window, off::window_parent, parent) ||",
+  "suite": "tests/legacy/caption_refresh_test.cpp",
+  "summary": "caption refresh tests:"
+ },
+ {
+  "name": "focus-parent-flags-unread",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "if ((parent != 0 && !rd(mem, parent, off::parent_flags, flags)) ||",
+  "replace": "if ((parent != 0 && !rd(mem, parent, off::parent_flags, flags) && false) ||",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-root-flags-unread",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "|| !rd(mem, root, off::root_flags, out.root_flags) ||",
+  "replace": "|| (rd(mem, root, off::root_flags, out.root_flags) && false) ||",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-desired-unread",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "!rd(mem, window, off::window_desired, out.desired) ||",
+  "replace": "(rd(mem, window, off::window_desired, out.desired) && false) ||",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "focus-parent-seen-unread",
+  "file": "src/features/focus/focus_release.hpp",
+  "find": "!rd(mem, window, off::window_parent_seen, out.parent_seen)) {",
+  "replace": "(rd(mem, window, off::window_parent_seen, out.parent_seen) && false)) {",
+  "suite": "tests/legacy/focus_release_test.cpp",
+  "summary": "focus release tests:"
+ },
+ {
+  "name": "public-invalid-dropped",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "        if (!dispatch_public_sentinel(current, opaque_selector, PublicSentinel::stale)) {\n            bridge_rejected(current.id, \"public-editor-invalid-sentinel-dropped\");\n        }\n",
+  "replace": "        bridge_rejected(current.id, \"public-editor-invalid-sentinel-dropped\");\n",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
+ },
+ {
+  "name": "own-prepare-fail-dropped",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "        if (original_ctor != nullptr && stale_eligible(context, model) &&\n            dispatch_stale(current, opaque_selector, static_cast<unsigned>(StaleCode::stale))) {\n            return;\n        }\n",
+  "replace": "",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
  }
 ]
