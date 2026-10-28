@@ -5,14 +5,15 @@ Usage: python -I near.py <exe> target finds(comma) window
 
 import sys
 from collections import Counter
+from typing import Any, cast
 
-import numpy as np  # ty: ignore[unresolved-import] - numpy is not in the ty environment
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import numpy as np
+import pefile
 
 CALL_OPCODE = 0xE8
 """Opcode byte of a near relative call (E8 rel32)."""
 
-pe = pefile.PE(sys.argv[1], fast_load=True)
+pe = cast("Any", pefile.PE(sys.argv[1], fast_load=True))
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 raw = t.get_data()
 d = np.frombuffer(raw, np.uint8)

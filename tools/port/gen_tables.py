@@ -17,10 +17,11 @@ import os
 import pathlib
 import re
 import sys
+from typing import Any, cast
 
-import capstone  # ty: ignore[unresolved-import] - not in the ty --with list of the check command
-import pefile  # ty: ignore[unresolved-import] - not in the ty --with list of the check command
-from capstone import x86  # ty: ignore[unresolved-import] - not in the ty --with list of the check command
+import capstone
+import pefile
+from capstone import x86
 
 IMAGE_REL_BASED_DIR64 = 10
 """Base-relocation type of a 64-bit absolute pointer (IMAGE_REL_BASED_DIR64)."""
@@ -42,7 +43,7 @@ map_path = pathlib.Path(__file__).resolve().parent / os.environ.get(
     "CAPIE_PORT_MAP", "map_1.19.4.0.json"
 )
 mp = json.loads(map_path.read_text(encoding="utf-8"))
-pe = pefile.PE(exe)
+pe = cast("Any", pefile.PE(exe))
 pe.parse_data_directories()
 img = pe.get_memory_mapped_image()
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
@@ -53,7 +54,7 @@ for blk in getattr(pe, "DIRECTORY_ENTRY_BASERELOC", []):
     for e in blk.entries:
         if e.type == IMAGE_REL_BASED_DIR64:
             relocs.update(range(e.rva, e.rva + 8))
-md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+md = cast("Any", capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64))
 md.detail = True
 
 
@@ -71,7 +72,7 @@ def instrs(
     Returns:
         The disassembled instructions in address order.
     """
-    res = []
+    res: list[capstone.CsInsn] = []
     for i in md.disasm(data, addr):
         res.append(i)
         if n is not None and len(res) >= n:

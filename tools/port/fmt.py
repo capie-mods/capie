@@ -1,9 +1,10 @@
 """For each FindX RVA, find the 'lea rdx,[rip+X]' feeding the log call; print the string at X."""
 
 import sys
+from typing import Any, cast
 
-import capstone  # ty: ignore[unresolved-import] - tool dependency from requirements.txt
-import pefile  # ty: ignore[unresolved-import] - tool dependency from requirements.txt
+import capstone
+import pefile
 
 MIN_TEXT_LENGTH = 3
 """A string must be longer than this many bytes to be printed."""
@@ -14,9 +15,9 @@ FIRST_PRINTABLE = 32
 DEL_CODE = 127
 """First code after printable ASCII (DEL)."""
 
-pe = pefile.PE(sys.argv[1], fast_load=True)
+pe = cast("Any", pefile.PE(sys.argv[1], fast_load=True))
 img = pe.get_memory_mapped_image()
-md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+md = cast("Any", capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64))
 for arg in sys.argv[2].split(","):
     a = int(arg, 16)
     strs = []

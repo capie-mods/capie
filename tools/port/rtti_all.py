@@ -6,10 +6,11 @@ Usage: python -I rtti_all.py <exe> <out.tsv>
 import pathlib
 import struct
 import sys
+from typing import Any, cast
 
-import pefile  # ty: ignore[unresolved-import] - pefile is not in the ty environment
+import pefile
 
-pe = pefile.PE(sys.argv[1], fast_load=True)
+pe = cast("Any", pefile.PE(sys.argv[1], fast_load=True))
 img = pe.get_memory_mapped_image()
 IMAGE_BASE = pe.OPTIONAL_HEADER.ImageBase
 """Preferred load address of the executable; RTTI pointers are stored as absolute addresses."""

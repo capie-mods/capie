@@ -7,10 +7,10 @@ import bisect
 import json
 import pathlib
 import sys
-from typing import Any
+from typing import Any, cast
 
-import numpy as np  # ty: ignore[unresolved-import]
-import pefile  # ty: ignore[unresolved-import]
+import numpy as np
+import pefile
 
 MIN_ANCHOR_BYTES = 16
 """Shortest pattern, in bytes, that can serve as a trusted anchor."""
@@ -18,7 +18,7 @@ MIN_ANCHOR_BYTES = 16
 scan, exe, out = sys.argv[1:4]
 with pathlib.Path(scan).open() as fh:
     r = json.load(fh)
-pe = pefile.PE(exe, fast_load=True)
+pe = cast("Any", pefile.PE(exe, fast_load=True))
 t = next(s for s in pe.sections if s.Name.rstrip(b"\0") == b".text")
 data = np.frombuffer(t.get_data(), dtype=np.uint8)
 base = t.VirtualAddress
