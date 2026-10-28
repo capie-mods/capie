@@ -83,11 +83,22 @@ Save-Module PSScriptAnalyzer -Path $env:TEMP\psmodules
 uv run pwsh -NoProfile -File plugin/capie/tools/run-clang-tidy.ps1    # clang-tidy and clang-format
 ```
 
-Use `-OutputDirectory` to build a candidate next to the reviewed binaries instead of over them,
-and `-Console` for a developer build with the console commands. All CAPIE C++ compiles with
+Use `-OutputDirectory` to build a candidate next to the reviewed binaries; the reviewed folder
+itself (the one `plugin/capie/deploy/bundle-inputs.json` names) is refused as an output folder.
+`-Console` gives a developer build with the console commands. All CAPIE C++ compiles with
 `/MT /W4 /WX /std:c++20 /permissive-`. The build reads `hoi4.exe` as a file for the static pin
 checks; it never starts or attaches to the game. Building over a DLL that a running game has
 loaded is refused.
+
+A few checks compare CAPIE with files of other repositories: the demo mod's `.gui` and the SDK
+character table and localisation (`hoi4-rename-anything`), and Rename Anything's character
+table, generated localisation and `tools/test-session.ps1`. Copies of exactly those files are in
+`plugin/capie/tests/fixtures/external/<repo>/<path>`, and `lock.json` there records each file's
+source repository, path, commit and SHA-256. The build runs
+`python -I plugin/capie/tests/check_external_fixtures.py` first, which fails on any changed,
+missing or unlisted file, so no sibling checkout or junction is needed. To take newer versions,
+run it with `--refresh` (it copies the committed files from checkouts next to this one, or from
+`--siblings <folder>`), review the diff and commit the copies with the lock.
 
 Launcher and proxy:
 

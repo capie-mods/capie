@@ -143,6 +143,7 @@ class Context:
             "game_dir": str(game) if game else None,
             "game_exe": str(game / GAME_EXE_NAME) if game else None,
             "minhook_dir": self.options.minhook_dir or None,
+            "rebuild_output": self.config.build.rebuild_output,
             "psscriptanalyzer_dir": self.options.psscriptanalyzer_dir or None,
         }
 

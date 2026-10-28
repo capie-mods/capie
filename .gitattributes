@@ -1,3 +1,5 @@
 tools/bootstrap/install.ps1 text eol=lf
 # Byte-exact copy of the vanilla HOI4 file plus one marked block (check_mod.py compares bytes): never convert line endings.
 plugin/capie/toggle-mod/capie/interface/frontendmainview.gui -text
+# Copies of files from other repositories, pinned by SHA-256 in lock.json (check_external_fixtures.py): never convert line endings.
+plugin/capie/tests/fixtures/external/** -text

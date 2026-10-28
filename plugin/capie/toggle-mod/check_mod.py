@@ -3,8 +3,10 @@
 Offline and read-only. Checks the descriptors, that the launcher recognises the same
 descriptor path, the thumbnail, the main-menu indicator, its localisation fallback (same key
 and text as the CAPIE script SDK), that no gameplay folder and no vanilla interface file is
-shipped, and the player descriptions. The vanilla comparison uses the HOI4 installation when
-it is present (read-only) and is reported as skipped otherwise.
+shipped, and the player descriptions. The SDK localisation and Rename Anything's test-session
+script come from other repositories; their copies in ``plugin/capie/tests/fixtures/external``
+are read. The vanilla comparison uses the HOI4 installation when it is present (read-only)
+and is reported as skipped otherwise.
 
 Usage:
     python -I plugin/capie/toggle-mod/check_mod.py [--game "C:/.../Hearts of Iron IV"]
@@ -35,8 +37,11 @@ LOCAL_DESCRIPTOR = HERE / "capie.mod"
 RELEASE_TOML = REPO / "tools" / "release" / "release.toml"
 """Release configuration whose descriptor name must equal ``LOCAL_NAME``."""
 
-TEST_SESSION = REPO / "tools" / "test-session.ps1"
-"""Test-session script whose CAPIE descriptor name must differ from the Workshop item."""
+EXTERNAL = REPO / "plugin" / "capie" / "tests" / "fixtures" / "external"
+"""Vendored copies of files from other repositories (pinned in its ``lock.json``)."""
+
+TEST_SESSION = EXTERNAL / "rename-anything" / "tools" / "test-session.ps1"
+"""Rename Anything's test-session script; its CAPIE descriptor name differs from the Workshop's."""
 
 WORKSHOP_NAME = "CAPIE"
 """Name of the Workshop item, as its ``descriptor.mod`` declares it."""
@@ -50,7 +55,7 @@ WORKSHOP_ID = "3819929471"
 LAUNCHER_CONFIG = REPO / "plugin" / "capie" / "src" / "launcher" / "config.hpp"
 """Launcher source that compiles in the descriptor path it looks for."""
 
-SDK_LOCALISATION = REPO / "sdk" / "capie-script-sdk" / "mod" / "localisation"
+SDK_LOCALISATION = EXTERNAL / "hoi4-rename-anything/sdk/capie-script-sdk/mod/localisation"
 """Localisation of the CAPIE script SDK; the status fallback must match it."""
 
 DEFAULT_GAME = Path("C:/Program Files (x86)/Steam/steamapps/common/Hearts of Iron IV")

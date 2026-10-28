@@ -6,7 +6,8 @@
   are ever read, also when they come from the private key file.
 * :func:`reviewed_hashes` reads ``plugin/capie/deploy/bundle-inputs.json``, the one list of
   reviewed CAPIE binaries (name, source, SHA-256, DLL flag) that ``build_launcher.ps1``,
-  ``build_proxy.ps1`` and this tool all read.
+  ``build_proxy.ps1`` and this tool all read; :func:`reviewed_folder` derives the one folder
+  of the reviewed build from its ``source`` entries.
 * :func:`render_pinned_block` and :func:`replace_pinned_block` produce the
   ``$script:RaPinnedRelease`` block of ``tools/bootstrap/src/Shared/Configuration.ps1``.
 """
@@ -203,6 +204,25 @@ def bundle_inputs(text: str) -> tuple[BundleInput, ...]:
         seen.add(name.lower())
         entries.append(BundleInput(name, source, digest, dll))
     return tuple(entries)
+
+
+def reviewed_folder(inputs: tuple[BundleInput, ...]) -> str:
+    """The one folder that holds the reviewed binaries.
+
+    Args:
+        inputs: Entries of ``bundle-inputs.json``.
+
+    Returns:
+        The repository-relative folder all ``source`` values share (forward slashes).
+
+    Raises:
+        SigningError: The sources name more than one folder.
+    """
+    folders = sorted({entry.source.rpartition("/")[0] for entry in inputs})
+    if len(folders) != 1:
+        msg = f"bundle-inputs.json sources must share one folder, found {folders}"
+        raise SigningError(msg)
+    return folders[0]
 
 
 def reviewed_hashes(text: str) -> dict[str, str]:

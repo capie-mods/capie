@@ -1,7 +1,8 @@
 """Prove the CAPIE status-text contract on the generated mod localisation (R5-MINOR-2).
 
-Reads ``RN_PLUGIN_STATUS``, ``_EN``, ``_PL`` and ``RN_COUNTRY_PLUGIN`` from the generated
-``mod/localisation/<language>/rename_anything_l_<language>.yml`` files and models the
+Reads ``RN_PLUGIN_STATUS``, ``_EN``, ``_PL`` and ``RN_COUNTRY_PLUGIN`` from Rename Anything's
+generated ``mod/localisation/<language>/rename_anything_l_<language>.yml`` files (the copies
+in ``tests/fixtures/external/rename-anything``, pinned in its ``lock.json``) and models the
 engine: each key is first offered to the country DLL (its hooks sit on the lookup
 functions), then the yml value is used and ``$KEY$`` references are expanded. Asserts the
 visible ``RN_COUNTRY_PLUGIN`` text for english, polish and french with ``capie_core.dll``,
@@ -35,6 +36,12 @@ MISSING_EN = "CAPIE missing: Rename Anything needs it"
 MISSING_PL = "Brak CAPIE: wymaga go Rename Anything"
 """Polish fallback from the mod localisation."""
 
+EXTERNAL = REPO / "plugin" / "capie" / "tests" / "fixtures" / "external"
+"""Vendored copies of files from other repositories."""
+
+LOCALISATION = EXTERNAL / "rename-anything" / "mod" / "localisation"
+"""Vendored copy of Rename Anything's generated localisation."""
+
 MAX_DEPTH = 8
 """Recursion limit of ``$KEY$`` expansion."""
 
@@ -48,7 +55,7 @@ def entries(language: str) -> dict[str, str]:
     Returns:
         Mapping of key to value.
     """
-    path = REPO / "mod" / "localisation" / language / f"rename_anything_l_{language}.yml"
+    path = LOCALISATION / language / f"rename_anything_l_{language}.yml"
     found: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8-sig").splitlines():
         match = re.match(r'\s*(\w+):\d*\s*"(.*)"\s*$', line)

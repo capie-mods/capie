@@ -4,10 +4,11 @@
 
 .DESCRIPTION
     Output: plugin/build/capie-launcher/ (the accepted plugin/build/launcher-candidate is not touched).
-      1. Every input binary listed in plugin/capie/deploy/bundle-inputs.json (today the CAPIE 1.5
-         release build plugin/build/capie-1.5.1/capie_core.dll, capie_editor.dll,
-         capie_injector.exe; never debug/ or a console build) must match its SHA-256 there. The
-         same file pins the proxy (build_proxy.ps1), and the table in DEPLOYMENT.md must mirror it.
+      1. Every input binary listed in plugin/capie/deploy/bundle-inputs.json (the reviewed CAPIE
+         release build capie_core.dll, capie_editor.dll, capie_injector.exe in the one folder its
+         sources name, with LICENSE.MinHook.txt; never debug/ or a console build) must match its
+         SHA-256 there. The same file pins the proxy (build_proxy.ps1), and the table in
+         DEPLOYMENT.md must mirror it.
       2. The inputs are copied into runtime\ and launcher_manifest.generated.hpp is written from
          the copies (name, lower-case SHA-256, DLL or EXE); its hashes must equal the JSON. A
          proxy build output that pins other DLL hashes is reported as stale.
@@ -206,7 +207,8 @@ foreach ($entry in $script:BundleInputs) {
     Copy-Item -LiteralPath (Join-Path $repoDir $entry.source) -Destination $target -Force
     if ((Get-Sha256 $target).ToLowerInvariant() -cne $entry.sha256) { throw "Bundle copy mismatch: $($entry.name)" }
 }
-Copy-Item -LiteralPath (Join-Path $repoDir 'plugin/build/capie-1.5.1/LICENSE.MinHook.txt') -Destination (Join-Path $outputDir 'LICENSE.MinHook.txt') -Force
+$reviewedDir = Join-Path $repoDir (Get-CapieReviewedDirectory -Inputs $script:BundleInputs)
+Copy-Item -LiteralPath (Join-Path $reviewedDir 'LICENSE.MinHook.txt') -Destination (Join-Path $outputDir 'LICENSE.MinHook.txt') -Force
 $launcherHeader = Join-Path $outputDir 'launcher_manifest.generated.hpp'
 [IO.File]::WriteAllText($launcherHeader, (New-LauncherManifestHeader -RuntimeDirectory $runtimeDir), [Text.UTF8Encoding]::new($false))
 # The compiled pins must be the JSON's, and the proxy must not pin another CAPIE build.

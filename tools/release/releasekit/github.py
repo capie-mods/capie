@@ -6,6 +6,12 @@ notes built from ``CHANGELOG.md`` plus the fixed sections the release checklist 
 for (supported game build, multiplayer statement, SmartScreen, VirusTotal, checksums).
 A draft does not create the tag; GitHub creates it when the release is published.
 
+Before anything is uploaded the step checks the files again, failing closed: the ZIP is
+re-hashed against the manifest (``zipName``, ``zipSha256`` and every file inside), every line
+of ``SHA256SUMS.txt`` against the files, and the manifest signature against the public key
+the installer pins (``Configuration.ps1``). So a re-run that wrote a new ZIP next to an old
+manifest can never be published.
+
 ``--publish`` (not a draft) and ``--stable`` (not a pre-release) each need a typed
 confirmation. ``install.ps1 -Update`` reads ``releases/latest``, which ignores drafts
 and pre-releases, so players only see a release that is both published and stable.
@@ -14,13 +20,20 @@ and pre-releases, so players only see a release that is both published and stabl
 from __future__ import annotations
 
 import json
+import zipfile
 from typing import TYPE_CHECKING
 
 from releasekit import changelog, gitinfo
 from releasekit.console import Status
-from releasekit.package import MANIFEST_NAME, SIGNATURE_NAME, SUMS_NAME
+from releasekit.package import (
+    MANIFEST_NAME,
+    SIGNATURE_NAME,
+    SUMS_NAME,
+    installer_public_key,
+    sha256_bytes,
+)
 from releasekit.runner import quote
-from releasekit.signing import pinned_fields
+from releasekit.signing import pinned_fields, verify_signature
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -137,8 +150,77 @@ def _gh(ctx: Context, *args: str) -> tuple[str, ...]:
     return ("gh", *args, "--repo", ctx.repo)
 
 
+def _zip_problems(zip_path: Path, manifest: dict[str, object]) -> list[str]:
+    """Re-hash the ZIP and its files against the manifest.
+
+    Args:
+        zip_path: Release ZIP.
+        manifest: Parsed ``release-manifest.json``.
+
+    Returns:
+        One line per mismatch.
+    """
+    problems: list[str] = []
+    zip_sha = sha256_bytes(zip_path.read_bytes())
+    if manifest.get("zipName") != zip_path.name:
+        problems.append(f"{MANIFEST_NAME} names {manifest.get('zipName')!r}, not {zip_path.name}")
+    if str(manifest.get("zipSha256", "")).upper() != zip_sha:
+        problems.append(
+            f"{zip_path.name} SHA-256 {zip_sha} != {MANIFEST_NAME} {manifest.get('zipSha256')}"
+        )
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            inside = {i.filename: sha256_bytes(archive.read(i)) for i in archive.infolist()}
+    except zipfile.BadZipFile:
+        return [*problems, f"{zip_path.name} is not a readable ZIP"]
+    files = manifest.get("files")
+    listed = {str(k): str(v).upper() for k, v in files.items()} if isinstance(files, dict) else {}
+    if inside != listed:
+        problems.append(f"the files inside {zip_path.name} differ from {MANIFEST_NAME}")
+    return problems
+
+
+def asset_problems(ctx: Context) -> list[str]:
+    """Re-check the release files on disk: ZIP against manifest, sums, and the signature.
+
+    Args:
+        ctx: Run context (the ZIP, manifest, signature and sums must exist).
+
+    Returns:
+        One line per mismatch; empty when the files are exactly what was signed.
+    """
+    out = ctx.out_dir
+    zip_path = out / ctx.config.bundle.zip_name.format(version=ctx.version)
+    manifest = (out / MANIFEST_NAME).read_bytes()
+    try:
+        data = json.loads(manifest.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        data = None
+    if not isinstance(data, dict):
+        return [f"{MANIFEST_NAME} is not a JSON object"]
+    problems = _zip_problems(zip_path, data)
+    signed = (zip_path, out / MANIFEST_NAME, out / SIGNATURE_NAME)  # what SHA256SUMS.txt lists
+    expected = {p.name: sha256_bytes(p.read_bytes()).lower() for p in signed}
+    sums: dict[str, str] = {}
+    for line in (out / SUMS_NAME).read_text(encoding="ascii", errors="replace").splitlines():
+        digest, _, name = line.partition("  ")
+        sums[name] = digest
+    if sums != expected:
+        problems.append(f"{SUMS_NAME} does not list exactly the current {', '.join(expected)}")
+    key = installer_public_key(ctx)
+    signature = (out / SIGNATURE_NAME).read_text(encoding="utf-8")
+    if key is None:
+        problems.append(
+            f"no public key in {ctx.config.signing.installer_configuration}: "
+            "the signature cannot be verified"
+        )
+    elif not verify_signature(key, manifest, signature):
+        problems.append(f"{SIGNATURE_NAME} does not verify with the installer public key")
+    return problems
+
+
 def check_local(ctx: Context) -> bool:
-    """Assets, working tree and installer pins.
+    """Assets (re-verified by :func:`asset_problems`), working tree and installer pins.
 
     Args:
         ctx: Run context.
@@ -148,11 +230,21 @@ def check_local(ctx: Context) -> bool:
     """
     reporter = ctx.reporter
     ok = True
+    present = True
     for asset in assets(ctx):
         if not asset.is_file():
             status = Status.PLAN if ctx.options.dry_run else Status.FAIL
             reporter.record(STEP, status, f"asset missing (run 'build' first): {asset}")
             ok = ok and ctx.options.dry_run
+            present = False
+    if present:
+        problems = asset_problems(ctx)
+        for problem in problems:
+            reporter.record(STEP, Status.FAIL, f"{problem}: run 'build' again")
+        if problems:
+            ok = False
+        else:
+            reporter.record(STEP, Status.OK, "ZIP, manifest, checksums and signature re-verified")
     if gitinfo.status_lines(ctx.runner, ctx.config.root):
         reporter.record(
             STEP, Status.FAIL, "working tree not clean: commit the installer pins first"

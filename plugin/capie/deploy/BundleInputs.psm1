@@ -76,6 +76,29 @@ function Read-CapieBundleInput {
     return @($result)
 }
 
+function Get-CapieReviewedDirectory {
+    <#
+    .SYNOPSIS
+        The one folder that holds the reviewed binaries, derived from the bundle-inputs.json sources.
+    .DESCRIPTION
+        Every source must sit in the same folder; that folder is the reviewed (pinned) build.
+        Nothing else names it: build_launcher.ps1 takes LICENSE.MinHook.txt from it, and
+        build.ps1 refuses to write into it.
+    .PARAMETER Inputs
+        Entries from Read-CapieBundleInput.
+    .OUTPUTS
+        System.String. Repository-relative folder with forward slashes.
+    .EXAMPLE
+        Get-CapieReviewedDirectory -Inputs (Read-CapieBundleInput)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory)][psobject[]]$Inputs)
+    $folders = @($Inputs | ForEach-Object { $_.source.Substring(0, $_.source.LastIndexOf('/')) } | Sort-Object -Unique)
+    if ($folders.Count -ne 1) { throw "bundle-inputs.json sources must share one folder, found: $($folders -join ', ')" }
+    return $folders[0]
+}
+
 function Get-CapieHeaderHash {
     <#
     .SYNOPSIS
@@ -239,7 +262,7 @@ function Test-CapieOtherBuild {
 }
 
 Export-ModuleMember -Function @(
-    'Get-CapieBundleInputPath', 'Read-CapieBundleInput', 'Get-CapieHeaderHash', 'Assert-CapieHashList',
+    'Get-CapieBundleInputPath', 'Read-CapieBundleInput', 'Get-CapieReviewedDirectory', 'Get-CapieHeaderHash', 'Assert-CapieHashList',
     'Assert-CapieDeploymentTable', 'Assert-CapieProxyMatchesBundle', 'Assert-CapieLauncherMatchesBundle',
     'Test-CapieOtherBuild'
 )

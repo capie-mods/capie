@@ -73,8 +73,12 @@ block into `Configuration.ps1` and rebuilds `install.ps1`; commit both before `r
 
 MSVC builds are not bit-reproducible, and the launcher and proxy compile in the reviewed DLL
 hashes, so `build` never recompiles the CAPIE DLLs silently. `--rebuild-capie --minhook-dir ...`
-runs `build.ps1` over `plugin/build/capie/` and stops with the new hashes. Have them reviewed,
-re-pin them in `plugin/capie/deploy/bundle-inputs.json`, commit, then run `build` again.
+runs `build.ps1` into the scratch folder `rebuild_output` (`plugin/build/capie-rebuild/`) and
+stops with the new hashes; the reviewed folder is never written, and `build.ps1` refuses it as
+an output folder. Have the new binaries reviewed, copy them into the reviewed folder, re-pin
+them in `plugin/capie/deploy/bundle-inputs.json`, commit, then run `build` again. The reviewed
+folder is not configured anywhere else: it is the folder the `source` entries of
+`bundle-inputs.json` name (all of them must name the same one).
 
 ### Reviewed bundle hashes: `bundle-inputs.json`
 

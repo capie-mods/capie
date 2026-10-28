@@ -64,6 +64,9 @@ extend-exclude = [
     "probes/rn_inline_pair_qa/tools/",
     # TODO: untracked, in-progress work of another agent (caption refresh); include once committed.
     "plugin/probes/caption_refresh_candidate/",
+    # Byte-exact copies of files from other repositories, pinned by SHA-256 in their lock.json
+    # (plugin/capie/tests/check_external_fixtures.py); they are linted where they come from.
+    "plugin/capie/tests/fixtures/external/",
 ]
 
 [tool.ruff.lint]
@@ -126,6 +129,7 @@ exclude = [
     "probes/rn_inline_editor_product_qa/check.py",
     "probes/rn_inline_pair_qa/tools/",
     "plugin/probes/caption_refresh_candidate/",
+    "plugin/capie/tests/fixtures/external/",
 ]
 
 [tool.ty.rules]

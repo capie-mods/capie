@@ -1,10 +1,12 @@
 """Prove that the native alphabet and the SDK character table are the same list (C3).
 
 Reads the two ``std::u32string_view`` literals ``alphabet`` and ``extended_alphabet`` from
-``plugin/capie/src/features/editor/input_codes.hpp`` and compares them with
+``plugin/capie/src/features/editor/input_codes.hpp`` and compares them with the SDK's
 ``sdk/capie-script-sdk/tools/capie_charset.py`` (the single definition of the API level 2
 table) and with Rename Anything's ``tools/modgen/charset.py`` (codes 1 to 84): same
-characters, same order, same size, no markup character. Font coverage is documented in
+characters, same order, same size, no markup character. Both tables live in other
+repositories; the copies in ``tests/fixtures/external`` are read (pinned in its
+``lock.json``, see ``check_external_fixtures.py``). Font coverage is documented in
 ``plugin/capie/CONTRACT.md`` and is not checked here.
 
 Usage::
@@ -24,10 +26,13 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 HEADER = REPO / "plugin" / "capie" / "src" / "features" / "editor" / "input_codes.hpp"
 """Native encoder header."""
 
-SDK_CHARSET = REPO / "sdk" / "capie-script-sdk" / "tools" / "capie_charset.py"
+EXTERNAL = REPO / "plugin" / "capie" / "tests" / "fixtures" / "external"
+"""Vendored copies of files from other repositories."""
+
+SDK_CHARSET = EXTERNAL / "hoi4-rename-anything/sdk/capie-script-sdk/tools/capie_charset.py"
 """SDK character table."""
 
-MOD_CHARSET = REPO / "tools" / "modgen" / "charset.py"
+MOD_CHARSET = EXTERNAL / "rename-anything" / "tools" / "modgen" / "charset.py"
 """Rename Anything's character table."""
 
 LEGACY_SIZE = 84

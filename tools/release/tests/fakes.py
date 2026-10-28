@@ -191,12 +191,13 @@ argv = ["{python}", "tools/gen.py", "--game", "{game_dir}"]
 clean_after = ["mod"]
 
 [build]
-capie_output = "plugin/build/capie"
 reviewed_hashes = "plugin/capie/deploy/bundle-inputs.json"
 reviewed_files = ["capie_core.dll", "capie_editor.dll", "capie_injector.exe"]
+rebuild_output = "plugin/build/capie-rebuild"
 [build.rebuild_capie]
 name = "capie build"
-argv = ["{pwsh}", "-File", "plugin/capie/build.ps1", "-MinHookDir", "{minhook_dir}"]
+argv = ["{pwsh}", "-File", "plugin/capie/build.ps1", "-MinHookDir", "{minhook_dir}",
+        "-OutputDirectory", "{rebuild_output}"]
 [[build.commands]]
 name = "launcher build"
 argv = ["{pwsh}", "-File", "plugin/capie/build_launcher.ps1"]

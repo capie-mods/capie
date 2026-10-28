@@ -74,9 +74,13 @@ class SwitchModConfig:
 
 @dataclass(frozen=True)
 class BuildConfig:
-    """Build step: reviewed CAPIE binaries, the optional rebuild and the bundle builds."""
+    """Build step: reviewed CAPIE binaries, the optional rebuild and the bundle builds.
 
-    capie_output: str
+    The folder of the reviewed binaries is not configured here: it is the one folder that the
+    ``source`` entries of ``reviewed_hashes`` (``bundle-inputs.json``) name.
+    """
+
+    rebuild_output: str
     reviewed_hashes: str
     reviewed_files: tuple[str, ...]
     rebuild_capie: CommandSpec
@@ -429,7 +433,7 @@ def parse_config(data: Mapping[str, object], path: Path) -> ReleaseConfig:
         ),
         preflight=tuple(_command(c) for c in _tables(_table(data, "preflight"), "commands")),
         build=BuildConfig(
-            capie_output=_string(build, "capie_output"),
+            rebuild_output=_string(build, "rebuild_output"),
             reviewed_hashes=_string(build, "reviewed_hashes"),
             reviewed_files=_strings(build, "reviewed_files"),
             rebuild_capie=_command(_table(build, "rebuild_capie")),

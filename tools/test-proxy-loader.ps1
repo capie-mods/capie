@@ -36,12 +36,16 @@ $proxySource = (Resolve-Path -LiteralPath $ProxyDll).Path
 $runtimeSource = (Resolve-Path -LiteralPath $RuntimeDirectory).Path
 $evidenceRoot = [IO.Path]::GetFullPath($EvidenceDirectory)
 $installedProxy = Join-Path $gameRoot 'version.dll'
-$pinnedGame = '7DC947BE34970DA1E1C787BCDDBE7F62B610FF258AEBF8F06AA8B348F3A031D5'
-$runtimePins = @{
-    'capie_core.dll' = 'D95B510D71F78AC5F5AB83C2EE38A803E6B5D6B651B7EBB4AD281820EB93BE00'
-    'capie_editor.dll' = '742D655E2DC92AF036C09FB6F4E808039040D9F696D8908E6D4FAED02C433CCA'
-}
-if ((Get-FileHash -LiteralPath $gameExe).Hash -ne $pinnedGame) { throw 'Unsupported game executable.' }
+# One source each, never a copy: the supported game build (game_build.hpp) and the reviewed
+# CAPIE DLLs (deploy/bundle-inputs.json, also read by build_launcher.ps1 and build_proxy.ps1).
+$capieDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'plugin\capie'
+Import-Module (Join-Path $capieDir 'deploy\BundleInputs.psm1') -Force
+$gameBuild = Get-Content -LiteralPath (Join-Path $capieDir 'src\core\game_build.hpp') -Raw
+if ($gameBuild -notmatch 'game_exe_sha256\[\] = "([0-9a-f]{64})"') { throw 'game_build.hpp has no game_exe_sha256.' }
+$pinnedGame = $matches[1].ToUpperInvariant()
+$runtimePins = [ordered]@{}
+foreach ($entry in @(Read-CapieBundleInput | Where-Object { $_.dll })) { $runtimePins[$entry.name] = $entry.sha256.ToUpperInvariant() }
+if ((Get-FileHash -LiteralPath $gameExe).Hash -ne $pinnedGame) { throw "Unsupported game executable (game_build.hpp pins $pinnedGame)." }
 if (Test-Path -LiteralPath $installedProxy) { throw 'Existing game version.dll: refusing to replace it.' }
 if (Test-Path -LiteralPath $evidenceRoot) { throw 'EvidenceDirectory must be new.' }
 foreach ($entry in $runtimePins.GetEnumerator()) {

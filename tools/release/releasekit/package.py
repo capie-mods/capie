@@ -6,10 +6,11 @@ Why the CAPIE DLLs are not simply recompiled here: MSVC output is not bit-reprod
 (``plugin/capie/deploy/bundle-inputs.json``, read by ``build_launcher.ps1``, ``build_proxy.ps1``
 and this step). A fresh build therefore never matches the pins. The step:
 
-1. ``--rebuild-capie`` only: runs ``build.ps1`` (all offline tests) over the reviewed
-   output folder and stops when the new hashes differ from ``bundle-inputs.json``, listing
-   them for review and re-pinning.
-2. Checks that the CAPIE binaries in the build folder are the reviewed ones.
+1. ``--rebuild-capie`` only: runs ``build.ps1`` (all offline tests) into the scratch folder
+   ``rebuild_output`` (never the reviewed folder) and stops when the new hashes differ from
+   ``bundle-inputs.json``, listing them for review and re-pinning.
+2. Checks that the CAPIE binaries in the reviewed folder (the one folder the ``source``
+   entries of ``bundle-inputs.json`` name) are the reviewed ones.
 3. Runs ``[[build.commands]]`` (launcher and proxy builds with their own tests), then checks
    that every shipped PE file (``.dll``/``.exe``) carries the ``game_exe_sha256`` and
    ``capie_release`` strings of ``game_build.hpp`` (ASCII or UTF-16LE), so the manifest's
@@ -38,13 +39,16 @@ from releasekit import changelog, gitinfo
 from releasekit.console import Status
 from releasekit.runner import quote
 from releasekit.signing import (
+    BundleInput,
     PinnedRelease,
+    PublicKey,
     SigningError,
     bundle_inputs,
     pinned_fields,
     public_key_from_xml,
     render_pinned_block,
     replace_pinned_block,
+    reviewed_folder,
     verify_signature,
 )
 
@@ -100,6 +104,9 @@ TOKEN_CHARS = frozenset(b"0123456789.abcdefABCDEF")
 
 UTF16_UNIT = 2
 """Code unit size of UTF-16LE."""
+
+INSTALLER_PUBLIC_KEY = re.compile(r"\$script:RaUpdatePublicKeyXml = '([^']*)'")
+"""The public key the installer verifies release manifests with (``Configuration.ps1``)."""
 
 
 @dataclass(frozen=True)
@@ -390,19 +397,20 @@ def check_identity(ctx: Context, entries: Sequence[BundleEntry]) -> bool:
     return True
 
 
-def read_reviewed(ctx: Context) -> dict[str, str] | None:
-    """Read the reviewed hashes from ``bundle-inputs.json``.
+def read_reviewed(ctx: Context) -> tuple[BundleInput, ...] | None:
+    """Read the reviewed binaries from ``bundle-inputs.json``.
 
     Args:
         ctx: Run context.
 
     Returns:
-        Upper-case hashes by file name, or ``None`` after recording why they are unusable.
+        The entries (name, source, hash), or ``None`` after recording why they are unusable.
     """
     config = ctx.config
     path = config.resolve(config.build.reviewed_hashes)
     try:
         inputs = bundle_inputs(path.read_text(encoding="utf-8"))
+        reviewed_folder(inputs)
     except (OSError, SigningError) as error:
         ctx.reporter.record(STEP, Status.FAIL, f"{config.build.reviewed_hashes}: {error}")
         return None
@@ -415,11 +423,11 @@ def read_reviewed(ctx: Context) -> dict[str, str] | None:
             f"reviewed_files is {sorted(config.build.reviewed_files)}",
         )
         return None
-    return {entry.name: entry.sha256.upper() for entry in inputs}
+    return inputs
 
 
 def check_reviewed(ctx: Context, entries: Sequence[BundleEntry]) -> bool:
-    """The CAPIE binaries (build folder and ZIP copies) are the reviewed ones.
+    """The CAPIE binaries (reviewed build folder and ZIP copies) are the reviewed ones.
 
     Args:
         ctx: Run context.
@@ -429,19 +437,17 @@ def check_reviewed(ctx: Context, entries: Sequence[BundleEntry]) -> bool:
         True when every reviewed file matches ``bundle-inputs.json``.
     """
     config = ctx.config
-    table = read_reviewed(ctx)
-    if table is None:
+    inputs = read_reviewed(ctx)
+    if inputs is None:
         return False
+    table = {entry.name: entry.sha256.upper() for entry in inputs}
     ok = True
-    for name in config.build.reviewed_files:
-        built = config.resolve(config.build.capie_output) / name
-        expected = table.get(name)
+    for entry in inputs:
+        built = config.resolve(entry.source)
         actual = sha256_bytes(built.read_bytes()) if built.is_file() else None
-        if expected is None or actual != expected:
+        if actual != table[entry.name]:
             ctx.reporter.record(
-                STEP,
-                Status.FAIL,
-                f"{config.build.capie_output}/{name} {actual} != reviewed {expected}",
+                STEP, Status.FAIL, f"{entry.source} {actual} != reviewed {table[entry.name]}"
             )
             ok = False
     by_name = {e.name: e for e in entries}
@@ -464,41 +470,55 @@ def check_reviewed(ctx: Context, entries: Sequence[BundleEntry]) -> bool:
 
 
 def rebuild_capie(ctx: Context) -> bool:
-    """Run ``build.ps1`` and compare the new binaries with the reviewed hashes.
+    """Run ``build.ps1`` into the scratch folder and compare its binaries with the reviewed ones.
+
+    The reviewed folder (named by ``bundle-inputs.json``) is never written: MSVC output is not
+    bit-reproducible, so a build over it would lose the reviewed files.
 
     Args:
         ctx: Run context.
 
     Returns:
-        True when the build passed and still matches the reviewed hashes.
+        True when the build passed and its binaries still match the reviewed hashes.
     """
-    result = ctx.run_spec(STEP, ctx.config.build.rebuild_capie)
+    config = ctx.config
+    inputs = read_reviewed(ctx)
+    if inputs is None:
+        return False
+    scratch = config.resolve(config.build.rebuild_output)
+    reviewed = config.resolve(reviewed_folder(inputs))
+    if scratch == reviewed or reviewed in scratch.parents:
+        ctx.reporter.record(
+            STEP,
+            Status.FAIL,
+            f"rebuild_output {config.build.rebuild_output} is the reviewed build folder "
+            f"named by {config.build.reviewed_hashes}: choose a scratch folder",
+        )
+        return False
+    result = ctx.run_spec(STEP, config.build.rebuild_capie)
     if result is None:
         return ctx.options.dry_run
     if not result.ok:
         for line in result.output.strip().splitlines()[-TAIL_LINES:]:
             ctx.reporter.detail(line, echo=True)
         ctx.reporter.record(
-            STEP, Status.FAIL, f"{ctx.config.build.rebuild_capie.name} (exit {result.returncode})"
+            STEP, Status.FAIL, f"{config.build.rebuild_capie.name} (exit {result.returncode})"
         )
         return False
-    ctx.reporter.record(STEP, Status.OK, ctx.config.build.rebuild_capie.name)
-    output = ctx.config.resolve(ctx.config.build.capie_output)
-    table = read_reviewed(ctx)
-    if table is None:
-        return False
+    ctx.reporter.record(STEP, Status.OK, config.build.rebuild_capie.name)
     changed = []
-    for name in ctx.config.build.reviewed_files:
-        actual = sha256_bytes((output / name).read_bytes())
-        if actual != table.get(name):
-            changed.append(f"{name} {actual}")
+    for entry in inputs:
+        built = scratch / entry.name
+        actual = sha256_bytes(built.read_bytes()) if built.is_file() else None
+        if actual != entry.sha256.upper():
+            changed.append(f"{entry.name} {actual}")
     if changed:
         ctx.reporter.record(
             STEP,
             Status.FAIL,
-            "new CAPIE binaries differ from the reviewed hashes "
-            "(expected: MSVC is not reproducible). "
-            f"After review, re-pin them in {ctx.config.build.reviewed_hashes} "
+            f"new CAPIE binaries in {config.build.rebuild_output} differ from the reviewed "
+            "hashes (expected: MSVC is not reproducible). After review, copy them into "
+            f"{reviewed_folder(inputs)}, re-pin them in {config.build.reviewed_hashes} "
             "(build_launcher.ps1 and build_proxy.ps1 read it), commit, "
             "and run 'build' again: " + "; ".join(changed),
         )
@@ -685,6 +705,25 @@ def check_manifest(
     return True
 
 
+def installer_public_key(ctx: Context) -> PublicKey | None:
+    """The public key pinned in the installer configuration.
+
+    Args:
+        ctx: Run context.
+
+    Returns:
+        The key, or ``None`` while the configuration still holds a placeholder.
+    """
+    installer = ctx.config.resolve(ctx.config.signing.installer_configuration).read_text(
+        encoding="utf-8"
+    )
+    pinned = INSTALLER_PUBLIC_KEY.search(installer)
+    try:
+        return public_key_from_xml(pinned.group(1)) if pinned else None
+    except SigningError:
+        return None
+
+
 def check_signature(ctx: Context, manifest: bytes, signature: str, key_path: Path) -> bool:
     """Verify the signature with the installer's public key (or the key's own public part).
 
@@ -697,15 +736,8 @@ def check_signature(ctx: Context, manifest: bytes, signature: str, key_path: Pat
     Returns:
         True when the signature verifies.
     """
-    installer = ctx.config.resolve(ctx.config.signing.installer_configuration).read_text(
-        encoding="utf-8"
-    )
-    pinned = re.search(r"\$script:RaUpdatePublicKeyXml = '([^']*)'", installer)
     source = "installer public key"
-    try:
-        key = public_key_from_xml(pinned.group(1)) if pinned else None
-    except SigningError:
-        key = None
+    key = installer_public_key(ctx)
     if key is None:
         ctx.reporter.record(
             STEP,
@@ -882,6 +914,9 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
     """
     out = ctx.out_dir
     out.mkdir(parents=True, exist_ok=True)
+    # A failed re-run must not leave the old manifest, signature and sums next to a new ZIP.
+    for stale in (MANIFEST_NAME, SIGNATURE_NAME, SUMS_NAME):
+        (out / stale).unlink(missing_ok=True)
     zip_path = out / zip_name
     write_zip(zip_path, entries)
     zip_sha = sha256_bytes(zip_path.read_bytes())

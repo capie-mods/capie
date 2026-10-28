@@ -16,9 +16,15 @@
     checks (signature table, status localisation, native alphabet vs the SDK table, addresses in
     comments).
 
+    Files of other repositories (the demo mod's .gui, the SDK and Rename Anything character
+    tables, Rename Anything's localisation) are read from their vendored copies in
+    tests/fixtures/external, whose SHA-256 values tests/check_external_fixtures.py checks first.
+    No sibling checkout or junction is needed.
+
     It never starts, inspects, injects into or reads memory of a game process. The EXE is
     only read as a file for the static fingerprint checks. Refuses to overwrite a locked
-    (possibly loaded) DLL. Accepted builds under plugin/build/* are not touched.
+    (possibly loaded) DLL, and refuses an output folder that is (or contains) the reviewed
+    build named by deploy/bundle-inputs.json. Accepted builds under plugin/build/* are not touched.
 
 .PARAMETER MinHookDir
     MinHook source folder (needs include\MinHook.h and LICENSE.txt).
@@ -33,12 +39,15 @@
     Python interpreter for check_signature_table.py.
 
 .PARAMETER SkipBenchmarks
-    Do not run the hot-path benchmarks.
+    Do not run the hot-path benchmarks. Without it, the comparisons with the old sources run
+    only when those sources exist (plugin\probes\caption_refresh_candidate, and the staged
+    country DLL that its country-status-candidate\build.ps1 writes); otherwise they are
+    skipped with a notice and only the CAPIE benchmarks run.
 
 .PARAMETER OutputDirectory
-    Output folder relative to the repository root (default plugin\build\capie). Use a separate
-    folder (for example plugin\build\capie-v11) while plugin\build\capie holds binaries that
-    other scripts pin by hash.
+    Output folder relative to the repository root (default plugin\build\capie). The reviewed
+    folder that deploy/bundle-inputs.json names (the binaries other scripts pin by hash) is
+    refused: build into a scratch folder and compare the hashes instead.
 
 .PARAMETER Console
     Developer build with the console-command candidate (CAPIE_CONSOLE_CANDIDATE=1, see
@@ -72,7 +81,15 @@ $script:CapieDir = $PSScriptRoot
 $script:SourceDir = Join-Path $PSScriptRoot 'src'
 $script:TestDir = Join-Path $PSScriptRoot 'tests'
 $script:RepoDir = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$script:OutDir = Join-Path $script:RepoDir $OutputDirectory
+$script:OutDir = [IO.Path]::GetFullPath((Join-Path $script:RepoDir $OutputDirectory))
+# The reviewed binaries are pinned by hash and MSVC output is not reproducible: never build over them.
+Import-Module (Join-Path $PSScriptRoot 'deploy\BundleInputs.psm1') -Force
+$script:ReviewedDir = [IO.Path]::GetFullPath((Join-Path $script:RepoDir (Get-CapieReviewedDirectory -Inputs @(Read-CapieBundleInput))))
+$outKey = $script:OutDir.TrimEnd('\') + '\'
+if ($outKey.StartsWith($script:ReviewedDir.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    throw "$OutputDirectory is the reviewed build named by deploy/bundle-inputs.json; build into a scratch folder and compare the hashes."
+}
+$script:ExternalDir = Join-Path $script:TestDir 'fixtures\external'
 $script:DebugDir = Join-Path $script:OutDir 'debug'
 $script:TestOutDir = Join-Path $script:OutDir 'tests'
 $script:ObjDir = Join-Path $script:OutDir 'obj'
@@ -271,7 +288,9 @@ $database = foreach ($file in $tidyFiles) {
 }
 [IO.File]::WriteAllText((Join-Path $script:OutDir 'compile_commands.json'), (ConvertTo-Json @($database) -Depth 3), [Text.UTF8Encoding]::new($false))
 
-# 3. Offline tests.
+# 3. Offline tests. First the vendored files of other repositories (hashes in fixtures/external/lock.json).
+& $Python -I (Join-Path $script:TestDir 'check_external_fixtures.py')
+if ($LASTEXITCODE -ne 0) { throw 'A vendored file differs from tests/fixtures/external/lock.json' }
 Write-Host 'Offline tests:'
 $exeArgs = if (Test-Path -LiteralPath $GameExe) { @($GameExe) } else { Write-Host '  (game EXE not found: static EXE checks skipped)'; @() }
 Invoke-Test 'legacy\protocol_test.cpp' 'protocol_test.exe' @('/UNDEBUG') | Out-Null
@@ -309,7 +328,7 @@ Invoke-Test 'editor_hotpath_test.cpp' 'editor_hotpath_test_release.exe' @('/DCAP
 Invoke-Test -Source 'public_names_test.cpp' -Output 'public_names_test.exe' | Out-Null
 Invoke-Test -Source 'public_keys_test.cpp' -Output 'public_keys_test.exe' -Link $script:MinHookObjects | Out-Null
 # The demo mod's real .gui is checked against the native layout rule (in-game failure PID45148).
-$demoGui = Join-Path $script:RepoDir 'sdk\capie-script-sdk\examples\capie_demo\interface\mydemo.gui'
+$demoGui = Join-Path $script:ExternalDir 'hoi4-rename-anything\sdk\capie-script-sdk\examples\capie_demo\interface\mydemo.gui'
 foreach ($flavor in 1, 0) {
     $name = if ($flavor -eq 1) { 'public_editor_test_debug.exe' } else { 'public_editor_test_release.exe' }
     Invoke-Test -Source 'public_editor_test.cpp' -Output $name -Flags @("/DCAPIE_DEBUG_DIAGNOSTICS=$flavor") -Arguments @($demoGui) `
@@ -326,15 +345,23 @@ if ($LASTEXITCODE -ne 0) { throw 'Native alphabet differs from the SDK character
 & $Python -I (Join-Path $script:RepoDir 'tools\lint\check_comment_addresses.py')
 if ($LASTEXITCODE -ne 0) { throw 'A comment names an address the code does not pin (name the function instead)' }
 
-# 5. Benchmarks (old rev7/country-status sources vs CAPIE release/debug).
+# 5. Benchmarks (old rev7/country-status sources vs CAPIE release/debug). The old sources are
+# optional: the country one is a staged copy that only country-status-candidate\build.ps1 writes.
 if (-not $SkipBenchmarks) {
     $legacyBridge = Join-Path $script:RepoDir 'plugin\probes\caption_refresh_candidate'
     $legacyCountry = Join-Path $script:RepoDir 'plugin\build\country-status-candidate\stage'
     Write-Host 'Benchmarks (ns per call, median of runs):'
-    Invoke-Test 'bench\hotpath_bench.cpp' 'bench_editor_legacy.exe' @('/DCAPIE_BENCH_LEGACY=1', ('/I' + $legacyBridge)) @() $script:MinHookObjects | Out-Null
+    if (Test-Path -LiteralPath (Join-Path $legacyBridge 'caption_refresh_bridge.cpp')) {
+        Invoke-Test 'bench\hotpath_bench.cpp' 'bench_editor_legacy.exe' @('/DCAPIE_BENCH_LEGACY=1', ('/I' + $legacyBridge)) @() $script:MinHookObjects | Out-Null
+    } else { Write-Host "  (bench_editor_legacy skipped: $legacyBridge\caption_refresh_bridge.cpp not found)" }
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_editor_release.exe' @('/DCAPIE_BENCH_LEGACY=0', '/DCAPIE_DEBUG_DIAGNOSTICS=0') @() $script:MinHookObjects | Out-Null
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_editor_debug.exe' @('/DCAPIE_BENCH_LEGACY=0', '/DCAPIE_DEBUG_DIAGNOSTICS=1') @() $script:MinHookObjects | Out-Null
-    Invoke-Test 'bench\hotpath_bench.cpp' 'bench_country_legacy.exe' @('/DCAPIE_BENCH_PART=1', '/DCAPIE_BENCH_LEGACY=1', ('/I' + $legacyCountry)) @() $script:MinHookObjects | Out-Null
+    if (Test-Path -LiteralPath (Join-Path $legacyCountry 'country.cpp')) {
+        Invoke-Test 'bench\hotpath_bench.cpp' 'bench_country_legacy.exe' @('/DCAPIE_BENCH_PART=1', '/DCAPIE_BENCH_LEGACY=1', ('/I' + $legacyCountry)) @() $script:MinHookObjects | Out-Null
+    } else {
+        Write-Host "  (bench_country_legacy skipped: $legacyCountry\country.cpp not found;"
+        Write-Host '   plugin\probes\caption_refresh_candidate\country-status-candidate\build.ps1 stages it)'
+    }
     Invoke-Test 'bench\hotpath_bench.cpp' 'bench_country_capie.exe' @('/DCAPIE_BENCH_PART=1', '/DCAPIE_BENCH_LEGACY=0') @() $script:MinHookObjects | Out-Null
 }
 if ($Console) {

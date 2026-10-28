@@ -43,7 +43,9 @@ param(
     [string[]]$Path = @(),
     [string[]]$ExcludePath = @(
         '.git', '.venv', '.gstack', 'node_modules', 'site', 'docs/site',
-        'plugin/probes/caption_refresh_candidate'
+        'plugin/probes/caption_refresh_candidate',
+        # Byte-exact copies from other repositories (lock.json pins them); linted where they come from.
+        'plugin/capie/tests/fixtures/external'
     ),
     [switch]$PassThru
 )

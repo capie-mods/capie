@@ -3,7 +3,7 @@
 #
 # Every path is relative to `root`, and `root` is relative to this file. Placeholders in
 # command lines: {python} (this interpreter), {pwsh}, {root}, {temp}, {out_dir},
-# {game_dir}, {game_exe}, {minhook_dir}, {psscriptanalyzer_dir}. A command whose
+# {game_dir}, {game_exe}, {minhook_dir}, {psscriptanalyzer_dir}, {rebuild_output}. A command whose
 # placeholder has no value on this machine is skipped and reported, never run.
 #
 # After the repository split (ADR-0034) each repository keeps the sections it ships:
@@ -77,17 +77,20 @@ slow = true
 
 # --- Step 2: build ----------------------------------------------------------------
 [build]
-# Reviewed CAPIE binaries. bundle-inputs.json is the one list of their hashes: build_launcher.ps1
-# and build_proxy.ps1 compile them in, and this step checks the build folder and the ZIP against
-# it. reviewed_files must name exactly the files that bundle-inputs.json lists.
-capie_output = "plugin/build/capie-1.5.1"
+# Reviewed CAPIE binaries. bundle-inputs.json is the one list of their hashes and the only place
+# that names their folder (the `source` entries): build_launcher.ps1 and build_proxy.ps1 compile
+# them in, and this step checks that folder and the ZIP against it. reviewed_files must name
+# exactly the files that bundle-inputs.json lists.
 reviewed_hashes = "plugin/capie/deploy/bundle-inputs.json"
 reviewed_files = ["capie_core.dll", "capie_editor.dll", "capie_injector.exe"]
+# --rebuild-capie builds into this scratch folder and compares its hashes with the reviewed ones;
+# the reviewed folder is never written (MSVC output is not reproducible).
+rebuild_output = "plugin/build/capie-rebuild"
 
 [build.rebuild_capie]
-name = "CAPIE build over the reviewed output (build.ps1)"
+name = "CAPIE build into a scratch folder (build.ps1)"
 argv = ["{pwsh}", "-NoProfile", "-File", "plugin/capie/build.ps1", "-MinHookDir", "{minhook_dir}",
-        "-GameExe", "{game_exe}", "-OutputDirectory", "plugin/build/capie-1.5.1"]
+        "-GameExe", "{game_exe}", "-OutputDirectory", "{rebuild_output}", "-SkipBenchmarks"]
 
 [[build.commands]]
 name = "launcher build and tests (build_launcher.ps1)"

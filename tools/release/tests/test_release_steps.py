@@ -356,26 +356,72 @@ def test_identity_problems_ignore_text_files() -> None:
 def test_rebuild_capie_stops_for_re_pinning(harness: Harness, tmp_path: Path) -> None:
     """A fresh build.ps1 run with new hashes stops and names the files to re-pin.
 
+    The build goes to the scratch folder; the reviewed folder keeps its files.
+
     Args:
         harness: Test harness.
         tmp_path: pytest temporary folder.
     """
     runner = harness.runner
+    scratch = harness.root / "plugin/build/capie-rebuild"
 
     def rebuild(call: tuple[str, ...]) -> None:
-        """Simulate build.ps1 producing new binaries.
+        """Simulate build.ps1 producing new binaries in the folder it was given.
 
         Args:
             call: Command line.
         """
         if "plugin/capie/build.ps1" in call:
-            (harness.root / "plugin/build/capie/capie_editor.dll").write_bytes(b"MZ new editor")
+            assert call[call.index("-OutputDirectory") + 1] == "plugin/build/capie-rebuild"
+            scratch.mkdir(parents=True)
+            for name, data in BINARIES.items():
+                (scratch / name).write_bytes(data)
+            (scratch / "capie_editor.dll").write_bytes(b"MZ new editor")
 
     runner.on_run = rebuild
     code = _build(harness, "--rebuild-capie", "--minhook-dir", str(tmp_path))
     assert code == 1
     assert "re-pin them in plugin/capie/deploy/bundle-inputs.json" in harness.output
-    assert "capie_editor.dll" in harness.output
+    changed = harness.output.split("and run 'build' again: ")[-1]
+    assert "capie_editor.dll" in changed
+    assert "capie_core.dll" not in changed
+    for name, data in BINARIES.items():
+        assert (harness.root / "plugin/build/capie" / name).read_bytes() == data
+
+
+def test_rebuild_capie_refuses_the_reviewed_folder(harness: Harness, tmp_path: Path) -> None:
+    """A rebuild_output that is the reviewed folder (from bundle-inputs.json) never builds.
+
+    Args:
+        harness: Test harness.
+        tmp_path: pytest temporary folder.
+    """
+    text = harness.config.read_text(encoding="utf-8")
+    harness.config.write_text(
+        text.replace("capie-rebuild", "capie"),
+        encoding="utf-8",
+    )
+    assert _build(harness, "--rebuild-capie", "--minhook-dir", str(tmp_path)) == 1
+    assert "is the reviewed build folder" in harness.output
+    assert not any("plugin/capie/build.ps1" in c for c in harness.runner.calls)
+
+
+def test_reviewed_binaries_are_read_from_the_bundle_inputs_sources(harness: Harness) -> None:
+    """The reviewed folder is the one bundle-inputs.json names; release.toml does not name it.
+
+    Args:
+        harness: Test harness.
+    """
+    (harness.root / "plugin/build/capie").rename(harness.root / "plugin/build/capie-reviewed")
+    inputs = harness.root / "plugin/capie/deploy/bundle-inputs.json"
+    text = inputs.read_text(encoding="utf-8")
+    inputs.write_text(text.replace("build/capie/", "build/capie-reviewed/"), encoding="utf-8")
+    assert _build(harness) == 0, harness.output
+    inputs.write_text(
+        text.replace("capie/capie_core.dll", "other/capie_core.dll"), encoding="utf-8"
+    )
+    assert _build(harness) == 1
+    assert "sources must share one folder" in harness.output
 
 
 def test_build_dry_run_writes_nothing(harness: Harness) -> None:
@@ -461,6 +507,109 @@ def test_release_refuses_an_existing_tag_or_unpushed_commit(harness: Harness) ->
     harness.runner.commit_on_remote = False
     assert harness.run("release") == 1
     assert "push it first" in harness.output
+    assert harness.runner.mutating() == []
+
+
+def _release_refused(harness: Harness, reason: str) -> None:
+    """The release step stops with this reason and sends nothing to GitHub.
+
+    Args:
+        harness: Test harness.
+        reason: Text expected in the output.
+    """
+    assert harness.run("release") == 1
+    assert reason in harness.output
+    assert "run 'build' again" in harness.output
+    assert harness.runner.mutating() == []
+
+
+def test_release_re_verifies_the_files_before_uploading(harness: Harness) -> None:
+    """Unchanged build output passes the re-check.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    assert harness.run("release") == 0, harness.output
+    assert "ZIP, manifest, checksums and signature re-verified" in harness.output
+
+
+def test_release_refuses_a_zip_the_manifest_does_not_describe(harness: Harness) -> None:
+    """A ZIP rewritten after signing (other bytes, same name) is never uploaded.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    zip_path = harness.out / "CAPIE-1.4.0-win64.zip"
+    with zipfile.ZipFile(zip_path, "a") as archive:
+        archive.writestr("extra.txt", "not signed")
+    _release_refused(harness, "!= release-manifest.json")
+    assert "the files inside CAPIE-1.4.0-win64.zip differ" in harness.output
+
+
+def test_release_refuses_a_signature_that_does_not_verify(harness: Harness, key: KeyPair) -> None:
+    """A signature over other bytes is never uploaded, even with matching checksums.
+
+    Args:
+        harness: Test harness.
+        key: Session key.
+    """
+    assert _build(harness) == 0
+    signature = harness.out / "release-manifest.json.sig"
+    signature.write_text(key.sign(b"another manifest"), encoding="utf-8")
+    sums = harness.out / "SHA256SUMS.txt"
+    digest = hashlib.sha256(signature.read_bytes()).hexdigest()
+    lines = [
+        f"{digest}  {signature.name}" if line.endswith(signature.name) else line
+        for line in sums.read_text(encoding="ascii").splitlines()
+    ]
+    sums.write_text("\n".join(lines) + "\n", encoding="ascii")
+    _release_refused(harness, "does not verify with the installer public key")
+
+
+def test_release_refuses_stale_checksums(harness: Harness) -> None:
+    """SHA256SUMS.txt must list exactly the current ZIP, manifest and signature.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    sums = harness.out / "SHA256SUMS.txt"
+    sums.write_text("0" * 64 + "  CAPIE-1.4.0-win64.zip\n", encoding="ascii")
+    _release_refused(harness, "SHA256SUMS.txt does not list exactly the current")
+
+
+def test_release_refuses_without_the_installer_public_key(tmp_path: Path, key: KeyPair) -> None:
+    """With the placeholder public key nothing can be verified, so nothing is uploaded.
+
+    Args:
+        tmp_path: pytest temporary folder.
+        key: Session key.
+    """
+    root = tmp_path / "repo"
+    config = make_repo(root, key, installer_key=False)
+    key_file = tmp_path / "k.xml"
+    key_file.write_text(key.xml(private=True), encoding="utf-8")
+    harness = Harness(root=root, config=config, key_file=key_file, runner=FakeRunner(root, key))
+    assert _build(harness) == 0, harness.output
+    _release_refused(harness, "the signature cannot be verified")
+
+
+def test_failed_rebuild_leaves_no_stale_manifest(harness: Harness) -> None:
+    """A re-run that fails after writing the ZIP leaves no old manifest, signature or sums.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    harness.runner.failing = ("-MakeManifest",)
+    assert _build(harness) == 1
+    for name in ("release-manifest.json", "release-manifest.json.sig", "SHA256SUMS.txt"):
+        assert not (harness.out / name).exists()
+    harness.runner.failing = ()
+    assert harness.run("release") == 1
+    assert "asset missing" in harness.output
     assert harness.runner.mutating() == []
 
 

@@ -1,0 +1,58 @@
+{
+  "files": [
+    {
+      "repo": "hoi4-rename-anything",
+      "path": "sdk/capie-script-sdk/examples/capie_demo/interface/mydemo.gui",
+      "commit": "b44d55dc07114a504b3d974d9d7e1407a7f96efc",
+      "sha256": "4d1d2c5fef007c7f25cbf3ab1fb0cf2b05f9002b28d5067397ec44ba218e45c5"
+    },
+    {
+      "repo": "hoi4-rename-anything",
+      "path": "sdk/capie-script-sdk/tools/capie_charset.py",
+      "commit": "b44d55dc07114a504b3d974d9d7e1407a7f96efc",
+      "sha256": "d63fc82f8a71175e802b9c9e9f73ec526084309fe02080d2b0075f11fe304a1e"
+    },
+    {
+      "repo": "hoi4-rename-anything",
+      "path": "sdk/capie-script-sdk/mod/localisation/english/capie_sdk_v1_l_english.yml",
+      "commit": "b44d55dc07114a504b3d974d9d7e1407a7f96efc",
+      "sha256": "94b297af4f53bdcc299b82bf90c7a2aee579fa567f01e701aeb154d8f3af0a78"
+    },
+    {
+      "repo": "hoi4-rename-anything",
+      "path": "sdk/capie-script-sdk/mod/localisation/polish/capie_sdk_v1_l_polish.yml",
+      "commit": "b44d55dc07114a504b3d974d9d7e1407a7f96efc",
+      "sha256": "9bbc0289268e848b1b69035ea9adf0f01964340bfae4c2f7072f062143252623"
+    },
+    {
+      "repo": "rename-anything",
+      "path": "tools/modgen/charset.py",
+      "commit": "990ee4d07cfc5bf5c96cda0e2f24ca6c5633d786",
+      "sha256": "44f4b55e756872e0cc9046ae09280c9c24845d0a8bdde17d1a2c2ad72e604a56"
+    },
+    {
+      "repo": "rename-anything",
+      "path": "tools/test-session.ps1",
+      "commit": "990ee4d07cfc5bf5c96cda0e2f24ca6c5633d786",
+      "sha256": "9c6ed42c2aaca37be534ba9ece4fae837ba0af0a1f0aa1568b6dee2bd6fa3f8d"
+    },
+    {
+      "repo": "rename-anything",
+      "path": "mod/localisation/english/rename_anything_l_english.yml",
+      "commit": "990ee4d07cfc5bf5c96cda0e2f24ca6c5633d786",
+      "sha256": "6b74649e4a750ca581bae2df26cda4db8757a95a395bf1cc87ea91d5117a2ace"
+    },
+    {
+      "repo": "rename-anything",
+      "path": "mod/localisation/polish/rename_anything_l_polish.yml",
+      "commit": "990ee4d07cfc5bf5c96cda0e2f24ca6c5633d786",
+      "sha256": "b12c0ac222a62a0a92d9ac1d138bdf1c7eb531ceffb2651ba3c418ee9292f847"
+    },
+    {
+      "repo": "rename-anything",
+      "path": "mod/localisation/french/rename_anything_l_french.yml",
+      "commit": "990ee4d07cfc5bf5c96cda0e2f24ca6c5633d786",
+      "sha256": "042513cdcadf247cb3fdd0281a805125131b7e6b9a0ca5a963f31d49aea632b5"
+    }
+  ]
+}

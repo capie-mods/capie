@@ -1,0 +1,231 @@
+# CAPIE demo: editor windows. Names follow the CAPIE grammar; fonts draw the whole CAPIE
+# alphabet (hoi_18, hoi_16mbs). Fields are 356 px wide, enough for 32 of the widest glyph.
+guiTypes = {
+	containerWindowType = {
+		name = "capie_v1_ed__capiedemo__motto"
+		position = { x = -210 y = -90 }
+		orientation = center
+		size = { width = 420 height = 150 }
+		clipping = no
+		background = { name = "Background" quadTextureSprite = "GFX_tiled_window_2b_border" }
+		instantTextboxType = {
+			name = "mydemo_motto_title"
+			position = { x = 16 y = 12 }
+			font = "hoi_18mbs"
+			text = "MYDEMO_MOTTO_TITLE"
+			maxWidth = 300
+			maxHeight = 20
+			fixedsize = yes
+		}
+		instantTextboxType = {
+			name = "mydemo_motto_capie"
+			position = { x = 316 y = 14 }
+			font = "hoi_16mbs"
+			text = "MYDEMO_STATUS"
+			maxWidth = 90
+			maxHeight = 18
+			fixedsize = yes
+			format = right
+		}
+		instantTextboxType = {
+			name = "mydemo_motto_current"
+			position = { x = 16 y = 38 }
+			font = "hoi_16mbs"
+			text = "MYDEMO_MOTTO_CURRENT"
+			maxWidth = 388
+			maxHeight = 18
+			fixedsize = yes
+		}
+		# Hidden carriers: prefill of field 1 (the current motto) and the opening epoch.
+		instantTextboxType = {
+			name = "capie_v1_pf__capiedemo__motto__1"
+			position = { x = 0 y = 0 }
+			font = "hoi_16mbs"
+			text = "CAPIE_V1_TXT3"
+			maxWidth = 300
+			maxHeight = 16
+			alwaystransparent = yes
+		}
+		instantTextboxType = {
+			name = "capie_v1_ep__capiedemo__motto"
+			position = { x = 0 y = 0 }
+			font = "hoi_16mbs"
+			text = "[?ROOT.mydemo_motto_epoch|0]"
+			maxWidth = 60
+			maxHeight = 16
+			alwaystransparent = yes
+		}
+		containerWindowType = {
+			name = "mydemo_motto_frame"
+			position = { x = 12 y = 62 }
+			size = { width = 364 height = 26 }
+			clipping = no
+			background = { name = "Background" spriteType = "GFX_tiles_dark_area_cut_8" alwaysTransparent = yes }
+		}
+		editBoxType = {
+			name = "capie_v1_f__capiedemo__motto__1"
+			position = { x = 16 y = 65 }
+			size = { x = 356 y = 20 }
+			font = "hoi_18"
+			borderSize = { x = 0 y = 0 }
+			text = ""
+			ignore_enter = yes
+		}
+		buttonType = {
+			name = "capie_v1_ed__capiedemo__motto_apply"
+			position = { x = 382 y = 62 }
+			scale = 0.67
+			quadTextureSprite = "GFX_preset_button_save"
+			clicksound = click_default
+			shortcut = "RETURN"
+			pdx_tooltip = "MYDEMO_APPLY_TT"
+		}
+		instantTextboxType = {
+			name = "mydemo_motto_error"
+			position = { x = 16 y = 96 }
+			font = "hoi_16mbs"
+			text = "[ROOT.CAPIE_V1_LAST_ERROR]"
+			maxWidth = 388
+			maxHeight = 36
+			fixedsize = yes
+		}
+		buttonType = {
+			name = "mydemo_motto_close"
+			position = { x = 396 y = 8 }
+			quadTextureSprite = "GFX_closebutton_16"
+			clicksound = click_close
+			pdx_tooltip = "MYDEMO_CLOSE_TT"
+		}
+	}
+
+	containerWindowType = {
+		name = "capie_v1_ed__capiedemo__name"
+		position = { x = -210 y = -110 }
+		orientation = center
+		size = { width = 420 height = 196 }
+		clipping = no
+		background = { name = "Background" quadTextureSprite = "GFX_tiled_window_2b_border" }
+		instantTextboxType = {
+			name = "mydemo_name_title"
+			position = { x = 16 y = 12 }
+			font = "hoi_18mbs"
+			text = "MYDEMO_NAME_TITLE"
+			maxWidth = 300
+			maxHeight = 20
+			fixedsize = yes
+		}
+		instantTextboxType = {
+			name = "mydemo_name_capie"
+			position = { x = 316 y = 14 }
+			font = "hoi_16mbs"
+			text = "MYDEMO_STATUS"
+			maxWidth = 90
+			maxHeight = 18
+			fixedsize = yes
+			format = right
+		}
+		# Hidden carriers: the current name and adjective, and the opening epoch.
+		instantTextboxType = {
+			name = "capie_v1_pf__capiedemo__name__1"
+			position = { x = 0 y = 0 }
+			font = "hoi_16mbs"
+			text = "[ROOT.GetName]"
+			maxWidth = 300
+			maxHeight = 16
+			alwaystransparent = yes
+		}
+		instantTextboxType = {
+			name = "capie_v1_pf__capiedemo__name__2"
+			position = { x = 0 y = 0 }
+			font = "hoi_16mbs"
+			text = "[ROOT.GetAdjective]"
+			maxWidth = 300
+			maxHeight = 16
+			alwaystransparent = yes
+		}
+		instantTextboxType = {
+			name = "capie_v1_ep__capiedemo__name"
+			position = { x = 0 y = 0 }
+			font = "hoi_16mbs"
+			text = "[?ROOT.mydemo_name_epoch|0]"
+			maxWidth = 60
+			maxHeight = 16
+			alwaystransparent = yes
+		}
+		instantTextboxType = {
+			name = "mydemo_name_label"
+			position = { x = 18 y = 40 }
+			font = "Arial12"
+			text = "MYDEMO_LABEL_NAME"
+			maxWidth = 356
+			maxHeight = 14
+			fixedsize = yes
+		}
+		containerWindowType = {
+			name = "mydemo_name_frame"
+			position = { x = 12 y = 54 }
+			size = { width = 364 height = 26 }
+			clipping = no
+			background = { name = "Background" spriteType = "GFX_tiles_dark_area_cut_8" alwaysTransparent = yes }
+		}
+		editBoxType = {
+			name = "capie_v1_f__capiedemo__name__1"
+			position = { x = 16 y = 57 }
+			size = { x = 356 y = 20 }
+			font = "hoi_18"
+			borderSize = { x = 0 y = 0 }
+			text = ""
+			ignore_enter = yes
+		}
+		instantTextboxType = {
+			name = "mydemo_adj_label"
+			position = { x = 18 y = 86 }
+			font = "Arial12"
+			text = "MYDEMO_LABEL_ADJ"
+			maxWidth = 356
+			maxHeight = 14
+			fixedsize = yes
+		}
+		containerWindowType = {
+			name = "mydemo_adj_frame"
+			position = { x = 12 y = 100 }
+			size = { width = 364 height = 26 }
+			clipping = no
+			background = { name = "Background" spriteType = "GFX_tiles_dark_area_cut_8" alwaysTransparent = yes }
+		}
+		editBoxType = {
+			name = "capie_v1_f__capiedemo__name__2"
+			position = { x = 16 y = 103 }
+			size = { x = 356 y = 20 }
+			font = "hoi_18"
+			borderSize = { x = 0 y = 0 }
+			text = ""
+			ignore_enter = yes
+		}
+		buttonType = {
+			name = "capie_v1_ed__capiedemo__name_apply"
+			position = { x = 382 y = 54 }
+			scale = 0.67
+			quadTextureSprite = "GFX_preset_button_save"
+			clicksound = click_default
+			shortcut = "RETURN"
+			pdx_tooltip = "MYDEMO_APPLY_TT"
+		}
+		instantTextboxType = {
+			name = "mydemo_name_error"
+			position = { x = 16 y = 138 }
+			font = "hoi_16mbs"
+			text = "[ROOT.CAPIE_V1_LAST_ERROR]"
+			maxWidth = 388
+			maxHeight = 36
+			fixedsize = yes
+		}
+		buttonType = {
+			name = "mydemo_name_close"
+			position = { x = 396 y = 8 }
+			quadTextureSprite = "GFX_closebutton_16"
+			clicksound = click_close
+			pdx_tooltip = "MYDEMO_CLOSE_TT"
+		}
+	}
+}
