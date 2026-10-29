@@ -1004,7 +1004,7 @@ effects `capie_v1_set_subideology_name` (from text slot 1 of ROOT) and
 - evaluates the layer of every country after `set_variable` of `capie_sn_rev`, and of one
   country when the game recomputes its names (on load, on government and cosmetic tag changes),
   on the logic thread (20.3);
-- hooks the politics panel's ruling-party writer (1622B90, one caller: the politics view's
+- hooks the politics panel's ruling-party writer (1622F50, one caller: the politics view's
   refresh). The panel shows the player's country (the in-game idler's tag); when that country
   has an entry whose binding equals the current one, the call runs with a frame on this thread,
   and the localisation lookup CAPIE already hooks answers the ruling party's ideology token with

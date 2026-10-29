@@ -2,7 +2,8 @@
  * @file subideology_layer_pins.hpp
  * @brief Code-byte pins of the ruling-party ideology name layer (`capie_core.dll`), checked before its hook goes live.
  *
- * Evidence: `docs/research/subideology-rename-design.md`, re-read in Ghidra on 2026-10-29. Pinned:
+ * Evidence: `docs/research/subideology-rename-design.md`, re-read in Ghidra on 2026-10-29 (1.19.4.0);
+ * the 1.19.4.1 addresses are in `docs/research/port-1.19.4.1.md` (section "API level 8"). Pinned:
  * - the hooked writer (`rva::politics_panel`): its prologue, the shown tag through the view's
  *   idler (+0x5F0, slot 0xA0), the politics getter, the ruling party at +0xD0, the ideology object
  *   at party+0x18 and the call that localises its token, then the first leader role;
@@ -44,9 +45,9 @@ inline constexpr core::Signature signatures[] = {
 
 /// @brief Offsets, the shown tag and the leader chain, in the game's instructions.
 inline constexpr core::InstructionPin instruction_pins[] = {
-    {"panel.idler_tag", 0x1622BBA, "488b89f0050000488b01ff90a0000000"},  // mov rcx,[rcx+5F0]; call [rax+A0]
-    {"panel.ruling_party", 0x1622BE0, "4c8bb0d0000000"},                  // mov r14,[rax+D0]
-    {"panel.ideology_object", 0x1622C65, "498b4e18"},                     // mov rcx,[r14+18]
+    {"panel.idler_tag", 0x1622F7A, "488b89f0050000488b01ff90a0000000"},  // mov rcx,[rcx+5F0]; call [rax+A0]
+    {"panel.ruling_party", 0x1622FA0, "4c8bb0d0000000"},                  // mov r14,[rax+D0]
+    {"panel.ideology_object", 0x1623025, "498b4e18"},                     // mov rcx,[r14+18]
     {"ideology.key", 0x66A4E6, "48837930" "0f488bda488d5118"},             // cmp [rcx+30],F; lea rdx,[rcx+18]
     {"party.ctor_ideology", 0x12302BC, "48895e1048897e18"},               // mov [rsi+10],rbx; mov [rsi+18],rdi
     {"ideology_group.ctor_key", 0x121D992, "488d4e18"},                   // lea rcx,[rsi+18]: token string
@@ -59,11 +60,11 @@ inline constexpr core::InstructionPin instruction_pins[] = {
 
 /// @brief Call and data targets (rel32 / RIP displacement RVA, next instruction RVA, target RVA).
 inline constexpr core::RipPin target_pins[] = {
-    {"panel.calls_politics", 0x1622BD9, 0x1622BDD, core::rva::country_politics_getter},
-    {"panel.calls_localise", 0x1622C6A, 0x1622C6E, 0x66A4E0},
-    {"panel.calls_first_role", 0x1622C7D, 0x1622C81, core::rva::party_first_leader_role},
-    {"localise.calls_formatter", 0x66A501, 0x66A505, 0x22AE6F0},
-    {"formatter.calls_lookup", 0x22AE0FA, 0x22AE0FE, core::rva::loc_lookup_n},
+    {"panel.calls_politics", 0x1622F99, 0x1622F9D, core::rva::country_politics_getter},
+    {"panel.calls_localise", 0x162302A, 0x162302E, 0x66A4E0},
+    {"panel.calls_first_role", 0x162303D, 0x1623041, core::rva::party_first_leader_role},
+    {"localise.calls_formatter", 0x66A501, 0x66A505, 0x22AEA40},
+    {"formatter.calls_lookup", 0x22AE44A, 0x22AE44E, core::rva::loc_lookup_n},
     {"idler.shown_tag_state", 0xB8E36F, 0xB8E373, core::rva::gamestate_global},
     {"leader.first_role_jumps", 0x123050E, 0x1230512, core::rva::pointer_load},
 };

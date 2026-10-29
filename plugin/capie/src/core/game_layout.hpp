@@ -109,11 +109,11 @@ inline constexpr std::uintptr_t vt_country = 0x2864710;
 
 // ---- Ruling-party ideology name layer (hooked or read by capie_core.dll) -------------------
 /// @brief `void PoliticsRulingPartyPanel(CCountryPoliticsView*)`: writes the ruling-party box; hooked.
-inline constexpr std::uintptr_t politics_panel = 0x1622B90;
+inline constexpr std::uintptr_t politics_panel = 0x1622F50;
 /// @brief `CIdeologyGroup` vtable (the ruling party's ideology at party+0x18; RTTI-checked).
 inline constexpr std::uintptr_t vt_ideology_group = 0x29BA258;
 /// @brief `CPoliticalParty` vtable (the ruling party at politics+0xD0; RTTI-checked).
-inline constexpr std::uintptr_t vt_political_party = 0x2A1A250;
+inline constexpr std::uintptr_t vt_political_party = 0x2A1A260;
 /// @brief `CInGameIdler` slot 0xA0: the shown tag, `gamestate + (gs[0x520] > 0 ? 0x520 : 0x524)`; pinned, read directly.
 inline constexpr std::uintptr_t idler_shown_tag = 0xB8E270;
 

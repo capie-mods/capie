@@ -8,11 +8,13 @@ feature, and name each run by its game process ID.
 
 ## Before you start
 
-- Game: HOI4 **1.19.4.0** (`hoi4.exe` SHA-256 `B6650C85…D888`). Branch `api8-layers` is pinned to
-  that build. On 1.19.4.1 (`cf781ed1…`) CAPIE stays off as on any unknown build, so this session
-  needs a 1.19.4.0 install (Steam beta branch or a kept copy), or the 1.19.4.1 port of this branch.
-- Build: `plugin/build/verify-api8` (release flavor) and `verify-api8\debug` (debug flavor, for the
-  `CAPIE_COLOUR` and `CAPIE_SUBIDEOLOGY` debug lines). Never use `plugin/build/capie-1.5.1`.
+- Game: HOI4 **1.19.4.1** (`hoi4.exe` SHA-256 `CF781ED1…10476F`). Branch `api8-layers` is rebased
+  on the 1.19.4.1 port of main and every colour and ideology-name pin was re-ported
+  (`docs/research/port-1.19.4.1.md`, section "API level 8"). On 1.19.4.0 CAPIE stays off as on
+  any unknown build.
+- Build: `plugin/build/capie-1.6.0-rc` (release flavor) and `capie-1.6.0-rc\debug` (debug flavor,
+  for the `CAPIE_COLOUR` and `CAPIE_SUBIDEOLOGY` debug lines). Never use `plugin/build/capie-1.5.1`
+  or `plugin/build/capie-1.5.2`.
 - Rename Anything: a build whose country editor has the colour picker (`rn_cp_apply`) and the
   party-ideology name field (`capie_cap >= 8`, `capie_colour`, `capie_subideo`).
 - Log: `Documents\Paradox Interactive\Hearts of Iron IV\logs\capie.log` (or the debugger output).
@@ -23,7 +25,7 @@ feature, and name each run by its game process ID.
 |---|---|---|
 | S1 | Start the game with CAPIE; open the main menu. | Status line "CAPIE 1.6 loaded". The init line reads `colour layer on` and `subideology layer on`, with no failed pin id. |
 | S2 | Open any grammar editor of the demo mod and Apply. | The Apply has `capie_cap = 8`, `capie_ver = 10600`, `capie_colour = 1`, `capie_subideo = 1`. Localisation keys: `CAPIE_API` = `8`, `CAPIE_BUILD` = `1.6.0`. |
-| S3 | Replace one pinned byte in a copy of the exe (or start on 1.19.4.1). | With a colour pin broken: `colour layer off <pin id>`, vanilla colours, `capie_colour = 0`, the other layers work. Same for a sub-ideology pin (`subideology layer off <id>`, `capie_subideo = 0`). |
+| S3 | Break one pin with a throwaway build that changes the expected bytes of one colour pin, then of one ideology-name pin (a patched copy of the exe fails the SHA-256 check; offline, the flip checks of `colour_layer_pins_exe_test` and `subideology_layer_pins_exe_test` cover this). Never commit that build. | With a colour pin broken: `colour layer off <pin id>`, vanilla colours, `capie_colour = 0`, the other layers work. Same for a sub-ideology pin (`subideology layer off <id>`, `capie_subideo = 0`). |
 
 ## 1. Country colour layer (CONTRACT 19, spec section 9.4)
 

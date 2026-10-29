@@ -163,7 +163,7 @@ void exe_tests(const char* path) {
     flip(0x759525, "cosmetic.calls_refresh");
     flip(0x752D3B, "define.ui_value");
     flip(0x752DA2, "define.hue");
-    flip(0x29E5828 + 0x2D8, "idler.ingame_slot");
+    flip(0x29E5838 + 0x2D8, "idler.ingame_slot");
     check(pins::first_failed_pin(text, memory, base) == nullptr, "restored image passes again");
 }
 

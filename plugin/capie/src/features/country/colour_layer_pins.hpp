@@ -3,7 +3,8 @@
  * @brief Code-byte pins of the country colour layer (`capie_core.dll`), checked before its hook goes live.
  *
  * Evidence: `docs/research/country-colour-2026-10-28.md` and the implementation spec
- * (`docs/contributing/country-colour-layer-spec.md` section 7), re-read in Ghidra on 2026-10-29.
+ * (`docs/contributing/country-colour-layer-spec.md` section 7), re-read in Ghidra on 2026-10-29
+ * (1.19.4.0); unchanged on 1.19.4.1 (`docs/research/port-1.19.4.1.md`, section "API level 8").
  * Pinned:
  * - the hooked getter `GetMapColors` (`rva::country_map_colors`, overlord walk through +0xF88 and
  *   +0x3B8, result `lea rax,[rbx+0x350]`) and the called `RefreshCountryColor`

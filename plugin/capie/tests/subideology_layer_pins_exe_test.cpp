@@ -150,18 +150,18 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0x1622B90 + 44, "subideology.panel");        // +5F0 of the idler read
-    flip(0x1622BBA + 15, "panel.idler_tag");           // slot 0xA0
-    flip(0x1622BE0 + 3, "panel.ruling_party");         // +0xD0
-    flip(0x1622C65 + 3, "panel.ideology_object");      // +0x18
+    flip(0x1622F50 + 44, "subideology.panel");        // +5F0 of the idler read
+    flip(0x1622F7A + 15, "panel.idler_tag");           // slot 0xA0
+    flip(0x1622FA0 + 3, "panel.ruling_party");         // +0xD0
+    flip(0x1623025 + 3, "panel.ideology_object");      // +0x18
     flip(0x66A4E6 + 3, "ideology.key");                // capacity +0x30
     flip(0x12302BC + 7, "party.ctor_ideology");        // party +0x18
     flip(0x121D992 + 3, "ideology_group.ctor_key");    // token +0x18
     flip(0xB8E373 + 1, "idler.shown_tag");             // 0x524
-    flip(0x1622C6A, "panel.calls_localise");
-    flip(0x22AE0FA, "formatter.calls_lookup");
+    flip(0x162302A, "panel.calls_localise");
+    flip(0x22AE44A, "formatter.calls_lookup");
     flip(0xB8E36F, "idler.shown_tag_state");
-    flip(0x29E5828 + 0xA0, "idler.shown_tag_slot");
+    flip(0x29E5838 + 0xA0, "idler.shown_tag_slot");
     check(pins::first_failed_pin(text, memory, base) == nullptr, "restored image passes again");
 }
 

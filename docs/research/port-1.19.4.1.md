@@ -110,3 +110,52 @@ header; `rtti_exe_test` checks every class name on the new executable. `vt_sg_mo
 destroyed flag (`flag::destroyed`, bit 2 of `root_flags`) and the scoped frames add no address;
 `window_force_refresh` (`+BFA`, stored at `BDBEF5` in the rebuild) is unchanged. All 95 anchors
 resolve and `port.py locate --check` passes on 1.19.4.1.
+
+## API level 8
+
+CAPIE 1.6.0 (branch `api8-layers`) adds the country colour layer
+(`features/country/colour_layer_pins.hpp`) and the ruling-party ideology name layer
+(`features/country/subideology_layer_pins.hpp`), written against 1.19.4.0 and rebased on this
+port. Every entry they add was re-checked on the 1.19.4.1 executable with pefile/capstone (Ghidra
+holds the 1.19.4.0 file only): each signature is unique in `.text` and starts its `.pdata`
+function; each instruction pin was placed at its old address plus the shift of its own function
+and matches there, once in that function, at the same offset from the function start; each
+RIP/rel32 pin decodes to its target; the two slot pins read the expected function from
+`vt_ingame_idler` (`29E5838`, already ported); the RTTI tables name the expected class at offset 0.
+`tools/port/map_1.19.4.1.json` lists all of them; the main signature table did not change, so
+`accepted-1.19.4.1.json` is unchanged. `port.py locate --check`: 118 entries, 0 problems.
+
+Colour layer: nothing moved. The code lies in `.text` below `0x12CF000` (shift 0), the defines
+and globals in `.data` (shift 0), and the three vtables kept their `.rdata` addresses.
+
+| Item | 1.19.4.0 → 1.19.4.1 | Check |
+|---|---|---|
+| `country_map_colors`, `refresh_country_color` | `734AE0`, `AB7F10` (same) | signatures unique, function starts |
+| instruction pins (14) | same RVAs | `getter.block_offset` in `734AE0`, `colors.layout` `759340` (unique), cosmetic guard in `759370`, refresh in `AB7F10`, `mark.*` in `E86C10`, `update.*` in `FBF5A0`, `define.*_target` in `752D00` |
+| target pins (11) | same RVAs | `759519` → `AB7E30`, `759525` → `AB7F10`, `AB7F7D` → `734AE0`, `759502` → `33DDB08`, `AB7E33` → `33E7818`, six define loads → `33E5130`..`33E542C` |
+| `idler.ingame_slot` | `vt_ingame_idler` + `0x2D8` → `188D90` | slot read |
+| `vt_country_colors`, `vt_color`, `vt_country` | `279F558`, `2796208`, `2864710` (same) | RTTI |
+
+Ideology name layer: the panel writer is in the `+0x3C0` region, the formatter in the `+0x350`
+region, `CPoliticalParty`'s vtable moved +0x10. The localising helper `66A4E0`, the party and
+ideology group constructors (`1230290`, `121D920`) and the idler slot `B8E270` did not move.
+
+| Item | 1.19.4.0 | 1.19.4.1 | Check |
+|---|---|---|---|
+| `politics_panel` (signature) | `1622B90` | `1622F50` | unique; anchor `politics_panel` |
+| `panel.idler_tag` | `1622BBA` | `1622F7A` | `mov rcx,[rcx+5F0]; call [rax+A0]`, once in `1622F50`..`1623325` |
+| `panel.ruling_party` | `1622BE0` | `1622FA0` | `mov r14,[rax+D0]`, once in the function |
+| `panel.ideology_object` | `1622C65` | `1623025` | `mov rcx,[r14+18]`, once in the function |
+| `panel.calls_politics` | `1622BD9` | `1622F99` | → `717370` |
+| `panel.calls_localise` | `1622C6A` | `162302A` | → `66A4E0` |
+| `panel.calls_first_role` | `1622C7D` | `162303D` | → `1230500` |
+| `localise.calls_formatter` target | `22AE6F0` | `22AEA40` | rel32 at `66A501` (unchanged); `22AEA40` calls the formatter `22AE310` |
+| `formatter.calls_lookup` | `22AE0FA` | `22AE44A` | in `loc_formatter` (`22AE310`, anchor "Reached max recursive depth") at the same offset `+0x13A`; → `loc_lookup_n` `241F030` |
+| `vt_political_party` | `2A1A250` | `2A1A260` | RTTI `.?AVCPoliticalParty@@` |
+| `vt_ideology_group` | `29BA258` | `29BA258` | RTTI |
+| `ideology.key`, `party.ctor_ideology`, `ideology_group.ctor_key`, `idler.shown_tag` | `66A4E6`, `12302BC`, `121D992`, `B8E373` | same | bytes, once in their functions; `B8E36F` → `gamestate_global` `33DD6B0` |
+| `idler.shown_tag_slot` | `vt_ingame_idler` + `0xA0` → `B8E270` | same target | slot read |
+
+The `flip` literals of `colour_layer_pins_exe_test` and `subideology_layer_pins_exe_test` follow
+the table, including `vt_ingame_idler` `29E5838`. Both tests, `rtti_exe_test` and every other
+`*_exe_test` pass on 1.19.4.1.
