@@ -1,10 +1,10 @@
 """Compare the CAPIE signature table with the accepted 1.19.4.1 table.
 
 The accepted table is ``tools/port/accepted-1.19.4.1.json``, pinned by SHA-256 (B5A996F8...).
-It was generated from ``hoi4.exe`` 1.19.4.1 (SHA-256 CF781ED1...) by
-``tools/port/gen_tables.py`` during the port documented in
-``docs/research/port-1.19.4.1.md`` (method: ``port-1.19.4.0.md``): whole instructions, the same RIP/rel32 fields masked as in
-the 1.19.3.0 table, unique in ``.text`` and free of DIR64 relocations. Every entry's id, RVA,
+It was generated from ``hoi4.exe`` 1.19.4.1 (SHA-256 CF781ED1...) by ``tools/port/gen_tables.py``
+during the port documented in ``docs/research/port-1.19.4.1.md`` (method: ``port-1.19.4.0.md``):
+whole instructions, the same RIP/rel32 fields masked as in the 1.19.3.0 table, unique in ``.text``
+and free of DIR64 relocations. Every entry's id, RVA,
 length, bytes and wildcard positions are compared with
 ``plugin/capie/src/core/signature_table.hpp`` and ``game_layout.hpp``, and the named slot pins,
 tokens, RIP pin and hook RVAs with ``game_layout.hpp``. Any difference fails.
