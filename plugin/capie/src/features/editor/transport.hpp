@@ -256,10 +256,26 @@ inline bool flag_ready() noexcept {
 
 /**
  * @brief Whether the leader portrait layer is active (API level 7, record `capie_portrait`).
- * @return `true` for a v4 value.
+ * @return `true` for a v4 value with the portrait bit.
  */
 inline bool portrait_ready() noexcept {
     return country::portrait_active(country_capabilities());
+}
+
+/**
+ * @brief Whether the country colour layer is active (API level 8, record `capie_colour`).
+ * @return `true` for a v4 value with the colour bit.
+ */
+inline bool colour_ready() noexcept {
+    return country::colour_active(country_capabilities());
+}
+
+/**
+ * @brief Whether the ruling-party ideology name layer is active (API level 8, record `capie_subideo`).
+ * @return `true` for a v4 value with the sub-ideology bit.
+ */
+inline bool subideology_ready() noexcept {
+    return country::subideology_active(country_capabilities());
 }
 
 /**

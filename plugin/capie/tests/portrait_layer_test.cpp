@@ -401,8 +401,8 @@ void capability_tests() {
               !country::portrait_active(country::country_capabilities_v3),
           "v3: flag, no portrait");
     check(!country::names_active(country::country_capabilities_v1) && !country::names_active(0) &&
-              !country::portrait_active(0x524E4400U) && !country::portrait_active(0x524E4407U) &&
-              !country::names_active(0x524E4401U),
+              !country::portrait_active(0x524E4400U) && !country::portrait_active(0x524E4417U) &&
+              !country::portrait_active(0x524E4405U) && !country::names_active(0x524E4401U),
           "v1, 0 and undefined v4 values are refused");
 }
 
