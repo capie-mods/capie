@@ -11,8 +11,12 @@
  */
 #include "../src/core/game_build.hpp"
 #include "../src/core/rtti.hpp"
+#include "../src/features/country/colour_layer_hooks.hpp"
 #include "../src/features/country/colour_layer_pins.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
@@ -80,9 +84,9 @@ void table_tests() {
         std::array<unsigned char, capie::core::max_pattern_bytes> bytes{};
         check(capie::core::decode_hex(pin.hex, bytes.data(), bytes.size()) != 0, std::string("decodes ") + pin.id);
     }
-    check(std::size(pins::signatures) == 2 && std::size(pins::instruction_pins) == 14 &&
-              std::size(pins::target_pins) == 11 && std::size(pins::slot_pins) == 1,
-          "table sizes 2 / 14 / 11 / 1");
+    check(std::size(pins::signatures) == 2 && std::size(pins::instruction_pins) == 18 &&
+              std::size(pins::target_pins) == 18 && std::size(pins::slot_pins) == 1,
+          "table sizes 2 / 18 / 18 / 1");
     for (const auto& entry : capie::core::colour_vtable_classes) {
         check(std::strncmp(entry.mangled, ".?AV", 4) == 0 && entry.vtable_rva != 0, std::string("shape ") + entry.id);
     }
@@ -125,6 +129,46 @@ bool map_file(const char* path, std::vector<unsigned char>& image) {
 }
 
 /**
+ * @brief Follows the rebuild switch in the file for one mode: table entry, case, tail `jmp rel32`.
+ * @param image Mapped image.
+ * @param mode Map mode.
+ * @return The builder RVA, or 0 when the case is not the 13-byte tail-jump form.
+ */
+std::size_t builder_of(const std::vector<unsigned char>& image, unsigned mode) {
+    std::int32_t entry = 0;
+    std::memcpy(&entry, image.data() + pins::rebuild_mode_table + (pins::rebuild_entry_bytes * mode), sizeof(entry));
+    const auto jump = static_cast<std::size_t>(entry) + 13;  // mov rdx,rbx; mov rbx,[rsp+40]; add rsp,30; pop rdi
+    if (entry <= 0 || jump + 5 > image.size() || image[jump] != 0xE9) {
+        return 0;
+    }
+    std::int32_t rel = 0;
+    std::memcpy(&rel, image.data() + jump + 1, sizeof(rel));
+    return jump + 5 + static_cast<std::size_t>(static_cast<std::ptrdiff_t>(rel));
+}
+
+/**
+ * @brief The marked modes, read from the file: each reaches a colour builder, none is the continent mode.
+ * @param image Mapped image.
+ */
+void mode_tests(const std::vector<unsigned char>& image) {
+    namespace colour = capie::country::colour;
+    for (const std::uint8_t mode : colour::colour_map_modes) {
+        const std::size_t builder = builder_of(image, mode);
+        check(builder == 0xFB8250 || builder == 0xFBAE80,
+              "marked mode " + std::to_string(mode) + " rebuilds through a colour builder (" + std::to_string(builder) + ")");
+        check(mode != capie::core::value::continent_map_mode, "marked mode " + std::to_string(mode) + " is not the continent mode");
+    }
+    check(builder_of(image, capie::core::value::political_map_mode) == 0xFB8250, "mode 0 -> the political builder");
+    check(builder_of(image, capie::core::value::claims_map_mode) == 0xFBAE80, "mode 19 -> the claims builder");
+    check(builder_of(image, capie::core::value::continent_map_mode) == 0xFB9FB0, "mode 21 -> the continent builder");
+    for (unsigned mode = 0; mode < capie::core::value::map_mode_count; ++mode) {
+        const bool marked = std::find(colour::colour_map_modes.begin(), colour::colour_map_modes.end(), mode) !=
+                            colour::colour_map_modes.end();
+        check(!marked || builder_of(image, mode) != 0xFB9FB0, "no marked mode reaches the continent builder");
+    }
+}
+
+/**
  * @brief Runs the production checks on the mapped file and on corrupted copies.
  * @param path EXE path.
  */
@@ -164,7 +208,19 @@ void exe_tests(const char* path) {
     flip(0x752D3B, "define.ui_value");
     flip(0x752DA2, "define.hue");
     flip(0x29E5838 + 0x2D8, "idler.ingame_slot");
+    flip(0xFB7F99 + 2, "rebuild.mode_bound");               // 22
+    flip(0xFB81EC, "rebuild.case_political");               // table entry of mode 0
+    flip(0xFB81EC + (4 * 19), "rebuild.case_claims");       // table entry of mode 19
+    flip(0xFB81EC + (4 * 21), "rebuild.case_continent");    // table entry of mode 21
+    flip(0xFB7FC5, "rebuild.political_builder");
+    flip(0xFB80FF, "rebuild.claims_builder");
+    flip(0xFB8123, "rebuild.continent_builder");
+    flip(0xFB8795, "political.calls_getter");
+    flip(0xFBB0AB, "claims.calls_colour");
+    flip(0xFB48D9, "claims_colour.calls_getter");
+    flip(0xFBA440, "continent.log_format");
     check(pins::first_failed_pin(text, memory, base) == nullptr, "restored image passes again");
+    mode_tests(image);
 }
 
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)

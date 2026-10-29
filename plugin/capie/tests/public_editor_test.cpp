@@ -487,9 +487,8 @@ void payload_tests() {
     check(count_of("capie_epoch") == 1 && value_of("capie_epoch") == 3, "capie_epoch from the carrier");
     check(count_of("capie_portrait") == 1 && value_of("capie_portrait") == 0,
           "capie_portrait = 0 without an initialized capie_core.dll (API level 7)");
-    check(count_of("capie_colour") == 1 && value_of("capie_colour") == 0 && count_of("capie_subideo") == 1 &&
-              value_of("capie_subideo") == 0,
-          "capie_colour = 0 and capie_subideo = 0 without an initialized capie_core.dll (API level 8)");
+    check(count_of("capie_colour") == 1 && value_of("capie_colour") == 0 && count_of("capie_subideo") == 0,
+          "capie_colour = 0 without an initialized capie_core.dll (API level 8); no capie_subideo record");
     check(count_of("capie_host") == 0, "no capie_host record (the host probe only logs)");
     check(count_of("capie_x") == 0, "every capie_ record from the source removed");
     check(value_of("capie_nf") == 1 && value_of("capie_f1_err") == 0 && value_of("capie_f1_at") == 0 &&
@@ -498,7 +497,7 @@ void payload_tests() {
     check(value_of("capie_f1_0") == 31 && value_of("capie_f1_7") == 63 && value_of("capie_f1_15") == 5 &&
               value_of("capie_f1_16") == 0 && value_of("capie_f1_31") == 0 && count_of("capie_f1_0") == 1,
           "field codes (E, space, e, padding)");
-    check(captured.size() == 1 + public_header_records + (2 * public_records_per_field) && capie_records() == 78,
+    check(captured.size() == 1 + public_header_records + (2 * public_records_per_field) && capie_records() == 77,
           "1 original + 4 header + 35 field records + 35 opening-text records");
     check(value_of("capie_pf1_err") == 0 && value_of("capie_pf1_at") == 0 && value_of("capie_pf1_len") == 6 &&
               value_of("capie_pf1_0") == 27 && value_of("capie_pf1_5") == 19 && value_of("capie_pf1_6") == 0 &&
@@ -552,13 +551,13 @@ void second_mod_tests() {
     type_text(motto.edits[1], U"Égalité, fraternité!");
     click(motto, apply_of(motto));
     check(value_of("capie_nf") == 2 && value_of("capie_f1_len") == 7 && value_of("capie_f2_len") == 20 &&
-              value_of("capie_f2_err") == 0 && capie_records() == 8 + (2 * 35) && count_of("capie_pf1_len") == 0,
+              value_of("capie_f2_err") == 0 && capie_records() == 7 + (2 * 35) && count_of("capie_pf1_len") == 0,
           "two fields, 74 records, no prefill carrier so no capie_pf1_*");
 
     auto& hello = make_window("capie_v1_ed__capie__hello", 0, "1");
     tick_observed(hello.window.data(), 0);
     click(hello, apply_of(hello));
-    check(value_of("capie_nf") == 0 && capie_records() == 8 && value_of("capie_cap") == 8, "zero-field editor");
+    check(value_of("capie_nf") == 0 && capie_records() == 7 && value_of("capie_cap") == 8, "zero-field editor");
 
     // A legacy (Rename Anything) frame keeps capie_ records it did not reserve.
     std::array<Record, 2> legacy_source{source_record("capie_cap", 1), source_record("rn_native_ok", 1)};

@@ -5,8 +5,8 @@ mods. It covers the names a mod gives its editor GUI, the temporary records CAPI
 player's Apply command, the localisation keys CAPIE answers, the alphabet, the error codes the
 script SDK reports, behaviour without CAPIE, permissions, the multiplayer handshake, the
 country name layer (section 14), the faction name layer (section 15), the country flag layer
-(section 17), the country leader portrait layer (section 18), the country colour layer (section 19)
-and the ruling-party sub-ideology name layer (section 20).
+(section 17), the country leader portrait layer (section 18) and the country colour layer
+(section 19). Section 20 (a ruling-party sub-ideology name layer) is withdrawn, not implemented.
 
 Status, 2026-10-14: API level 2 is implemented in `capie_core.dll` / `capie_editor.dll` 1.1 and
 1.2 and in `sdk/capie-script-sdk/`; API level 3 (console) is in `CONTRACT-console.md`; API level
@@ -20,9 +20,10 @@ developer build (`plugin/build/capie-v14-dev`) and covered by offline tests; it 
 the game yet. API level 7 (section 18, country leader portrait layer; record `capie_portrait`) is
 implemented in the 1.5 developer build (`plugin/build/capie-v15-dev`) and covered by offline
 tests; it has not run in the game yet. API level 8 (section 19, country colour layer, record
-`capie_colour`; section 20, ruling-party sub-ideology name layer, record `capie_subideo`) is
-implemented in CAPIE 1.6 and covered by offline tests; it has not run in the game yet (steps:
-`docs/contributing/test-session-1.6.0.md`). Rows marked **in-game test** below are the open checks.
+`capie_colour`) is implemented in CAPIE 1.6 and covered by offline tests; its release candidate
+ran in the game on 2026-10-29 (steps and results: `docs/contributing/test-session-1.6.0.md`).
+Section 20 (ruling-party sub-ideology name layer, record `capie_subideo`) was withdrawn after that
+test and is not implemented. Rows marked **in-game test** below are the open checks.
 
 The variant is B from `docs/API-DECISIONS.md`: plain HOI4 script, data passed through
 temporary variables of one command, no new script keywords. A mod written against this
@@ -32,7 +33,7 @@ contract parses and runs the same way with or without CAPIE; only the branch it 
 
 | Name | Value in 1.6 (1.5, 1.4, 1.3, 1.2, 1.1) | Where a mod sees it | Meaning |
 |---|---|---|---|
-| API level | `8` (`7`, `6`, `5`, `4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1); level 6 the country flag layer (section 17) and the `capie_flag` record; level 7 the country leader portrait layer (section 18) and the `capie_portrait` record; level 8 the country colour layer (section 19), the ruling-party sub-ideology name layer (section 20) and the `capie_colour` and `capie_subideo` records. Compare with `>=`. |
+| API level | `8` (`7`, `6`, `5`, `4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1); level 6 the country flag layer (section 17) and the `capie_flag` record; level 7 the country leader portrait layer (section 18) and the `capie_portrait` record; level 8 the country colour layer (section 19) and the `capie_colour` record (the sub-ideology name layer of section 20 and its `capie_subideo` record were withdrawn before release). Compare with `>=`. |
 | Release | `1.6.0` (`1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
 | Build number | `10600` (`10500`, `10400`, `10300`, `10200`, `10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
 | SDK major | `v1` | every SDK path and name (`capie_sdk_v1_*`, `capie_v1_*`) | A breaking change goes into `v2` names; two majors can coexist. |
@@ -122,7 +123,6 @@ a presence signal, not a permission (section 9).
 | `capie_flag` | API level 6: `1` when the country flag layer of section 17 is active in this game session (its pins matched), `0` when CAPIE runs without it. A flag editor refuses with a message when it is `0` or absent |
 | `capie_portrait` | API level 7: `1` when the country leader portrait layer of section 18 is active in this game session (its pins matched), `0` when CAPIE runs without it. A portrait editor refuses with a message when it is `0` or absent |
 | `capie_colour` | API level 8: `1` when the country colour layer of section 19 is active in this game session (its pins and RTTI checks matched and no game call has faulted), `0` otherwise. A colour editor refuses with a message when it is `0` or absent |
-| `capie_subideo` | API level 8: `1` when the ruling-party sub-ideology name layer of section 20 is active in this game session (its pins matched), `0` otherwise. A sub-ideology editor refuses with a message when it is `0` or absent |
 | `capie_epoch` | opening epoch read from the carrier, `>= 1` |
 | `capie_nf` | number of fields that follow, `0..4` |
 | `capie_f<n>_err` | `0` valid, otherwise the field error (5.3) |
@@ -132,8 +132,8 @@ a presence signal, not a permission (section 9).
 | `capie_pf1_err`, `capie_pf1_at`, `capie_pf1_len`, `capie_pf1_0` .. `capie_pf1_31` | API level 5: the text prefill carrier 1 (`capie_v1_pf__<mod>__<editor>__1`) showed when this opening began, encoded like a field (same error codes; a character outside the alphabet gives `err = 6`). Sent only when the editor has that carrier, field 1 exists and the carrier text was readable at the opening; absent otherwise |
 
 `n` runs from 1 to `capie_nf`. One field is 35 records; the opening text adds 35 more and
-`capie_flag`, `capie_portrait`, `capie_colour` and `capie_subideo` one each, so the largest Apply
-adds 8 + 4 × 35 + 35 = 183 records (144 before API level 5, 179 in API level 5, 180 in API level 6,
+`capie_flag`, `capie_portrait` and `capie_colour` one each, so the largest Apply
+adds 7 + 4 × 35 + 35 = 182 records (144 before API level 5, 179 in API level 5, 180 in API level 6,
 181 in API level 7). Every name fits the game's
 15-byte short-string layout, which CAPIE builds directly (the longest, `capie_portrait`, has 14
 bytes).
@@ -368,8 +368,7 @@ serialisation is a hypothesis until the two-machine test (`docs/contributing/mul
 | Faction name layer: faction window, diplomacy, `[X.GetFactionName]`, tooltips; reset; leader change; save, restart, load; load without CAPIE | Section 15; `CFaction::GetName` is pinned statically only, the refresh of open windows is unverified |
 | Flag layer: own country and a subject; the exact file (also another ideology's variant); name and colour unchanged; cosmetic tag change (event or console) shows the game's flag at once; reset; save, restart, load (full atlas rebuild on worker threads); load without CAPIE; a missing file | Section 17; the atlas keys and the load path are pinned statically only |
 | Portrait layer: politics and diplomacy views, interesting countries, diplomatic request, adviser slot; small size; a game event with `set_portraits` after the choice keeps the choice, Restore shows the event's portrait; a generic leader; a missing sprite shows the game's portrait (not the unknown image); leader change; save, restart, load (before unpausing); load without CAPIE | Section 18; the portrait hook, the leader chain and the character layout are pinned statically only |
-| Colour layer: political map repaint after a commit, `colors.txt` equivalence, faction colour, subjects in the overlord's colour, cosmetic tag change, every map mode (`mark_all_modes`), Restore, save and load with and without CAPIE, civil war copy of the variables, multiplayer with a hot-joiner, a broken pin, `tag_color` | Section 19; the getter hook, the refresh call and the map-mode dirty bytes are pinned statically only (T1..T12 of `docs/contributing/country-colour-layer-spec.md`) |
-| Sub-ideology name layer: politics panel after a commit and after reopening the tab, `set_politics` / coup / election lapse, save and load, other screens keep the game's name, multiplayer client with and without CAPIE | Section 20; the panel writer, its key read and the lookup call are pinned statically only; whether the panel redraws without reopening is unverified |
+| Colour layer: political map repaint after a commit, `colors.txt` equivalence, faction colour, subjects in the overlord's colour, cosmetic tag change, the claims map mode (`colour_map_modes`; no "Getting continent for" lines in error.log), Restore, save and load with and without CAPIE, civil war copy of the variables, multiplayer with a hot-joiner, a broken pin, `tag_color` | Section 19; the getter hook, the refresh call and the map-mode dirty bytes are pinned statically only (T1..T12 of `docs/contributing/country-colour-layer-spec.md`) |
 | `capie_pf1_*` in an Apply (179 records with 4 fields) | Section 5.1; larger command than before, multiplayer serialisation unverified |
 
 ## 14. Country name layer (API level 4, CAPIE 1.2)
@@ -887,8 +886,10 @@ length to `capie_cc_cos_len`, as for `capie_cf_cos` (17.5).
   game recomputes its names (on load, cosmetic tag, ideology and subject changes);
 - for every country whose shown colour changed: publishes or removes its block, calls the
   game's own refresh `RefreshCountryColor` (AB7F10, the call the game makes after a cosmetic
-  tag change; it refreshes the political map and the faction colour), and marks every map mode
-  dirty so that the game's next map update rebuilds them all. Both happen only while the game is
+  tag change; it refreshes the political map and the faction colour), and marks dirty the map
+  modes whose builders read the colour (the political and the claims mode), so that the game's
+  next map update rebuilds them. It never marks the other modes: one of them (the continent
+  mode) writes a line per province to `error.log` when it is rebuilt. Both happen only while the game is
   in a campaign (the in-game idler), on the logic thread, at the effect step that commits the
   variables, on every client.
 
@@ -899,7 +900,8 @@ is saved.
 ### 19.7 Activation, multiplayer, without CAPIE
 
 - **Pins fail:** the colour layer has its own pins (the getter, the refresh function, the
-  colour block layout, the map-mode dirty bytes, the idler check, the six define globals) and
+  colour block layout, the map-mode dirty bytes and the modes it marks, the idler check, the six
+  define globals) and
   RTTI checks (`CCountryColors`, `CColor`, `CCountry`, `CInGameIdler`). If one does not match,
   the layer is off, the getter is not hooked, colours stay vanilla, the other layers keep
   working, and Apply commands carry `capie_colour = 0`. A fault in a game call at run time
@@ -910,116 +912,14 @@ is saved.
   overridden faction colour of a faction the country leads (cosmetic only).
 - **Console:** none.
 
-## 20. Ruling-party sub-ideology name layer (API level 8, CAPIE 1.6)
+## 20. Ruling-party sub-ideology name layer (withdrawn, not implemented)
 
-Design: `docs/research/subideology-rename-design.md`.
+Withdrawn on 2026-10-29, after the in-game test of the 1.6.0 release candidate: the project
+decided the layer is not needed. CAPIE 1.6 has no such layer. It hooks nothing in the politics
+panel, reads no `capie_sn_*` variable, adds no `capie_subideo` record to an Apply, and
+`RNCountryCapabilities` defines no bit for it (v4 bit `0x8` stays unused). A mod sets
+`capie_sn_*` variables without effect; it must not wait for `capie_subideo`, which is always
+absent. API level 8 is the country colour layer (section 19) and the `capie_colour` record only.
 
-### 20.1 What it is
-
-A name a player gives the ideology of a country's ruling party, as the politics panel shows
-it (for example "Sanacja" instead of "Non-Aligned"). It is shown in one place: the ideology
-line of the ruling-party box of the player's politics panel. Every other screen (tooltips,
-diplomacy, events, the government change texts) shows the game's name.
-
-The name belongs to the government the country had when the name was committed: its ruling
-party and that party's leader (20.3). When the ruling party or its leader changes (election,
-coup, `set_politics`, a new country leader, which is also how the sub-ideology changes), the
-panel shows the game's name again, without any script. The variables stay until the mod
-removes them.
-
-### 20.2 Variables (on the country)
-
-| Variable | Value |
-|---|---|
-| `capie_sn_n` | array of the name's character codes, 1..32 elements, codes of section 7 (1..264) |
-| `capie_sn_ver` | `1` while the layer is set (format 1); absent = no layer |
-| `capie_sn_rev` | revision, set by every change as the **last** statement, to a value different from its previous one (add 1). CAPIE compares it (20.3) |
-
-They are ordinary country variables: written only by script effects, saved, synchronised in
-multiplayer. The text rules are those of the country name layer (14.4): the RN1 guard refuses
-`|`; the section 7 alphabet has no `$` or `§`.
-
-### 20.3 Binding to the ruling party and its leader
-
-The ideology line of the ruling-party box is filled from the ruling party's ideology object
-(`[party+0x18]`, an `CIdeologyGroup`: its token, for example `neutrality`, is localised). The
-sub-ideology (for example `despotism`) belongs to the country leader. A **binding** is therefore
-the pair: the ruling party's ideology token and the ruling country leader (the character and its
-id, by the chain of 18.6; none when the party has no leader).
-
-CAPIE keeps, per country and per game session, the layer text, the value of `capie_sn_rev` and
-the binding. Each time it evaluates a country (20.5):
-
-1. no valid layer: the entry is dropped (the game's name);
-2. no entry yet, or the text or `capie_sn_rev` differs from the entry: CAPIE binds the layer to
-   the current ruling party and leader **now** (no ruling party: no entry);
-3. otherwise the entry keeps the binding it has.
-
-The panel shows the layer only while the current binding equals the stored one. So a commit
-binds; a later change of the ruling party, or of its leader (which is how the sub-ideology
-changes), lapses the name; a new commit (a new `capie_sn_rev`) binds it again.
-
-The binding is not saved (CAPIE writes no state). After a load, CAPIE binds each layer to the
-ruling party and leader the country has at load. To keep a save consistent, the mod removes the
-layer (20.4) in `on_ruling_party_change` and `on_government_change` (and whenever its own script
-changes the ruling party or its leader); then a saved layer always belongs to the government the
-country has.
-
-| Status | Condition | Shown |
-|---|---|---|
-| `absent` | `capie_sn_ver` missing (or the country has no variables) | game name |
-| `invalid` | `capie_sn_ver` is not `1`; `capie_sn_n^num` outside `1..32` or a fraction; an element missing, a fraction or outside `1..264`; the RN1 guard refuses the text | game name |
-| `unreadable` | the variables, the ruling party, its ideology token or its leader could not be read | game name |
-| `lapsed` | valid, but the current ruling party's ideology token or ruling leader differs from the binding | game name |
-| `valid` | otherwise | the layer |
-
-### 20.4 Writing and removing
-
-```text
-# Scope: the country. Set the layer (codes as in section 7):
-clear_array = capie_sn_n
-add_to_array = { capie_sn_n = 45 }   # ... one per character
-set_variable = { capie_sn_ver = 1 }
-set_temp_variable = { mymod_rev = capie_sn_rev }
-add_to_temp_variable = { mymod_rev = 1 }
-set_variable = { capie_sn_rev = mymod_rev }   # last: a new revision binds the name now
-
-# Remove it:
-clear_array = capie_sn_n
-clear_variable = capie_sn_ver
-set_temp_variable = { mymod_rev = capie_sn_rev }
-add_to_temp_variable = { mymod_rev = 1 }
-set_variable = { capie_sn_rev = mymod_rev }
-```
-
-`capie_sn_rev` uses `set_variable` (not `add_to_variable`, which CAPIE does not see), without a
-scope prefix, in the scope of the country. A missing `capie_sn_rev` reads as 0. The planned SDK
-effects `capie_v1_set_subideology_name` (from text slot 1 of ROOT) and
-`capie_v1_clear_subideology_name` do exactly this.
-
-### 20.5 What CAPIE does
-
-`capie_core.dll`:
-
-- evaluates the layer of every country after `set_variable` of `capie_sn_rev`, and of one
-  country when the game recomputes its names (on load, on government and cosmetic tag changes),
-  on the logic thread (20.3);
-- hooks the politics panel's ruling-party writer (1622F50, one caller: the politics view's
-  refresh). The panel shows the player's country (the in-game idler's tag); when that country
-  has an entry whose binding equals the current one, the call runs with a frame on this thread,
-  and the localisation lookup CAPIE already hooks answers the ruling party's ideology token with
-  the layer text while the frame is set. Every other key, and every other
-  thread, gets the game's answer. Nothing is written and no game call is added.
-
-The panel shows a new name at its next refresh (reopening the politics tab is enough; whether
-it redraws earlier is an in-game test).
-
-### 20.6 Activation, multiplayer, without CAPIE
-
-The layer has its own pins (the panel writer, its ideology key read, the localisation call in
-the formatter, the idler's shown-tag getter, the leader chain) and RTTI checks
-(`CIdeologyGroup`, `CPoliticalParty`, `CInGameIdler`, `CCharacter`), and needs the name layer's pins (its UpdateNames and set_variable hooks).
-If one does not match, the layer is off, the panel shows the game's names, the other layers
-keep working, and Apply commands carry `capie_subideo = 0`. The layer is local display: every
-client holds the same variables; a client without CAPIE (or a save loaded without it) shows the
-game's names. No console command.
+The section number is not reused. The design is kept, marked "dropped, not implemented", in
+`docs/research/subideology-rename-design.md`.

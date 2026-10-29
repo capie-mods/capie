@@ -86,17 +86,20 @@ never makes an unknown virtual call.
 Effect: mode 0 (political) and the faction colour are refreshed on the next map update. This is
 the game's own path after a cosmetic-tag change.
 
-### 2.3 Mark every map mode dirty (optional, on by default)
+### 2.3 Mark the colour map modes dirty
 
 After the refresh, and under the same guard, CAPIE sets
-`modes = *(u8**)(*(uptr*)(map + 0x8) + 0x30)`, then `modes[0x48 + i] = 1` for `i = 0..22`.
+`modes = *(u8**)(*(uptr*)(map + 0x8) + 0x30)`, then `modes[0x48 + i] = 1` for each `i` of
+`colour::colour_map_modes` = {0, 19} (political and claims).
 
-- The game's own UI-thread update `0x140FBF5A0` then rebuilds every mode (research §6.3), so mode 19
-  (claims) and any other mode are fresh too.
+- The game's own UI-thread update `0x140FBF5A0` then rebuilds those modes (research §6.3), so mode
+  19 (claims) is fresh too.
+- Changed after the 1.6.0-rc in-game test (2026-10-29): the first version marked all 23 modes
+  (`mark_all_modes`); the rebuild of mode 21 then wrote one "Getting continent for <N>" line per
+  province to `error.log` (98 per Apply). Only modes 0 and 19 read the colour (research §6.7);
+  a `static_assert` keeps mode 21 out of the table, and pins tie the table to the game's switch.
 - These are the same bytes the game writes from the same thread (`0x140E86C10`). Each write goes
   through `__try` and `VirtualQuery` (`FlagMemory::write` style), at most once per changed country.
-- Compile-time switch `colour::mark_all_modes` (default `true`). Turn it off only if in-game test
-  T6 shows a frame hitch that is not worth it.
 - Never call `RebuildAllMapModes` (`0xAB8040`): it rebuilds synchronously on render objects and
   belongs to the UI thread.
 
@@ -445,7 +448,7 @@ The define order is pinned by the token reader `0x752D30..0x752DA6`. The call `0
    - guard false (map null, idler null, idler slot is neither known address, slot returns false):
      no call;
    - guard true: one call per **changed** country, none for unchanged ones;
-   - 23 dirty bytes set when `mark_all_modes` is on;
+   - the dirty bytes of modes 0 and 19 set, no other (never mode 21);
    - out-of-range id: no call;
    - a fault turns the layer off.
 7. **Hooks:**
@@ -490,7 +493,7 @@ The define order is pinned by the token reader `0x752D30..0x752DA6`. The call `0
 | T3 | Open the faction view and the faction colour picker while POL leads a faction without a custom colour. | Both show the new colour. The faction colour follows. |
 | T4 | Puppet a country with the "subjects in overlord colour" rule on. | The puppet shows POL's override, and keeps its own override only when the rule is off. |
 | T5 | `set_cosmetic_tag` via console, then wait one day. | The game's cosmetic colour shows at once. The mod clears the variables the next day. |
-| T6 | Apply, then switch to the claims mode and two other modes. | Fresh colours in every mode. Measure the frame time at Apply. Set `mark_all_modes` accordingly. |
+| T6 | Apply, then switch to the claims mode and two other modes. | Fresh colours in the political and claims modes; no "Getting continent for" lines in `error.log`. Measure the frame time at Apply. |
 | T7 | Restore. | Vanilla colour returns, and the faction colour too. |
 | T8 | Save, then load, with CAPIE; then load the same save without CAPIE. | With CAPIE: the colour persists. Without: vanilla country colour, and the faction colour keeps the override (expected leak). |
 | T9 | Apply on a country, then start a civil war in it (console/effect). | Record whether the breakaway has `capie_cc_ver`. Implement the RA clear if so. |
@@ -504,7 +507,7 @@ The define order is pinned by the token reader `0x752D30..0x752DA6`. The call `0
 |---|---|---|---|
 | Faction colour (game state, saved) differs between clients when one client's layer is off (runtime fault on one machine only) | low | possible out-of-sync if the faction colour is checksummed; wrong colour | the getter path makes no game call; refresh faults are rare and SEH-guarded; test T10; document |
 | The getter is hot; a slow detour costs frame time | medium | map rebuild slower | lock-free fast path; `live_ == 0` exit; no `VirtualQuery` in the detour |
-| Other modes stay stale if `mark_all_modes` is off | medium | claims map mode shows the old colour | default on; T6 |
+| A mode that reads the colour is not marked | medium | that mode shows the old colour | modes 0 and 19 marked (research §6.7, pinned); T6 |
 | Rebuilding all 23 modes causes a hitch on Apply | low-medium | one-frame hitch | rare user action; T6 measures it; can fall back to mode 0 only |
 | Mode index meaning changes in a later patch | medium (port) | wrong mode refreshed | `update.mode_count` and dirty-byte pins; the port tool re-checks |
 | Map built before `UpdateNames` at load | low | vanilla colours until the next change | T8; fallback: flush a "pending repaint" at the next `set_variable` where the guard holds |

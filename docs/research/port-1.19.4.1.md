@@ -114,16 +114,18 @@ resolve and `port.py locate --check` passes on 1.19.4.1.
 ## API level 8
 
 CAPIE 1.6.0 (branch `api8-layers`) adds the country colour layer
-(`features/country/colour_layer_pins.hpp`) and the ruling-party ideology name layer
-(`features/country/subideology_layer_pins.hpp`), written against 1.19.4.0 and rebased on this
-port. Every entry they add was re-checked on the 1.19.4.1 executable with pefile/capstone (Ghidra
+(`features/country/colour_layer_pins.hpp`). The 1.6.0-rc also had a ruling-party ideology name
+layer (`subideology_layer_pins.hpp`); it was dropped on 2026-10-29 (CONTRACT section 20
+withdrawn), and its pins, anchors and map entries were removed. Its port table is kept below as a
+record. Both were written against 1.19.4.0 and rebased on this port. Every entry they add was re-checked on the 1.19.4.1 executable with pefile/capstone (Ghidra
 holds the 1.19.4.0 file only): each signature is unique in `.text` and starts its `.pdata`
 function; each instruction pin was placed at its old address plus the shift of its own function
 and matches there, once in that function, at the same offset from the function start; each
 RIP/rel32 pin decodes to its target; the two slot pins read the expected function from
 `vt_ingame_idler` (`29E5838`, already ported); the RTTI tables name the expected class at offset 0.
 `tools/port/map_1.19.4.1.json` lists all of them; the main signature table did not change, so
-`accepted-1.19.4.1.json` is unchanged. `port.py locate --check`: 118 entries, 0 problems.
+`accepted-1.19.4.1.json` is unchanged. `port.py locate --check`: 118 entries, 0 problems with the
+ideology name layer; 115 entries (86 constants), 0 problems after its removal.
 
 Colour layer: nothing moved. The code lies in `.text` below `0x12CF000` (shift 0), the defines
 and globals in `.data` (shift 0), and the three vtables kept their `.rdata` addresses.
@@ -135,8 +137,9 @@ and globals in `.data` (shift 0), and the three vtables kept their `.rdata` addr
 | target pins (11) | same RVAs | `759519` → `AB7E30`, `759525` → `AB7F10`, `AB7F7D` → `734AE0`, `759502` → `33DDB08`, `AB7E33` → `33E7818`, six define loads → `33E5130`..`33E542C` |
 | `idler.ingame_slot` | `vt_ingame_idler` + `0x2D8` → `188D90` | slot read |
 | `vt_country_colors`, `vt_color`, `vt_country` | `279F558`, `2796208`, `2864710` (same) | RTTI |
+| map modes the layer marks (added 2026-10-29, 4 instruction and 7 target pins) | `FB7F99` bound, table `FB81EC` entries 0, 19, 21; case jumps `FB7FC5` → `FB8250`, `FB80FF` → `FBAE80`, `FB8123` → `FB9FB0`; getter calls `FB8795`, `FB48D9`; `FBB0AB` → `FB4780`; `FBA440` → "Getting continent for %d" `29F5A58` | checked on 1.19.4.1 only (`docs/research/country-colour-2026-10-28.md` 6.7); now 18 instruction and 18 target pins |
 
-Ideology name layer: the panel writer is in the `+0x3C0` region, the formatter in the `+0x350`
+Ideology name layer (dropped 2026-10-29; record only): the panel writer is in the `+0x3C0` region, the formatter in the `+0x350`
 region, `CPoliticalParty`'s vtable moved +0x10. The localising helper `66A4E0`, the party and
 ideology group constructors (`1230290`, `121D920`) and the idler slot `B8E270` did not move.
 
@@ -156,6 +159,6 @@ ideology group constructors (`1230290`, `121D920`) and the idler slot `B8E270` d
 | `ideology.key`, `party.ctor_ideology`, `ideology_group.ctor_key`, `idler.shown_tag` | `66A4E6`, `12302BC`, `121D992`, `B8E373` | same | bytes, once in their functions; `B8E36F` → `gamestate_global` `33DD6B0` |
 | `idler.shown_tag_slot` | `vt_ingame_idler` + `0xA0` → `B8E270` | same target | slot read |
 
-The `flip` literals of `colour_layer_pins_exe_test` and `subideology_layer_pins_exe_test` follow
-the table, including `vt_ingame_idler` `29E5838`. Both tests, `rtti_exe_test` and every other
-`*_exe_test` pass on 1.19.4.1.
+The `flip` literals of `colour_layer_pins_exe_test` (and of the removed
+`subideology_layer_pins_exe_test`) follow the table, including `vt_ingame_idler` `29E5838`.
+`colour_layer_pins_exe_test`, `rtti_exe_test` and every other `*_exe_test` pass on 1.19.4.1.

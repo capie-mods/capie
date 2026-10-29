@@ -23,10 +23,8 @@
  * Country colour layer (API level 8, `features/country/colour_layer*.hpp`): one more hook
  * (`GetMapColors`) returns CAPIE's colour block for a country whose layer is shown; its slots are
  * filled from the UpdateNames and set_variable hooks, which then call the game's own
- * `RefreshCountryColor` (guarded). Ruling-party ideology name layer (API level 8,
- * `features/country/subideology_layer*.hpp`): one more hook (the politics panel's ruling-party
- * writer) sets a thread-local frame that the `lookup_n` hook answers. Each has its own pins and
- * RTTI table and needs the name layer's pins.
+ * `RefreshCountryColor` (guarded). It has its own pins and RTTI table and needs the name layer's
+ * pins.
  *
  * It does not write game files, saves, variables, cosmetic tags or `CCountry` fields. The game
  * updates its own name caches and map labels from the localisation answers.
@@ -41,8 +39,8 @@
  * because a callback may be in flight; residual hooks forward to the game while `active` is
  * false.
  *
- * `RNCountryCapabilities` returns a v4 value when the portrait, colour or ideology name layer is
- * on (one bit per layer, flag bit when the flag layer is on too), `country_capabilities_v3` with
+ * `RNCountryCapabilities` returns a v4 value when the portrait or colour layer is on (one bit per
+ * layer, flag bit when the flag layer is on too), `country_capabilities_v3` with
  * the name and flag layers,
  * `country_capabilities_v2` with the name layers only,
  * `country_capabilities_v1` while active without it. The editor bridge queries it before
@@ -75,8 +73,6 @@
 #include "../features/country/name_layer_pins.hpp"
 #include "../features/country/portrait_layer_hooks.hpp"
 #include "../features/country/portrait_layer_pins.hpp"
-#include "../features/country/subideology_layer_hooks.hpp"
-#include "../features/country/subideology_layer_pins.hpp"
 
 #include <atomic>
 #include <MinHook.h>
@@ -106,10 +102,8 @@ constexpr std::size_t flag_layer_hooks = 3;
 constexpr std::size_t portrait_hook_index = localisation_hooks + name_layer_hooks + flag_layer_hooks;
 /// @brief Index of the colour-layer hook in `all_hooks`.
 constexpr std::size_t colour_hook_index = portrait_hook_index + 1;
-/// @brief Index of the ruling-party ideology name hook in `all_hooks`.
-constexpr std::size_t subideology_hook_index = colour_hook_index + 1;
-/// @brief Most hooks installed (localisation, name, flag, portrait, colour and ideology name layers).
-constexpr std::size_t max_hooks = subideology_hook_index + 1;
+/// @brief Most hooks installed (localisation, name, flag, portrait and colour layers).
+constexpr std::size_t max_hooks = colour_hook_index + 1;
 
 /// @brief Memory policy of the name layer.
 const core::ProcessMemory layer_memory{};
@@ -129,9 +123,6 @@ const colour::ColourMemory colour_memory{};
 /// @brief The country colour layer of this process.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): hook state is a process singleton
 colour::ColourLayer<colour::ColourMemory> colour_layer{colour_memory};
-/// @brief The ruling-party ideology name layer of this process.
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): hook state is a process singleton
-subideology::IdeologyLayer<core::ProcessMemory> ideology_layer{layer_memory};
 
 /**
  * @brief Writes one log line (appends CRLF) if its channel is enabled.
@@ -159,7 +150,6 @@ std::uint64_t update_names_hook(core::uptr country) {
     static_cast<void>(flag_layer.update(country));  // after the original: the cosmetic tag is current
     static_cast<void>(portrait_layer.update(country));
     static_cast<void>(colour_layer.update(country));
-    static_cast<void>(ideology_layer.update(country));
     return result;
 }
 
@@ -199,10 +189,6 @@ void set_variable_hook(core::uptr effect, core::uptr context) {
         engine::string_equals(layer_memory, effect + core::off::set_variable_name, colour::commit_variable)) {
         static_cast<void>(colour_layer.refresh_all());
     }
-    if (ideology_layer.enabled() &&
-        engine::string_equals(layer_memory, effect + core::off::set_variable_name, subideology::commit_variable)) {
-        static_cast<void>(ideology_layer.refresh_all());
-    }
 }
 
 /**
@@ -212,14 +198,6 @@ void set_variable_hook(core::uptr effect, core::uptr context) {
  */
 const void* map_colors_hook(const void* country) {
     return colour_layer.map_colors(country);
-}
-
-/**
- * @brief Hook body of the politics view's ruling-party writer.
- * @param view Politics view.
- */
-void politics_panel_hook(void* view) {
-    ideology_layer.panel(view);
 }
 
 /**
@@ -341,18 +319,13 @@ InitCode initialize() {
             core::first_wrong_class(core::ProcessMemory{}, reinterpret_cast<core::uptr>(base), core::core_vtable_classes);
     }
     const bool portrait_ok = layer_ok && failed_portrait_pin == nullptr;
-    // The colour and ideology name layers have their own pins and RTTI tables; both need the name layer.
+    // The colour layer has its own pins and RTTI table; it needs the name layer.
     const auto image = reinterpret_cast<core::uptr>(base);
     const char* failed_colour_pin = colour::pins::first_failed_pin(text, core::ProcessMemory{}, image);
     if (failed_colour_pin == nullptr) {
         failed_colour_pin = core::first_wrong_class(core::ProcessMemory{}, image, core::colour_vtable_classes);
     }
     const bool colour_ok = layer_ok && failed_colour_pin == nullptr;
-    const char* failed_ideology_pin = subideology::pins::first_failed_pin(text, core::ProcessMemory{}, image);
-    if (failed_ideology_pin == nullptr) {
-        failed_ideology_pin = core::first_wrong_class(core::ProcessMemory{}, image, core::subideology_vtable_classes);
-    }
-    const bool ideology_ok = layer_ok && failed_ideology_pin == nullptr;
     const core::HookSpec all_hooks[] = {
         {"country.lookup_n", core::rva::loc_lookup_n, reinterpret_cast<void*>(&lookup_n),
          reinterpret_cast<void**>(&original_n)},
@@ -378,19 +351,17 @@ InitCode initialize() {
          reinterpret_cast<void**>(&portrait_layer.originals().resolve)},
         {"colour.map_colors", core::rva::country_map_colors, reinterpret_cast<void*>(&map_colors_hook),
          reinterpret_cast<void**>(&colour_layer.originals().map_colors)},
-        {"subideology.panel", core::rva::politics_panel, reinterpret_cast<void*>(&politics_panel_hook),
-         reinterpret_cast<void**>(&ideology_layer.originals().panel)},
     };
     static_assert(std::size(all_hooks) == max_hooks);
-    // Localisation hooks always; the name layers when their pins match; the flag, portrait, colour
-    // and ideology name layers only on top of the name layers, each with its own pins.
+    // Localisation hooks always; the name layers when their pins match; the flag, portrait and
+    // colour layers only on top of the name layers, each with its own pins.
     core::HookSpec hooks[max_hooks]{};
     std::size_t hook_count = 0;
     for (std::size_t index = 0; index < max_hooks; ++index) {
         const bool name_hook = index >= localisation_hooks && index < localisation_hooks + name_layer_hooks;
         const bool flag_hook = index >= localisation_hooks + name_layer_hooks && index < portrait_hook_index;
         if ((name_hook && !layer_ok) || (flag_hook && !flag_ok) || (index == portrait_hook_index && !portrait_ok) ||
-            (index == colour_hook_index && !colour_ok) || (index == subideology_hook_index && !ideology_ok)) {
+            (index == colour_hook_index && !colour_ok)) {
             continue;
         }
         hooks[hook_count++] = all_hooks[index];
@@ -426,19 +397,15 @@ InitCode initialize() {
         colour_layer.originals().refresh = reinterpret_cast<colour::RefreshFn>(base + core::rva::refresh_country_color);
         colour_layer.activate(image, &write_line);
     }
-    if (ideology_ok) {
-        ideology_layer.activate(image, &write_line);
-    }
     active.store(true);
     static_cast<void>(std::snprintf(
         line, sizeof(line),
         "CAPIE_CORE %s initialized: %zu hooks, name layer %s %s, flag layer %s %s, portrait layer %s %s, "
-        "colour layer %s %s, subideology layer %s %s, flavor=%s",
+        "colour layer %s %s, flavor=%s",
         core::capie_version, hook_count, name_layer.enabled() ? "on" : "off", layer_ok ? "" : failed_pin,
         flag_layer.enabled() ? "on" : "off", failed_flag_pin != nullptr ? failed_flag_pin : "",
         portrait_layer.enabled() ? "on" : "off", failed_portrait_pin != nullptr ? failed_portrait_pin : "",
         colour_layer.enabled() ? "on" : "off", failed_colour_pin != nullptr ? failed_colour_pin : "",
-        ideology_layer.enabled() ? "on" : "off", failed_ideology_pin != nullptr ? failed_ideology_pin : "",
         core::logging::debug_diagnostics ? "debug" : "release"));
     write_line(core::logging::Channel::lifecycle, line);
     OutputDebugStringA(initialized_message);
@@ -460,8 +427,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
     }
     return capie::country::capabilities_of(capie::country::name_layer.enabled(), capie::country::flag_layer.enabled(),
                                            capie::country::portrait_layer.enabled(),
-                                           capie::country::colour_layer.enabled(),
-                                           capie::country::ideology_layer.enabled());
+                                           capie::country::colour_layer.enabled());
 }
 
 /**

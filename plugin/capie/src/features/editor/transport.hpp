@@ -271,14 +271,6 @@ inline bool colour_ready() noexcept {
 }
 
 /**
- * @brief Whether the ruling-party ideology name layer is active (API level 8, record `capie_subideo`).
- * @return `true` for a v4 value with the sub-ideology bit.
- */
-inline bool subideology_ready() noexcept {
-    return country::subideology_active(country_capabilities());
-}
-
-/**
  * @brief Re-checks everything right before the original dispatch.
  * @param current Dispatch frame.
  * @param snapshots Texts captured earlier.

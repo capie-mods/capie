@@ -868,7 +868,13 @@ void refresh_tests() {
         std::array<std::uint8_t, 0x80> modes{};
         static_cast<void>(f.mem.read(fake_modes, modes.data(), modes.size()));
         const auto dirty = std::count(modes.begin() + 0x48, modes.begin() + 0x48 + 23, std::uint8_t{1});
-        check(dirty == 23 && modes[0x47] == 0 && modes[0x48 + 23] == 0, "23 mode-dirty bytes set (+0x48..+0x5E)");
+        check(dirty == 2 && modes[0x48 + 0] == 1 && modes[0x48 + 19] == 1,
+              "the political (0) and claims (19) mode-dirty bytes set, no other");
+        check(modes[0x48 + 21] == 0 && modes[0x47] == 0 && modes[0x48 + 23] == 0,
+              "the continent mode (21) is never marked; nothing outside +0x48..+0x5E written");
+        check(country::colour::colour_map_modes.size() == 2 && country::colour::colour_map_modes[0] == 0 &&
+                  country::colour::colour_map_modes[1] == 19,
+              "colour_map_modes = {0, 19}");
         // refresh_all: only changed countries are refreshed.
         refresh_calls = 0;
         auto stats = f.colour_layer.refresh_all();
@@ -959,13 +965,12 @@ void hook_tests() {
 }
 
 void capability_tests() {
-    for (int mask = 0; mask < 32; ++mask) {
+    for (int mask = 0; mask < 16; ++mask) {
         const bool names = (mask & 1) != 0;
         const bool flag = (mask & 2) != 0;
         const bool portrait = (mask & 4) != 0;
         const bool colour_on = (mask & 8) != 0;
-        const bool sub = (mask & 16) != 0;
-        const auto value = country::capabilities_of(names, flag, portrait, colour_on, sub);
+        const auto value = country::capabilities_of(names, flag, portrait, colour_on);
         const std::string label = "capability mask " + std::to_string(mask);
         if (!names) {
             check(value == country::country_capabilities_v1 && !country::names_active(value) &&
@@ -977,8 +982,8 @@ void capability_tests() {
         check(country::flag_active(value) == flag, label + ": flag");
         check(country::portrait_active(value) == portrait, label + ": portrait");
         check(country::colour_active(value) == colour_on, label + ": colour");
-        check(country::subideology_active(value) == sub, label + ": sub-ideology");
-        if (!portrait && !colour_on && !sub) {
+        check((value & 0x8U) == 0, label + ": bit 0x8 (withdrawn ideology name layer) never set");
+        if (!portrait && !colour_on) {
             check(value == (flag ? country::country_capabilities_v3 : country::country_capabilities_v2),
                   label + ": v2/v3");
         } else {
@@ -986,8 +991,9 @@ void capability_tests() {
         }
     }
     check(country::capabilities_of(true, false, false, true) == 0x524E4404U, "colour only: 0x524E4404");
-    check(country::capabilities_of(true, true, true, true, true) == 0x524E440FU, "all: 0x524E440F");
+    check(country::capabilities_of(true, true, true, true) == 0x524E4407U, "all: 0x524E4407");
     check(!country::is_v4(0x524E4400U) && !country::is_v4(0x524E4401U) && !country::is_v4(0x524E4414U) &&
+              !country::is_v4(0x524E4408U) && !country::is_v4(0x524E440CU) &&
               !country::colour_active(0x524E4403U),
           "undefined v4 values are refused");
 }

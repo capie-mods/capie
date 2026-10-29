@@ -1,6 +1,9 @@
 # Design: renaming the ruling party's sub-ideology (finding B1), and the country colour
 
-Status: design only, not implemented. Build: HOI4 1.19.4.0 (`hoi4.exe` SHA-256 `B6650C85…D888`).
+Status: **dropped, not implemented.** The layer was built for CAPIE 1.6.0-rc (CONTRACT section
+20) and removed on 2026-10-29 after the in-game test, when the project decided it is not needed;
+CONTRACT section 20 is withdrawn. Nothing below is in any CAPIE release. Kept as a record of
+the design and its evidence. Build: HOI4 1.19.4.0 (`hoi4.exe` SHA-256 `B6650C85…D888`).
 RVAs are relative to `0x140000000`. Evidence was re-read on 2026-10-28 with capstone on the
 installed exe (`tools/port/locate.py` and its anchors); the Ghidra session had crashed (Java
 OutOfMemoryError) and was not available again before this note was written. Claims that rest

@@ -20,7 +20,7 @@ the given executable, prints `name  new-RVA` and writes `out/locate.json`. Funct
 from `.pdata` (chained unwind entries are followed; leaf functions end at the int3 padding).
 
 - With `--check` each result is compared with the header; any `MISMATCH`, `FAIL` or `NO ANCHOR`
-  exits 1. On 1.19.4.0, and after the port on 1.19.4.1, all 90 constants resolve and match (118
+  exits 1. On 1.19.4.0, and after the port on 1.19.4.1, all 86 constants resolve and match (115
   entries with the helpers). Run it after every change of `anchors.json` or `game_layout.hpp`; a
   new constant without an anchor fails the check.
 - On a new build the printed RVAs are the first guess. `triage` (below) then checks the byte

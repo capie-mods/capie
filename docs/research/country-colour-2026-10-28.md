@@ -219,9 +219,10 @@ for (i = 0; i < 23; i++) {                       // 0x140FBF7A0: cmp byte[r14+rb
   So `0x140AB7F10` alone repaints the political map. It does not dirty mode 19 or the other modes,
   so those stay stale until something rebuilds them. Vanilla has the same staleness after a
   cosmetic tag change.
-- To repaint everything without `0x140AB8040`, CAPIE can set `modes+0x48+i = 1` for `i = 0..22`,
+- To repaint other modes without `0x140AB8040`, CAPIE can set `modes+0x48+i = 1` for a mode `i`,
   from the same logic-thread point. The game itself writes these bytes from that thread (via
-  `0x140E86C10`). The UI-thread update then rebuilds each mode.
+  `0x140E86C10`). The UI-thread update then rebuilds each marked mode. Marking all 23 is wrong:
+  see 6.7.
 - `0x140AB8040` rebuilds synchronously and touches render-side objects. It must run only on the
   UI/main thread: the game calls it from the console, idlers and nudgers. CAPIE should not call it
   (the core DLL has no UI-thread hook).
@@ -311,10 +312,42 @@ The full table, in pin-table style, is in the spec (section 7). In short:
 
 Failure means the layer is off and the getter is not hooked, so colours stay vanilla.
 
+### 6.7 Which map modes read the colour — resolved (2026-10-29, answers unknown 1 and T6)
+
+In-game result of the 1.6.0-rc: every colour Apply wrote 98 lines "Getting continent for <N>" to
+`error.log` (5 Applies: 490), because the layer marked all 23 modes dirty and the next map update
+rebuilt every one of them.
+
+Method: pefile and capstone on the 1.19.4.1 exe (this code did not move from 1.19.4.0; Ghidra was
+not used for this pass). The rebuild switch `0x140FB7F80` bounds the mode with `cmp edi,0x16` at
+`0x140FB7F99` and jumps through the RVA table at `0x140FB81EC`; each case is
+`mov rdx,rbx; mov rbx,[rsp+40]; add rsp,30; pop rdi; jmp builder`. From every case's builder a
+breadth-first search over direct calls (depth 5) looked for `GetMapColors` (`0x140734AE0`) and
+for the only code reference to the "Getting continent for %d" format (`lea rdx` at `0x140FBA43D`,
+in `0x140FB9FB0`); a second pass looked for reads of the faction colour (`+0x9E0`) within depth 4.
+
+| mode | builder | reads `GetMapColors` | faction colour | logs continents |
+|---|---|---|---|---|
+| 0 (political) | `0x140FB8250` | yes, direct (`0x140FB8794` and three more calls) | yes (`0x140FB881E`) | no |
+| 19 (claims) | `0x140FBAE80` | yes, through `0x140FB4780` (call `0x140FBB0AA`; getter call `0x140FB48D8`) | no | no |
+| 21 | `0x140FB9FB0` | no | no | **yes** (one line per province) |
+| other 20 modes | (13: `0x141AC0190`; 15 and 16: `0x140B017A0`; 22: `0x141834EE0`; rest `0x140FB8A80..0x140FBE8B0`) | no | no | no |
+
+Result: only modes 0 and 19 need a rebuild after a colour change. Mode 0 is already marked by the
+game's own `RefreshCountryColor`; CAPIE marks 0 and 19 (one byte each), never 21. The table is
+`colour::colour_map_modes` (`value::political_map_mode`, `value::claims_map_mode`; the continent
+mode `value::continent_map_mode` is excluded by a `static_assert`). Pins: `rebuild.mode_bound`,
+the table entries `rebuild.case_political`, `rebuild.case_claims`, `rebuild.case_continent`
+(addressed from the `value::` constants), the case jumps `rebuild.*_builder`, the getter calls
+`political.calls_getter`, `claims.calls_colour`, `claims_colour.calls_getter` and the continent
+log format `continent.log_format`; `colour_layer_pins_exe_test` follows the table in the file for
+every marked mode. Dynamic map-mode rebuilds through indirect calls were not searched; the
+in-game T6 re-run confirms that the claims mode shows the new colour.
+
 ## Remaining unknowns
 
-1. That mode 0 is the political map mode and mode 19 the claims mode (inferred from builders and
-   strings). The in-game test decides whether marking all 23 modes is needed.
+1. Resolved in 6.7: mode 0 is the political mode, mode 19 the claims mode; only these two read
+   the colour, and marking all 23 modes was harmful (mode 21 logs every province).
 2. The two UI callers `0x1419630F0` and `0x141EFBB40` are not tied to a named view (they read
    `color_ui`).
 3. Whether `start_civil_war` copies country variables to the breakaway.

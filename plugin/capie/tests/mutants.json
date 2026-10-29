@@ -1256,17 +1256,9 @@
   "summary": "colour layer tests:"
  },
  {
-  "name": "colour-capability-subideology-bit",
-  "file": "src/features/country/capability.hpp",
-  "find": "return is_v4(value) && (value & capability_subideology_bit) != 0;",
-  "replace": "return is_v4(value);",
-  "suite": "tests/colour_layer_test.cpp",
-  "summary": "colour layer tests:"
- },
- {
   "name": "colour-capability-v4-portrait-only",
   "file": "src/features/country/capability.hpp",
-  "find": "if (portrait || colour || subideology) {",
+  "find": "if (portrait || colour) {",
   "replace": "if (portrait) {",
   "suite": "tests/colour_layer_test.cpp",
   "summary": "colour layer tests:"
@@ -1792,10 +1784,26 @@
   "summary": "colour layer tests:"
  },
  {
-  "name": "colour-mark-22",
+  "name": "colour-mark-skips-claims",
   "file": "src/features/country/colour_layer_hooks.hpp",
-  "find": "dirty.data(), core::value::map_mode_count);",
-  "replace": "dirty.data(), core::value::map_mode_count - 1);",
+  "find": "{core::value::political_map_mode,\n                                                                core::value::claims_map_mode};",
+  "replace": "{core::value::political_map_mode,\n                                                                core::value::political_map_mode};",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-mark-wrong-byte",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "modes + core::off::mode_dirty + mode,",
+  "replace": "modes + core::off::mode_dirty + mode + 2,",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-mark-skipped",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "        ++stats.refreshed;\n        mark_modes(map);\n",
+  "replace": "        ++stats.refreshed;\n",
   "suite": "tests/colour_layer_test.cpp",
   "summary": "colour layer tests:"
  },
@@ -1918,213 +1926,5 @@
   "replace": "if (refresh == nullptr || tag == nullptr || !game_calls_allowed()) {",
   "suite": "tests/game_calls_test.cpp",
   "summary": "game calls tests:"
- },
- {
-  "name": "sub-no-binding-compare",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "!out.binding.same(entry.binding)) {",
-  "replace": "false) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-rebind-always",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "if (old != nullptr && old->text == text && old->rev == layer.rev && old->index == index && old->tag == tag) {",
-  "replace": "if (false) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-rev-ignored",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "old->text == text && old->rev == layer.rev &&",
-  "replace": "old->text == text &&",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-text-ignored",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "old != nullptr && old->text == text && old->rev",
-  "replace": "old != nullptr && old->rev",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-leader-ignored",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "return view() == other.view() && leader == other.leader && leader_id == other.leader_id;",
-  "replace": "return view() == other.view() && leader_id == other.leader_id;",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-leader-id-ignored",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "return view() == other.view() && leader == other.leader && leader_id == other.leader_id;",
-  "replace": "return view() == other.view() && leader == other.leader;",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-token-ignored",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "return view() == other.view() && leader == other.leader && leader_id == other.leader_id;",
-  "replace": "return leader == other.leader && leader_id == other.leader_id;",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-party-vtable",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "!has_vtable(mem, party, image + core::rva::vt_political_party) ||",
-  "replace": "",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-group-vtable",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "!has_vtable(mem, group, image + core::rva::vt_ideology_group) || !read_token(mem, group, out)) {",
-  "replace": "!read_token(mem, group, out)) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-token-max",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "raw.size == 0 || raw.size > max_key ||",
-  "replace": "raw.size == 0 ||",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-token-empty",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "raw.size == 0 || raw.size > max_key ||",
-  "replace": "raw.size > max_key ||",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-token-capacity",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "raw.size > max_key ||\n        raw.size > raw.capacity) {",
-  "replace": "raw.size > max_key) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-leader-unread",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "if (!portrait::ruling_leader(mem, image, country, leader)) {",
-  "replace": "if (!portrait::ruling_leader(mem, image, country, leader) && false) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-idler-vtable",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "!has_vtable(mem_, idler, image_ + core::rva::vt_ingame_idler) ||",
-  "replace": "",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-shown-tag-ignored",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "if (shown > 0) {",
-  "replace": "if (false) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-shown-zero",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "if (shown > 0) {",
-  "replace": "if (shown >= 0) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-slot-check",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "at != entry.country ||",
-  "replace": "false ||",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-tag-check",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "|| current != tag) {",
-  "replace": ") {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-index-bound",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "entry.index < 0 || entry.index >= count ||",
-  "replace": "entry.index < 0 ||",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-key-length",
-  "file": "src/features/country/country_names.hpp",
-  "find": "length < 0 || static_cast<std::size_t>(length) != frame->key_size) {",
-  "replace": "length < 0) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-frame-not-restored",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "const core::ScopedFrame<const IdeologyFrame> scope(ideology_frame, &frame);",
-  "replace": "ideology_frame = &frame;",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-count-bound",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "list != 0 && count >= 0 &&\n               count <= max_countries;",
-  "replace": "list != 0 && count >= 0;",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-not-in-list",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "if (!country_list(list, count) || !index_of(list, count, country, index)) {",
-  "replace": "if (!country_list(list, count) || (!index_of(list, count, country, index) && false)) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-commit-name",
-  "file": "src/features/country/subideology_layer.hpp",
-  "find": "commit_variable[] = \"capie_sn_rev\";",
-  "replace": "commit_variable[] = \"capie_cc_rev\";",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-keep-removed",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "                } else {\n                    all.erase(found);\n                }",
-  "replace": "                }",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
- },
- {
-  "name": "sub-fast-path-skips",
-  "file": "src/features/country/subideology_layer_hooks.hpp",
-  "find": "if (count_.load(std::memory_order_acquire) != 0 && enabled_.load()) {",
-  "replace": "if (count_.load(std::memory_order_acquire) != 0) {",
-  "suite": "tests/subideology_layer_test.cpp",
-  "summary": "ideology name layer tests:"
  }
 ]

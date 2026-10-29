@@ -11,22 +11,18 @@ release notes, so write it for players and mod authors. Format:
 
 ## [1.6.0] - unreleased
 
-Two new things a mod can change in-game: a country's map colour and the party-ideology line of the
-politics panel. Script API level 8 (`capie_cap = 8`); mods built for CAPIE 1.5 keep working
-unchanged. Runs on HOI4 1.19.4.1 only.
+A new thing a mod can change in-game: a country's map colour. Script API level 8
+(`capie_cap = 8`); mods built for CAPIE 1.5 keep working unchanged. Runs on HOI4 1.19.4.1 only.
 
 ### Added
 
 - Country colour (CONTRACT section 19): a mod can give a country its own map colour with the
-  `capie_cc_*` variables. The political map, borders, the faction colour and UI icons follow at
-  once; restoring the variables brings the game's colour back. A cosmetic tag set after the choice
-  hides it, as for the flag.
-- Ruling-party ideology name (CONTRACT section 20): a mod can rename the ideology line of the
-  ruling-party box in the politics panel (for example "Non-Aligned") with the `capie_sn_*`
-  variables. The name stays only while the same party and leader rule; an election, coup or new
-  leader brings back the game's name. It shows the next time the politics tab is opened.
-- Every Apply now also reports `capie_colour` and `capie_subideo` (1 when the layer works in this
-  game), so a mod can grey out these editors when CAPIE cannot do it.
+  `capie_cc_*` variables. The political map, the claims map mode, borders, the faction colour and
+  UI icons follow at once; restoring the variables brings the game's colour back. A cosmetic tag
+  set after the choice hides it, as for the flag. A colour change redraws only the map modes that
+  show country colours, so it adds nothing to `error.log`.
+- Every Apply now also reports `capie_colour` (1 when the layer works in this game), so a mod can
+  grey out its colour editor when CAPIE cannot do it.
 
 ### Changed
 

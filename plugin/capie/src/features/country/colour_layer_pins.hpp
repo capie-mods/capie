@@ -15,6 +15,12 @@
  *   the call of the refresh with `lea rdx,[rdi+8]`;
  * - the map-mode dirty bytes: the manager's mode table at +0x30, byte +0x48 per mode, and the
  *   update loop's `cmp edi,23`;
+ * - the modes the layer marks (`colour_map_modes`): the rebuild switch's bound (`cmp edi,22`), its
+ *   jump-table entries for the political, claims and continent modes (each pin's address is the
+ *   table plus four times the `value::` mode constant, so a wrong constant fails the pin), the tail
+ *   jumps of those cases to their builders, the political builder's and the claims colour
+ *   reader's calls of `GetMapColors`, and the continent builder's load of its
+ *   "Getting continent for %d" log format (the mode CAPIE never marks);
  * - the six `NGraphics` colour defines as the `CCountryColors` token reader loads them, and which
  *   set feeds `color_ui` (`lea rcx,[rbx+0x30]`) and `color`.
  * None of the ranges overlaps a DIR64 relocation; the slot pin is read at the image base.
@@ -37,6 +43,11 @@
 namespace capie::country::colour::pins {
 
 using core::uptr;
+
+/// @brief Jump table of the 23-way map-mode rebuild switch (int32 case RVAs, indexed by mode).
+inline constexpr uptr rebuild_mode_table = 0xFB81EC;
+/// @brief Bytes per entry of `rebuild_mode_table`.
+inline constexpr uptr rebuild_entry_bytes = 4;
 
 /// @brief Hooked and called functions.
 inline constexpr core::Signature signatures[] = {
@@ -64,6 +75,13 @@ inline constexpr core::InstructionPin instruction_pins[] = {
     {"idler.default_false", core::rva::idler_in_game_false, "32c0c3"},           // base idler slot 2D8
     {"define.ui_target", 0x752D59, "488d4b30"},                                  // lea rcx,[rbx+30]: color_ui
     {"define.map_target", 0x752DAB, "488d4b10"},                                 // lea rcx,[rbx+10]: color
+    {"rebuild.mode_bound", 0xFB7F99, "83ff16"},                                  // cmp edi,22
+    {"rebuild.case_political", rebuild_mode_table + (rebuild_entry_bytes * core::value::political_map_mode),
+     "b77ffb00"},  // case of mode 0
+    {"rebuild.case_claims", rebuild_mode_table + (rebuild_entry_bytes * core::value::claims_map_mode),
+     "f180fb00"},  // case of mode 19
+    {"rebuild.case_continent", rebuild_mode_table + (rebuild_entry_bytes * core::value::continent_map_mode),
+     "1581fb00"},  // case of mode 21
 };
 
 /// @brief Call and data targets (rel32 / RIP displacement RVA, next instruction RVA, target RVA).
@@ -79,6 +97,13 @@ inline constexpr core::RipPin target_pins[] = {
     {"define.value", 0x752D8D, 0x752D91, core::rva::define_color_value},
     {"define.saturation", 0x752D9A, 0x752D9E, core::rva::define_color_saturation},
     {"define.hue", 0x752DA2, 0x752DA6, core::rva::define_color_hue},
+    {"rebuild.political_builder", 0xFB7FC5, 0xFB7FC9, 0xFB8250},
+    {"rebuild.claims_builder", 0xFB80FF, 0xFB8103, 0xFBAE80},
+    {"rebuild.continent_builder", 0xFB8123, 0xFB8127, 0xFB9FB0},
+    {"political.calls_getter", 0xFB8795, 0xFB8799, core::rva::country_map_colors},
+    {"claims.calls_colour", 0xFBB0AB, 0xFBB0AF, 0xFB4780},
+    {"claims_colour.calls_getter", 0xFB48D9, 0xFB48DD, core::rva::country_map_colors},
+    {"continent.log_format", 0xFBA440, 0xFBA444, 0x29F5A58},
 };
 
 /// @brief Vtable slots (read at the image base: the file holds preferred-base pointers).
@@ -89,9 +114,9 @@ inline constexpr core::NamedSlotPin slot_pins[] = {
 /// @brief Expected signatures.
 inline constexpr std::size_t expected_signatures = 2;
 /// @brief Expected instruction pins.
-inline constexpr std::size_t expected_instruction_pins = 14;
+inline constexpr std::size_t expected_instruction_pins = 18;
 /// @brief Expected target pins.
-inline constexpr std::size_t expected_target_pins = 11;
+inline constexpr std::size_t expected_target_pins = 18;
 /// @brief Expected slot pins.
 inline constexpr std::size_t expected_slot_pins = 1;
 static_assert(std::size(signatures) == expected_signatures &&

@@ -17,7 +17,7 @@ image base `0x140000000`, and function names are analyst labels, not recovered s
 | [workshop-native-code.md](workshop-native-code.md) | Steam Workshop and native DLLs: policy, precedents, risks |
 | [port-1.19.4.0.md](port-1.19.4.0.md) | Port of every CAPIE pin to HOI4 1.19.4.0: method, layout changes, new addresses, open items |
 | [setvariable-slot-hook.md](setvariable-slot-hook.md) | Design (1.19.4.0): the SetVariable hook as an RTTI-checked vtable slot patch (B2/N11) |
-| [subideology-rename-design.md](subideology-rename-design.md) | Design (1.19.4.0): sub-ideology rename through a frame in the politics panel (B1); country colour leads (B3) |
+| [subideology-rename-design.md](subideology-rename-design.md) | Design (1.19.4.0), dropped, not implemented: sub-ideology rename through a frame in the politics panel (B1); country colour leads (B3) |
 | [port-1.19.4.1.md](port-1.19.4.1.md) | Hotfix port to HOI4 1.19.4.1: what moved, no layout change, how each hard pin was resolved |
 
 Each document says what was observed statically, what was observed in the game, and what is still

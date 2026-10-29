@@ -21,9 +21,12 @@
  * game call. For every country whose shown colour changed, the writer then repaints: when the
  * game is in a campaign (the current idler's in-game slot is the `CInGameIdler` function,
  * compared by address, never called) and the map exists, it calls the game's own
- * `RefreshCountryColor` through `engine::guarded_refresh_colour`, and marks every map mode dirty
- * (`mark_all_modes`, one guarded write of 23 bytes). A refused or faulted game call turns the
- * layer off; the getter then passes everything through (vanilla colours).
+ * `RefreshCountryColor` through `engine::guarded_refresh_colour` (which dirties the political
+ * mode), and marks dirty the map modes whose builders read the colour (`colour_map_modes`: the
+ * political and claims modes, one guarded byte write each). Never all 23 modes: the continent
+ * mode's builder logs "Getting continent for <province>" to error.log for each province, so a
+ * rebuild of every mode wrote about 98 lines per Apply (in-game test T6). A refused or faulted
+ * game call turns the layer off; the getter then passes everything through (vanilla colours).
  *
  * Determinism: the slot state is a function of the country variables only, updated at the
  * effect step that commits them, on every multiplayer client; nothing is deferred to a frame.
@@ -56,8 +59,26 @@ using LogFn = void (*)(core::logging::Channel, const char*);
 
 /// @brief Slots (tag ids 0..4095; 0 is never used); shared bound with the flag layer.
 inline constexpr std::int32_t max_countries = 4096;
-/// @brief Mark every map mode dirty after a refresh (in-game test T6 decides; off = mode 0 only).
-inline constexpr bool mark_all_modes = true;
+/**
+ * @brief The map modes marked dirty after a refresh: the modes whose builders read the country colour.
+ *
+ * The game's 23-way rebuild switch sends mode 0 to the political builder and mode 19 to the claims
+ * builder; both reach `GetMapColors` (the political builder directly, the claims builder through its
+ * claimant colour reader), and the political builder also reads the faction colour. No other
+ * builder reaches the getter or the faction colour. Mode 21's builder logs the continent of each
+ * province and is never marked. Pinned: `rebuild.*`, `political.*`, `claims*` and `continent.*` in
+ * `colour_layer_pins.hpp`; evidence in `docs/research/country-colour-2026-10-28.md` (unknown 1).
+ */
+inline constexpr std::array<std::uint8_t, 2> colour_map_modes = {core::value::political_map_mode,
+                                                                core::value::claims_map_mode};
+static_assert([] {
+    for (const std::uint8_t mode : colour_map_modes) {
+        if (mode >= core::value::map_mode_count || mode == core::value::continent_map_mode) {
+            return false;
+        }
+    }
+    return true;
+}(), "colour_map_modes: valid modes only, never the continent-logging mode");
 /// @brief Debug lines of each kind.
 inline constexpr int max_debug_lines = 8;
 /// @brief Size of a log line buffer.
@@ -397,14 +418,12 @@ private:
             return false;
         }
         ++stats.refreshed;
-        if (mark_all_modes) {
-            mark_modes(map);
-        }
+        mark_modes(map);
         return true;
     }
 
     /**
-     * @brief Marks every map mode dirty (the bytes the game's own mark writes for mode 0).
+     * @brief Marks the modes of `colour_map_modes` dirty (the byte the game's own mark writes for mode 0).
      * @param map Map object.
      */
     void mark_modes(uptr map) noexcept {
@@ -414,11 +433,16 @@ private:
             !core::rd(mem_, manager, core::off::map_modes, modes) || modes == 0) {
             return;
         }
-        std::array<std::uint8_t, core::value::map_mode_count> dirty{};
-        dirty.fill(1);
-        const bool written = mem_.write(modes + core::off::mode_dirty, dirty.data(), core::value::map_mode_count);
+        constexpr std::uint8_t dirty = 1;
+        unsigned written = 0;
+        for (const std::uint8_t mode : colour_map_modes) {
+            if (mem_.write(modes + core::off::mode_dirty + mode, &dirty, sizeof(dirty))) {
+                ++written;
+            }
+        }
         if (mark_lines_.fetch_add(1) < max_debug_lines) {
-            note(core::logging::Channel::debug, "CAPIE_COLOUR modes marked written=%u", written ? 1U : 0U);
+            note(core::logging::Channel::debug, "CAPIE_COLOUR modes marked written=%u of %u", written,
+                 static_cast<unsigned>(colour_map_modes.size()));
         }
     }
 

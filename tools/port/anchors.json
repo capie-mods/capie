@@ -62,7 +62,7 @@
   {"name": "view_is_visible", "find": {"slot": "0x28", "vtable": "vt_politics_view"}},
   {"name": "observer_frame", "find": {"slot": "0x38", "vtable": "vt_politics_observer"}},
   {"name": "observer_refresh", "find": {"slot": "0x48", "vtable": "vt_politics_observer"}},
-  {"name": "politics_panel",
+  {"name": "politics_panel", "layout": false,
    "find": {"callees": "observer_refresh", "where": {"string": ["ruling_party_info", "POLITICS_NOELECTIONS"]}}},
   {"name": "politics_view_ctor", "layout": false, "find": {"ctor": "vt_politics_view"}},
   {"name": "vt_updateable", "layout": false, "find": {"rtti": "CInGameUpdateableInterface"}},
@@ -164,10 +164,6 @@
   {"name": "define_ui_color_hue", "find": {"rip_in": "colors_token_reader", "mnemonic": "movss", "nth": 2}},
   {"name": "define_color_value", "find": {"rip_in": "colors_token_reader", "mnemonic": "movss", "nth": 3}},
   {"name": "define_color_saturation", "find": {"rip_in": "colors_token_reader", "mnemonic": "movss", "nth": 4}},
-  {"name": "define_color_hue", "find": {"rip_in": "colors_token_reader", "mnemonic": "movss", "nth": 5}},
-
-  {"name": "vt_political_party", "find": {"rtti": "CPoliticalParty"}},
-  {"name": "vt_ideology_group", "find": {"rtti": "CIdeologyGroup"}},
-  {"name": "idler_shown_tag", "find": {"slot": "0xA0", "vtable": "vt_ingame_idler"}}
+  {"name": "define_color_hue", "find": {"rip_in": "colors_token_reader", "mnemonic": "movss", "nth": 5}}
  ]
 }
