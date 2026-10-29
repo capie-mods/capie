@@ -78,6 +78,22 @@ struct Slot {
     bool shown{};                             ///< A block is published (writer only).
 };
 
+/**
+ * @brief Writes a block into the inactive half of a double buffer, then publishes it (writer only).
+ * @tparam B Block type (`ColourBlock`; a probe type in the tests).
+ * @param active Published half: `no_block`, `first_block` or `second_block`.
+ * @param blocks The two halves.
+ * @param block New content.
+ * @return The half now published.
+ */
+template <class B>
+std::uint8_t publish_block(std::atomic<std::uint8_t>& active, std::array<B, 2>& blocks, const B& block) noexcept {
+    const auto next = active.load(std::memory_order_relaxed) == first_block ? second_block : first_block;
+    blocks[next - 1U] = block;                     // 1. write the inactive half
+    active.store(next, std::memory_order_release);  // 2. then publish it
+    return next;
+}
+
 /// @brief Counters of one pass.
 struct Stats {
     std::int32_t countries{};  ///< Countries visited.
@@ -313,10 +329,7 @@ private:
             }
             if (show) {
                 if (!slot.shown || slot.rgb != layer.rgb) {
-                    const auto next =
-                        slot.active.load(std::memory_order_relaxed) == first_block ? second_block : first_block;
-                    slot.blocks[next - 1U] = block;                     // 1. write the inactive block
-                    slot.active.store(next, std::memory_order_release);  // 2. then publish it
+                    static_cast<void>(publish_block(slot.active, slot.blocks, block));
                     if (!slot.shown) {
                         live_.fetch_add(1, std::memory_order_acq_rel);  // 3. adjust the fast path
                     }

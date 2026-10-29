@@ -1234,10 +1234,42 @@
  {
   "name": "portrait-capability-without-bit",
   "file": "src/features/country/capability.hpp",
-  "find": "(value & ~capability_bits) == country_capabilities_v4 && (value & capability_portrait_bit) != 0",
+  "find": "(value & ~capability_bits) == country_capabilities_v4 && (value & capability_v4_layers) != 0",
   "replace": "(value & ~capability_bits) == country_capabilities_v4",
   "suite": "tests/portrait_layer_test.cpp",
   "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-active-without-bit",
+  "file": "src/features/country/capability.hpp",
+  "find": "return is_v4(value) && (value & capability_portrait_bit) != 0;",
+  "replace": "return is_v4(value);",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "colour-capability-without-bit",
+  "file": "src/features/country/capability.hpp",
+  "find": "return is_v4(value) && (value & capability_colour_bit) != 0;",
+  "replace": "return is_v4(value);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-capability-subideology-bit",
+  "file": "src/features/country/capability.hpp",
+  "find": "return is_v4(value) && (value & capability_subideology_bit) != 0;",
+  "replace": "return is_v4(value);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-capability-v4-portrait-only",
+  "file": "src/features/country/capability.hpp",
+  "find": "if (portrait || colour || subideology) {",
+  "replace": "if (portrait) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
  },
  {
   "name": "latch-no-store",
@@ -1682,16 +1714,16 @@
  {
   "name": "colour-publish-first",
   "file": "src/features/country/colour_layer_hooks.hpp",
-  "find": "slot.blocks[next - 1U] = block;                     // 1. write the inactive block\n                    slot.active.store(next, std::memory_order_release);  // 2. then publish it",
-  "replace": "slot.active.store(next, std::memory_order_release);  // 2. then publish it\n                    slot.blocks[next - 1U] = block;                     // 1. write the inactive block",
+  "find": "    blocks[next - 1U] = block;                     // 1. write the inactive half\n    active.store(next, std::memory_order_release);  // 2. then publish it",
+  "replace": "    active.store(next, std::memory_order_release);  // 2. then publish it\n    blocks[next - 1U] = block;                     // 1. write the inactive half",
   "suite": "tests/colour_layer_test.cpp",
   "summary": "colour layer tests:"
  },
  {
   "name": "colour-overwrite-active",
   "file": "src/features/country/colour_layer_hooks.hpp",
-  "find": "slot.active.load(std::memory_order_relaxed) == first_block ? second_block : first_block;",
-  "replace": "slot.active.load(std::memory_order_relaxed) == first_block ? first_block : second_block;",
+  "find": "active.load(std::memory_order_relaxed) == first_block ? second_block : first_block;",
+  "replace": "active.load(std::memory_order_relaxed) == first_block ? first_block : second_block;",
   "suite": "tests/colour_layer_test.cpp",
   "summary": "colour layer tests:"
  },

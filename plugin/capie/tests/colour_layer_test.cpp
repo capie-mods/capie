@@ -759,6 +759,56 @@ void detour_tests() {
     }
 }
 
+/// @brief Published half seen by the probe while it is written (-1 = not written).
+int probe_active_at_write = -1;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): probe state
+/// @brief Half the probe was written into.
+int probe_half = -1;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): probe state
+/// @brief The `active` the probe watches.
+const std::atomic<std::uint8_t>* probe_active = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief The halves the probe lives in.
+const void* probe_base = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): probe state
+
+/// @brief Block stand-in whose assignment records which half is published at that moment.
+struct Probe {
+    int value{};  ///< Content.
+    Probe() = default;
+    Probe(const Probe&) = default;
+    ~Probe() = default;
+    Probe(Probe&&) = delete;
+    Probe& operator=(Probe&&) = delete;
+    /// @brief Records the published half, then copies. @param source Source. @return This.
+    Probe& operator=(const Probe& source) noexcept {
+        if (probe_active != nullptr) {
+            probe_active_at_write = probe_active->load();
+            probe_half = static_cast<int>(this - static_cast<const Probe*>(probe_base));
+        }
+        value = source.value;
+        return *this;
+    }
+};
+
+void publish_order_test() {
+    std::atomic<std::uint8_t> active{colour::no_block};
+    std::array<Probe, 2> blocks{};
+    probe_active = &active;
+    probe_base = blocks.data();
+    const auto publish = [&](int value) {
+        Probe next{};
+        next.value = value;
+        return colour::publish_block(active, blocks, next);
+    };
+    check(publish(1) == colour::first_block && probe_half == 0 && probe_active_at_write == colour::no_block &&
+              blocks[0].value == 1 && active.load() == colour::first_block,
+          "first publish: half 0 written while nothing is published, then published");
+    check(publish(2) == colour::second_block && probe_half == 1 && probe_active_at_write == colour::first_block &&
+              blocks[0].value == 1 && blocks[1].value == 2,
+          "second publish: the other half written while the first is published");
+    check(publish(3) == colour::first_block && probe_half == 0 && probe_active_at_write == colour::second_block &&
+              blocks[1].value == 2,
+          "third publish: back to half 0 while half 1 is published");
+    probe_active = nullptr;
+}
+
 void flip_order_test() {
     Fixture f;
     constexpr int flips = 3000;
@@ -952,6 +1002,7 @@ int main() {
         maths_tests();
         block_tests();
         detour_tests();
+        publish_order_test();
         flip_order_test();
         refresh_tests();
         hook_tests();
