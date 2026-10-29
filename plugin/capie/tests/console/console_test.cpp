@@ -378,7 +378,7 @@ void plan_tests() {
 
     plan = plan_typed(CommandId::mod_command, R"(demo echo "ab" "")");
     const std::string expected =
-        "FROM = { set_temp_variable = { capie_cap = 7 } set_temp_variable = { capie_ver = 10501 } "
+        "FROM = { set_temp_variable = { capie_cap = 7 } set_temp_variable = { capie_ver = 10502 } "
         "set_temp_variable = { capie_src = 2 } set_temp_variable = { capie_nf = 2 } "
         "set_temp_variable = { capie_f1_err = 0 } set_temp_variable = { capie_f1_at = 0 } "
         "set_temp_variable = { capie_f1_len = 2 } set_temp_variable = { capie_f1_0 = 1 } "

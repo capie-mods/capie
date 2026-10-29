@@ -532,7 +532,7 @@ void test_guard_rejections() {
         World w; Target t{}; ResolveDiag diag{};
         w.mem.put<uptr>(image + rva::vt_politics_observer + 0x48, image + 0x4321);
         CHECK(resolve(w.mem, image, window_addr(LE), t, &diag) == Reject::view_slots);
-        CHECK(diag.observed_rva == 0x4321 && diag.expected_rva == 0x1620890 && diag.slot_rva == rva::vt_politics_observer + 0x48);
+        CHECK(diag.observed_rva == 0x4321 && diag.expected_rva == 0x1620C50 && diag.slot_rva == rva::vt_politics_observer + 0x48);
     }
     // Service level: a guard reject never calls native and is deferred to the next edge.
     Fixture f; f.env.rev_field(Field::leader, "0"); f.open(LE);

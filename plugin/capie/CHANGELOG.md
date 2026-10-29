@@ -9,6 +9,23 @@ release notes, so write it for players and mod authors. Format:
 
 ## [Unreleased]
 
+## [1.5.2] - unreleased
+
+Hotfix for Hearts of Iron IV 1.19.4.1. The script API is unchanged (level 7), so mods built for
+CAPIE 1.5.0 and 1.5.1 work without changes.
+
+### Changed
+
+- CAPIE now runs on HOI4 1.19.4.1 only (Steam, x64, `hoi4.exe` SHA-256 `CF781ED1…10476F`). On
+  1.19.4.0 it stays off and the game starts without it, as on any other unsupported build.
+- Every address and byte signature was re-checked for the new build. Code and data moved by a
+  few hundred bytes; no structure layout changed. The details are in
+  `docs/research/port-1.19.4.1.md`.
+
+### Fixed
+
+- CAPIE no longer refuses to start after the 1.19.4.1 game update.
+
 ## [1.5.1] - unreleased
 
 Support for Hearts of Iron IV 1.19.4.0 ("Operation Postern" update). The script API is unchanged

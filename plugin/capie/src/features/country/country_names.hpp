@@ -16,7 +16,7 @@
  *     the language through `$RN_PLUGIN_STATUS_EN$` / `$RN_PLUGIN_STATUS_PL$`, R5-MINOR-2);
  *   - the public keys of the script contract (CONTRACT.md section 8): `CAPIE_STATUS`
  *     returns "CAPIE 1.5", `CAPIE_API` the API level ("7"), `CAPIE_BUILD` the release
- *     ("1.5.1"); the SDK localisation holds their fallbacks;
+ *     ("1.5.2"); the SDK localisation holds their fallbacks;
  *   - `RN1|Name|Adjective|` (+ `_DEF`, `_ADJ`) returns the name or adjective.
  * Decoded RN1 keys are cached by key: a shared lock and one hash lookup without
  * allocation answer repeat queries; a miss decodes, validates and inserts under an

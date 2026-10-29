@@ -151,7 +151,7 @@ void __fastcall fake_refresh(void* gui, int) {
 void __fastcall fake_focus(void*, void*) {}
 void make_own(Own& o, const char* name, World& w) {
     const auto base = image_base;
-    put(o.model.data(), 0, base + 0x2A54398);
+    put(o.model.data(), 0, base + 0x2A543B8);
     put(o.model.data(), 8, borrowed_string(name, std::strlen(name)));
     put(o.model.data(), 0x28, std::uint32_t{0x3A70});
     put(o.model.data(), 0x2C, std::uint32_t{0x3AB2});
@@ -166,10 +166,10 @@ void make_own(Own& o, const char* name, World& w) {
     put(win, 0xF0, static_cast<void*>(w.manager.data()));
     put(win, 0x100, static_cast<void*>(w.politics_root.data()));
     put(win, 0xBF9, static_cast<unsigned char>(1));
-    put(o.root.data(), 0, base + 0x2BB9FE0);
+    put(o.root.data(), 0, base + 0x2BBA000);
     put_empty_maps(o.root.data());
     put(o.root.data(), 0xA5, static_cast<unsigned char>(8));
-    put(o.revision.data(), 0, base + 0x2BBB568);
+    put(o.revision.data(), 0, base + 0x2BBB588);
     put(o.revision.data(), 0x110, borrowed_string("3", 1));
 }
 }  // namespace
@@ -184,17 +184,17 @@ int main() {
     world = w;
     auto* img = reinterpret_cast<unsigned char*>(image_base);
     put(img, 0x29CB040, std::uint32_t{0x3AB2});
-    put(img, 0x2B3025C, std::uint32_t{0x3A70});
-    put(img, 0x2A524D0 + 0x28, image_base + 0x12C4EA0);
-    put(img, 0x2A52580 + 0x38, image_base + 0x161DB40);
-    put(img, 0x2A52580 + 0x48, image_base + 0x1620890);
-    put(img, 0x29E5828 + 0xB8, image_base + 0xE3A930);
-    put(w->idler.data(), 0, image_base + 0x29E5828);
+    put(img, 0x2B3028C, std::uint32_t{0x3A70});
+    put(img, 0x2A524F0 + 0x28, image_base + 0x12C4EA0);
+    put(img, 0x2A525A0 + 0x38, image_base + 0x161DF00);
+    put(img, 0x2A525A0 + 0x48, image_base + 0x1620C50);
+    put(img, 0x29E5838 + 0xB8, image_base + 0xE3A930);
+    put(w->idler.data(), 0, image_base + 0x29E5838);
     put(w->idler.data(), 0x6B8, static_cast<void*>(w->gui.data()));
     put(w->gui.data(), 0x180, static_cast<void*>(w->idler.data()));
     put(w->gui.data(), 0xC8 + (8 * 12), static_cast<void*>(w->view.data()));
-    put(w->view.data(), 0, image_base + 0x2A524D0);
-    put(w->view.data(), 0x30, image_base + 0x2A52580);
+    put(w->view.data(), 0, image_base + 0x2A524F0);
+    put(w->view.data(), 0x30, image_base + 0x2A525A0);
     put(w->view.data(), 0x38, static_cast<void*>(w->gui.data()));
     put(w->view.data(), 0x5F0, static_cast<void*>(w->idler.data()));
     put(w->view.data(), 0x5F8, static_cast<void*>(w->politics_root.data()));
@@ -204,18 +204,18 @@ int main() {
     make_own(w->launcher, "rn_ip_leader_launcher_gui", *w);
     make_own(w->foreign, "vanilla_politics_gui", *w);
     auto* edit = w->edit.data();
-    put(edit, 0, image_base + 0x2BBF068);
-    put(edit, 0x80, image_base + 0x2BBF308);
+    put(edit, 0, image_base + 0x2BBF088);
+    put(edit, 0x80, image_base + 0x2BBF328);
     put(edit, 0x60, static_cast<void*>(w->definition.data()));
-    put(w->definition.data(), 0, image_base + 0x2BC6978);
+    put(w->definition.data(), 0, image_base + 0x2BC6998);
     put(w->definition.data(), 0x28, borrowed_string("rn_ip_leader_edit", 17));
     put(edit, 0x75, static_cast<unsigned char>(8));
     put(edit, 0xB0, static_cast<void*>(w->text));
     put(edit, 0xC8, std::uint64_t{64});
     put(img, 0x3500FC0, static_cast<void*>(w->focus_manager.data()));
-    put(w->prefill.data(), 0, image_base + 0x2BBB568);
+    put(w->prefill.data(), 0, image_base + 0x2BBB588);
     put(w->prefill.data(), 0x110, borrowed_string("Jan", 3));
-    put(w->epoch.data(), 0, image_base + 0x2BBB568);
+    put(w->epoch.data(), 0, image_base + 0x2BBB588);
     put(w->epoch.data(), 0x110, borrowed_string("7", 1));
     find_instant = fake_instant;
     find_edit = fake_edit;

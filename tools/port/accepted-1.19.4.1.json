@@ -1,0 +1,235 @@
+{
+ "_doc": "Accepted signature table for HOI4 1.19.4.1 (hoi4.exe SHA-256 cf781ed1...0476f), generated from the executable by tools/port/gen_tables.py; evidence in docs/research/port-1.19.4.1.md. check_signature_table.py pins this file by SHA-256.",
+ "game_exe_sha256": "cf781ed178cd801643b233b7e3fcd1c0efd19bd01aecd24bf07a35f69f10476f",
+ "entries": {
+  "country.lookup_n": {
+   "rva": "0x241f030",
+   "hex": "488b05????????49b825232284e49cf2cb"
+  },
+  "country.lookup_z": {
+   "rva": "0x241ef50",
+   "hex": "488b05????????48ba25232284e49cf2cb4c8b000fb60184c0742a49b9b301000000010000"
+  },
+  "country.exists": {
+   "rva": "0x241d300",
+   "hex": "4883ec28488b05????????48ba25232284e49cf2cb"
+  },
+  "editor.bind": {
+   "rva": "0xbd8ed0",
+   "hex": "488bc44889581048896818488970205741544155415641574883ec50488bf9c7400800000000488db1e80000004c8b2e418b452c"
+  },
+  "editor.tick": {
+   "rva": "0xbdb500",
+   "hex": "48895c2410555657415641574881ec20010000440fb6f2488bd9488d512833ff4885c9480f44d741b902000000"
+  },
+  "editor.key": {
+   "rva": "0x236e5f0",
+   "hex": "48895c240848896c241048897424205741544155415641574883ec40488bda488bf9488bcae85686f4ff"
+  },
+  "editor.find_edit": {
+   "rva": "0x2333510",
+   "hex": "48895c241048896c241856574154415641574883ec60450fb6e1450fb6f04c8bfa488be94881c1f01300000f10020f29442430"
+  },
+  "editor.find_instant": {
+   "rva": "0x2335090",
+   "hex": "48895c241048896c241856574154415641574883ec60450fb6e1450fb6f04c8bfa488be94881c180130000"
+  },
+  "editor.set_text": {
+   "rva": "0x236feb0",
+   "hex": "48837a180f7603488b12e901000000cc48895c2410574883ec40488bd90f57c00f11442420660f6f0d536e8400"
+  },
+  "editor.refresh_edit": {
+   "rva": "0x2372580",
+   "hex": "48895c2410488974241855574156488d6c24b94881ecd0000000488bf9c74567000000004883b9b0010000000f84950300004883e980e885bfffff"
+  },
+  "editor.wrapper": {
+   "rva": "0x2371b30",
+   "hex": "405556574883ec20488db981020000488beaf60702488bf10f85b6010000488bca48895c2448e8c51cf7ff"
+  },
+  "editor.dispatch": {
+   "rva": "0xbd9380",
+   "hex": "48895c241048896c2418488974242057415641574883ec604c8bfa488bf9488d99c00300004533c0"
+  },
+  "editor.ctor": {
+   "rva": "0x11ce6b0",
+   "hex": "48895c241848894c240855565741544155415641574883ec600f297424504d8bf1498bf8488bf24c8be9"
+  },
+  "editor.execute": {
+   "rva": "0x11e0700",
+   "hex": "48895c240848896c2410488974241857415641574883ec604c8bf1e8c03892ff498d5678488bc8e854a592ff4c8bf84885c0"
+  },
+  "caption.E3A930": {
+   "rva": "0xe3a930",
+   "hex": "488b81b8060000c3"
+  },
+  "caption.BC1690": {
+   "rva": "0xbc1690",
+   "hex": "4883ec2883fa1774404863c248895c2420488d1cc1488b8bc80000004885c97423488b01ff502884c07419488b8bc80000004883c130488b5c24204883c428e92c2b7000488b5c24204883c428c3"
+  },
+  "caption.12C4200": {
+   "rva": "0x12c4200",
+   "hex": "c6411401c3"
+  },
+  "caption.12C4230": {
+   "rva": "0x12c4230",
+   "hex": "40534883ec20488b01488bd9ff5048c64314004883c4205bc3"
+  },
+  "caption.12C4EA0": {
+   "rva": "0x12c4ea0",
+   "hex": "40534883ec20488bd9488b89f80500004885c97426488b01ff904802000084c07519488b83f80500000fb680a5000000c0e80324014883c4205bc3"
+  },
+  "caption.12C4E70": {
+   "rva": "0x12c4e70",
+   "hex": "488b81f8050000c3"
+  },
+  "caption.12C3B50": {
+   "rva": "0x12c3b50",
+   "hex": "40534883ec20488d0573be750148895108488901488bd944894110c6411400e85c050000"
+  },
+  "caption.12C4AD0": {
+   "rva": "0x12c4ad0",
+   "hex": "48895c2410488974241848897c242048894c24085541564157488d6c24b04881ec50010000498bf94d8bf84c8bf2488bf1498379180f76034d8b09488b47104c894d80"
+  },
+  "caption.12C4B4B": {
+   "rva": "0x12c4b4b",
+   "hex": "448b8590000000498bd7488d4e30e8f2efffff90"
+  },
+  "caption.12C4CDF": {
+   "rva": "0x12c4cdf",
+   "hex": "4c89b6f005000048899ef8050000"
+  },
+  "caption.BB6085": {
+   "rva": "0xbb6085",
+   "hex": "4c8bc6488b9680010000488bc8e8291ca600eb03498bc748898628010000"
+  },
+  "caption.BBC112": {
+   "rva": "0xbbc112",
+   "hex": "488d9fc80000000f1f8000000000488b0b4885c9740f4438614474094883c130e8f98070004883c3084883ed0175df"
+  },
+  "caption.BDB79E": {
+   "rva": "0xbdb79e",
+   "hex": "488b8be0000000488b01ff90b8000000488bc8"
+  },
+  "caption.BDB6D7": {
+   "rva": "0xbdb6d7",
+   "hex": "488b83e8000000400fb6ff817828703a0000"
+  },
+  "caption.BD8EF6": {
+   "rva": "0xbd8ef6",
+   "hex": "488db1e80000004c8b2e418b452c85c0"
+  },
+  "caption.BD8F00": {
+   "rva": "0xbd8f00",
+   "hex": "418b452c85c00f8eb80000004c8b99f0000000"
+  },
+  "caption.BDCDB0": {
+   "rva": "0xbdcdb0",
+   "hex": "488bc45556488bec4883ec6848895818488bf1488b4918488978e84c8968d84c8970d0488b01ff90b8000000488d4e70488bf8e848450000488b97880100004c8d4518"
+  },
+  "caption.BD8FC4": {
+   "rva": "0xbd8fc4",
+   "hex": "4983bd80000000000f84cf000000"
+  },
+  "caption.BD8FA9": {
+   "rva": "0xbd8fa9",
+   "hex": "493bd07406488b4218eb0233c048898700010000"
+  },
+  "caption.BD904E": {
+   "rva": "0xbd904e",
+   "hex": "488db7e800000048c7870801000000000000"
+  },
+  "caption.BD90A1": {
+   "rva": "0xbd90a1",
+   "hex": "4883bf00010000000f858a000000488b164883c25048837a1000747c"
+  },
+  "caption.BDD0C6": {
+   "rva": "0xbdd0c6",
+   "hex": "ba0c000000488b0848895918488bcfe846d7fdff488bc8e88e7d6e004c8d4518c74518b23a0000488d55c8488bd8488d4e70e8039effff"
+  },
+  "caption.F8915": {
+   "rva": "0xf8915",
+   "hex": "8b1525278d02488b8c2460af0100e828ae05004c8d058137a7028b10488d0de8643d03e8b3eb4402"
+  },
+  "caption.F7B47": {
+   "rva": "0xf7b47",
+   "hex": "8b15e386a302488b8c2470ad0100e8f6bb05004c8d056f3ba7028b10488d0d46613d03e881f94402"
+  },
+  "caption.163BB7D": {
+   "rva": "0x163bb7d",
+   "hex": "8b86c00000004189452ce9d6090000"
+  },
+  "focus.22BD430": {
+   "rva": "0x22bd430",
+   "hex": "48895c2408574883ec20488bf9488bda488b89380100004885c97409488b01ff90c800000048899f380100004885db740c488b03488bcbff90c0000000488b5c24304883c4205fc3"
+  },
+  "focus.2371D90": {
+   "rva": "0x2371d90",
+   "hex": "48895c2408574883ec200fb68181020000488bd924fe888181020000a8207415"
+  },
+  "focus.2371E10": {
+   "rva": "0x2371e10",
+   "hex": "488d8ba0010000488b5c24304883c4205fe99a800000"
+  },
+  "focus.2379EC0": {
+   "rva": "0x2379ec0",
+   "hex": "488bd1488b0df6701801e9f135f4ff"
+  },
+  "focus.22BD4C0": {
+   "rva": "0x22bd4c0",
+   "hex": "40534883ec204883b91002000000488bd97419e8e83f0000488bc8488b10ff523048c78310020000000000004883c4205bc3"
+  },
+  "focus.BDB55E": {
+   "rva": "0xbdb55e",
+   "hex": "488b83000100004885c07444f680a500000004743b"
+  },
+  "focus.BDB60B": {
+   "rva": "0xbdb60b",
+   "hex": "4885c00f84ae0000000fb688a5000000c0e90380e1010f8488000000"
+  },
+  "focus.BDB6AF": {
+   "rva": "0xbdb6af",
+   "hex": "3a8bf80b0000"
+  }
+ },
+ "constants": {
+  "rva::view_is_visible": "0x12c4ea0",
+  "rva::observer_frame": "0x161df00",
+  "rva::observer_refresh": "0x1620c50",
+  "rva::idler_gui_getter": "0xe3a930",
+  "rva::vt_politics_view": "0x2a524f0",
+  "rva::vt_politics_observer": "0x2a525a0",
+  "rva::vt_ingame_idler": "0x29e5838",
+  "rva::edit_unfocus": "0x2371d90",
+  "rva::edit_focus": "0x2371560",
+  "rva::vt_edit": "0x2bbf088",
+  "rva::token_politics_tab": "0x29cb040",
+  "rva::token_player_context": "0x2b3028c",
+  "rva::manager_global": "0x3500fc0",
+  "rva::focus_manager_rip_displacement": "0x2379ec6",
+  "rva::focus_manager_rip_next": "0x2379eca",
+  "rva::request_view_refresh": "0xbc1690",
+  "rva::focus_switch": "0x22bd430",
+  "off::slot_view_visible": "0x28",
+  "off::slot_observer_frame": "0x38",
+  "off::slot_observer_refresh": "0x48",
+  "off::slot_idler_gui": "0xb8",
+  "off::slot_edit_focus": "0xc0",
+  "off::slot_edit_unfocus": "0xc8",
+  "value::token_politics_tab": "0x3ab2",
+  "value::token_player_context": "0x3a70",
+  "rva::window_tick": "0xbdb500",
+  "rva::window_bind": "0xbd8ed0",
+  "rva::window_dispatch": "0xbd9380",
+  "rva::effect_ctor": "0x11ce6b0",
+  "rva::effect_execute": "0x11e0700",
+  "rva::edit_key_handler": "0x236e5f0",
+  "rva::edit_key_wrapper": "0x2371b30",
+  "rva::find_edit": "0x2333510",
+  "rva::find_instant": "0x2335090",
+  "rva::text_buffer_set": "0x236feb0",
+  "rva::edit_refresh": "0x2372580",
+  "rva::loc_lookup_n": "0x241f030",
+  "rva::loc_lookup_z": "0x241ef50",
+  "rva::loc_exists": "0x241d300"
+ }
+}

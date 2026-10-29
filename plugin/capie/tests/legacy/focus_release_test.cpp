@@ -245,9 +245,9 @@ int exe_check(const char* path) {
         std::printf("  FOCUS FP %07llX %3zuB matches=%zu %s\n", static_cast<unsigned long long>(fp.rva), n, c, good ? "OK" : "BAD");
     }
     for (const auto& pin : focus_slot_pins) { rn::caption::u64 v = 0; if (auto* p = map(pin.vtable + pin.slot)) std::memcpy(&v, p, 8); CHECK(v == 0x140000000ull + pin.target); }
-    // 2379B70: mov rcx,[rip+disp] must address the k_manager global 3500FC0.
-    std::int32_t disp = 0; if (auto* p = map(0x2379B76)) std::memcpy(&disp, p, 4);
-    CHECK(0x2379B7All + disp == static_cast<long long>(rva::manager_global));
+    // 2379EC0: mov rcx,[rip+disp] must address the k_manager global 3500FC0.
+    std::int32_t disp = 0; if (auto* p = map(0x2379EC6)) std::memcpy(&disp, p, 4);
+    CHECK(0x2379ECAll + disp == static_cast<long long>(rva::manager_global));
     std::printf("EXE focus check: %d/%zu fingerprints, slot pins C0/C8, manager global rip target\n", ok, focus_fingerprint_count);
     return 0;
 }
