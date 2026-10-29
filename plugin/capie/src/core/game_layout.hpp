@@ -75,6 +75,38 @@ inline constexpr std::uintptr_t role_character_getter = 0x2C1410;
 /// @brief Portrait write of `set_country_leader_portrait` (civilian, large); pinned, never called.
 inline constexpr std::uintptr_t leader_portrait_write = 0x143B160;
 
+// ---- Country colour layer (hooked, called or read by capie_core.dll) ---------------------
+/// @brief `const CCountryColors* GetMapColors(const CCountry*)`: walks to the overlord, returns `+0x350`; hooked.
+inline constexpr std::uintptr_t country_map_colors = 0x734AE0;
+/// @brief `void RefreshCountryColor(map*, const tag*)`: mode 0 dirty, faction colour; called (guarded).
+inline constexpr std::uintptr_t refresh_country_color = 0xAB7F10;
+/// @brief Global pointer to the map object `RefreshCountryColor` takes (read, never written).
+inline constexpr std::uintptr_t map_singleton = 0x33E7818;
+/// @brief Global pointer to the current idler (read, never written; its slot 0x2D8 says "in game").
+inline constexpr std::uintptr_t current_idler = 0x33DDB08;
+/// @brief `CInGameIdler` slot 0x2D8: `mov al,1; ret` (in game); compared by address, never called.
+inline constexpr std::uintptr_t idler_in_game_true = 0x188D90;
+/// @brief Base idler slot 0x2D8: `xor al,al; ret` (not in game); compared by address, never called.
+inline constexpr std::uintptr_t idler_in_game_false = 0x11D530;
+/// @brief float `NGraphics.COUNTRY_COLOR_HUE_MODIFIER` (read).
+inline constexpr std::uintptr_t define_color_hue = 0x33E5130;
+/// @brief float `NGraphics.COUNTRY_COLOR_SATURATION_MODIFIER` (read).
+inline constexpr std::uintptr_t define_color_saturation = 0x33E51D4;
+/// @brief float `NGraphics.COUNTRY_COLOR_BRIGHTNESS_MODIFIER` (read).
+inline constexpr std::uintptr_t define_color_value = 0x33E5268;
+/// @brief float `NGraphics.COUNTRY_UI_COLOR_HUE_MODIFIER` (read).
+inline constexpr std::uintptr_t define_ui_color_hue = 0x33E5308;
+/// @brief float `NGraphics.COUNTRY_UI_COLOR_SATURATION_MODIFIER` (read).
+inline constexpr std::uintptr_t define_ui_color_saturation = 0x33E5384;
+/// @brief float `NGraphics.COUNTRY_UI_COLOR_BRIGHTNESS_MODIFIER` (read).
+inline constexpr std::uintptr_t define_ui_color_value = 0x33E542C;
+/// @brief `CCountryColors` vtable (the block the getter returns; RTTI-checked).
+inline constexpr std::uintptr_t vt_country_colors = 0x279F558;
+/// @brief `CColor` vtable (the two colours inside the block; RTTI-checked).
+inline constexpr std::uintptr_t vt_color = 0x2796208;
+/// @brief `CCountry` primary vtable (RTTI-checked; the getter's resolved country must have it).
+inline constexpr std::uintptr_t vt_country = 0x2864710;
+
 // ---- Scripted window manager and widgets (hooked or called by capie_editor.dll) ---------
 /// @brief `void Tick(window*, char force)`; per-frame scripted window update, hooked.
 inline constexpr std::uintptr_t window_tick = 0xBDB500;
@@ -214,6 +246,16 @@ inline constexpr std::uintptr_t leader_role_character = 0x8;   ///< Character of
 inline constexpr std::uintptr_t portrait_entry_kind = 0x4;     ///< int32 0 = sprite name, 1 = .dds path (`valid.kind`).
 inline constexpr std::uintptr_t portrait_entry_name = 0x8;     ///< MSVC string (`valid.name`).
 inline constexpr std::uintptr_t portrait_entry_handle = 0x28;  ///< Texture handle of a path entry.
+// ---- Country colour layer (pinned in features/country/colour_layer_pins.hpp) ---------------------
+inline constexpr std::uintptr_t country_colors = 0x350;      ///< `CCountryColors` block (`getter.block_offset`).
+inline constexpr std::uintptr_t colors_color = 0x10;         ///< `CColor color` in the block (`colors.layout`).
+inline constexpr std::uintptr_t colors_color_ui = 0x30;      ///< `CColor color_ui` in the block (`colors.layout`).
+inline constexpr std::uintptr_t colors_flags = 0x50;         ///< Byte: 1 color read, 2 color_ui read (`colors.layout`).
+inline constexpr std::uintptr_t color_rgba = 0x10;           ///< Four floats inside a `CColor` (CColor assign).
+inline constexpr std::uintptr_t map_manager = 0x8;           ///< Map-mode manager of the map (`refresh.map_manager`).
+inline constexpr std::uintptr_t map_modes = 0x30;            ///< Mode table of the manager (`mark.modes`).
+inline constexpr std::uintptr_t mode_dirty = 0x48;           ///< Byte per mode: rebuild on the next update (`mark.mode0_dirty`).
+inline constexpr std::uintptr_t idler_in_game_slot = 0x2D8;  ///< Idler vtable slot "in game" (`cosmetic.idler_slot`).
 // ---- Scripted window ----------------------------------------------------------------------
 inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (BDB79E).
 inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model (`CScriptedWindowTemplate`) pointer (runtime-proven).
@@ -358,6 +400,8 @@ inline constexpr int gui_view_limit = 0x17;                    ///< BC1690 ignor
 inline constexpr std::uint32_t key_enter = 0x0D;               ///< Enter in key event word 0.
 inline constexpr std::uint32_t wrapper_type_key = 1;           ///< Wrapper event type of a key event.
 inline constexpr std::size_t inline_utf32_capacity = 3;        ///< Edit text is stored inline up to this capacity.
+inline constexpr std::size_t map_mode_count = 23;              ///< Map modes the update loop visits (`update.mode_count`).
+inline constexpr std::uint8_t colors_both_read = 3;            ///< `colors_flags` with color and color_ui set.
 }  // namespace value
 
 }  // namespace capie::core

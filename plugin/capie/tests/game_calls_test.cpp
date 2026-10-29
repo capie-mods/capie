@@ -48,6 +48,7 @@ struct Calls {
     int valid{};     ///< PortraitEntryValid.
     int copy{};      ///< String copy.
     int update{};    ///< UpdateNames.
+    int colour{};    ///< RefreshCountryColor.
 } calls;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake call counters
 
 /// @brief Null, read through a volatile so the compiler keeps the faulting access.
@@ -99,6 +100,11 @@ std::uint64_t faulting_update(std::uintptr_t) {
     ++calls.update;
     fault();
     return 1;
+}
+void fake_colour(void*, const std::int32_t*) { ++calls.colour; }
+void faulting_colour(void*, const std::int32_t*) {
+    ++calls.colour;
+    fault();
 }
 /// @brief A game function that throws a C++ exception (an STL helper's fatal error).
 void __fastcall throwing_set(void*, const MsvcString*) {
@@ -154,6 +160,8 @@ alignas(8) unsigned char root[0x10]{};  // NOLINT(cppcoreguidelines-avoid-non-co
 alignas(8) unsigned char manager[0x10]{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 /// @brief Portrait entry stand-in.
 alignas(8) unsigned char entry[0x30]{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+/// @brief Tag field stand-in (RefreshCountryColor's second argument).
+const std::int32_t colour_tag = 7;
 /// @brief String storage stand-in.
 alignas(8) unsigned char string_out[0x20]{};  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -185,7 +193,10 @@ void expect_core_refused(const char* label) {
     check(!guarded_portrait_valid(fake_valid, entry, valid) && !valid, label);
     check(!guarded_string_copy(fake_copy, string_out, &text), label);
     check(!guarded_update_names(fake_update, 0x1000), label);
-    check(calls.valid == before.valid && calls.copy == before.copy && calls.update == before.update, label);
+    check(!guarded_refresh_colour(fake_colour, manager, &colour_tag), label);
+    check(calls.valid == before.valid && calls.copy == before.copy && calls.update == before.update &&
+              calls.colour == before.colour,
+          label);
 }
 
 /// @brief H1: a fault inside SetText latches; every later editor call is refused unseen.
@@ -230,9 +241,14 @@ void core_wrapper_tests() {
     check(guarded_portrait_valid(fake_valid, entry, valid) && valid && calls.valid == 1, "PortraitEntryValid called");
     check(guarded_string_copy(fake_copy, string_out, &text) && calls.copy == 1, "string copy called");
     check(guarded_update_names(fake_update, 0x1000) && calls.update == 1, "UpdateNames called");
+    check(guarded_refresh_colour(fake_colour, manager, &colour_tag) && calls.colour == 1, "RefreshCountryColor called");
     check(!guarded_portrait_valid(nullptr, entry, valid) && !guarded_string_copy(nullptr, string_out, &text) &&
-              !guarded_update_names(nullptr, 0x1000) && game_calls_allowed(),
+              !guarded_update_names(nullptr, 0x1000) && !guarded_refresh_colour(nullptr, manager, &colour_tag) &&
+              game_calls_allowed(),
           "unresolved: refused, no latch");
+    check(!guarded_refresh_colour(fake_colour, nullptr, &colour_tag) &&
+              !guarded_refresh_colour(fake_colour, manager, nullptr) && calls.colour == 1 && game_calls_allowed(),
+          "RefreshCountryColor without a map or tag: refused, no call, no latch");
 
     reset();
     valid = true;
@@ -248,6 +264,12 @@ void core_wrapper_tests() {
     reset();
     check(!guarded_update_names(faulting_update, 0x1000) && !game_calls_allowed(), "UpdateNames fault latches");
     expect_core_refused("after UpdateNames fault");
+
+    reset();
+    check(!guarded_refresh_colour(faulting_colour, manager, &colour_tag) && calls.colour == 1 && !game_calls_allowed(),
+          "RefreshCountryColor fault latches");
+    expect_core_refused("after RefreshCountryColor fault");
+    expect_editor_refused("after RefreshCountryColor fault (editor)");
 }
 
 /// @brief H3: with the latch shared, a fault in one DLL stops the other; sharing never clears.

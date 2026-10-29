@@ -1638,5 +1638,253 @@
   "replace": "    if (code != cpp_exception_code && code != 0xE0000001) {\n        return EXCEPTION_CONTINUE_SEARCH;",
   "suite": "tests/game_calls_test.cpp",
   "summary": "game calls tests:"
+ },
+ {
+  "name": "colour-no-fast-path",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (!enabled_.load(std::memory_order_relaxed) || live_.load(std::memory_order_acquire) == 0) {",
+  "replace": "if (!enabled_.load(std::memory_order_relaxed)) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-no-vtable-check",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (!mem_.hot_read(resolved, &vtable, sizeof(vtable)) || vtable != country_vtable_) {",
+  "replace": "if (!mem_.hot_read(resolved, &vtable, sizeof(vtable))) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-argument-slot",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "return override_for(game);",
+  "replace": "return override_for(static_cast<const char*>(country) + core::off::country_colors);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-id-bound",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "return slots_ && id > 0 && id < max_countries ?",
+  "replace": "return slots_ && id > 0 && id <= max_countries ?",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-id-zero",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "return slots_ && id > 0 && id < max_countries ?",
+  "replace": "return slots_ && id >= 0 && id < max_countries ?",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-publish-first",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "slot.blocks[next - 1U] = block;                     // 1. write the inactive block\n                    slot.active.store(next, std::memory_order_release);  // 2. then publish it",
+  "replace": "slot.active.store(next, std::memory_order_release);  // 2. then publish it\n                    slot.blocks[next - 1U] = block;                     // 1. write the inactive block",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-overwrite-active",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "slot.active.load(std::memory_order_relaxed) == first_block ? second_block : first_block;",
+  "replace": "slot.active.load(std::memory_order_relaxed) == first_block ? first_block : second_block;",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-swap-sv",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "hsv.s *= defines.saturation;\n    hsv.v *= defines.value;",
+  "replace": "hsv.s *= defines.value;\n    hsv.v *= defines.saturation;",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-no-hue",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "hsv.h += defines.hue;",
+  "replace": "static_cast<void>(defines.hue);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-ui-map-defines",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "const Rgb ui = adjust(rgb, ui_defines);",
+  "replace": "const Rgb ui = adjust(rgb, map_defines);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-flags-1",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "block.flags = core::value::colors_both_read;",
+  "replace": "block.flags = 1;",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-sector-clamp",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "const float sector = min_ss(5.0F, floor_f(h6));",
+  "replace": "const float sector = floor_f(h6);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-skip-guard",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (id < 1 || id >= count || !in_game(map)) {",
+  "replace": "if (id < 1 || id >= count || !(in_game(map) || true)) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-count-bound",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (id < 1 || id >= count || !in_game(map)) {",
+  "replace": "if (id < 1 || !in_game(map)) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-no-slot-compare",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "return slot == image_ + core::rva::idler_in_game_true;",
+  "replace": "return slot != 0;",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-mark-22",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "dirty.data(), core::value::map_mode_count);",
+  "replace": "dirty.data(), core::value::map_mode_count - 1);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-refresh-unchanged",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (changed && stats.list_ok) {",
+  "replace": "if (stats.list_ok) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-commit-refresh-unchanged",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (store(country, id, stats) && !repaint(country, id, count, stats)) {",
+  "replace": "if ((store(country, id, stats) || true) && !repaint(country, id, count, stats)) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-cosmetic-inverted",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "colour.snapshot.view() == cosmetic ? Verdict::valid : Verdict::hidden;",
+  "replace": "colour.snapshot.view() != cosmetic ? Verdict::valid : Verdict::hidden;",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-cosmetic-too-long",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "return !cosmetic_too_long && colour.snapshot.view()",
+  "replace": "return colour.snapshot.view()",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-commit-name",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "commit_variable[] = \"capie_cc_rev\";",
+  "replace": "commit_variable[] = \"capie_cf_rev\";",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-channel-255",
+  "file": "src/features/country/colour_layer.hpp",
+  "find": "out < 0 || out > max_channel) {",
+  "replace": "out < 0 || out >= max_channel) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-fault-no-latch",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "        if (!engine::guarded_refresh_colour(originals_.refresh, reinterpret_cast<void*>(map), tag)) {\n            game_call_failed();",
+  "replace": "        if (!engine::guarded_refresh_colour(originals_.refresh, reinterpret_cast<void*>(map), tag)) {\n            static_cast<void>(0);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-refused-no-off",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "        if (!engine::game_calls_allowed()) {\n            game_call_failed();",
+  "replace": "        if (!engine::game_calls_allowed()) {\n            static_cast<void>(0);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-refresh-unguarded",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (!engine::guarded_refresh_colour(originals_.refresh, reinterpret_cast<void*>(map), tag)) {",
+  "replace": "if ((originals_.refresh(reinterpret_cast<void*>(map), tag), false)) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-no-reuse-reset",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (slot.active.exchange(no_block, std::memory_order_acq_rel) != no_block) {",
+  "replace": "if (slot.active.load(std::memory_order_acquire) == 255) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-wrong-pointer",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "if (slot == nullptr || slot->country.load(std::memory_order_acquire) != resolved) {",
+  "replace": "if (slot == nullptr) {",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-defines-fail-open",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "show = read_defines(mem_, image_, map_defines, ui_defines);",
+  "replace": "static_cast<void>(read_defines(mem_, image_, map_defines, ui_defines));",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-activate-no-defines",
+  "file": "src/features/country/colour_layer_hooks.hpp",
+  "find": "slots_ != nullptr &&\n                       read_defines(mem_, image_, map_defines, ui_defines));",
+  "replace": "slots_ != nullptr);",
+  "suite": "tests/colour_layer_test.cpp",
+  "summary": "colour layer tests:"
+ },
+ {
+  "name": "colour-wrapper-no-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (refresh == nullptr || map == nullptr || tag == nullptr || !game_calls_allowed()) {",
+  "replace": "if (refresh == nullptr || map == nullptr || tag == nullptr) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "colour-wrapper-null-map",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (refresh == nullptr || map == nullptr || tag == nullptr || !game_calls_allowed()) {",
+  "replace": "if (refresh == nullptr || tag == nullptr || !game_calls_allowed()) {",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
  }
 ]

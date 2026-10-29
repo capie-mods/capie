@@ -117,9 +117,17 @@ inline constexpr VtableClass editor_vtable_classes[] = {
     {"vt_ingame_idler", rva::vt_ingame_idler, ".?AVCInGameIdler@@", 0},
 };
 
-/// @brief Vtables the core DLL compares objects against (portrait layer).
+/// @brief Vtables the core DLL's portrait layer compares objects against.
 inline constexpr VtableClass core_vtable_classes[] = {
     {"vt_character", rva::vt_character, ".?AVCCharacter@@", 0},
+};
+
+/// @brief Vtables the colour layer writes into its block or compares objects against.
+inline constexpr VtableClass colour_vtable_classes[] = {
+    {"vt_country_colors", rva::vt_country_colors, ".?AVCCountryColors@@", 0},
+    {"vt_color", rva::vt_color, ".?AVCColor@@", 0},
+    {"vt_country", rva::vt_country, ".?AVCCountry@@", 0},
+    {"vt_ingame_idler", rva::vt_ingame_idler, ".?AVCInGameIdler@@", 0},
 };
 
 }  // namespace capie::core

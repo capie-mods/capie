@@ -2,15 +2,16 @@
  * @file game_calls.hpp
  * @brief Typed pointers to the game functions CAPIE calls, and SEH-guarded wrappers around them.
  *
- * CAPIE calls nine game functions, each only through a wrapper in this file.
+ * CAPIE calls ten game functions, each only through a wrapper in this file.
  *
  * `capie_editor.dll`, from the UI thread after the original Tick has returned:
  *   FindEdit / FindInstantText (widget lookup by name), SetText (prefill), the edit-box
  *   Refresh (prefill), RequestViewRefresh(gui, 12) (caption refresh) and
  *   FocusSwitch(manager, nullptr) (focus release).
  * `capie_core.dll`, inside its own hook bodies: PortraitEntryValid and the game's string
- *   copy (portrait and faction layers), and the UpdateNames trampoline when a `capie_cn_rev`
- *   commit refreshes a changed country (the call the game itself makes is not wrapped).
+ *   copy (portrait and faction layers), the UpdateNames trampoline when a `capie_cn_rev`
+ *   commit refreshes a changed country (the call the game itself makes is not wrapped), and
+ *   RefreshCountryColor when the colour layer of a country changes (logic thread, in game only).
  *
  * Each pointer is null until initialization verified the function's signature and the
  * image hash; a wrapper with a null pointer returns failure. Each call runs under an SEH
@@ -82,6 +83,8 @@ using PortraitValid = bool (*)(const void*);
 using StringCopy = void* (*)(void*, const void*);
 /// @brief `u64 UpdateNames(CCountry*)` (`rva::update_names`; CAPIE calls its trampoline).
 using UpdateNames = std::uint64_t (*)(std::uintptr_t);
+/// @brief `void RefreshCountryColor(map*, const tag*)` (`rva::refresh_country_color`).
+using RefreshColour = void (*)(void*, const std::int32_t*);
 
 /// @brief FindEdit (`rva::find_edit`, map root+13F0); set at initialization.
 inline FindWidget find_edit = nullptr;
@@ -361,6 +364,29 @@ inline bool guarded_update_names(UpdateNames update, std::uintptr_t country) noe
     }
     __try {
         static_cast<void>(update(country));
+        return true;
+    } __except (game_call_exception(GetExceptionInformation())) {
+        return false;
+    }
+}
+
+/**
+ * @brief Calls RefreshCountryColor under SEH (colour layer of `capie_core.dll`, logic thread).
+ *
+ * The caller has checked that the game is in a campaign (the current idler's in-game slot is
+ * the `CInGameIdler` one, compared by address) and that the map exists; this wrapper adds the
+ * null checks and the shared latch.
+ * @param refresh The game's refresh (null = unresolved).
+ * @param map Map object, freshly read from its global.
+ * @param tag The country's tag field (`country + off::country_tag`), as the game passes it.
+ * @return `false` when unresolved, refused by the latch or on fault.
+ */
+inline bool guarded_refresh_colour(RefreshColour refresh, void* map, const std::int32_t* tag) noexcept {
+    if (refresh == nullptr || map == nullptr || tag == nullptr || !game_calls_allowed()) {
+        return false;
+    }
+    __try {
+        refresh(map, tag);
         return true;
     } __except (game_call_exception(GetExceptionInformation())) {
         return false;
