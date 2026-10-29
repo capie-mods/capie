@@ -9,13 +9,28 @@ release notes, so write it for players and mod authors. Format:
 
 ## [Unreleased]
 
-## [1.5.3] - unreleased
+## [1.6.0] - unreleased
 
-Development line after the 1.5.2 hotfix, on Hearts of Iron IV 1.19.4.1. The script API is
-unchanged (level 7).
+Two new things a mod can change in-game: a country's map colour and the party-ideology line of the
+politics panel. Script API level 8 (`capie_cap = 8`); mods built for CAPIE 1.5 keep working
+unchanged. Runs on HOI4 1.19.4.1 only.
+
+### Added
+
+- Country colour (CONTRACT section 19): a mod can give a country its own map colour with the
+  `capie_cc_*` variables. The political map, borders, the faction colour and UI icons follow at
+  once; restoring the variables brings the game's colour back. A cosmetic tag set after the choice
+  hides it, as for the flag.
+- Ruling-party ideology name (CONTRACT section 20): a mod can rename the ideology line of the
+  ruling-party box in the politics panel (for example "Non-Aligned") with the `capie_sn_*`
+  variables. The name stays only while the same party and leader rule; an election, coup or new
+  leader brings back the game's name. It shows the next time the politics tab is opened.
+- Every Apply now also reports `capie_colour` and `capie_subideo` (1 when the layer works in this
+  game), so a mod can grey out these editors when CAPIE cannot do it.
 
 ### Changed
 
+- Status text "CAPIE 1.6 loaded"; `CAPIE_API` answers `8`, `CAPIE_BUILD` answers `1.6.0`.
 - CAPIE runs on HOI4 1.19.4.1 only (Steam, x64, `hoi4.exe` SHA-256 `CF781ED1…10476F`), like
   1.5.2. The checks added since 1.5.1 (the scripted-window field stores, the window manager
   vtable, the RTTI class check of every vtable) were re-checked for the new build; none of them
