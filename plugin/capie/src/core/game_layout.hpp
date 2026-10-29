@@ -107,6 +107,16 @@ inline constexpr std::uintptr_t vt_color = 0x2796208;
 /// @brief `CCountry` primary vtable (RTTI-checked; the getter's resolved country must have it).
 inline constexpr std::uintptr_t vt_country = 0x2864710;
 
+// ---- Ruling-party ideology name layer (hooked or read by capie_core.dll) -------------------
+/// @brief `void PoliticsRulingPartyPanel(CCountryPoliticsView*)`: writes the ruling-party box; hooked.
+inline constexpr std::uintptr_t politics_panel = 0x1622B90;
+/// @brief `CIdeologyGroup` vtable (the ruling party's ideology at party+0x18; RTTI-checked).
+inline constexpr std::uintptr_t vt_ideology_group = 0x29BA258;
+/// @brief `CPoliticalParty` vtable (the ruling party at politics+0xD0; RTTI-checked).
+inline constexpr std::uintptr_t vt_political_party = 0x2A1A250;
+/// @brief `CInGameIdler` slot 0xA0: the shown tag, `gamestate + (gs[0x520] > 0 ? 0x520 : 0x524)`; pinned, read directly.
+inline constexpr std::uintptr_t idler_shown_tag = 0xB8E270;
+
 // ---- Scripted window manager and widgets (hooked or called by capie_editor.dll) ---------
 /// @brief `void Tick(window*, char force)`; per-frame scripted window update, hooked.
 inline constexpr std::uintptr_t window_tick = 0xBDB500;
@@ -256,6 +266,12 @@ inline constexpr std::uintptr_t map_manager = 0x8;           ///< Map-mode manag
 inline constexpr std::uintptr_t map_modes = 0x30;            ///< Mode table of the manager (`mark.modes`).
 inline constexpr std::uintptr_t mode_dirty = 0x48;           ///< Byte per mode: rebuild on the next update (`mark.mode0_dirty`).
 inline constexpr std::uintptr_t idler_in_game_slot = 0x2D8;  ///< Idler vtable slot "in game" (`cosmetic.idler_slot`).
+// ---- Ruling-party ideology name layer (pinned in features/country/subideology_layer_pins.hpp) -----
+inline constexpr std::uintptr_t party_ideology = 0x18;        ///< `CIdeologyGroup*` of a party (`panel.ideology_object`).
+inline constexpr std::uintptr_t ideology_key = 0x18;          ///< MSVC string token of an ideology group (`ideology.key`).
+inline constexpr std::uintptr_t gamestate_shown_tag = 0x520;  ///< int32 tag the idler shows when > 0 (`idler.shown_tag`).
+inline constexpr std::uintptr_t gamestate_player_tag = 0x524; ///< int32 tag shown otherwise (`idler.shown_tag`).
+inline constexpr std::uintptr_t slot_idler_shown_tag = 0xA0;  ///< Idler vtable slot of the shown tag (`panel.idler_tag_slot`).
 // ---- Scripted window ----------------------------------------------------------------------
 inline constexpr std::uintptr_t window_idler = 0xE0;  ///< Idler pointer (BDB79E).
 inline constexpr std::uintptr_t window_model = 0xE8;  ///< Model (`CScriptedWindowTemplate`) pointer (runtime-proven).

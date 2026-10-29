@@ -211,6 +211,37 @@ using Exists = bool (*)(const char*);
 
 /// @brief Trampoline of `lookup_n`.
 inline LookupN original_n = nullptr;
+
+/**
+ * @brief The answer the ruling-party ideology name layer gives while the politics panel writes its box.
+ *
+ * Set (and restored by a destructor) only around the original of the hooked panel writer, on the
+ * thread that runs it (`subideology_layer_hooks.hpp`); null on every other thread and at every
+ * other time. Both strings live in that hook's frame until the original returns; the game's
+ * formatter copies the answer before then.
+ */
+struct IdeologyFrame {
+    const char* key;       ///< Exact key answered (the ruling party's ideology token).
+    std::size_t key_size;  ///< Its length.
+    const char* text;      ///< NUL-terminated answer (the layer text, UTF-8).
+};
+
+/// @brief Frame of the panel write running on this thread (null almost always).
+inline thread_local const IdeologyFrame* ideology_frame = nullptr;
+
+/**
+ * @brief The layer text when `key` is the exact key of this thread's frame.
+ * @param key Key bytes.
+ * @param length Key length.
+ * @return The text, or null (no frame, another key or another length).
+ */
+inline const char* ideology_answer(const char* key, int length) noexcept {
+    const IdeologyFrame* const frame = ideology_frame;
+    if (frame == nullptr || key == nullptr || length < 0 || static_cast<std::size_t>(length) != frame->key_size) {
+        return nullptr;
+    }
+    return std::memcmp(key, frame->key, frame->key_size) == 0 ? frame->text : nullptr;
+}
 /// @brief Trampoline of `lookup_z`.
 inline LookupZ original_z = nullptr;
 /// @brief Trampoline of `exists`.
@@ -223,6 +254,9 @@ inline Exists original_exists = nullptr;
  * @return CAPIE text or the original result.
  */
 inline const char* lookup_n(const char* key, int length) {
+    if (const char* answer = ideology_answer(key, length)) {
+        return answer;  // inside the politics panel's ruling-party write only
+    }
     try {
         if (key != nullptr && length >= 0 && std::cmp_less_equal(length, max_key_bytes) &&
             may_claim(key, static_cast<std::size_t>(length))) {

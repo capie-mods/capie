@@ -130,4 +130,12 @@ inline constexpr VtableClass colour_vtable_classes[] = {
     {"vt_ingame_idler", rva::vt_ingame_idler, ".?AVCInGameIdler@@", 0},
 };
 
+/// @brief Vtables the ruling-party ideology name layer compares objects against.
+inline constexpr VtableClass subideology_vtable_classes[] = {
+    {"vt_ideology_group", rva::vt_ideology_group, ".?AVCIdeologyGroup@@", 0},
+    {"vt_political_party", rva::vt_political_party, ".?AVCPoliticalParty@@", 0},
+    {"vt_ingame_idler", rva::vt_ingame_idler, ".?AVCInGameIdler@@", 0},
+    {"vt_character", rva::vt_character, ".?AVCCharacter@@", 0},
+};
+
 }  // namespace capie::core
