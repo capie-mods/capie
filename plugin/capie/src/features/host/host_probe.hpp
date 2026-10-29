@@ -11,19 +11,19 @@
  * `get_host_username`; is_host = both equal. Names are compared as the SAME element of the human
  * list (machine id), so two players with the same display name never make a client the host.
  *
- * Engine chain (pinned build; see docs/research/port-1.19.4.0.md):
+ * Engine chain (pinned build; see docs/research/port-1.19.4.1.md):
  *   app      = [image + 0x33DDB08]                 getter GetApplication; GetLocalHuman loads it and calls vslot 0x88;
  *              vtable CGameApplication 2796308
  *   session  = [app + 0x380]                       CGameApplication::GetSession 17F880 (vslot 0x88)
- *              vtable CSession 2BB4548
- *   mode     = dword [session + 0x34]              CSession::Init 22C3760: 0 client, 1 MP host, 2 local/SP
+ *              vtable CSession 2BB4568
+ *   mode     = dword [session + 0x34]              CSession::Init 22C3AB0: 0 client, 1 MP host, 2 local/SP
  *   server   = byte  [session + 0x3C]              Init: (mode-1) <= 1
- *   backend  = vtable of [session + 0x40]          CProxyServer 2BCBA08 / CNetworkServer 2BCB310 / CDummyServer 2BCB020
+ *   backend  = vtable of [session + 0x40]          CProxyServer 2BCBA28 / CNetworkServer 2BCB330 / CDummyServer 2BCB040
  *   my_id    = dword [session + 0x84]              GetMachineId; Init sets 1
  *   humans   = [gamestate + 0xF8], count [gamestate + 0x104], stride 0xA0, element vtable CHuman 279EDB8
  *              (GetLocalHuman 1F1A40 matches element+0x98 against my_id)
- *   name     = MSVC std::string at human + 0x20   (USER_NAME tooltip 1A413EB)
- *   host id  = 1                                   (host-only command check 22D8B40: cmd+0xC == 1)
+ *   name     = MSVC std::string at human + 0x20   (USER_NAME tooltip 1A4169B)
+ *   host id  = 1                                   (host-only command check 22D8E90: cmd+0xC == 1)
  *
  * Privacy: names are copied into fixed buffers inside the snapshot, compared and dropped. The
  * log line carries only lengths and "equal/different", never the text.
@@ -49,10 +49,10 @@ using core::uptr;
 namespace layout {
 inline constexpr uptr app_global = 0x33DDB08;           ///< CApplication* (RIP target of `app.global`).
 inline constexpr uptr vt_game_application = 0x2796308;  ///< CGameApplication primary vtable.
-inline constexpr uptr vt_session = 0x2BB4548;           ///< CSession vtable.
-inline constexpr uptr vt_proxy_server = 0x2BCBA08;      ///< Client backend.
-inline constexpr uptr vt_network_server = 0x2BCB310;    ///< MP host backend.
-inline constexpr uptr vt_dummy_server = 0x2BCB020;      ///< Local (single player) backend.
+inline constexpr uptr vt_session = 0x2BB4568;           ///< CSession vtable.
+inline constexpr uptr vt_proxy_server = 0x2BCBA28;      ///< Client backend.
+inline constexpr uptr vt_network_server = 0x2BCB330;    ///< MP host backend.
+inline constexpr uptr vt_dummy_server = 0x2BCB040;      ///< Local (single player) backend.
 inline constexpr uptr vt_human = 0x279EDB8;             ///< CHuman vtable.
 inline constexpr uptr gamestate_global = core::rva::gamestate_global;  ///< CGameState* (pinned by the name layer).
 inline constexpr uptr get_session = 0x17F880;        ///< CGameApplication::GetSession (`host.get_session`).

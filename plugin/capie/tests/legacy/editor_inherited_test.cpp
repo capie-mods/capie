@@ -56,7 +56,7 @@ struct LoggerFixture {
     alignas(8) std::array<unsigned char,0x80> event{};
     std::uint32_t words[8]={13,0x76543210,0,0xFFFFFFFE,4,5,6,0};
     LoggerFixture() {
-        put(model.data(),0,image_base+0x2A54398);
+        put(model.data(),0,image_base+0x2A543B8);
         put(model.data(),8,borrowed_string(models[0].name,std::strlen(models[0].name)));
         put(window.data(),0xE8,static_cast<void*>(model.data()));
         put(window.data(),0xF8,static_cast<void*>(root.data()));
@@ -65,14 +65,14 @@ struct LoggerFixture {
         put(window.data(),0x130,static_cast<void*>(model.data()));
         put(window.data(),0x138,static_cast<void*>(root.data()));
         put(window.data(),0xBF9,static_cast<unsigned char>(1));
-        put(root.data(),0,image_base+0x2BB9FE0);
+        put(root.data(),0,image_base+0x2BBA000);
         put_empty_maps(root.data());
         put(root.data(),0xA5,static_cast<unsigned char>(8));
         for(std::size_t field=0;field<field_count;++field) {
-            put(edit[field].data(),0,image_base+0x2BBF068);
-            put(edit[field].data(),0x80,image_base+0x2BBF308);
+            put(edit[field].data(),0,image_base+0x2BBF088);
+            put(edit[field].data(),0x80,image_base+0x2BBF328);
             put(edit[field].data(),0x60,static_cast<void*>(definition[field].data()));
-            put(definition[field].data(),0,image_base+0x2BC6978);
+            put(definition[field].data(),0,image_base+0x2BC6998);
             put(definition[field].data(),0x28,borrowed_string(fields[field].edit,std::strlen(fields[field].edit)));
             put(edit[field].data(),0x75,static_cast<unsigned char>(8));
             put(edit[field].data(),0x281,static_cast<unsigned char>(1));
@@ -191,15 +191,15 @@ void logger_tests() {
     put(f.edit[0].data(),0,std::uintptr_t{0});
     check(!make_key_record(f.edit[0].data(),f.event.data(),true,r),"wrong primary type rejected before payload");
     forwarded(true,f.edit[0].data(),f.event.data()); forwarded(false,f.edit[0].data()+0x80,f.event.data());
-    put(f.edit[0].data(),0,image_base+0x2BBF068);
+    put(f.edit[0].data(),0,image_base+0x2BBF088);
     put(f.edit[0].data(),0x80,std::uintptr_t{0});
     check(!make_key_record(f.edit[0].data(),f.event.data(),true,r),"wrong TB type rejected before payload");
     forwarded(true,f.edit[0].data(),f.event.data()); forwarded(false,f.edit[0].data()+0x80,f.event.data());
-    put(f.edit[0].data(),0x80,image_base+0x2BBF308);
+    put(f.edit[0].data(),0x80,image_base+0x2BBF328);
     put(f.definition[0].data(),0,std::uintptr_t{0});
     check(!make_key_record(f.edit[0].data(),f.event.data(),true,r),"wrong definition type rejected before payload");
     forwarded(true,f.edit[0].data(),f.event.data()); forwarded(false,f.edit[0].data()+0x80,f.event.data());
-    put(f.definition[0].data(),0,image_base+0x2BC6978);
+    put(f.definition[0].data(),0,image_base+0x2BC6998);
     put(f.definition[0].data(),0x28,borrowed_string("foreign",7));
     check(!make_key_record(f.edit[0].data(),f.event.data(),true,r),"foreign name rejected");
     reset_logs(); forwarded(true,f.edit[0].data(),f.event.data()); forwarded(false,f.edit[0].data()+0x80,f.event.data());
@@ -331,7 +331,7 @@ void logger_tests() {
     debug_own_action(f.window.data()+0x110,&selector);
     check(logs().find("reason=context_guard_failed")!=std::string::npos,"recognized action with stale context reports refusal observation");
     put(f.window.data(),0x138,static_cast<void*>(f.root.data()));
-    put(debug_epoch_widget.data(),0,image_base+0x2BBB568);
+    put(debug_epoch_widget.data(),0,image_base+0x2BBB588);
     put(debug_epoch_widget.data(),0x110,borrowed_string("7",1)); find_instant=fake_instant;
     for(std::size_t field=0;field<field_count;++field) {
         put(f.edit[field].data(),0x75,static_cast<unsigned char>(8));
@@ -372,7 +372,7 @@ void logger_tests() {
     transport_record(headers[0],command_epoch_key,7); transport_record(headers[1],"rn_native_ok",1);
     transport_record(headers[2],"rn_native_len",9);
     const TempVector command_vector{headers.data(),3,3,nullptr};
-    put(queued_command,0,image_base+0x2A12ED0); put(queued_command,0x28,command_vector);
+    put(queued_command,0,image_base+0x2A12EE0); put(queued_command,0x28,command_vector);
     put(queued_command,0x48,1); put(queued_command,0x4C,1);
     for(const auto& model:models) {
         put(queued_command,0x78,borrowed_string(model.name,std::strlen(model.name)));
@@ -385,7 +385,7 @@ void logger_tests() {
     reset_logs(); put(queued_command,0,std::uintptr_t{0});
     auto before=execute_calls; execute_observed(queued_command);
     check(execute_calls==before+1 && logs().empty(),"foreign command forwarded without diagnostic capture");
-    put(queued_command,0,image_base+0x2A12ED0);
+    put(queued_command,0,image_base+0x2A12EE0);
     const TempVector invalid_vector{reinterpret_cast<Record*>(1),1,1,nullptr}; put(queued_command,0x28,invalid_vector);
     reset_logs(); before=execute_calls; execute_observed(queued_command);
     check(execute_calls==before+1 && logs().find("reason=record_guard_failed")!=std::string::npos,"malformed own command is observed and always forwarded");

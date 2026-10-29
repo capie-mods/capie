@@ -14,7 +14,7 @@
  * - the ruling-leader chain of the `set_country_leader_portrait` effect: politics
  *   +0xF90, ruling party +0xD0, first leader role (+0x70, count +0x7C), role +0x8 character,
  *   and its civilian large write (type 0, size 1).
- * None of the ranges overlaps a DIR64 relocation (checked by tools/port/gen_tables.py on the 1.19.4.0 file).
+ * None of the ranges overlaps a DIR64 relocation (checked by tools/port/gen_tables.py on the 1.19.4.1 file).
  *
  * The portrait layer needs the name layer's UpdateNames and set_variable hooks (its cache is
  * filled there), so it is activated only when the name-layer pins matched too. A failed pin
@@ -48,11 +48,11 @@ inline constexpr core::InstructionPin instruction_pins[] = {
     {"ui.size_small_is_zero", 0xB96487, "83bc249000000000"},         // cmp dword [rsp+90],0 (0 -> GFX_idea_unknown)
     {"ui.character_argument", 0xB964C8, "48897c2420"},               // mov [rsp+20],rdi: 5th argument = character
     {"ui.out_buffer", 0xB964D8, "488d542430"},                       // lea rdx,[rsp+30]: caller's entry buffer
-    {"resolve.character_argument", 0x1439C0D, "488b5d77"},           // mov rbx,[rbp+77]: 5th argument
-    {"resolve.character_id", 0x1439C29, "448b430c"},                 // mov r8d,[rbx+0C]: character id
-    {"valid.flag_byte", 0x1438E46, "803900"},                        // cmp byte [rcx],0
-    {"valid.kind", 0x1438E4F, "8b4104"},                             // mov eax,[rcx+4]
-    {"valid.name", 0x1438E6D, "488d5108"},                           // lea rdx,[rcx+8]: sprite name
+    {"resolve.character_argument", 0x1439FCD, "488b5d77"},           // mov rbx,[rbp+77]: 5th argument
+    {"resolve.character_id", 0x1439FE9, "448b430c"},                 // mov r8d,[rbx+0C]: character id
+    {"valid.flag_byte", 0x1439206, "803900"},                        // cmp byte [rcx],0
+    {"valid.kind", 0x143920F, "8b4104"},                             // mov eax,[rcx+4]
+    {"valid.name", 0x143922D, "488d5108"},                           // lea rdx,[rcx+8]: sprite name
     {"character.write_portraits", 0x102AB25, "4c8d4678ba294c0000"},  // lea r8,[rsi+78]; mov edx,4C29
     {"character.write_variables", 0x102ADAB, "4c8d86d8000000ba4a2a0000"},         // lea r8,[rsi+D8]; mov edx,2A4A
     {"character.read_variables_token", 0x102964B, "4181f84a2a0000"},              // cmp r8d,2A4A

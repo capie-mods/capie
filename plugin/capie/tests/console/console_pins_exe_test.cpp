@@ -117,12 +117,12 @@ void exe_tests(const char* path) {
         image[rva] ^= 0x01U;
     };
     flip(0x759389 + 3, "country.cosmetic_tag");     // displacement 0x1488
-    flip(0x25372C7, "console.singleton_store");     // RIP displacement to 35E1A80
+    flip(0x2537617, "console.singleton_store");     // RIP displacement to 35E1A80
     flip(0x299B65, "set_cosmetic_tag.assign");      // rel32 to 129CA0
-    flip(0x2536F00 + 2, "console.add_or_replace");  // signature byte
-    flip(0x22A0B80 + 3, "console.sprite_find");     // signature byte (add rcx,100h)
-    flip(0x1438E74, "portrait_valid.sprite_database");
-    flip(0x1438E79, "portrait_valid.sprite_find");
+    flip(0x2537250 + 2, "console.add_or_replace");  // signature byte
+    flip(0x22A0ED0 + 3, "console.sprite_find");     // signature byte (add rcx,100h)
+    flip(0x1439234, "portrait_valid.sprite_database");
+    flip(0x1439239, "portrait_valid.sprite_find");
     check(wiring::first_failed_pin(text) == nullptr, "restored image passes again");
 }
 

@@ -1,10 +1,10 @@
-"""Compare the CAPIE signature table with the accepted 1.19.4.0 table.
+"""Compare the CAPIE signature table with the accepted 1.19.4.1 table.
 
-The accepted table is ``tools/port/accepted-1.19.4.0.json``, pinned by SHA-256 (26AB6BC6...).
-It was generated from ``hoi4.exe`` 1.19.4.0 (SHA-256 B6650C85...) by
-``tools/port/gen_tables.py`` during the port documented in
-``docs/research/port-1.19.4.0.md``: whole instructions, the same RIP/rel32 fields masked as in
-the 1.19.3.0 table, unique in ``.text`` and free of DIR64 relocations. Every entry's id, RVA,
+The accepted table is ``tools/port/accepted-1.19.4.1.json``, pinned by SHA-256 (B5A996F8...).
+It was generated from ``hoi4.exe`` 1.19.4.1 (SHA-256 CF781ED1...) by ``tools/port/gen_tables.py``
+during the port documented in ``docs/research/port-1.19.4.1.md`` (method: ``port-1.19.4.0.md``):
+whole instructions, the same RIP/rel32 fields masked as in the 1.19.3.0 table, unique in ``.text``
+and free of DIR64 relocations. Every entry's id, RVA,
 length, bytes and wildcard positions are compared with
 ``plugin/capie/src/core/signature_table.hpp`` and ``game_layout.hpp``, and the named slot pins,
 tokens, RIP pin and hook RVAs with ``game_layout.hpp``. Any difference fails.
@@ -32,13 +32,13 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 """Repository root."""
 
-ACCEPTED = "tools/port/accepted-1.19.4.0.json"
+ACCEPTED = "tools/port/accepted-1.19.4.1.json"
 """Accepted table, repository-relative."""
 
-ACCEPTED_SHA256 = "26ab6bc6ecb3f5bdd049fce9721c44fbac5ffc932e1f032fcfb66207e9c96655"
+ACCEPTED_SHA256 = "b5a996f813b1785393840f744c99433c39404fdfa55b7e43cb6c51c15dae75b2"
 """Pinned SHA-256 of the accepted table."""
 
-GAME_EXE_SHA256 = "b6650c85002374218e60598bd04aaa26cbad996fedce77126fcf92fc6bd6d888"
+GAME_EXE_SHA256 = "cf781ed178cd801643b233b7e3fcd1c0efd19bd01aecd24bf07a35f69f10476f"
 """The executable the accepted table was generated from (must match game_build.hpp)."""
 
 TABLE = REPO / "plugin/capie/src/core/signature_table.hpp"

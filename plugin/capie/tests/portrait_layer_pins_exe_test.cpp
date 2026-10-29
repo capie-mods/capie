@@ -113,12 +113,12 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0x1439B80 + 5, "portrait.resolve");
-    flip(0x1438E40 + 6, "portrait.valid");
+    flip(0x1439F40 + 5, "portrait.resolve");
+    flip(0x1439200 + 6, "portrait.valid");
     flip(0xB96487 + 4, "ui.size_small_is_zero");      // [rsp+0x90]
     flip(0xB964C8 + 4, "ui.character_argument");      // [rsp+0x20]
-    flip(0x1439C29 + 3, "resolve.character_id");      // +0x0C
-    flip(0x1438E6D + 3, "valid.name");                // +0x08
+    flip(0x1439FE9 + 3, "resolve.character_id");      // +0x0C
+    flip(0x143922D + 3, "valid.name");                // +0x08
     flip(0x102AB25 + 3, "character.write_portraits");  // +0x78
     flip(0x102ADAB + 3, "character.write_variables");  // +0xD8
     flip(0x1029766 + 3, "character.read_variables");   // +0xD8

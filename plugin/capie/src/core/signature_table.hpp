@@ -8,7 +8,7 @@
  * the first mismatch, with the code of the group (20, 21 or 22).
  *
  * `tests/check_signature_table.py` compares every entry with the accepted table of the pinned
- * build (`tools/port/accepted-1.19.4.0.json`) and fails on any difference in RVA, length or
+ * build (`tools/port/accepted-1.19.4.1.json`) and fails on any difference in RVA, length or
  * bytes; `signature_exe_test.exe` checks every entry against the EXE file.
  *
  * Evidence rules (RE findings 1.1 and 6.1): each run starts and ends on an instruction
@@ -53,7 +53,7 @@ inline constexpr Signature editor_signatures[] = {
      "48895c241048896c241856574154415641574883ec60450fb6e1450fb6f04c8bfa488be94881c180130000",
      "FindInstantText: CInstantTextBox name map +1380"},
     {"editor.set_text", SignatureGroup::editor_callee, rva::text_buffer_set,
-     "48837a180f7603488b12e901000000cc48895c2410574883ec40488bd90f57c00f11442420660f6f0d83718400",
+     "48837a180f7603488b12e901000000cc48895c2410574883ec40488bd90f57c00f11442420660f6f0d536e8400",
      "SetText SSO thunk (capacity > 15 -> heap pointer)"},
     {"editor.refresh_edit", SignatureGroup::editor_callee, rva::edit_refresh,
      "48895c2410488974241855574156488d6c24b94881ecd0000000488bf9c74567000000004883b9b0010000000f84950300004883e980e885bfffff",
@@ -69,7 +69,7 @@ inline constexpr Signature editor_signatures[] = {
      "CExecuteScriptedWindowEffect ctor"},
     {"editor.execute", SignatureGroup::editor_hook, rva::effect_execute,
      "48895c240848896c2410488974241857415641574883ec604c8bf1e8c03892ff498d5678488bc8e854a592ff4c8bf84885c0",
-     "Execute void(command*): vtable 2A12ED0 slot 50, whole-instruction 50-byte prefix"},
+     "Execute void(command*): vtable 2A12EE0 slot 50, whole-instruction 50-byte prefix"},
 };
 
 /// @brief Caption refresh chain (25 entries; caption core evidence, RE 82CA2D2D).
@@ -88,7 +88,7 @@ inline constexpr Signature caption_signatures[] = {
      "politics view visibility (slot28) reads view+5F8"},
     {"caption.12C4E70", SignatureGroup::caption, rva::view_get_root, "488b81f8050000c3", "view root = [view+5F8]"},
     {"caption.12C3B50", SignatureGroup::caption, rva::observer_bind,
-     "40534883ec20488d0563be750148895108488901488bd944894110c6411400e85c050000",
+     "40534883ec20488d0573be750148895108488901488bd944894110c6411400e85c050000",
      "observer bind: [obs+8]=rdx, [obs+14]=0"},
     {"caption.12C4AD0", SignatureGroup::caption, rva::view_base_ctor,
      "48895c2410488974241848897c242048894c24085541564157488d6c24b04881ec50010000498bf94d8bf84c8bf2488bf1498379180f76034d8b09488b47104c894d80",
@@ -98,7 +98,7 @@ inline constexpr Signature caption_signatures[] = {
     {"caption.12C4CDF", SignatureGroup::caption, 0x12C4CDF, "4c89b6f005000048899ef8050000",
      "view+5F0=param_2, view+5F8 init"},
     {"caption.BB6085", SignatureGroup::caption, 0xBB6085,
-     "4c8bc6488b9680010000488bc8e86918a600eb03498bc748898628010000", "politics ctor(gui+180, gui); gui+128=view"},
+     "4c8bc6488b9680010000488bc8e8291ca600eb03498bc748898628010000", "politics ctor(gui+180, gui); gui+128=view"},
     {"caption.BBC112", SignatureGroup::caption, 0xBBC112,
      "488d9fc80000000f1f8000000000488b0b4885c9740f4438614474094883c130e8f98070004883c3084883ed0175df",
      "frame loop consumes view+44 via 12C4230(view+30)"},
@@ -125,27 +125,27 @@ inline constexpr Signature caption_signatures[] = {
      "ba0c000000488b0848895918488bcfe846d7fdff488bc8e88e7d6e004c8d4518c74518b23a0000488d55c8488bd8488d4e70e8039effff",
      "token 3AB2 -> GetRoot(GetView(gui,12))"},
     {"caption.F8915", SignatureGroup::caption, 0xF8915,
-     "8b1525278d02488b8c2460af0100e828ae05004c8d055137a7028b10488d0de8643d03e863e84402",
+     "8b1525278d02488b8c2460af0100e828ae05004c8d058137a7028b10488d0de8643d03e8b3eb4402",
      "politics_tab literal <- DWORD 29CB040"},
     {"caption.F7B47", SignatureGroup::caption, 0xF7B47,
-     "8b15b386a302488b8c2470ad0100e8f6bb05004c8d053f3ba7028b10488d0d46613d03e831f64402",
-     "parent_window_token literal <- DWORD 2B30200 (=3A6E)"},
-    {"caption.163B7BD", SignatureGroup::caption, 0x163B7BD, "8b86c00000004189452ce9d6090000",
+     "8b15e386a302488b8c2470ad0100e8f6bb05004c8d056f3ba7028b10488d0d46613d03e881f94402",
+     "parent_window_token literal <- DWORD 2B30230 (=3A6E)"},
+    {"caption.163BB7D", SignatureGroup::caption, 0x163BB7D, "8b86c00000004189452ce9d6090000",
      "parser copies token to model+2C"},
 };
 
 /// @brief Focus release chain (8 entries).
 inline constexpr Signature focus_signatures[] = {
-    {"focus.22BD0E0", SignatureGroup::focus, rva::focus_switch,
+    {"focus.22BD430", SignatureGroup::focus, rva::focus_switch,
      "48895c2408574883ec20488bf9488bda488b89380100004885c97409488b01ff90c800000048899f380100004885db740c488b03488bcbff90c0000000488b5c24304883c4205fc3",
      "focus switch: old->C8, [m+138]=new, new->C0 if non-null (whole function)"},
-    {"focus.2371A40", SignatureGroup::focus, rva::edit_unfocus,
+    {"focus.2371D90", SignatureGroup::focus, rva::edit_unfocus,
      "48895c2408574883ec200fb68181020000488bd924fe888181020000a8207415", "edit unfocus: clear +281 bit0"},
-    {"focus.2371AC0", SignatureGroup::focus, 0x2371AC0, "488d8ba0010000488b5c24304883c4205fe99a800000",
-     "edit unfocus tail: 2379B70(edit+1A0)"},
-    {"focus.2379B70", SignatureGroup::focus, rva::receiver_release, "488bd1488b0d46741801e9f135f4ff",
+    {"focus.2371E10", SignatureGroup::focus, 0x2371E10, "488d8ba0010000488b5c24304883c4205fe99a800000",
+     "edit unfocus tail: 2379EC0(edit+1A0)"},
+    {"focus.2379EC0", SignatureGroup::focus, rva::receiver_release, "488bd1488b0df6701801e9f135f4ff",
      "receiver release via manager global 3500FC0"},
-    {"focus.22BD170", SignatureGroup::focus, rva::manager_release,
+    {"focus.22BD4C0", SignatureGroup::focus, rva::manager_release,
      "40534883ec204883b91002000000488bd97419e8e83f0000488bc8488b10ff523048c78310020000000000004883c4205bc3",
      "manager: release [m+210] and zero it (whole function)"},
     {"focus.BDB55E", SignatureGroup::focus, 0xBDB55E, "488b83000100004885c07444f680a500000004743b",
@@ -176,7 +176,7 @@ inline constexpr SlotPin focus_slot_pins[] = {
     {rva::vt_edit, off::slot_edit_focus, rva::edit_focus},
 };
 
-/// @brief `mov rcx,[rip+disp]` of the receiver release thunk (`focus.2379B70`) must target the focus manager global.
+/// @brief `mov rcx,[rip+disp]` of the receiver release thunk (`focus.2379EC0`) must target the focus manager global.
 inline constexpr RipPin focus_manager_rip_pin = {"focus.manager_global", rva::focus_manager_rip_displacement,
                                                  rva::focus_manager_rip_next, rva::manager_global};
 

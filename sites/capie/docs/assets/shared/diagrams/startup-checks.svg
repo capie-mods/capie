@@ -90,7 +90,7 @@
   <rect class="node" x="662" y="64" width="186" height="84" rx="2"/>
   <text class="title" x="676" y="91">CAPIE active</text>
   <text class="body" x="676" y="116">all features on</text>
-  <text class="tag t-today" x="676" y="136">1.19.4.0 TODAY</text>
+  <text class="tag t-today" x="676" y="136">1.19.4.1 TODAY</text>
 
   <line class="arrow" x1="218" y1="106" x2="239" y2="106" marker-end="url(#ah)"/>
   <line class="arrow" x1="428" y1="106" x2="449" y2="106" marker-end="url(#ah)"/>

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 330" width="880" height="330" role="img" aria-labelledby="t d">
   <title id="t">Planned launch chain</title>
-  <desc id="d">Planned and not yet tested end to end. Steam Play with a launch option, or a desktop shortcut, starts the CAPIE launcher. The launcher checks the hash of hoi4.exe and starts the Paradox Launcher, where you pick your playset as usual. When the game is version 1.19.4.0, CAPIE is loaded only into the hoi4.exe started by this chain. When the version is unknown, for example after a game patch, the game starts without CAPIE and the launcher says why; states, cities and characters still work through scripts, and a custom country name shows as the original until an update ships.</desc>
+  <desc id="d">Planned and not yet tested end to end. Steam Play with a launch option, or a desktop shortcut, starts the CAPIE launcher. The launcher checks the hash of hoi4.exe and starts the Paradox Launcher, where you pick your playset as usual. When the game is version 1.19.4.1, CAPIE is loaded only into the hoi4.exe started by this chain. When the version is unknown, for example after a game patch, the game starts without CAPIE and the launcher says why; states, cities and characters still work through scripts, and a custom country name shows as the original until an update ships.</desc>
   <!-- Tokens: docs/design/tokens.json v1.2.0 -->
   <style>
     .canvas{fill:#272421}
@@ -82,7 +82,7 @@
   <line class="arrow" x1="202" y1="120" x2="229" y2="120" marker-end="url(#ah)"/>
   <line class="arrow" x1="402" y1="120" x2="429" y2="120" marker-end="url(#ah)"/>
   <line class="arrow" x1="622" y1="120" x2="649" y2="120" marker-end="url(#ah)"/>
-  <text class="lab" x="368" y="60">version 1.19.4.0</text>
+  <text class="lab" x="368" y="60">version 1.19.4.1</text>
 
   <path class="arrowfb" d="M317 170 L317 224 L429 224" marker-end="url(#ahf)"/>
   <text class="labf" x="326" y="198">unknown</text>

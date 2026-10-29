@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 486" width="880" height="486" role="img" aria-labelledby="t d">
   <title id="t">Rename Anything is built on CAPIE</title>
-  <desc id="d">Three layers. Top: mod scripts from the Steam Workshop: Rename Anything, which works today, and your own mod calling CAPIE effects, which is planned. Middle: CAPIE, Cyprian's API Extender, two native DLLs started by the CAPIE launcher. It already provides country name and adjective support and the bridge from native text fields to game commands; a public API for other mods and a multiplayer check that keeps CAPIE features off until every player confirms CAPIE are planned. Bottom: the unmodified Hearts of Iron IV 1.19.4.0 engine with game commands, localisation lookups and the save file. Solid outlines mark what works today, dashed outlines what is planned.</desc>
+  <desc id="d">Three layers. Top: mod scripts from the Steam Workshop: Rename Anything, which works today, and your own mod calling CAPIE effects, which is planned. Middle: CAPIE, Cyprian's API Extender, two native DLLs started by the CAPIE launcher. It already provides country name and adjective support and the bridge from native text fields to game commands; a public API for other mods and a multiplayer check that keeps CAPIE features off until every player confirms CAPIE are planned. Bottom: the unmodified Hearts of Iron IV 1.19.4.1 engine with game commands, localisation lookups and the save file. Solid outlines mark what works today, dashed outlines what is planned.</desc>
   <!-- Tokens: docs/design/tokens.json v1.2.0. Static on purpose: the layers are a structure, not a sequence. Site copy of docs/assets/readme/architecture.svg: multiplayer chip follows the L0 decision, SDK names proposed. -->
   <style>
     .canvas{fill:#272421}
@@ -81,7 +81,7 @@
   <line class="wire" x1="609" y1="336" x2="609" y2="382"/>
 
   <!-- Layer 3: game -->
-  <text class="caps" x="32" y="372">HEARTS OF IRON IV 1.19.4.0</text>
+  <text class="caps" x="32" y="372">HEARTS OF IRON IV 1.19.4.1</text>
   <rect class="node" x="32" y="382" width="816" height="80" rx="2"/>
   <text class="item" x="48" y="427">Game commands</text>
   <line class="div" x1="236.5" y1="402" x2="236.5" y2="442"/>

@@ -6,8 +6,8 @@
  * keyboard focus, so later key presses went into a hidden field. When the politics root
  * (our editor window's parent) goes from visible to not visible and one of OUR exact-named
  * edit boxes holds focus, this module calls the game's own focus switch
- * `22BD0E0(manager, nullptr)` once. That runs the edit box's normal unfocus path
- * (`2371A40` -> `2379B70` -> `22BD170`), the same code the game runs whenever focus moves
+ * `22BD430(manager, nullptr)` once. That runs the edit box's normal unfocus path
+ * (`2371D90` -> `2379EC0` -> `22BD4C0`), the same code the game runs whenever focus moves
  * away from an edit box.
  *
  * What it does not do: no script flag, epoch or draft write, no retry, no focus *set*,
@@ -16,7 +16,7 @@
  * source classified from copied bits, so runtime logs show whether hides other than a
  * panel close exist.
  *
- * Evidence (pinned EXE, `focus_signatures`): 22BD0E0 stores the new focus at
+ * Evidence (pinned EXE, `focus_signatures`): 22BD430 stores the new focus at
  * manager+138 and calls old->slot C8 / new->slot C0; the null branch is explicit code.
  * OPEN: no native caller passes nullptr (three callers, all non-null).
  *
@@ -220,7 +220,7 @@ Kind inspect(const M& mem, uptr image, uptr window, Own& out) noexcept {
  * @brief Focus release service.
  *
  * Env: `const M& mem()`, `uptr image()`, `uptr find_edit(uptr root, const char* name)`,
- * `bool call_focus_null(uptr manager)` (SEH-guarded 22BD0E0(manager, nullptr)),
+ * `bool call_focus_null(uptr manager)` (SEH-guarded 22BD430(manager, nullptr)),
  * `bool armed()`, `void log(const char*)`.
  * @tparam Env Environment adapter.
  */

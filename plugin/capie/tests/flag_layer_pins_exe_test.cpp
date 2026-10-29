@@ -115,7 +115,7 @@ void exe_tests(const char* path) {
     };
     flip(0x12CDFB0 + 5, "flag.atlas_update");
     flip(0x12CD970 + 6, "flag.load_country_flag");
-    flip(0x1518DE0 + 9, "flag.build_candidates");
+    flip(0x15191A0 + 9, "flag.build_candidates");
     flip(0x12CE550 + 3, "atlas.cosmetic_keys");       // displacement 0xC0
     flip(0x12CE21A + 3, "atlas.cosmetic_count");      // displacement 0xCC
     flip(0x12CE349 + 3, "atlas.slot_is_list_index");  // scale of the list index
