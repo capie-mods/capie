@@ -11,12 +11,12 @@ Ten przedmiot to przełącznik. Nie ma treści gry: tylko przełącznik i znak C
 [/list]
 Kolejność ładowania nie ma znaczenia. Trzymaj tylko jeden mod o nazwie CAPIE: przy lokalnej kopii o tej samej nazwie gra pomija ten przedmiot z Workshopu. Lokalna kopia instalatora nazywa się CAPIE (local copy) i nie jest instalowana, gdy subskrybujesz ten przedmiot.
 
-[b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.5.1 (poziom API skryptów 7), sprawdzona w grze jednoosobowej na HOI4 1.19.4.0, na wersjach rozwojowych.
+[b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.5.2 (poziom API skryptów 7), sprawdzona w grze jednoosobowej na HOI4 1.19.4.1, na wersjach rozwojowych.
 
-[h2]Co nowego w 1.5.1[/h2]
+[h2]Co nowego w 1.5.2[/h2]
 [list]
-[*]Obsługa HOI4 1.19.4.0. Aktualizacja gry zmieniła sposób, w jaki jej GUI wyszukuje pola tekstowe, oraz układ kilku obiektów; CAPIE zostało sprawdzone od nowa na nowej wersji.
-[*]Na 1.19.3.0 CAPIE się teraz nie włącza, tak jak na każdej innej nieobsługiwanej wersji.
+[*]Obsługa HOI4 1.19.4.1. Aktualizacja gry przesunęła kod i dane o kilkaset bajtów; każdy adres został sprawdzony od nowa.
+[*]Na 1.19.4.0 CAPIE teraz się nie włącza, jak na każdej nieobsługiwanej wersji.
 [*]Dla modów nic się nie zmienia: API skryptów to nadal poziom 7.
 [/list]
 
@@ -28,7 +28,7 @@ Znak pochodzi z kopii pliku menu głównego gry. Jeśli inny mod w zestawie też
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-requirements-pl.png[/img]
 [h2]Wymagania[/h2]
 [list]
-[*]Hearts of Iron IV 1.19.4.0 na Windows.
+[*]Hearts of Iron IV 1.19.4.1 na Windows.
 [*]Launcher CAPIE, który instaluje instalator. Bez niego ten przedmiot nic nie robi.
 [/list]
 
@@ -40,7 +40,7 @@ CAPIE instaluje się małym narzędziem. Zamknij Steam albo pozwól, żeby narz�
 [code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
 Otworzy się menu: wybierz [i]Install or update[/i].
 [*][b]Pobranie z GitHuba.[/b] Pobierz ZIP, install.ps1 i dwa pliki release-manifest z [url=https://github.com/capie-mods/capie/releases/latest]najnowszego wydania[/url] do jednego folderu, a potem w PowerShell w tym folderze uruchom:
-[code].\install.ps1 -Install -PackagePath .\CAPIE-1.5.1-win64.zip[/code]
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.5.2-win64.zip[/code]
 [/list]
 Oba sposoby sprawdzają podpisany manifest wydania i SHA-256 każdego pliku, instalują do folderu użytkownika (nigdy do folderu gry) i dodają launcher CAPIE do opcji uruchamiania HOI4 w Steamie. To samo narzędzie aktualizuje, instaluje starszą wersję, wyłącza CAPIE albo je odinstalowuje.
 
