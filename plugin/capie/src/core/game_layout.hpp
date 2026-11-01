@@ -74,6 +74,30 @@ inline constexpr std::uintptr_t pointer_load = 0x1B6B80;
 inline constexpr std::uintptr_t role_character_getter = 0x2C1480;
 /// @brief Portrait write of `set_country_leader_portrait` (civilian, large); pinned, never called.
 inline constexpr std::uintptr_t leader_portrait_write = 0x143B1D0;
+/// @brief `entry* PathPortraitEntry(entry* out, const string* path, bool warn, bool flag)`: always kind 1,
+/// loads the texture at once; called by the portrait layer for format 2 paths (logic thread).
+inline constexpr std::uintptr_t portrait_path_entry = 0x14393D0;
+/// @brief `entry* MakeIconEntry(entry* out, int kind, string&& name, bool flag)`: the texture load of a
+/// kind-1 entry; pinned (the builder's tail call), never called.
+inline constexpr std::uintptr_t make_icon_entry = 0x1438AC0;
+/// @brief `int AddTexture(texmgr*, const string* path, const options*, bool load_now)`; pinned, never called.
+inline constexpr std::uintptr_t texture_add = 0x2488BD0;
+/// @brief `texture* GetTexture(texmgr*, int id)`; pinned, never called.
+inline constexpr std::uintptr_t texture_get = 0x2489670;
+/// @brief `void operator delete(void*, size_t)` of the game's CRT (jump thunk); called to free game strings.
+inline constexpr std::uintptr_t game_delete = 0x25A00D8;
+
+// ---- State/VP view (API level 9; read and called by capie_editor.dll) -------------------------
+/// @brief `string* ProvinceName(province*, string* out, bool* is_vp)`: custom name, else VP name; called.
+inline constexpr std::uintptr_t province_name = 0xEEF270;
+/// @brief `void ScopeSetState(scope*, int state_id, bool)`: writes the scope's state id at +0xA8; pinned.
+inline constexpr std::uintptr_t scope_set_state = 0x582930;
+/// @brief The game's `_tls_index` (static TLS slot of hoi4.exe); read for `ThreadForbidCount`.
+inline constexpr std::uintptr_t tls_index = 0x3693A98;
+/// @brief `CState` primary vtable (RTTI-checked; every state the view reads must have it).
+inline constexpr std::uintptr_t vt_state = 0x29B4D38;
+/// @brief `CProvince` primary vtable (RTTI-checked; every province the view reads must have it).
+inline constexpr std::uintptr_t vt_province = 0x29EE248;
 
 // ---- Country colour layer (hooked, called or read by capie_core.dll) ---------------------
 /// @brief `const CCountryColors* GetMapColors(const CCountry*)`: walks to the overlord, returns `+0x350`; hooked.
@@ -245,7 +269,17 @@ inline constexpr std::uintptr_t party_leader_count = 0x7C;     ///< int32 leader
 inline constexpr std::uintptr_t leader_role_character = 0x8;   ///< Character of a leader role (`leader.character`).
 inline constexpr std::uintptr_t portrait_entry_kind = 0x4;     ///< int32 0 = sprite name, 1 = .dds path (`valid.kind`).
 inline constexpr std::uintptr_t portrait_entry_name = 0x8;     ///< MSVC string (`valid.name`).
-inline constexpr std::uintptr_t portrait_entry_handle = 0x28;  ///< Texture handle of a path entry.
+inline constexpr std::uintptr_t portrait_entry_handle = 0x28;  ///< Texture handle of a path entry (`valid.handle`).
+// ---- State/VP view (pinned in features/catalog/catalog_pins.hpp) ----------------------------------
+inline constexpr std::uintptr_t gamestate_states = 0x2C8;       ///< `CState*` array by id (`state.array`).
+inline constexpr std::uintptr_t gamestate_state_count = 0x2D4;  ///< int32 slots of that array (`state.count`).
+inline constexpr std::uintptr_t state_provinces = 0x18;         ///< `CProvince*` array (`state.provinces`).
+inline constexpr std::uintptr_t state_province_count = 0x24;    ///< int32 province count (`state.province_count`).
+inline constexpr std::uintptr_t province_vp = 0x38;             ///< int32 victory points (`province.vp_read`).
+inline constexpr std::uintptr_t province_custom_name = 0x40;    ///< Player-given name, MSVC string (`province.custom_name`).
+inline constexpr std::uintptr_t province_id = 0xA4;             ///< int32 province id (`province.id`).
+inline constexpr std::uintptr_t scope_state_id = 0xA8;          ///< int32 state id of a scope (`scope.state_id`).
+inline constexpr std::uintptr_t tls_thread_forbid = 0x10;       ///< int32 `ThreadForbidCount` in the TLS block.
 // ---- Country colour layer (pinned in features/country/colour_layer_pins.hpp) ---------------------
 inline constexpr std::uintptr_t country_colors = 0x350;      ///< `CCountryColors` block (`getter.block_offset`).
 inline constexpr std::uintptr_t colors_color = 0x10;         ///< `CColor color` in the block (`colors.layout`).

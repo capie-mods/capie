@@ -42,6 +42,7 @@
 #include "msvc_string.hpp"
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 
@@ -85,6 +86,12 @@ using StringCopy = void* (*)(void*, const void*);
 using UpdateNames = std::uint64_t (*)(std::uintptr_t);
 /// @brief `void RefreshCountryColor(map*, const tag*)` (`rva::refresh_country_color`).
 using RefreshColour = void (*)(void*, const std::int32_t*);
+/// @brief `entry* PathPortraitEntry(entry* out, const string* path, bool warn, bool flag)` (`rva::portrait_path_entry`).
+using PathPortraitEntry = void* (*)(void*, const void*, bool, bool);
+/// @brief `void ProvinceName(province*, string* out, bool* is_vp)` (`rva::province_name`; returns `out`).
+using ProvinceName = void* (*)(std::uintptr_t, void*, bool*);
+/// @brief `void operator delete(void*, size_t)` of the game's CRT (`rva::game_delete`).
+using GameDelete = void (*)(void*, std::size_t);
 
 /// @brief FindEdit (`rva::find_edit`, map root+13F0); set at initialization.
 inline FindWidget find_edit = nullptr;
@@ -368,6 +375,104 @@ inline bool guarded_update_names(UpdateNames update, std::uintptr_t country) noe
     } __except (game_call_exception(GetExceptionInformation())) {
         return false;
     }
+}
+
+/**
+ * @brief Builds a path portrait entry with the game's builder under SEH (portrait layer format 2).
+ *
+ * The builder copies the path, makes a kind-1 entry and loads the texture at once through the
+ * texture manager (`MakeIconEntry`, which takes the manager's own mutex). Logic thread only, as
+ * `create_country_leader` does. On a fault `out` may be half-constructed; the caller then discards
+ * it (never destroys it) and the layer is turned off by the latch.
+ * @param build The game's builder (null = unresolved).
+ * @param out Uninitialised entry storage (0x30 bytes).
+ * @param path Path string (borrowed for the call; the builder copies it).
+ * @return `false` when unresolved, refused by the latch or on fault.
+ */
+inline bool guarded_path_portrait_entry(PathPortraitEntry build, void* out, const MsvcString* path) noexcept {
+    if (build == nullptr || out == nullptr || path == nullptr || !game_calls_allowed()) {
+        return false;
+    }
+    __try {
+        static_cast<void>(build(out, path, false, false));
+        return true;
+    } __except (game_call_exception(GetExceptionInformation())) {
+        return false;
+    }
+}
+
+/**
+ * @brief Calls ProvinceName (the name the game shows for a province) under SEH.
+ *
+ * The result is constructed in `out` by the game; the caller copies the bytes and releases it with
+ * `guarded_string_release`. On a fault `out` may hold a half-built string and is abandoned.
+ * @param name The game's function (null = unresolved).
+ * @param province Province object.
+ * @param out Uninitialised string storage.
+ * @return `false` when unresolved, refused by the latch or on fault.
+ */
+inline bool guarded_province_name(ProvinceName name, std::uintptr_t province, MsvcString* out) noexcept {
+    if (name == nullptr || province == 0 || out == nullptr || !game_calls_allowed()) {
+        return false;
+    }
+    bool is_vp = false;
+    __try {
+        static_cast<void>(name(province, out, &is_vp));
+        return true;
+    } __except (game_call_exception(GetExceptionInformation())) {
+        return false;
+    }
+}
+
+/// @brief Allocations of at least this many bytes carry the MSVC alignment header (`_Big_allocation_threshold`).
+inline constexpr std::uint64_t big_allocation_threshold = 0x1000;
+/// @brief Extra bytes of a big allocation (`_Non_user_size`: 8-byte back pointer plus 31 alignment bytes).
+inline constexpr std::uint64_t big_allocation_extra = 0x27;
+/// @brief Largest distance between the user pointer and the real block of a big allocation.
+inline constexpr std::uint64_t big_allocation_slack = 0x1F;
+
+/**
+ * @brief Frees a game-owned MSVC string the way the game's inlined destructor does (`MakeIconEntry`).
+ *
+ * Inline strings own nothing. A heap string goes to the game's sized `operator delete`; a block of
+ * 4 KiB or more is first walked back to its real start through the pointer stored before it. A
+ * header that fails the game's own sanity check is leaked instead (the game would abort).
+ * @param free_block The game's `operator delete` (null = leak).
+ * @param value String to release; reset to empty afterwards.
+ * @return `false` when the string was leaked (unresolved, latched, bad header or fault).
+ */
+inline bool guarded_string_release(GameDelete free_block, MsvcString* value) noexcept {
+    if (value == nullptr) {
+        return false;
+    }
+    const std::uint64_t capacity = value->capacity;
+    if (capacity <= sso_capacity) {
+        *value = MsvcString{};
+        value->capacity = sso_capacity;
+        return true;
+    }
+    if (free_block == nullptr || !game_calls_allowed() || capacity > max_string_capacity) {
+        return false;
+    }
+    auto block = reinterpret_cast<std::uintptr_t>(value->data.pointer);
+    std::uint64_t bytes = capacity + 1;
+    if (bytes >= big_allocation_threshold) {
+        std::uintptr_t real = 0;
+        if (block < sizeof(real) || !core::ProcessMemory::read(block - sizeof(real), &real, sizeof(real)) ||
+            real > block - sizeof(real) || block - real - sizeof(real) > big_allocation_slack) {
+            return false;
+        }
+        bytes += big_allocation_extra;
+        block = real;
+    }
+    __try {
+        free_block(reinterpret_cast<void*>(block), static_cast<std::size_t>(bytes));
+    } __except (game_call_exception(GetExceptionInformation())) {
+        return false;
+    }
+    *value = MsvcString{};
+    value->capacity = sso_capacity;
+    return true;
 }
 
 /**
