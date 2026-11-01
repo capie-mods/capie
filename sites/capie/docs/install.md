@@ -136,12 +136,14 @@ mod and the next start is the plain game.
 
 ## Step 5: check that CAPIE is running
 
-1. In the main menu, the CAPIE mark appears while the CAPIE mod is enabled. The mark comes
-   from the mod, so it shows only that the switch is on, even when CAPIE failed to load.
-2. Open `%LOCALAPPDATA%\RenameAnything\launcher.log`. The line
+1. Open `%LOCALAPPDATA%\RenameAnything\launcher.log`. The line
    `CAPIE loaded into pid=...` from the last start means CAPIE runs.
-3. Mods built on CAPIE usually show their own status. Rename Anything, for example, shows
-   "CAPIE 1.5 loaded" in its name editor.
+2. Mods built on CAPIE usually show their own status. Rename Anything, for example, shows
+   "CAPIE 1.6 loaded" in its editors.
+
+The CAPIE mod shows nothing in the main menu. Up to version 1.1.1 it added a CAPIE mark there,
+but the mark needed a copy of the game's main menu file, and that copy replaced the main menu of
+total conversions such as Kaiserreich. Since 1.1.2 the mod ships no interface file.
 
 ## If it does not work { #troubleshooting }
 

@@ -9,6 +9,12 @@ release notes, so write it for players and mod authors. Format:
 
 ## [Unreleased]
 
+### Changed
+
+- The "CAPIE" switch mod in the ZIP (`mod/capie`, the local copy) is version 1.1.2: no CAPIE mark
+  in the main menu any more, and no interface, graphics or localisation file. Its copy of the
+  game's main menu file replaced the main menu of total conversions such as Kaiserreich.
+
 ## [1.6.0] - 2026-11-01
 
 A new thing a mod can change in-game: a country's map colour. Script API level 8

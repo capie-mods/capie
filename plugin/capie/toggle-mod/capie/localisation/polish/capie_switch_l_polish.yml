@@ -1,7 +1,0 @@
-﻿l_polish:
- # Tekst zastępczy, gdy CAPIE nie jest załadowane. Ten sam klucz i tekst co w CAPIE script SDK;
- # gdy CAPIE działa, podaje tu swoją wersję.
- CAPIE_STATUS:0 "§OBrak CAPIE§!"
- # Podpowiedź znaku CAPIE w menu głównym: tekst statyczny. Menu lokalizuje ją raz, przy budowie
- # okna (zanim CAPIE się załaduje), i nie podstawia odwołań $...$.
- CAPIE_MENU_MARK_TT:0 "Przełącznik CAPIE jest włączony\n\n§LCAPIE ładuje się około 20 sekund po pojawieniu się tego menu, jeśli gra została uruchomiona przez launcher CAPIE w obsługiwanej wersji. Czy działa, sprawdzisz w grze: edytor Rename Anything pokazuje wersję CAPIE.§!"

@@ -1,12 +1,12 @@
 """Structure checks of the "CAPIE" switch mod (plugin/capie/toggle-mod).
 
 Offline and read-only. Checks the descriptors, that the launcher recognises the same
-descriptor path, the thumbnail, the main-menu indicator, its localisation fallback (same key
-and text as the CAPIE script SDK), that no gameplay folder and no vanilla interface file is
-shipped, and the player descriptions. The SDK localisation and Rename Anything's test-session
-script come from other repositories; their copies in ``plugin/capie/tests/fixtures/external``
-are read. The vanilla comparison uses the HOI4 installation when it is present (read-only)
-and is reported as skipped otherwise.
+descriptor path, the thumbnail, that the mod ships nothing but its descriptor and thumbnail (no
+gameplay folder, no interface or graphics file, so it never replaces a file that the game or a
+total conversion such as Kaiserreich ships), and the player descriptions. Rename Anything's
+test-session script comes from another repository; its copy in
+``plugin/capie/tests/fixtures/external`` is read. The comparison with the game's own files uses
+the HOI4 installation when it is present (read-only) and is reported as skipped otherwise.
 
 Usage:
     python -I plugin/capie/toggle-mod/check_mod.py [--game "C:/.../Hearts of Iron IV"]
@@ -16,7 +16,6 @@ Exit code 0 when every check passes.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import re
 import struct
 import sys
@@ -55,9 +54,6 @@ WORKSHOP_ID = "3819929471"
 LAUNCHER_CONFIG = REPO / "plugin" / "capie" / "src" / "launcher" / "config.hpp"
 """Launcher source that compiles in the descriptor path it looks for."""
 
-SDK_LOCALISATION = EXTERNAL / "hoi4-rename-anything/sdk/capie-script-sdk/mod/localisation"
-"""Localisation of the CAPIE script SDK; the status fallback must match it."""
-
 DEFAULT_GAME = Path("C:/Program Files (x86)/Steam/steamapps/common/Hearts of Iron IV")
 """Default HOI4 installation, read only for the vanilla comparison."""
 
@@ -77,76 +73,17 @@ PNG_SIZE_OFFSET = 16
 PNG_HEADER_BYTES = 24
 """Bytes needed to read the PNG signature, IHDR header, width and height."""
 
-UTF8_BOM = b"\xef\xbb\xbf"
-"""Byte order mark HOI4 needs at the start of localisation files."""
-
 GAMEPLAY_FOLDERS = ("common", "events", "history", "map", "music", "sound", "portraits")
 """Folders that would carry gameplay content; the switch mod has none of them."""
 
-MENU_FILE = "frontendmainview.gui"
-"""Main-menu interface file that the mod overrides with the CAPIE block."""
+INTERFACE_FOLDERS = ("interface", "gfx")
+"""Folders of interface and graphics files; the switch mod has none of them."""
 
-MENU_WINDOW = "mainmenu_dlc_ownership"  # created by name by hoi4.exe; shown at every resolution
-"""Front-end window name the engine looks up for the main-menu stamp."""
+INTERFACE_SUFFIXES = (".gui", ".gfx")
+"""Interface file types; any of them could replace a vanilla or total-conversion file."""
 
-MENU_ELEMENT = "capie_menu_mark"
-"""Name of the CAPIE stamp element inside the override block."""
-
-MENU_SPRITE = "GFX_capie_menu_mark"
-"""Sprite name that the ``.gfx`` file defines and the stamp element uses."""
-
-MENU_TOOLTIP = "CAPIE_MENU_MARK_TT"
-"""Localisation key of the tooltip shown when hovering the stamp."""
-
-MENU_GFX = "capie_menu.gfx"
-"""Only ``.gfx`` file of the mod, which defines the stamp sprite."""
-
-MENU_TEXTURE = "gfx/interface/capie_menu_mark.dds"
-"""Path of the stamp's DDS texture inside the mod folder."""
-
-MENU_FRAME_EDGE = 50  # one frame, the size of a vanilla DLC medal slot
-"""Edge of the stamp frame in pixels, the size of a vanilla DLC medal slot."""
-
-MENU_FRAMES = 1
-"""Number of frames in the stamp sprite strip."""
-
-DDS_MAGIC = b"DDS "
-"""First four bytes of every DDS file."""
-
-DDS_HEIGHT_OFFSET = 12
-"""Offset of the header height field in a DDS file."""
-
-DDS_WIDTH_OFFSET = 16
-"""Offset of the header width field in a DDS file."""
-
-DDS_BITCOUNT_OFFSET = 88
-"""Offset of the pixel format bit count in a DDS file."""
-
-DDS_RGBA_BITS = 32
-"""Bit count of an uncompressed 32-bit RGBA pixel format."""
-
-FALLBACK_KEYS = ("CAPIE_STATUS",)
-"""Localisation keys whose fallback text must exist and match the CAPIE script SDK."""
-
-BLOCK_BEGIN = "# CAPIE BEGIN"
-"""Marker line that opens the CAPIE block in the menu override."""
-
-BLOCK_END = "# CAPIE END"
-"""Marker line that closes the CAPIE block in the menu override."""
-
-# SHA-256 of interface/frontendmainview.gui of HOI4 1.19.3 (17 757 bytes). A game patch that
-# changes the file makes the check fail: re-create the override from the new file.
-VANILLA_MENU_SHA256 = "17E5F3CDE42D170B9E4AC40BB2312CD2D505767920B6E995C5C58B48C38EFD1B"
-"""SHA-256 of the vanilla main-menu interface file, in upper-case hex."""
-
-STATUS_KEY = "CAPIE_STATUS"
-"""Localisation key CAPIE answers with its version."""
-
-POLISH_GLYPH_FONTS = ("hoi_18", "hoi_18mbs", "hoi_16mbs", "Arial12")
-"""Game fonts with complete Polish glyphs (design system typography)."""
-
-LANGUAGES = ("english", "polish")
-"""Languages the switch mod ships localisation for."""
+MOD_ENTRIES = {"descriptor.mod", "thumbnail.png"}
+"""The only entries of the mod folder: the switch is the descriptor itself."""
 
 WORKSHOP_DIR = REPO / "docs" / "assets" / "promo" / "workshop"
 """Single home of the Workshop descriptions (BBCode), one file per language."""
@@ -187,40 +124,6 @@ def descriptor_fields(text: str) -> dict[str, str]:
         Field name to value (tags are not included).
     """
     return dict(re.findall(r'^([a-z_]+)="([^"]*)"\s*$', text, flags=re.MULTILINE))
-
-
-def balanced(text: str) -> bool:
-    """Checks that braces are balanced outside comments and strings.
-
-    Args:
-        text: Paradox script or GUI text.
-
-    Returns:
-        True when every opened brace is closed in order.
-    """
-    depth = 0
-    for line in text.splitlines():
-        code = re.sub(r'"[^"]*"', '""', line.split("#", 1)[0])
-        for ch in code:
-            depth += {"{": 1, "}": -1}.get(ch, 0)
-            if depth < 0:
-                return False
-    return depth == 0
-
-
-def localisation_value(path: Path, key: str) -> str | None:
-    """Finds the text of one key in a localisation file.
-
-    Args:
-        path: Localisation file.
-        key: Localisation key.
-
-    Returns:
-        The quoted text, or None when the key is missing.
-    """
-    text = path.read_bytes().removeprefix(UTF8_BOM).decode("utf-8")
-    match = re.search(rf'^\s*{re.escape(key)}:\d*\s+"(.*)"\s*$', text, flags=re.MULTILINE)
-    return str(match.group(1)) if match else None
 
 
 def check_descriptors(checks: Checks) -> None:
@@ -306,172 +209,35 @@ def check_thumbnail(checks: Checks) -> None:
         sys.path.pop(0)
 
 
-def strip_capie_block(text: str) -> tuple[str, str]:
-    """Splits the menu override into the vanilla text and the CAPIE block.
+def check_no_overrides(checks: Checks, game: Path) -> None:
+    """The mod replaces no file of the game, above all no interface or graphics file.
 
-    Args:
-        text: Full text of the menu override file.
-
-    Returns:
-        (text without the lines from CAPIE BEGIN to CAPIE END, the block itself); the block
-        is empty when the markers are missing or not in order.
-    """
-    lines = text.splitlines(keepends=True)
-    begin = [i for i, line in enumerate(lines) if line.strip().startswith(BLOCK_BEGIN)]
-    end = [i for i, line in enumerate(lines) if line.strip() == BLOCK_END]
-    if len(begin) != 1 or len(end) != 1 or end[0] < begin[0]:
-        return text, ""
-    return "".join(lines[: begin[0]] + lines[end[0] + 1 :]), "".join(lines[begin[0] : end[0] + 1])
-
-
-def window_of(text: str, position: int) -> str:
-    """Names the containerWindowType that encloses a position (by brace depth).
-
-    Args:
-        text: Full text of the interface file.
-        position: Character offset in `text` whose enclosing window is wanted.
-
-    Returns:
-        The window name, or an empty string.
-    """
-    depth = 0
-    stack: list[tuple[int, str]] = []
-    pending = ""
-    for match in re.finditer(
-        r'#[^\n]*|"[^"]*"|\{|\}|containerWindowType|name\s*=\s*"([^"]*)"', text
-    ):
-        if match.start() >= position:
-            break
-        lexeme = match.group(0)
-        if lexeme.startswith("#"):
-            continue
-        if lexeme == "containerWindowType":
-            pending = "window"
-        elif lexeme == "{":
-            depth += 1
-            if pending == "window":
-                stack.append((depth, ""))
-                pending = ""
-        elif lexeme == "}":
-            while stack and stack[-1][0] >= depth:
-                stack.pop()
-            depth -= 1
-        elif match.group(1) is not None and stack and stack[-1][0] == depth and not stack[-1][1]:
-            stack[-1] = (depth, match.group(1))
-    return stack[-1][1] if stack else ""
-
-
-def check_menu_sprite(checks: Checks) -> None:
-    """The 2-frame sprite of the menu mark: .gfx definition, DDS format and freshness.
+    Total conversions ship their own ``interface/frontendmainview.gui`` and other interface
+    files. A file at the same path in a mod that loads later replaces theirs whole, so the
+    switch mod must not ship any.
 
     Args:
         checks: Result collector.
+        game: HOI4 installation for the comparison with the game's files.
     """
-    gfx_files = sorted((MOD / "interface").glob("*.gfx"))
-    checks.check("one .gfx file", ok=[f.name for f in gfx_files] == [MENU_GFX])
-    gfx = (MOD / "interface" / MENU_GFX).read_text(encoding="utf-8")
-    checks.check(".gfx braces are balanced", ok=balanced(gfx))
-    checks.check(f".gfx defines {MENU_SPRITE}", ok=f'name = "{MENU_SPRITE}"' in gfx)
-    checks.check(f".gfx points at {MENU_TEXTURE}", ok=f'texturefile = "{MENU_TEXTURE}"' in gfx)
-    checks.check(".gfx declares no animation frames (one image)", ok="noOfFrames" not in gfx)
-    data = (MOD / MENU_TEXTURE).read_bytes()
-    checks.check("sprite is a DDS file", ok=data.startswith(DDS_MAGIC))
-    if len(data) > DDS_BITCOUNT_OFFSET + 4:
-        height = int.from_bytes(data[DDS_HEIGHT_OFFSET : DDS_HEIGHT_OFFSET + 4], "little")
-        width = int.from_bytes(data[DDS_WIDTH_OFFSET : DDS_WIDTH_OFFSET + 4], "little")
-        bits = int.from_bytes(data[DDS_BITCOUNT_OFFSET : DDS_BITCOUNT_OFFSET + 4], "little")
+    files = sorted(p.relative_to(MOD).as_posix() for p in MOD.rglob("*") if p.is_file())
+    for folder in INTERFACE_FOLDERS:
         checks.check(
-            "sprite is two 50 x 50 frames side by side",
-            ok=(width, height) == (MENU_FRAME_EDGE * MENU_FRAMES, MENU_FRAME_EDGE),
+            f"no {folder}/ folder (the switch mod overrides no interface file)",
+            ok=not (MOD / folder).exists(),
         )
-        checks.check("sprite is uncompressed 32-bit RGBA", ok=bits == DDS_RGBA_BITS)
-    sys.path.insert(0, str(HERE))
-    try:
-        import make_menu_icon  # noqa: PLC0415 - local generator next to this file
-
-        fresh = make_menu_icon.encode(make_menu_icon.draw(make_menu_icon.load_colors()))
-        checks.check("sprite matches make_menu_icon.py and tokens.json", ok=fresh == data)
-    finally:
-        sys.path.pop(0)
-
-
-def check_indicator(checks: Checks, game: Path) -> None:
-    """Main-menu indicator (minimal override of the vanilla menu file) and its fallback text.
-
-    Args:
-        checks: Result collector.
-        game: HOI4 installation for the vanilla comparison.
-    """
-    gui_files = sorted((MOD / "interface").glob("*.gui"))
     checks.check(
-        "the only .gui file is the menu override", ok=[f.name for f in gui_files] == [MENU_FILE]
+        "no .gui or .gfx file anywhere in the mod",
+        ok=not [f for f in files if f.lower().endswith(INTERFACE_SUFFIXES)],
     )
-    raw = (MOD / "interface" / MENU_FILE).read_bytes()
-    text = raw.decode("utf-8")
-    stripped, block = strip_capie_block(text)
-    checks.check("override has one CAPIE BEGIN/END block", ok=bool(block))
-    stripped_hash = hashlib.sha256(stripped.encode("utf-8")).hexdigest().upper()
-    checks.check(
-        "override minus the CAPIE block is the pinned vanilla 1.19.3 file",
-        ok=stripped_hash == VANILLA_MENU_SHA256,
-    )
-    checks.check("override braces are balanced", ok=balanced(text))
-    checks.check("CAPIE block braces are balanced", ok=bool(block) and balanced(block))
-    checks.check(f'block names "{MENU_ELEMENT}"', ok=f'name = "{MENU_ELEMENT}"' in block)
-    checks.check(f"block uses {MENU_SPRITE}", ok=f'spriteType = "{MENU_SPRITE}"' in block)
-    checks.check("block has no frame selection (one image)", ok="frame =" not in block)
-    checks.check(
-        "block is anchored to the lower left corner, like the DLC column",
-        ok="Orientation = lower_left" in block,
-    )
-    checks.check(f"block tooltip is {MENU_TOOLTIP}", ok=f'pdx_tooltip = "{MENU_TOOLTIP}"' in block)
-    at = text.find(BLOCK_BEGIN)
-    checks.check(
-        f"block sits inside {MENU_WINDOW}, a window the game creates",
-        ok=at >= 0 and window_of(text, at) == MENU_WINDOW,
-    )
-    check_menu_sprite(checks)
-    for language in LANGUAGES:
-        ours = MOD / "localisation" / language / f"capie_switch_l_{language}.yml"
-        sdk = SDK_LOCALISATION / language / f"capie_sdk_v1_l_{language}.yml"
-        loc = ours.read_bytes()
+    if (game / "interface").is_dir():
+        shadowed = [f for f in files if (game / f).exists()]
         checks.check(
-            f"{language}: localisation has the UTF-8 BOM HOI4 needs", ok=loc.startswith(UTF8_BOM)
+            f"no mod file has the path of a game file ({', '.join(shadowed) or 'none'})",
+            ok=not shadowed,
         )
-        header = loc.removeprefix(UTF8_BOM).decode("utf-8").splitlines()[0]
-        checks.check(f"{language}: header l_{language}:", ok=header == f"l_{language}:")
-        for key in FALLBACK_KEYS:
-            value = localisation_value(ours, key)
-            checks.check(f"{language}: {key} fallback present", ok=value is not None)
-            checks.check(
-                f"{language}: {key} fallback equals the SDK text",
-                ok=value == localisation_value(sdk, key),
-            )
-        tooltip = localisation_value(ours, MENU_TOOLTIP) or ""
-        checks.check(
-            f"{language}: {MENU_TOOLTIP} is static text (the menu substitutes no $...$)",
-            ok=bool(tooltip) and "$" not in tooltip,
-        )
-    vanilla = game / "interface" / MENU_FILE
-    if vanilla.is_file():
-        current = vanilla.read_bytes()
-        checks.check(
-            "installed game still has the pinned vanilla menu file (else re-create the override)",
-            ok=hashlib.sha256(current).hexdigest().upper() == VANILLA_MENU_SHA256,
-        )
-        checks.check(
-            "override minus the block equals the installed vanilla file byte for byte",
-            ok=stripped.encode("utf-8") == current,
-        )
-        exe = game / "hoi4.exe"
-        if exe.is_file():
-            names = exe.read_bytes()
-            checks.check(
-                f"hoi4.exe looks up the window {MENU_WINDOW} by name",
-                ok=MENU_WINDOW.encode("ascii") + b"\x00" in names,
-            )
     else:
-        print(f"SKIP vanilla comparison: {vanilla} not found")
+        print(f"SKIP comparison with the game's files: {game / 'interface'} not found")
 
 
 def check_content(checks: Checks) -> None:
@@ -484,9 +250,9 @@ def check_content(checks: Checks) -> None:
         checks.check(
             f"no {folder}/ folder (switch mod carries no gameplay)", ok=not (MOD / folder).exists()
         )
-    allowed = {"descriptor.mod", "thumbnail.png", "interface", "localisation", "gfx"}
     checks.check(
-        "mod folder holds only the expected entries", ok={p.name for p in MOD.iterdir()} == allowed
+        "mod folder holds only descriptor.mod and thumbnail.png",
+        ok={p.name for p in MOD.iterdir()} == MOD_ENTRIES,
     )
     for language, path in WORKSHOP_TEXTS.items():
         text = path.read_text(encoding="utf-8")
@@ -507,7 +273,7 @@ def main() -> int:
     checks = Checks()
     check_descriptors(checks)
     check_thumbnail(checks)
-    check_indicator(checks, args.game)
+    check_no_overrides(checks, args.game)
     check_content(checks)
     print(f"switch mod checks: {checks.passed} passed, {len(checks.failures)} failed")
     return 0 if not checks.failures else 1

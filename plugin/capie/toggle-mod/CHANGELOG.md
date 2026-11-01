@@ -6,6 +6,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.2]
+
+- Works with total conversions: the CAPIE mark in the main menu is gone. It needed a copy of the
+  game's main menu file, and that copy replaced the main menu of Kaiserreich, KaiserreduX, The New
+  Order, Millennium Dawn, Old World Blues and other total conversions (their logo, banners and
+  version label were lost). The switch now ships no interface, graphics or localisation file.
+- To check that CAPIE runs, open a Rename Anything editor in a game: it shows "CAPIE 1.6 loaded".
+
 ## [1.1.1] - 2026-10-29
 
 - HOI4 1.19.4.1: update CAPIE to 1.5.2 (run the installer again). This switch itself is unchanged.

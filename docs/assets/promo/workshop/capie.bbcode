@@ -4,7 +4,7 @@
 
 CAPIE (Cyprian's API Extender) is a small native library for Hearts of Iron IV. It lets mods read what the player types into the game's own text field, and it draws custom country names, faction names and flags that are stored in the save. HOI4 script cannot do either on its own. Rename Anything is the first mod built on CAPIE.
 
-This item is the switch. It has no game content: just the switch and the CAPIE mark next to the DLC icons in the main menu.
+This item is the switch. It has no game content and changes no game file: it is only the switch.
 [list]
 [*]In your playset and enabled: the CAPIE launcher loads CAPIE into the game.
 [*]Disabled, or not in the playset: the game starts without CAPIE.
@@ -20,10 +20,9 @@ Load order does not matter. Keep only one mod called CAPIE: with a local copy of
 [*]Supports HOI4 1.19.4.1. Mods made for API level 7 keep working.
 [/list]
 
-[img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-status-line.png[/img]
-[h2]The CAPIE mark in the main menu[/h2]
-The mark sits in the bottom left corner, next to the last DLC icon. It means one thing: the CAPIE switch is on in this playset. It cannot show whether CAPIE is running, because the game builds the main menu before CAPIE loads (about 20 seconds after the menu appears). To check that CAPIE runs, open a Rename Anything editor in a game: it shows the CAPIE version.
-The mark comes with a copy of the game's main menu file. If another mod in your playset changes that file too, only one of the two versions is used: the mark may not show, and CAPIE works the same.
+[h2]Works with total conversions[/h2]
+Since switch 1.1.2 there is no CAPIE mark in the main menu any more. The mark needed a copy of the game's main menu file, and that copy replaced the main menu of total conversions such as Kaiserreich, KaiserreduX, The New Order, Millennium Dawn and Old World Blues: their logo, banners and version label were lost. The switch now ships no interface file at all, so every mod keeps its own main menu.
+To check that CAPIE runs, open a Rename Anything editor in a game: it shows "CAPIE 1.6 loaded". CAPIE loads about 20 seconds after the main menu appears.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-requirements.png[/img]
 [h2]Requirements[/h2]

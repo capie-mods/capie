@@ -1,7 +1,0 @@
-﻿l_english:
- # Fallback shown while CAPIE is not loaded. Same key and text as the CAPIE script SDK,
- # so the two never disagree; CAPIE replaces it with its version while it runs.
- CAPIE_STATUS:0 "§OCAPIE missing§!"
- # Tooltip of the CAPIE mark in the main menu: static text. The menu localises it once, when the
- # window is built (before CAPIE loads), and substitutes no $...$ references.
- CAPIE_MENU_MARK_TT:0 "CAPIE switch is on\n\n§LCAPIE loads about 20 seconds after this menu appears, when the game was started through the CAPIE launcher on a supported game version. To see whether it is running, open a Rename Anything editor in a game: it shows the CAPIE version.§!"

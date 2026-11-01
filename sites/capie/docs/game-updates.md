@@ -87,12 +87,11 @@ never copied from the previous one.
 4. Run a smoke test in the game of about 30 minutes: start with CAPIE, rename a country, leader
    and party, check Enter and the 32-character limit, save, load, restart, and start once
    without CAPIE.
-5. Update the main-menu snippet if Paradox changed the vanilla menu file.
-6. Scan locally with Windows Defender.
-7. Upload the final release files to VirusTotal, with the maintainer's consent each time, and link
+5. Scan locally with Windows Defender.
+6. Upload the final release files to VirusTotal, with the maintainer's consent each time, and link
    the results in the release notes.
-8. Sign the release manifest (file hashes and supported game hashes) with the offline key.
-9. Publish `versions.json`, signed with the same key.
+7. Sign the release manifest (file hashes and supported game hashes) with the offline key.
+8. Publish `versions.json`, signed with the same key.
 
 A module whose entries are not all resolved ships disabled in that release (for example: names
 on, caption refresh off), and the release notes say so.
@@ -131,7 +130,6 @@ These are estimates, not measurements.
 | The patch does not touch hooked code, only addresses move | 2 to 4 hours, plus about 30 minutes for VirusTotal and signing |
 | Some entries drifted (a structure field moved, a function was edited) | 1 to 3 days, mostly targeted reverse engineering and new tests |
 | Paradox reworked the politics view, edit box or command system | 1 to 3 weeks; affected modules may ship disabled first |
-| Only the main-menu snippet changed | 30 to 60 minutes |
 
 ## Old game builds
 

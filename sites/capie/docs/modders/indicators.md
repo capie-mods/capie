@@ -66,9 +66,12 @@ and localisation apply there. That has consequences:
 - The line can only say loaded or missing. Without CAPIE nothing can count mods or compare
   versions in the menu, so version mismatches are shown in the campaign instead, where the API
   level is known.
-- Adding a line means overriding the whole vanilla `interface/frontendmainview.gui`. To avoid
-  conflicts, only one item ships that override: the CAPIE script SDK. Total conversions that
-  already replace the menu paste the same small block into their own file.
+- Adding a line means overriding the whole vanilla `interface/frontendmainview.gui`. Every
+  total conversion checked (Kaiserreich, KaiserreduX, The New Order, Millennium Dawn, Old World
+  Blues) ships its own copy, and the copy of the mod that loads later wins whole. The CAPIE switch
+  mod shipped such an override for its main-menu mark up to 1.1.1 and wiped those menus (logo,
+  banners, version label), so since 1.1.2 it ships no interface file. An SDK override would
+  have the same effect; total conversions would have to paste the block into their own file.
 - Each game patch that changes the vanilla menu file needs an SDK update.
 
 <span class="proposed-tag">Proposed, subject to change</span>
