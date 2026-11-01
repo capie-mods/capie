@@ -54,7 +54,7 @@ CAPIE 1.5.0 and 1.5.1 work without changes.
 
 - CAPIE no longer refuses to start after the 1.19.4.1 game update.
 
-## [1.5.1] - unreleased
+## [1.5.1] - 2026-10-28
 
 Support for Hearts of Iron IV 1.19.4.0 ("Operation Postern" update). The script API is unchanged
 (level 7), so mods built for CAPIE 1.5.0 work without changes.
