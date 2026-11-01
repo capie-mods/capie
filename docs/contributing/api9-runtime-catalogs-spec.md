@@ -1,8 +1,10 @@
 # Runtime catalogs: implementation spec (CAPIE 1.7, API level 9)
 
-Status: design for review. Nothing here is built. The spikes of §12.1 (S1 to S3 and two short
-checks) must pass before the slot-sprite part (§4) is coded. Everything else is ready to
-implement.
+Status (2026-11-01): packing B and the portrait layer format 2 (§6.3, §7), the `vp` view (§3, §5,
+§4.5 for its keys) and the API 9 records are implemented on branch `api9-design` (CAPIE 1.7.0,
+unreleased; CONTRACT 18.9 and 21). The spikes S1/S2 (§12.1) are built as a throwaway test
+(`docs/contributing/test-session-api9-spikes.md`). The slot-sprite part (§4) and the flag and
+portrait catalogs wait for them. Changes made while implementing are in §15.
 
 - Evidence: `../research/runtime-catalogs-2026-11.md` (cited as "research §n"). All RVAs are for
   `hoi4.exe` 1.19.4.1 (SHA-256 `CF781ED1…476F`).
@@ -649,3 +651,46 @@ and **The Road to 56** (additive, 3212 flags).
 4. The flag and portrait catalogs with slot sprites.
 5. RA 0.4: switch the pickers to the runtime views when `capie_catalog = 1`; keep the static
    catalogs as the vanilla fallback.
+
+## 15. Changes made during implementation (CAPIE 1.7.0, 2026-11-01)
+
+These change the design above; CONTRACT 18.9 and 21 describe what is built.
+
+1. **Texture release (§3.3, §4.3, R2, O1).** `docs/research/texture-release-2026-11.md` found the
+   game's `ReleaseTexture` (`rva::texture_release`) and its own sprite re-point. The re-point
+   protocol is now: FindSprite and the vtable check before every write; `AddTexture` the new file;
+   `GetTexture` (0: release the new id, keep the slot); write id, texture, size; release the **old**
+   id (owned by the sprite) at least 2 GUI updates later, on the UI thread, hidden set only; re-point
+   to the placeholder with a fresh `AddTexture`, never by restoring saved values; release every
+   obtained id exactly once; never release a portrait-path texture. The cap of §3.3 becomes a live
+   bound of about `2 × N + 2` textures per view, with 1024 outstanding CAPIE references kept only
+   as a fail-closed guard (and as a per-session cap if the release pins fail). The spikes use this
+   protocol (3 window updates and 300 ms).
+2. **Portrait paths (§7).** No `GetFiles` existence check: calling `GetFiles` needs one of the
+   game's allocator objects in the result array, which CAPIE cannot build safely. Instead each
+   path is built once per session (also a missing one) and the entry is rejected when its handle
+   is 0, as the spec's validity rule already says. A missing file may therefore write one texture
+   line to `error.log` per path and session (in-game check). At most 1024 distinct paths are built.
+   The builder is called with `warn = false`, `flag = false`.
+3. **Pending actions (§5.1, §5.3).** In CAPIE 1.7.0 every action other than `vp` is forwarded with
+   `capie_catalog = 0` (not available), so mods can ship their buttons now. `capie_catalog` on an
+   editor Apply means "the catalog views are available" (the `vp` view in 1.7.0).
+4. **Labels (§4.5).** A label has `$`, `[`, `]` and control characters replaced by a space (a
+   player-given city name cannot open a localisation macro) and is cut at 255 bytes on a UTF-8
+   boundary. The core answers the keys from a store the editor DLL fills through the new export
+   `RNCatalogPublish(key, text)`; keys answer only after their view registered (Bind or first
+   action). The 500 ms refresh reads the same provinces (by id) again; rows change only on a click.
+5. **O4 closed.** On 1.19.4.1 the GUI updater copies the context scope's state id from
+   `context + 0x3C0 + 0xA8` (pin `scope.state_id` 0xBDE7F8) into a new scope with the setter
+   `rva::scope_set_state`, which writes `+0xA8` (pin `scope.set_state`). The view reads the state by
+   that id from `gamestate + 0x2C8`; `state + 0x58` is not needed. States and provinces are checked
+   against the `CState` and `CProvince` vtables (RTTI table `catalog_vtable_classes`).
+6. **Thread guard (§8.1).** `ThreadForbidCount` is read from the game's static TLS block:
+   `gs:[0x58][_tls_index] + 0x10` (`rva::tls_index`, pins `tls.index` and `tls.thread_forbid`).
+7. **Province names (§4.5).** `ProvinceName` returns a string the caller owns; CAPIE copies it and
+   frees it with the game's own sized `operator delete` (`rva::game_delete`), replicating the
+   game's inlined destructor (big-block header check pinned); on any doubt the string is leaked.
+8. **Spikes (§12.1).** S1/S2 are driven from a scripted GUI of a throwaway test mod
+   (`plugin/capie/spikes/capie_spike_mod`), not a console command, so the re-point runs in the
+   Dispatch hook on the UI thread exactly as the catalogs will; S2's 200 flips are issued from the
+   Tick hook. Built only with `build.ps1 -Spike` into `plugin/build/capie-spike`.

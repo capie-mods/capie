@@ -34,6 +34,35 @@ CAPIE 1.5) works without changes.
 ### Fixed
 
 - CAPIE no longer refuses to start after the 1.19.5.0 game update.
+## [1.7.0] - unreleased
+
+Runtime catalogs, first part: mods can read what the running game has instead of shipping
+generated lists. Script API level 9 (`capie_cap = 9`); mods built for CAPIE 1.6 keep working
+unchanged. Runs on HOI4 1.19.4.2 only.
+
+### Added
+
+- Leader portraits from texture files (CONTRACT section 18, format 2): `capie_pt_ver = 2` stores
+  the large and small portrait as a sprite name or a `gfx/...` `.dds`/`.png`/`.tga` path of up to
+  126 characters (packing B, CONTRACT 21.3), so the portraits of total conversions that use image
+  files (KaiserreduX's runtime leaders) can be chosen. CAPIE builds the entry with the game's own
+  loader; a file that does not load shows the game's portrait. Format 1 is unchanged. The console
+  command `change_leader_portrait` accepts a path.
+- State/VP view (CONTRACT section 21): a scripted GUI named `capie_v1_cat__<mod>__<view>` gets,
+  on its `…__vp_click`, the scope state's id and its victory-point provinces (`capie_st`,
+  `capie_vp_<k>`, `capie_vpv_<k>`), and the keys `CAPIE_V1_T__<MOD>__<VIEW>__<k>` show each
+  province's name as the game shows it (a renamed city's new name within half a second). This
+  works for any map, also a total conversion's.
+- Every Apply also reports `capie_catalog` (1 when the catalog views work in this game).
+
+### Changed
+
+- Status text "CAPIE 1.7 loaded"; `CAPIE_API` answers `9`, `CAPIE_BUILD` answers `1.7.0`.
+
+### Not yet
+
+- The flag and portrait pickers of runtime catalogs (CONTRACT 21, "pending spikes"): their
+  actions are answered with `capie_catalog = 0` in this version.
 
 ## [1.6.1] - 2026-11-05
 

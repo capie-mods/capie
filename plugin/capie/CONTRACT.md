@@ -1,12 +1,13 @@
-# CAPIE script contract, API level 8 (CAPIE 1.6)
+# CAPIE script contract, API level 9 (CAPIE 1.7)
 
 This is the versioned contract between CAPIE (the native DLLs in `plugin/capie/`) and HOI4
 mods. It covers the names a mod gives its editor GUI, the temporary records CAPIE adds to the
 player's Apply command, the localisation keys CAPIE answers, the alphabet, the error codes the
 script SDK reports, behaviour without CAPIE, permissions, the multiplayer handshake, the
 country name layer (section 14), the faction name layer (section 15), the country flag layer
-(section 17), the country leader portrait layer (section 18) and the country colour layer
-(section 19). Section 20 (a ruling-party sub-ideology name layer) is withdrawn, not implemented.
+(section 17), the country leader portrait layer (section 18, with format 2 since API level 9), the
+country colour layer (section 19) and the runtime catalogs (section 21). Section 20 (a ruling-party
+sub-ideology name layer) is withdrawn, not implemented.
 
 Status, 2026-10-14: API level 2 is implemented in `capie_core.dll` / `capie_editor.dll` 1.1 and
 1.2 and in `sdk/capie-script-sdk/`; API level 3 (console) is in `CONTRACT-console.md`; API level
@@ -23,7 +24,12 @@ tests; it has not run in the game yet. API level 8 (section 19, country colour l
 `capie_colour`) is implemented in CAPIE 1.6 and covered by offline tests; its release candidate
 ran in the game on 2026-10-29 (steps and results: `docs/contributing/test-session-1.6.0.md`).
 Section 20 (ruling-party sub-ideology name layer, record `capie_subideo`) was withdrawn after that
-test and is not implemented. Rows marked **in-game test** below are the open checks.
+test and is not implemented. API level 9 (CAPIE 1.7.0, unreleased; branch `api9-design`) adds the
+portrait layer format 2 (texture paths, section 18.9), the state/VP catalog view and the
+`capie_catalog` record (section 21); it is covered by offline tests and has not run in the game.
+The flag and portrait catalogs of section 21 are **pending spikes** (S1/S2,
+`docs/contributing/test-session-api9-spikes.md`): CAPIE 1.7.0 answers their actions with
+`capie_catalog = 0`. Rows marked **in-game test** below are the open checks.
 
 The variant is B from `docs/API-DECISIONS.md`: plain HOI4 script, data passed through
 temporary variables of one command, no new script keywords. A mod written against this
@@ -33,9 +39,9 @@ contract parses and runs the same way with or without CAPIE; only the branch it 
 
 | Name | Value in 1.6 (1.5, 1.4, 1.3, 1.2, 1.1) | Where a mod sees it | Meaning |
 |---|---|---|---|
-| API level | `8` (`7`, `6`, `5`, `4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1); level 6 the country flag layer (section 17) and the `capie_flag` record; level 7 the country leader portrait layer (section 18) and the `capie_portrait` record; level 8 the country colour layer (section 19) and the `capie_colour` record (the sub-ideology name layer of section 20 and its `capie_subideo` record were withdrawn before release). Compare with `>=`. |
-| Release | `1.6.0` (`1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
-| Build number | `10600` (`10500`, `10400`, `10300`, `10200`, `10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
+| API level | `9` (`8`, `7`, `6`, `5`, `4`, `2`) | `temp_var:capie_cap`, loc key `CAPIE_API` | What scripts compare. It rises only when the contract gains something, and a level is never reused. Level 1 was CAPIE 1.0, which served only Rename Anything's private names; level 3 added the console commands (`CONTRACT-console.md`); level 4 the country name layer (section 14); level 5 the faction name layer (section 15) and the `capie_pf1_*` records (section 5.1); level 6 the country flag layer (section 17) and the `capie_flag` record; level 7 the country leader portrait layer (section 18) and the `capie_portrait` record; level 8 the country colour layer (section 19) and the `capie_colour` record (the sub-ideology name layer of section 20 and its `capie_subideo` record were withdrawn before release); level 9 the portrait layer format 2 (section 18.9), the catalog views (section 21) and the `capie_catalog` record. Compare with `>=`. |
+| Release | `1.7.0` (`1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`) | loc key `CAPIE_BUILD` | Version of the binaries. |
+| Build number | `10700` (`10600`, `10500`, `10400`, `10300`, `10200`, `10100`) | `temp_var:capie_ver` | `major * 10000 + minor * 100 + patch`. Used by the multiplayer handshake, which needs an integer. |
 | SDK major | `v1` | every SDK path and name (`capie_sdk_v1_*`, `capie_v1_*`) | A breaking change goes into `v2` names; two majors can coexist. |
 
 Mods require a minimum API level (`capie_min_api`), never a release.
@@ -118,11 +124,12 @@ a presence signal, not a permission (section 9).
 
 | Record | Value |
 |---|---|
-| `capie_cap` | API level (`8` in CAPIE 1.6) |
-| `capie_ver` | build number (`10600` in CAPIE 1.6) |
+| `capie_cap` | API level (`9` in CAPIE 1.7) |
+| `capie_ver` | build number (`10700` in CAPIE 1.7) |
 | `capie_flag` | API level 6: `1` when the country flag layer of section 17 is active in this game session (its pins matched), `0` when CAPIE runs without it. A flag editor refuses with a message when it is `0` or absent |
 | `capie_portrait` | API level 7: `1` when the country leader portrait layer of section 18 is active in this game session (its pins matched), `0` when CAPIE runs without it. A portrait editor refuses with a message when it is `0` or absent |
 | `capie_colour` | API level 8: `1` when the country colour layer of section 19 is active in this game session (its pins and RTTI checks matched and no game call has faulted), `0` otherwise. A colour editor refuses with a message when it is `0` or absent |
+| `capie_catalog` | API level 9: `1` when the catalog views of section 21 are available in this game session (their pins, RTTI and the core's label export matched, and no game call has faulted), `0` otherwise. In CAPIE 1.7 this means the state/VP view; the flag and portrait catalogs are pending spikes and answer `capie_catalog = 0` on their own actions |
 | `capie_epoch` | opening epoch read from the carrier, `>= 1` |
 | `capie_nf` | number of fields that follow, `0..4` |
 | `capie_f<n>_err` | `0` valid, otherwise the field error (5.3) |
@@ -132,9 +139,9 @@ a presence signal, not a permission (section 9).
 | `capie_pf1_err`, `capie_pf1_at`, `capie_pf1_len`, `capie_pf1_0` .. `capie_pf1_31` | API level 5: the text prefill carrier 1 (`capie_v1_pf__<mod>__<editor>__1`) showed when this opening began, encoded like a field (same error codes; a character outside the alphabet gives `err = 6`). Sent only when the editor has that carrier, field 1 exists and the carrier text was readable at the opening; absent otherwise |
 
 `n` runs from 1 to `capie_nf`. One field is 35 records; the opening text adds 35 more and
-`capie_flag`, `capie_portrait` and `capie_colour` one each, so the largest Apply
-adds 7 + 4 × 35 + 35 = 182 records (144 before API level 5, 179 in API level 5, 180 in API level 6,
-181 in API level 7). Every name fits the game's
+`capie_flag`, `capie_portrait`, `capie_colour` and `capie_catalog` one each, so the largest Apply
+adds 8 + 4 × 35 + 35 = 183 records (144 before API level 5, 179 in API level 5, 180 in API level 6,
+181 in API level 7, 182 in API level 8). Every name fits the game's
 15-byte short-string layout, which CAPIE builds directly (the longest, `capie_portrait`, has 14
 bytes).
 
@@ -237,11 +244,11 @@ Rename Anything's legacy fields keep the 84-code table; its decoder knows no oth
 `capie_core.dll` answers these keys whenever the game draws them. The SDK localisation holds the
 fallback, which is what players see without CAPIE.
 
-| Key | With CAPIE 1.6 (1.5, 1.4, 1.3, 1.2, 1.1) | SDK fallback |
+| Key | With CAPIE 1.7 (1.6, 1.5, 1.4, 1.3, 1.2, 1.1) | SDK fallback |
 |---|---|---|
-| `CAPIE_STATUS` | `CAPIE 1.6` (`CAPIE 1.5`, `CAPIE 1.4`, `CAPIE 1.3`, `CAPIE 1.2`, `CAPIE 1.1`) | `§OCAPIE missing§!` |
-| `CAPIE_API` | `8` (`7`, `6`, `5`, `4`, `2`) | `0` |
-| `CAPIE_BUILD` | `1.6.0` (`1.5.1`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`) | `-` |
+| `CAPIE_STATUS` | `CAPIE 1.7` (`CAPIE 1.6`, `CAPIE 1.5`, `CAPIE 1.4`, `CAPIE 1.3`, `CAPIE 1.2`, `CAPIE 1.1`) | `§OCAPIE missing§!` |
+| `CAPIE_API` | `9` (`8`, `7`, `6`, `5`, `4`, `2`) | `0` |
+| `CAPIE_BUILD` | `1.7.0` (`1.6.0`, `1.5.1`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`) | `-` |
 
 They are text only. A trigger cannot read them, so they decide what is shown, never what runs.
 Nest them in your own keys (`MYMOD_CAPIE_LINE: "$CAPIE_STATUS$"`). Whether the main menu draws
@@ -369,6 +376,8 @@ serialisation is a hypothesis until the two-machine test (`docs/contributing/mul
 | Flag layer: own country and a subject; the exact file (also another ideology's variant); name and colour unchanged; cosmetic tag change (event or console) shows the game's flag at once; reset; save, restart, load (full atlas rebuild on worker threads); load without CAPIE; a missing file | Section 17; the atlas keys and the load path are pinned statically only |
 | Portrait layer: politics and diplomacy views, interesting countries, diplomatic request, adviser slot; small size; a game event with `set_portraits` after the choice keeps the choice, Restore shows the event's portrait; a generic leader; a missing sprite shows the game's portrait (not the unknown image); leader change; save, restart, load (before unpausing); load without CAPIE | Section 18; the portrait hook, the leader chain and the character layout are pinned statically only |
 | Colour layer: political map repaint after a commit, `colors.txt` equivalence, faction colour, subjects in the overlord's colour, cosmetic tag change, the claims map mode (`colour_map_modes`; no "Getting continent for" lines in error.log), Restore, save and load with and without CAPIE, civil war copy of the variables, multiplayer with a hot-joiner, a broken pin, `tag_color` | Section 19; the getter hook, the refresh call and the map-mode dirty bytes are pinned statically only (T1..T12 of `docs/contributing/country-colour-layer-spec.md`) |
+| Portrait layer format 2: a KaiserreduX `.png` leader path and a vanilla `.dds` path on the ruling leader; a missing file; a path large with a sprite small; `change_leader_portrait <TAG> gfx/...png`; save, load; load without CAPIE | Section 18.9; the path builder and its texture load are pinned statically only |
+| State/VP view: state 1000 and a state above 1081 on KaiserreduX, a vanilla state; a renamed city shows within a second; a non-state scope; `capie_catalog` on an Apply | Section 21.6; the scope state id, the state and province layout and `ProvinceName` on the UI thread are pinned statically only |
 | `capie_pf1_*` in an Apply (179 records with 4 fields) | Section 5.1; larger command than before, multiplayer serialisation unverified |
 
 ## 14. Country name layer (API level 4, CAPIE 1.2)
@@ -783,6 +792,54 @@ sprite is `<sprite>_small` when it exists, otherwise the large one) and `reset_l
 <TAG>` removes it, through `eval_effect`, in single player only (`CONTRACT-console.md`). Both
 sprites are checked in the game's sprite database before the command runs.
 
+### 18.9 Format 2: texture paths (API level 9, CAPIE 1.7)
+
+Format 2 lets the layer name a texture **file** as well as a sprite, so the portraits of mods that
+create leaders from image files (KaiserreduX's `create_country_leader` with
+`picture = "gfx/leaders/…png"`) can be chosen. Format 1 (18.2 to 18.5) is unchanged and still read.
+
+| Variable | Format 1 | Format 2 |
+|---|---|---|
+| `capie_pt_ver` | `1` | `2` |
+| `capie_pt_len`, `capie_pt_s` | large sprite name, 17.3 packing, `1..63` | large sprite name **or path**, packing B (21.3), `1..126` |
+| `capie_pt_slen`, `capie_pt_ss` | small sprite name, 17.3 packing | small sprite name or path, packing B; absent or `0` = the game's small portrait |
+
+- A name that contains `/` is a path; any other name is a sprite name. Large and small may mix (a
+  path large, a sprite small).
+- A path must pass the path rules of 21.3 (`gfx/` prefix; `.dds`, `.png` or `.tga` in any case; no
+  `..`, no `//`, no leading `/`; the packing B characters only).
+- **Validity** adds: format 2 with a malformed packing B text or a path that fails the rules is
+  `invalid`, and the game's portrait shows.
+- **What CAPIE does with a path:** on the logic thread, when it reads the layer (18.6), it builds
+  the portrait entry once per path with the game's own builder, which loads the texture through the
+  game's texture manager, exactly as `create_country_leader` does, and keeps it for the game
+  session (the game keeps such textures loaded too). In the portrait hook it checks the entry with
+  the game's validity function (a path entry is valid only when its texture loaded) and then copies
+  it into the caller's buffer the way the game's own copy does. **An entry whose texture did not
+  load is rejected and the game's portrait shows** (a missing or unreadable file, or a file only
+  another client has). A path is tried once per session; at most 1024 distinct paths are built
+  (past that, path layers show the game's portrait and the log says so once).
+- Path support has its own pins inside the portrait layer (the builder, its texture load and the
+  validity check of a path entry). If they fail, format 2 paths are `invalid` and sprite names
+  (both formats) keep working; `capie_portrait` still reports the layer.
+- Multiplayer: the variables are synchronised game state as before; each client loads the file
+  locally and shows the game's portrait when it cannot.
+- Console (developer build): `change_leader_portrait <TAG> <path>` writes format 2 (the path as
+  large and small) without the sprite check; the texture check happens when the portrait is drawn.
+
+```text
+# Scope: the ruling leader. Path gfx/a.png (9 characters, 3 elements of packing B).
+clear_array = capie_pt_s
+add_to_array = { capie_pt_s = 1700728 }   # g f x
+add_to_array = { capie_pt_s = 782510 }    # / a .
+add_to_array = { capie_pt_s = 1849191 }   # p n g
+set_variable = { capie_pt_len = 9 }
+# ... capie_pt_ss / capie_pt_slen likewise ...
+set_variable = { capie_pt_ver = 2 }
+# then, in a country scope, as for format 1:
+set_variable = { capie_pt_rev = 1 }
+```
+
 ## 19. Country colour layer (API level 8, CAPIE 1.6)
 
 Decision record: `docs/adr/0038-country-colour-layer.md`. Design: `docs/contributing/country-colour-layer-spec.md`
@@ -923,3 +980,174 @@ absent. API level 8 is the country colour layer (section 19) and the `capie_colo
 
 The section number is not reused. The design is kept, marked "dropped, not implemented", in
 `docs/research/subideology-rename-design.md`.
+
+## 21. Runtime catalogs (API level 9, CAPIE 1.7)
+
+Design: `docs/contributing/api9-runtime-catalogs-spec.md`; evidence:
+`docs/research/runtime-catalogs-2026-11.md`. A catalog view lets a mod show what the **running**
+game has (a state's victory points today; flags and portraits once their spikes pass), with no list
+generated per mod. Catalogs live only in CAPIE's memory on the clicking machine; what a mod keeps
+travels as records inside the click's command (section 5), so every client stores the same values.
+
+Status in CAPIE 1.7.0:
+
+| Part | Status |
+|---|---|
+| Names, records, sentinels, keys (21.2 to 21.5) | implemented |
+| `vp` action, the state/VP view (21.6) | implemented |
+| Packing B (21.3) | implemented (used by the portrait layer format 2, 18.9) |
+| `flag`, `flagown`, `portrait`, `portraitown`, `first`, `prev`, `next`, `last`, `pick`, slot sprites (21.7) | **pending spikes**: the action is forwarded with `capie_catalog = 0` |
+
+### 21.1 Versions and availability
+
+- API level `9`, build `10700`. Every catalog action carries `capie_cap` and `capie_ver`.
+- `capie_catalog` on an editor Apply (5.1) says whether the catalog views are available at all.
+  On a catalog action it says whether **that** action was served: `1` served, `0` not available
+  (feature off, or a catalog pending its spikes), negative = a sentinel (21.5).
+- The feature has its own pins and RTTI checks; if they fail, every catalog action carries
+  `capie_catalog = 0` and the layers and editors keep working.
+
+### 21.2 Names
+
+All names are under the reserved prefixes of section 2. Ids are `[a-z0-9]{1,12}`; the whole name
+must match (no case folding, no substring search).
+
+```text
+scripted GUI   capie_v1_cat__<mod>__<view>                        (the scripted_gui key, the "model")
+action         capie_v1_cat__<mod>__<view>__<action>_click          (a button capie_v1_cat__<mod>__<view>__<action>)
+actions        vp                                                  (implemented)
+               flag | flagown | portrait | portraitown              (pending spikes)
+               first | prev | next | last | pick                    (pending spikes)
+text keys      CAPIE_V1_T__<MOD>__<VIEW>__<k>     k = 0..31 for vp (decimal, no padding)
+               CAPIE_V1_T__<MOD>__<VIEW>__COUNT   items in the view, decimal
+               CAPIE_V1_T__<MOD>__<VIEW>__PAGE    "1 / 1", or "0 / 0" when empty
+               CAPIE_V1_T__<MOD>__<VIEW>__SEL     the picked item (empty for vp)
+```
+
+- `<MOD>` and `<VIEW>` in a key are the ids in upper case.
+- The longest model is 40 bytes, the longest selector 59 (`…__portraitown_click`).
+- Limits per game session: at most **16** views and **4** per mod id, first come first served. A
+  view registers when its window is bound (or on its first action). A click of a view that does not
+  fit gets sentinel `-2`.
+- Other buttons of the window are not catalog actions and run as plain script.
+
+### 21.3 Packing B (names with `/ . - '`)
+
+The 17.3 alphabet (63 codes) cannot express paths. Packing B stores the **ASCII value** of each
+character:
+
+- Characters: `A-Z a-z 0-9 _ - . / '` (codes 39..122).
+- Three characters per element: `c0 * 16384 + c1 * 128 + c2` (at most 2 097 151, below the script
+  limit of 2 147 483). The last element is padded with `0`. Length `1..126`, `^num` = ceil(length / 3),
+  at most 42 elements.
+- Invalid: a code outside the set, a `0` before the end or a non-zero code after it, an element
+  outside `0..2097151`, a fraction, a length outside `1..126`, a `^num` that is not ceil(length / 3).
+- Path rules (a name with `/`): starts with `gfx/`; ends with `.dds`, `.png` or `.tga` (any case); no
+  `..`, no `//`, no leading `/`. Non-ASCII paths cannot be expressed and are not offered.
+
+Example: `gfx/a.png` = `[1700728, 782510, 1849191]`, length 9.
+
+### 21.4 Records
+
+CAPIE removes every incoming `capie_*` record of the click (including a dynamic list's
+`capie_v1_slot`) and adds:
+
+| Record | Value |
+|---|---|
+| `capie_cap`, `capie_ver` | `9`, `10700` |
+| `capie_catalog` | `1` = served; `0` = not available; `-code` = sentinel (21.5). With anything but `1`, no record below is sent |
+| `capie_cat` | the catalog shown: `3` = vp (`1` flag and `2` portrait are reserved) |
+| `capie_cn` | items in the view (vp: VP provinces, `0..32`) |
+| `capie_pg`, `capie_pgs` | page shown (1-based) and number of pages; vp: `1` and `1`, or `0` and `0` when empty |
+| `capie_pn` | items on the page shown (vp: `= capie_cn`) |
+| `capie_par`, `capie_ppar` | slot set and preview set to show; `0` for vp |
+| `capie_st` | vp: the scope state's numeric id; `0` when the scope holds no state |
+| `capie_vp_<k>`, `capie_vpv_<k>` | vp: province id and VP value of row `k`, `k = 0 .. capie_cn - 1` |
+
+A `vp` action adds at most 10 + 1 + 64 = 75 records. Every name fits the 15-byte short-string
+layout (the longest, `capie_catalog`, has 13 bytes). The values are the clicking machine's
+reading of synchronised game state (state and province ids, VP values), so they are the same
+everywhere; mods must still not branch saved state on catalog counts beyond storing them.
+
+### 21.5 Sentinels
+
+The click is forwarded once with only `capie_cap`, `capie_ver` and `capie_catalog = -code`:
+
+| Code | Reason |
+|---|---|
+| `-1` | the window is not visible, or it failed CAPIE's consistency check |
+| `-2` | the view registry is full (21.2 limits) |
+| `-3` | the view is invalid (slot sets of a flag or portrait view; pending spikes) |
+| `-4` | `pick` without a valid `capie_v1_slot` (pending spikes) |
+| `-5` | the game forbids gamestate access on the clicking thread at that moment (`ThreadForbidCount != 0`) |
+
+### 21.6 The state/VP view (`vp`)
+
+Use a scripted GUI with a **state scope**: `context_type = selected_state_context`, or a window whose
+scope is a state. On `…__vp_click` CAPIE, on the clicking machine and before the command is sent:
+
+1. reads the scope's state id (`0` when the scope is not a state: an empty view, `capie_st = 0`);
+2. reads the state's provinces and keeps those with victory points `> 0`, sorted by VP value,
+   highest first, then by province id; at most 32 (the 32 highest);
+3. reads each province's **shown name** through the game's own function: the player-given name
+   (`set_province_name`), else the country-specific VP name (`<TAG>_VICTORY_POINTS_<id>`), else the
+   VP name (`VICTORY_POINTS_<id>`), else what the game shows otherwise;
+4. publishes the names as `CAPIE_V1_T__<MOD>__<VIEW>__<k>` (empty for `k >= capie_cn`), `__COUNT`
+   and `__PAGE`, and sends the records of 21.4.
+
+While the window is visible, CAPIE reads the names of the same provinces again at most every 500 ms,
+so a rename shows within about half a second without a click. The rows and records change only on
+the next `vp` click.
+
+- Keys answer only after their view registered; before that the game's lookup runs and the
+  mod's own localisation (the fallback) shows. Answers are text only; a label never contains `$`,
+  `[`, `]` or a control character (they are shown as a space) and is cut at 255 bytes.
+- Use the keys through a scripted-localisation wrapper (`text = "[RnVpRow3]"`), as Rename Anything's
+  `RN_VPROW_*` do; whether a plain key in `text` is re-evaluated after a change is an open in-game
+  check (spec S3).
+- Example records for KaiserreduX state 1000 with VPs 13671 (value 25) and 10472 (value 10):
+  `capie_catalog = 1, capie_cat = 3, capie_cn = 2, capie_pg = 1, capie_pgs = 1, capie_pn = 2,
+  capie_par = 0, capie_ppar = 0, capie_st = 1000, capie_vp_0 = 13671, capie_vpv_0 = 25,
+  capie_vp_1 = 10472, capie_vpv_1 = 10`.
+
+```text
+scripted_gui = {
+    capie_v1_cat__mymod__vp = {
+        context_type = selected_state_context
+        window_name = "capie_v1_cat__mymod__vp"
+        effects = {
+            capie_v1_cat__mymod__vp__vp_click = {
+                if = {
+                    limit = { check_variable = { capie_catalog = 1 } }
+                    ROOT = {
+                        set_variable = { mymod_state = capie_st }
+                        set_variable = { mymod_vp_count = capie_cn }
+                        set_variable = { mymod_vp_0 = capie_vp_0 }   # ... one per row the mod shows
+                    }
+                }
+                # else: the mod's static data or a "not available" message
+            }
+        }
+    }
+}
+```
+
+### 21.7 Flag and portrait catalogs (pending spikes)
+
+Not implemented in CAPIE 1.7.0. Their actions (`flag`, `flagown`, `portrait`, `portraitown`, `first`,
+`prev`, `next`, `last`, `pick`) are forwarded with `capie_catalog = 0`, so a mod can ship the
+buttons now and fall back to its static catalog. The planned design is spec sections 3 to 5:
+slot sprites `GFX_capie_v1_s__<mod>__<view>__<set>_<slot>` declared by the mod and re-pointed by CAPIE
+to the files of the running game, two sets switched by `capie_par`, `pick` names in
+`capie_sel_fmt`/`capie_sel_len`/`capie_sel_<k>` (flag stems in 17.3, paths and sprite names in packing
+B), `capie_sml_*` and `capie_cos_*`. These names are reserved; their final form depends on the
+in-game spikes S1/S2 (`docs/contributing/test-session-api9-spikes.md`) and may still change.
+
+### 21.8 Without CAPIE, multiplayer
+
+- **Without CAPIE:** the action runs the mod's effect with no `capie_*` record; the keys show the
+  mod's fallback text. The mod uses its static data or shows a message.
+- **Multiplayer:** only the effect writes game state, from records that travel in the command, so
+  every client stores the same values (the same open item as every editor: records surviving
+  network serialisation, section 12). Labels and views are local and never written to game state.
+  A client whose catalog differs only displays differently.
