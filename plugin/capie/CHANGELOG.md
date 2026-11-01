@@ -9,7 +9,7 @@ release notes, so write it for players and mod authors. Format:
 
 ## [Unreleased]
 
-## [1.6.0] - unreleased
+## [1.6.0] - 2026-11-01
 
 A new thing a mod can change in-game: a country's map colour. Script API level 8
 (`capie_cap = 8`); mods built for CAPIE 1.5 keep working unchanged. Runs on HOI4 1.19.4.1 only.
@@ -31,8 +31,13 @@ A new thing a mod can change in-game: a country's map colour. Script API level 8
   1.5.2. The checks added since 1.5.1 (the scripted-window field stores, the window manager
   vtable, the RTTI class check of every vtable) were re-checked for the new build; none of them
   moved. The details are in `docs/research/port-1.19.4.1.md`.
+- Less work every frame: CAPIE recognises the game's scripted windows once, when they are bound,
+  instead of re-checking each one every frame.
+- A window the game has destroyed is never touched; CAPIE makes no game call for it.
+- A C++ exception inside one of CAPIE's game calls is handed to the game's own crash reporter
+  instead of ending the game without a report.
 
-## [1.5.2] - unreleased
+## [1.5.2] - 2026-10-29
 
 Hotfix for Hearts of Iron IV 1.19.4.1. The script API is unchanged (level 7), so mods built for
 CAPIE 1.5.0 and 1.5.1 work without changes.

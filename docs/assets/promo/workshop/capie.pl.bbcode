@@ -11,13 +11,13 @@ Ten przedmiot to przełącznik. Nie ma treści gry: tylko przełącznik i znak C
 [/list]
 Kolejność ładowania nie ma znaczenia. Trzymaj tylko jeden mod o nazwie CAPIE: przy lokalnej kopii o tej samej nazwie gra pomija ten przedmiot z Workshopu. Lokalna kopia instalatora nazywa się CAPIE (local copy) i nie jest instalowana, gdy subskrybujesz ten przedmiot.
 
-[b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.5.2 (poziom API skryptów 7), sprawdzona w grze jednoosobowej na HOI4 1.19.4.1, na wersjach rozwojowych.
+[b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.6.0 (poziom API skryptów 8), sprawdzona w grze jednoosobowej na HOI4 1.19.4.1, na wersjach rozwojowych.
 
-[h2]Co nowego w 1.5.2[/h2]
+[h2]Co nowego w 1.6.0[/h2]
 [list]
-[*]Obsługa HOI4 1.19.4.1. Aktualizacja gry przesunęła kod i dane o kilkaset bajtów; każdy adres został sprawdzony od nowa.
-[*]Na 1.19.4.0 CAPIE teraz się nie włącza, jak na każdej nieobsługiwanej wersji.
-[*]Dla modów nic się nie zmienia: API skryptów to nadal poziom 7.
+[*]Nowość: kolory państw na mapie (poziom API skryptów 8). Mody mogą nadać państwu dowolny kolor; korzysta z tego Rename Anything 0.3.0. Kolor jest tylko wizualny, zapisuje się z grą i bez CAPIE wraca do normalnego.
+[*]Szybciej i bezpieczniej: CAPIE prawie bez kosztu pomija cudze okna i ignoruje okna zniszczone przez grę.
+[*]Obsługa HOI4 1.19.4.1. Mody zrobione dla API 7 działają dalej.
 [/list]
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-status-line-pl.png[/img]
@@ -40,7 +40,7 @@ CAPIE instaluje się małym narzędziem. Zamknij Steam albo pozwól, żeby narz�
 [code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
 Otworzy się menu: wybierz [i]Install or update[/i].
 [*][b]Pobranie z GitHuba.[/b] Pobierz ZIP, install.ps1 i dwa pliki release-manifest z [url=https://github.com/capie-mods/capie/releases/latest]najnowszego wydania[/url] do jednego folderu, a potem w PowerShell w tym folderze uruchom:
-[code].\install.ps1 -Install -PackagePath .\CAPIE-1.5.2-win64.zip[/code]
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.6.0-win64.zip[/code]
 [/list]
 Oba sposoby sprawdzają podpisany manifest wydania i SHA-256 każdego pliku, instalują do folderu użytkownika (nigdy do folderu gry) i dodają launcher CAPIE do opcji uruchamiania HOI4 w Steamie. To samo narzędzie aktualizuje, instaluje starszą wersję, wyłącza CAPIE albo je odinstalowuje.
 
