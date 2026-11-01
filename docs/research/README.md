@@ -23,6 +23,7 @@ image base `0x140000000`, and function names are analyst labels, not recovered s
 | [port-1.19.4.1.md](port-1.19.4.1.md) | Hotfix port to HOI4 1.19.4.1: what moved, no layout change, how each hard pin was resolved |
 | [port-1.19.4.2.md](port-1.19.4.2.md) | Hotfix port to HOI4 1.19.4.2 (CAPIE 1.6.1): what moved, no layout change, how each pin was placed without the old executable |
 | [port-1.19.5.0.md](port-1.19.5.0.md) | Hotfix port to HOI4 1.19.5.0 (CAPIE 1.6.2): byte diff against 1.19.4.2, a rebuild of the same code, no pin moved |
+| [runtime-catalogs-2026-11.md](runtime-catalogs-2026-11.md) | API 9 research (1.19.4.1): what the game holds for flags, portraits, characters, states and VPs; how a scripted GUI can show it; the launcher and `dependencies` |
 
 Each document says what was observed statically, what was observed in the game, and what is still
 open. Raw evidence (decompilations, logs, screenshots) is in [[monorepo archive: docs/evidence](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence)](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/README.md).
