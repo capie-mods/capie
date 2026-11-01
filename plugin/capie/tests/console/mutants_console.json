@@ -358,5 +358,21 @@
   "replace": "return true;",
   "suite": "tests/console/console_test.cpp",
   "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-portrait-path-format-one",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "effect.add(\"set_variable = { capie_pt_ver = 2 } \")",
+  "replace": "effect.add(\"set_variable = { capie_pt_ver = 1 } \")",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
+ },
+ {
+  "name": "console-portrait-path-unchecked",
+  "file": "src/features/console/console_commands.hpp",
+  "find": "if (path && !country::packing_b::valid_path(args.at(1))) {",
+  "replace": "if (false) {",
+  "suite": "tests/console/console_test.cpp",
+  "summary": "console tests (candidate=1):"
  }
 ]

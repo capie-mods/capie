@@ -140,7 +140,7 @@ void name_tests() {
     check(names::parse_action(*id, "capie_v1_cat__rn__vp__pick_click") == names::Action::pick, "pick action");
     check(names::parse_action(*id, "capie_v1_cat__rn__vp__next_click") == names::Action::next, "next action");
     for (const char* bad : {"capie_v1_cat__rn__vp__VP_click", "capie_v1_cat__rn__vp__vp", "capie_v1_cat__rn__fp__vp_click",
-                            "capie_v1_cat__rn__vp_vp_click", "capie_v1_cat__rn__vp__zoom_click", "capie_v1_cat__rn__vp__vp_click "}) {
+                            "capie_v1_cat__rn__vp_vp_click", "capie_v1_cat__rn__vpxxvp_click", "capie_v1_cat__rn__vp__zoom_click", "capie_v1_cat__rn__vp__vp_click "}) {
         check(!names::parse_action(*id, bad), std::string("action refused: ") + bad);
     }
     check(names::row_key(*id, 3).view() == "CAPIE_V1_T__RN__VP__3", "row key upper case");

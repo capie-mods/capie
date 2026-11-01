@@ -706,7 +706,7 @@
  {
   "name": "public-prefilter-blocks-grammar",
   "file": "src/features/editor/window_view.hpp",
-  "find": "    return grammar::may_be_model(std::string_view(bytes, static_cast<std::size_t>(header.size))) ? ModelClass::maybe_own",
+  "find": "    return grammar::may_be_model(name) || catalog::names::may_be_model(name) ? ModelClass::maybe_own",
   "replace": "    return false ? ModelClass::maybe_own",
   "suite": "tests/public_editor_test.cpp",
   "summary": "public editor tests:"
@@ -1926,5 +1926,221 @@
   "replace": "if (refresh == nullptr || tag == nullptr || !game_calls_allowed()) {",
   "suite": "tests/game_calls_test.cpp",
   "summary": "game calls tests:"
+ },
+ {
+  "name": "catalog-packing-b-base-64",
+  "file": "src/features/country/packing_b.hpp",
+  "find": "inline constexpr std::int64_t pack_base = 128;",
+  "replace": "inline constexpr std::int64_t pack_base = 64;",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "catalog-path-allows-dotdot",
+  "file": "src/features/country/packing_b.hpp",
+  "find": "path.find(\"..\") != std::string_view::npos ||",
+  "replace": "false ||",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "catalog-path-allows-double-slash",
+  "file": "src/features/country/packing_b.hpp",
+  "find": "path.find(\"//\") != std::string_view::npos) {",
+  "replace": "false) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "catalog-path-any-extension",
+  "file": "src/features/country/packing_b.hpp",
+  "find": "return ends_with_nocase(path, \".dds\") || ends_with_nocase(path, \".png\") || ends_with_nocase(path, \".tga\");",
+  "replace": "return true;",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "catalog-packing-b-padding-ignored",
+  "file": "src/features/country/packing_b.hpp",
+  "find": "} else if (codes[slot] != 0) {",
+  "replace": "} else if (false) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "catalog-packing-b-zero-inside",
+  "file": "src/features/country/packing_b.hpp",
+  "find": "if (c == '\\0') {",
+  "replace": "if (false) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-path-kind-zero",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "entry->kind = 1;",
+  "replace": "entry->kind = 0;",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-path-skips-validity",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "if (!engine::guarded_portrait_valid(originals_.valid, cached, loaded)) {",
+  "replace": "loaded = true; if (false) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-path-built-every-time",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "if (cached_path(path) != nullptr) {",
+  "replace": "if (false) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-path-handle-dropped",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "entry->handle = cached->handle;",
+  "replace": "entry->handle = 0;",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-path-without-builder",
+  "file": "src/features/country/portrait_layer_hooks.hpp",
+  "find": "paths_enabled_.store(enabled_.load() && originals_.path_entry != nullptr);",
+  "replace": "paths_enabled_.store(enabled_.load());",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-format-two-refused",
+  "file": "src/features/country/portrait_layer.hpp",
+  "find": "(format != layer::format_version && format != format_paths)",
+  "replace": "(format != layer::format_version)",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "portrait-format-one-read-as-b",
+  "file": "src/features/country/portrait_layer.hpp",
+  "find": "if (format == format_paths) {",
+  "replace": "if (format >= 1) {",
+  "suite": "tests/portrait_layer_test.cpp",
+  "summary": "portrait layer tests:"
+ },
+ {
+  "name": "catalog-vp-order-ascending",
+  "file": "src/features/catalog/vp_view.hpp",
+  "find": "return a.value != b.value ? a.value > b.value : a.id < b.id;",
+  "replace": "return a.value != b.value ? a.value < b.value : a.id < b.id;",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-vp-keeps-zero",
+  "file": "src/features/catalog/vp_view.hpp",
+  "find": "if (row.value <= 0) {",
+  "replace": "if (row.value < 0) {",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-vp-cap-keeps-first",
+  "file": "src/features/catalog/vp_view.hpp",
+  "find": "if (before(row, out.rows[max_rows - 1])) {",
+  "replace": "if (false) {",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-vp-no-province-vtable",
+  "file": "src/features/catalog/vp_view.hpp",
+  "find": "!has_vtable(mem, row.province, image + core::rva::vt_province) ||",
+  "replace": "",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-vp-no-state-vtable",
+  "file": "src/features/catalog/vp_view.hpp",
+  "find": "!has_vtable(mem, object, image + core::rva::vt_state) ||",
+  "replace": "",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-thread-guard-offset",
+  "file": "src/features/catalog/vp_view.hpp",
+  "find": "!core::rd(mem, block, core::off::tls_thread_forbid, value)",
+  "replace": "!core::rd(mem, block, 0, value)",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-sentinel-positive",
+  "file": "src/features/catalog/catalog_records.hpp",
+  "find": "return header(-static_cast<std::int64_t>(code));",
+  "replace": "return header(static_cast<std::int64_t>(code));",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-vpv-carries-id",
+  "file": "src/features/catalog/catalog_records.hpp",
+  "find": "out.add(name.data(), list.rows[k].value);",
+  "replace": "out.add(name.data(), list.rows[k].id);",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-unavailable-served",
+  "file": "src/features/catalog/catalog_records.hpp",
+  "find": "    return header(0);",
+  "replace": "    return header(1);",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-text-answers-unregistered",
+  "file": "src/features/catalog/catalog_text.hpp",
+  "find": "return found != answers_.end() ? found->second->c_str() : nullptr;",
+  "replace": "return found != answers_.end() ? found->second->c_str() : \"\";",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-text-keeps-dollar",
+  "file": "src/features/catalog/catalog_text.hpp",
+  "find": "c == '$'",
+  "replace": "c == '\\x01'",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-key-lower-case",
+  "file": "src/features/catalog/catalog_names.hpp",
+  "find": "upper && c >= 'a' && c <= 'z'",
+  "replace": "false && c >= 'a' && c <= 'z'",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-action-loose-separator",
+  "file": "src/features/catalog/catalog_names.hpp",
+  "find": "if (!rest.starts_with(separator) || !rest.ends_with(click_suffix)) {",
+  "replace": "if (!rest.ends_with(click_suffix)) {",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-loc-hook-ignores-store",
+  "file": "src/features/country/country_names.hpp",
+  "find": "if (const auto* catalog = catalog::text::store().answer(key)) {",
+  "replace": "if (const char* catalog = nullptr) {",
+  "suite": "tests/catalog_test.cpp",
+  "summary": "catalog tests:"
  }
 ]

@@ -414,11 +414,11 @@ private:
                        const void* fallback, const Text& name) {
         const Entry* cached = cached_path(name.view());
         if (cached != nullptr && paths_enabled()) {
-            bool valid = false;
-            if (!engine::guarded_portrait_valid(originals_.valid, cached, valid)) {
+            bool loaded = false;
+            if (!engine::guarded_portrait_valid(originals_.valid, cached, loaded)) {
                 return game_call_failed(map, out, type, size, character, fallback);
             }
-            if (valid) {
+            if (loaded) {
                 auto* entry = static_cast<Entry*>(out);
                 entry->set = 1;
                 entry->padding = {};
