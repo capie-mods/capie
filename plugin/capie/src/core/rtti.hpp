@@ -122,6 +122,13 @@ inline constexpr VtableClass core_vtable_classes[] = {
     {"vt_character", rva::vt_character, ".?AVCCharacter@@", 0},
 };
 
+/// @brief Vtables the runtime catalogs compare objects against (API level 9, `capie_editor.dll`).
+inline constexpr VtableClass catalog_vtable_classes[] = {
+    {"vt_state", rva::vt_state, ".?AVCState@@", 0},
+    {"vt_province", rva::vt_province, ".?AVCProvince@@", 0},
+    {"vt_sprite_type", rva::vt_sprite_type, ".?AVCSpriteType@@", 0},
+};
+
 /// @brief Vtables the colour layer writes into its block or compares objects against.
 inline constexpr VtableClass colour_vtable_classes[] = {
     {"vt_country_colors", rva::vt_country_colors, ".?AVCCountryColors@@", 0},

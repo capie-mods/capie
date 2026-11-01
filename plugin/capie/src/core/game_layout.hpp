@@ -86,6 +86,16 @@ inline constexpr std::uintptr_t texture_add = 0x2488BD0;
 inline constexpr std::uintptr_t texture_get = 0x2489670;
 /// @brief `void operator delete(void*, size_t)` of the game's CRT (jump thunk); called to free game strings.
 inline constexpr std::uintptr_t game_delete = 0x25A00D8;
+/// @brief `int* TextureSize(texmgr*, int out[2], int id)`: width and height of a texture; called (spikes).
+inline constexpr std::uintptr_t texture_size = 0x24894A0;
+/// @brief `void ReleaseTexture(texmgr*, int id)`: takes the AddTexture mutex, drops one reference; called (spikes).
+inline constexpr std::uintptr_t texture_release = 0x248B4F0;
+/// @brief `CSpriteType` lazy texture loader (writes +0x1A0, +0x170, +0xA4); pinned, never called.
+inline constexpr std::uintptr_t sprite_lazy_load = 0x22A7F80;
+/// @brief `CSpriteType::SetTextureFile` (release, AddTexture, GetTexture, TextureSize); pinned, never called.
+inline constexpr std::uintptr_t sprite_set_texture_file = 0x22A77D0;
+/// @brief `CSpriteType` vtable (RTTI-checked; a slot sprite must have it).
+inline constexpr std::uintptr_t vt_sprite_type = 0x2BB3420;
 
 // ---- State/VP view (API level 9; read and called by capie_editor.dll) -------------------------
 /// @brief `string* ProvinceName(province*, string* out, bool* is_vp)`: custom name, else VP name; called.
@@ -280,6 +290,15 @@ inline constexpr std::uintptr_t province_custom_name = 0x40;    ///< Player-give
 inline constexpr std::uintptr_t province_id = 0xA4;             ///< int32 province id (`province.id`).
 inline constexpr std::uintptr_t scope_state_id = 0xA8;          ///< int32 state id of a scope (`scope.state_id`).
 inline constexpr std::uintptr_t tls_thread_forbid = 0x10;       ///< int32 `ThreadForbidCount` in the TLS block.
+// ---- Slot sprites (pinned in features/catalog/catalog_pins.hpp, `sprite.*`) ------------------------
+inline constexpr std::uintptr_t sprite_db = 0x48;            ///< Sprite database of a `CSpriteType` (`sprite.database`).
+inline constexpr std::uintptr_t db_texture_manager = 0x170;  ///< Texture manager of the database (`sprite.texmgr`).
+inline constexpr std::uintptr_t sprite_path = 0x70;          ///< `texturefile`, MSVC string (`sprite.path`).
+inline constexpr std::uintptr_t sprite_size = 0xA4;          ///< Two int32: width, height (`sprite.store_size`).
+inline constexpr std::uintptr_t sprite_texture = 0x170;      ///< `texture*` (`sprite.store_texture`).
+inline constexpr std::uintptr_t sprite_texture_id = 0x1A0;   ///< int32 texture id, -1 = not loaded (`sprite.store_id`).
+inline constexpr std::uintptr_t sprite_lazy = 0x1D3;         ///< Byte: loads lazily (`sprite.lazy_flag`).
+inline constexpr std::uintptr_t texmgr_live = 0x38;          ///< int32 live path count of the texture manager (diagnostics).
 // ---- Country colour layer (pinned in features/country/colour_layer_pins.hpp) ---------------------
 inline constexpr std::uintptr_t country_colors = 0x350;      ///< `CCountryColors` block (`getter.block_offset`).
 inline constexpr std::uintptr_t colors_color = 0x10;         ///< `CColor color` in the block (`colors.layout`).

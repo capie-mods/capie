@@ -1,0 +1,4 @@
+capie_spike_category = {
+	icon = generic_research
+	allowed = { always = yes }
+}

@@ -1,0 +1,7 @@
+# THROWAWAY test mod of the CAPIE API 9 spikes S1/S2 (docs/contributing/test-session-api9-spikes.md).
+# Slot sprites: CAPIE re-points their textures at run time. The placeholders are vanilla files.
+spriteTypes = {
+	spriteType = { name = "GFX_capie_spike_s1"   texturefile = "gfx/interface/goals/goal_unknown.dds" }
+	spriteType = { name = "GFX_capie_spike_s2_0" texturefile = "gfx/interface/goals/goal_unknown.dds" }
+	spriteType = { name = "GFX_capie_spike_s2_1" texturefile = "gfx/interface/goals/goal_generic_construct_infrastructure.dds" }
+}

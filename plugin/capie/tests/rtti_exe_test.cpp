@@ -109,6 +109,9 @@ void table_tests() {
     for (const auto& entry : capie::core::core_vtable_classes) {
         check(std::strncmp(entry.mangled, ".?AV", 4) == 0 && entry.vtable_rva != 0, std::string("shape ") + entry.id);
     }
+    for (const auto& entry : capie::core::catalog_vtable_classes) {
+        check(std::strncmp(entry.mangled, ".?AV", 4) == 0 && entry.vtable_rva != 0, std::string("shape ") + entry.id);
+    }
 }
 
 /**
@@ -130,6 +133,13 @@ void exe_tests(const char* path) {
         check(capie::core::vtable_is_class(mem, base, entry), std::string("core class ") + entry.id);
     }
     check(capie::core::first_wrong_class(mem, base, capie::core::editor_vtable_classes) == nullptr, "editor table");
+    for (const auto& entry : capie::core::catalog_vtable_classes) {
+        check(capie::core::vtable_is_class(mem, base, entry), std::string("catalog class ") + entry.id);
+    }
+    check(capie::core::first_wrong_class(mem, base, capie::core::catalog_vtable_classes) == nullptr, "catalog table");
+    check(!capie::core::vtable_is_class(
+              mem, base, VtableClass{"x", capie::core::rva::vt_state, ".?AVCProvince@@", 0}),
+          "CState vtable is not CProvince");
     const VtableClass edit = capie::core::editor_vtable_classes[0];
     check(!capie::core::vtable_is_class(mem, base, VtableClass{"x", edit.vtable_rva, ".?AVCInstantTextBox@@", 0}),
           "wrong class name refused");

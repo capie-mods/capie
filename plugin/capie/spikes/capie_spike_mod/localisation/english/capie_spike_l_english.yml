@@ -1,0 +1,4 @@
+﻿l_english:
+ capie_spike_category:0 "CAPIE spike (throwaway)"
+ capie_spike_open_decision:0 "CAPIE spike: open window"
+ capie_spike_open_decision_desc:0 "Opens the S1/S2 test window of the CAPIE API 9 spike build."

@@ -66,6 +66,9 @@
 #if CAPIE_CONSOLE_CANDIDATE
 #include "../features/console/console_wiring.hpp"  // developer build only (build.ps1 -Console)
 #endif
+#if CAPIE_SPIKE
+#include "../features/spike/texture_spike.hpp"  // throwaway spike build only (build.ps1 -Spike)
+#endif
 
 #include <MinHook.h>
 
@@ -122,6 +125,9 @@ void __fastcall tick_observed(void* window, char force) {
     }
 #if CAPIE_CONSOLE_CANDIDATE
     console::wiring::on_tick();  // registers the console commands once, on this (game) thread
+#endif
+#if CAPIE_SPIKE
+    spike::tick(window);  // throwaway spike build: deferred releases and auto flips
 #endif
     // Performance: one SEH-only read of the model pointer and a lookup of its remembered
     // verdict decide whether any observer can care about this window (review P1/P2); for every
@@ -297,6 +303,11 @@ void __fastcall dispatch_observed(void* context, void* opaque_selector) {
         original_dispatch(context, opaque_selector);
         return;
     }
+#if CAPIE_SPIKE
+    if (spike::dispatch(context, opaque_selector)) {
+        return;  // throwaway spike build: the spike forwarded the click once
+    }
+#endif
     if (!own_commit(context, selector, model_name, model)) {
         // Grammar editors of other mods (public contract); anything else is forwarded unchanged.
         if (!public_dispatch(context, opaque_selector)) {
@@ -546,6 +557,9 @@ InitCode initialize() {
     engine::share_game_call_latch(shared_latch);
     write_log(shared_latch != nullptr ? "RN_LIFECYCLE game-call fault latch shared with capie_core.dll\r\n"
                                       : "RN_LIFECYCLE game-call fault latch own (capie_core.dll not loaded)\r\n");
+#if CAPIE_SPIKE
+    spike::prepare(text, image_base);  // throwaway spike build; a failed pin turns the spike off
+#endif
 #if CAPIE_CONSOLE_CANDIDATE
     // Code bytes only; a failure turns the console feature off and is logged, the editor continues.
     static_cast<void>(console::wiring::prepare(text));

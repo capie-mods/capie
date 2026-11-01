@@ -1,0 +1,11 @@
+capie_spike_category = {
+	capie_spike_open_decision = {
+		icon = generic_research
+		allowed = { always = yes }
+		available = { always = yes }
+		cost = 0
+		fire_only_once = no
+		days_re_enable = 0
+		complete_effect = { set_country_flag = capie_spike_open }
+	}
+}

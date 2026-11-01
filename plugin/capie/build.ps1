@@ -53,6 +53,11 @@
     src/features/console/). Without -OutputDirectory the output goes to
     plugin\build\capie-console-dev. Never use it for a release or a launcher package.
 
+.PARAMETER Spike
+    Throwaway build of the API 9 spikes S1/S2 (CAPIE_SPIKE=1, src/features/spike/,
+    docs/contributing/test-session-api9-spikes.md). Builds only into plugin\build\capie-spike and
+    refuses any other folder. Never use it for a release or a launcher package.
+
 .OUTPUTS
     None. Prints a summary line per step.
 
@@ -68,10 +73,20 @@ param(
     [string]$Python = 'python',
     [switch]$SkipBenchmarks,
     [ValidateNotNullOrEmpty()][string]$OutputDirectory = 'plugin\build\capie',
-    [switch]$Console
+    [switch]$Console,
+    [switch]$Spike
 )
 if ($Console -and -not $PSBoundParameters.ContainsKey('OutputDirectory')) {
     $OutputDirectory = 'plugin\build\capie-console-dev'  # developer-only output, never the default folder
+}
+if ($Spike) {
+    # Throwaway in-game experiments S1/S2 (src/features/spike/): only ever into plugin\build\capie-spike.
+    if (-not $PSBoundParameters.ContainsKey('OutputDirectory')) { $OutputDirectory = 'plugin\build\capie-spike' }
+    $spikeDir = [IO.Path]::GetFullPath((Join-Path (Join-Path $PSScriptRoot '..\..') 'plugin\build\capie-spike')).TrimEnd('\')
+    $spikeOut = [IO.Path]::GetFullPath((Join-Path (Join-Path $PSScriptRoot '..\..') $OutputDirectory)).TrimEnd('\')
+    if (-not $spikeOut.Equals($spikeDir, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "-Spike builds only into plugin\build\capie-spike (got $OutputDirectory): a spike build must never be packaged."
+    }
 }
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -95,6 +110,7 @@ $script:ObjDir = Join-Path $script:OutDir 'obj'
 $script:CommonFlags = @('/nologo', '/O2', '/MT', '/W4', '/utf-8', '/DWIN32_LEAN_AND_MEAN', '/DNOMINMAX')
 $script:CppFlags = $script:CommonFlags + @('/WX', '/std:c++20', '/EHsc', '/permissive-')
 if ($Console) { $script:CppFlags += '/DCAPIE_CONSOLE_CANDIDATE=1' }  # src/features/console/ wiring
+if ($Spike) { $script:CppFlags += '/DCAPIE_SPIKE=1' }  # src/features/spike/: throwaway, never released
 
 function Import-VisualStudioEnvironment {
     <#
@@ -325,6 +341,7 @@ Invoke-Test -Source 'host_pins_exe_test.cpp' -Output 'host_pins_exe_test.exe' -A
 Invoke-Test -Source 'window_pins_exe_test.cpp' -Output 'window_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 # Every vtable constant belongs to the expected class (MSVC RTTI, core/rtti.hpp).
 Invoke-Test -Source 'rtti_exe_test.cpp' -Output 'rtti_exe_test.exe' -Arguments $exeArgs | Out-Null
+Invoke-Test -Source 'catalog_pins_exe_test.cpp' -Output 'catalog_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 # The inherited suite loads capie_editor.dll into its own (non-game) process for the wrong-host check.
 Copy-Item -LiteralPath $debugEditor -Destination (Join-Path $script:TestOutDir 'capie_editor.dll') -Force
 Invoke-Test 'legacy\editor_inherited_test.cpp' 'editor_inherited_test.exe' @('/UNDEBUG', '/DCAPIE_DEBUG_DIAGNOSTICS=1') @() $script:MinHookObjects | Out-Null
@@ -367,5 +384,8 @@ if (-not $SkipBenchmarks) {
 if ($Console) {
     & (Join-Path $script:TestDir 'console\run_console_tests.ps1') -VisualStudioDir $VisualStudioDir -OutputDirectory (Join-Path $OutputDirectory 'console-tests')
     Write-Host 'CONSOLE DEVELOPER BUILD (CAPIE_CONSOLE_CANDIDATE=1): not for a release or a launcher package.'
+}
+if ($Spike) {
+    Write-Host 'SPIKE BUILD (CAPIE_SPIKE=1): throwaway in-game experiments S1/S2, never for a release or a launcher package.'
 }
 Write-Host "CAPIE build and offline tests passed: $script:OutDir"

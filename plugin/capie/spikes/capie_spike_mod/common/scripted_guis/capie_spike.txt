@@ -1,0 +1,33 @@
+# THROWAWAY test mod of the CAPIE API 9 spikes S1/S2 (docs/contributing/test-session-api9-spikes.md).
+# The window opens with the decision "CAPIE spike: open window" and lives in the player's country scope.
+scripted_gui = {
+	capie_spike = {
+		context_type = player_context
+		window_name = "capie_spike_window"
+		visible = { has_country_flag = capie_spike_open }
+		properties = {
+			capie_spike_s2_icon = { image = "GFX_capie_spike_s2_[?capie_spike_par]" }
+		}
+		effects = {
+			capie_spike_s1_click = {
+				log = "CAPIE_SPIKE script s1 click"
+			}
+			capie_spike_s2_click = {
+				if = {
+					limit = { check_variable = { capie_sp_n > 0 } }
+					set_variable = { capie_spike_par = capie_sp_par }
+					set_variable = { capie_spike_n = capie_sp_n }
+				}
+				log = "CAPIE_SPIKE script s2 par=[?capie_sp_par] n=[?capie_sp_n]"
+			}
+			capie_spike_auto_click = { log = "CAPIE_SPIKE script auto" }
+			capie_spike_stop_click = { log = "CAPIE_SPIKE script stop" }
+			capie_spike_list_click = { log = "CAPIE_SPIKE script list" }
+			capie_spike_reset_click = {
+				set_variable = { capie_spike_par = 0 }
+				log = "CAPIE_SPIKE script reset"
+			}
+			capie_spike_close_click = { clr_country_flag = capie_spike_open }
+		}
+	}
+}

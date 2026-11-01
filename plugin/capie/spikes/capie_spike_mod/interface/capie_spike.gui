@@ -1,0 +1,33 @@
+# THROWAWAY test mod of the CAPIE API 9 spikes S1/S2.
+guiTypes = {
+	containerWindowType = {
+		name = "capie_spike_window"
+		position = { x = 380 y = 160 }
+		size = { width = 560 height = 350 }
+		moveable = yes
+		background = { name = "Background" quadTextureSprite = "GFX_tiled_window_2b_border" }
+
+		instantTextBoxType = {
+			name = "capie_spike_title" position = { x = 20 y = 12 } font = "hoi_20bs"
+			text = "CAPIE spike S1 / S2 (throwaway)" maxWidth = 520 maxHeight = 24
+		}
+		instantTextBoxType = {
+			name = "capie_spike_label_s1" position = { x = 20 y = 44 } font = "hoi_16mbs"
+			text = "S1: one sprite" maxWidth = 240 maxHeight = 20
+		}
+		instantTextBoxType = {
+			name = "capie_spike_label_s2" position = { x = 290 y = 44 } font = "hoi_16mbs"
+			text = "S2: set [?capie_spike_par|0], flip [?capie_spike_n|0]" maxWidth = 260 maxHeight = 20
+		}
+		iconType = { name = "capie_spike_s1_icon" spriteType = "GFX_capie_spike_s1" position = { x = 20 y = 72 } }
+		iconType = { name = "capie_spike_s2_icon" spriteType = "GFX_capie_spike_s2_0" position = { x = 290 y = 72 } }
+
+		buttonType = { name = "capie_spike_s1" position = { x = 20 y = 200 } spriteType = "GFX_button_148x34" buttonText = "S1 next flag" buttonFont = "hoi_16mbs" }
+		buttonType = { name = "capie_spike_s2" position = { x = 200 y = 200 } spriteType = "GFX_button_148x34" buttonText = "S2 flip" buttonFont = "hoi_16mbs" }
+		buttonType = { name = "capie_spike_auto" position = { x = 380 y = 200 } spriteType = "GFX_button_148x34" buttonText = "S2 auto 200" buttonFont = "hoi_16mbs" }
+		buttonType = { name = "capie_spike_stop" position = { x = 20 y = 250 } spriteType = "GFX_button_148x34" buttonText = "Stop" buttonFont = "hoi_16mbs" }
+		buttonType = { name = "capie_spike_reset" position = { x = 200 y = 250 } spriteType = "GFX_button_148x34" buttonText = "Reset" buttonFont = "hoi_16mbs" }
+		buttonType = { name = "capie_spike_list" position = { x = 20 y = 300 } spriteType = "GFX_button_148x34" buttonText = "List vanilla/KRX" buttonFont = "hoi_16mbs" }
+		buttonType = { name = "capie_spike_close" position = { x = 380 y = 250 } spriteType = "GFX_button_148x34" buttonText = "Close" buttonFont = "hoi_16mbs" }
+	}
+}
