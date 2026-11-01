@@ -4,10 +4,12 @@
  *
  * A mod stores the chosen sprites in the ruling leader's own variables (CONTRACT.md section 18):
  *
- *     capie_pt_ver   1 = the layer is set (format 1); absent = no layer
- *     capie_pt_len   characters of the large sprite name, 1..63
- *     capie_pt_s     the large name, three characters per element (17.3 packing)
- *     capie_pt_slen  characters of the small sprite name; absent or 0 = the game's small portrait
+ *     capie_pt_ver   1 = format 1, 2 = format 2 (API level 9); absent = no layer
+ *     capie_pt_len   characters of the large name: 1..63 (format 1), 1..126 (format 2)
+ *     capie_pt_s     the large name, three characters per element: 17.3 packing (format 1, sprite
+ *                    names only) or packing B (format 2, a sprite name or a `gfx/...` texture path,
+ *                    `packing_b.hpp`)
+ *     capie_pt_slen  characters of the small name; absent or 0 = the game's small portrait
  *     capie_pt_ss    the small name, packed like the large one
  *     capie_pt_rev   set last by every change, on a country (refresh trigger, value unused)
  *
@@ -22,14 +24,16 @@
 #include "../../core/memory.hpp"
 #include "flag_layer.hpp"
 #include "name_layer.hpp"
+#include "packing_b.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 
 namespace capie::country::portrait {
 
 using core::uptr;
-using flag::Text;
+using Text = packing_b::Text;
 using layer::Lookup;
 using layer::Status;
 using layer::Table;
@@ -46,6 +50,8 @@ inline constexpr std::string_view small_length_variable = "capie_pt_slen";
 inline constexpr std::string_view small_array = "capie_pt_ss";
 /// @brief Commit variable (any country scope); every change ends with `set_variable = { capie_pt_rev = 1 }`.
 inline constexpr char commit_variable[] = "capie_pt_rev";
+/// @brief Format 2 (API level 9): packing B, sprite names or texture paths.
+inline constexpr std::int64_t format_paths = 2;
 /// @brief Portrait type of a country leader (`civilian`; the effect passes edx = 0).
 inline constexpr std::int32_t type_civilian = 0;
 /// @brief Portrait size `large` (the effect passes r8d = 1); 0 is `small` (`ui.size_small_is_zero`).
@@ -57,7 +63,37 @@ struct Layer {
     Text large;                     ///< Large sprite name when valid.
     Text small;                     ///< Small sprite name; empty = the game's small portrait.
     std::int64_t version_raw{};     ///< Raw `capie_pt_ver` (diagnostics).
+    std::int64_t format{};          ///< 1 or 2 when valid, else 0.
 };
+
+/**
+ * @brief Reads one name in the packing of a format.
+ * @param mem Memory policy.
+ * @param table Variable table.
+ * @param format 1 (17.3 packing) or 2 (packing B).
+ * @param length_name Length variable.
+ * @param array Array name.
+ * @param allow_empty Length 0 allowed (the small name).
+ * @param out Receives the name.
+ * @return Status of the read.
+ */
+template <class M>
+Status read_name(const M& mem, const Table& table, std::int64_t format, std::string_view length_name,
+                 std::string_view array, bool allow_empty, Text& out) noexcept {
+    out = Text{};
+    if (format == format_paths) {
+        return packing_b::read_packed(mem, table, length_name, array, allow_empty, out);
+    }
+    flag::Text narrow{};
+    const auto status = flag::read_packed(mem, table, length_name, array, allow_empty, narrow);
+    if (status == Status::valid) {
+        for (std::size_t i = 0; i < narrow.size; ++i) {
+            out.bytes[i] = narrow.bytes[i];
+        }
+        out.size = narrow.size;
+    }
+    return status;
+}
 
 /**
  * @brief Reads the portrait layer of a character.
@@ -83,16 +119,16 @@ Layer read_portrait_layer(const M& mem, uptr character) noexcept {
         return out;
     }
     std::int64_t format = 0;
-    if (!layer::whole(out.version_raw, format) || format != layer::format_version) {
+    if (!layer::whole(out.version_raw, format) || (format != layer::format_version && format != format_paths)) {
         out.status = Status::invalid;
         return out;
     }
-    auto status = flag::read_packed(mem, table, length_variable, large_array, false, out.large);
+    auto status = read_name(mem, table, format, length_variable, large_array, false, out.large);
     if (status == Status::absent) {
         status = Status::invalid;  // a set layer needs its large name
     }
     if (status == Status::valid) {
-        const auto small = flag::read_packed(mem, table, small_length_variable, small_array, true, out.small);
+        const auto small = read_name(mem, table, format, small_length_variable, small_array, true, out.small);
         if (small == Status::absent) {
             out.small = Text{};
         } else if (small != Status::valid) {
@@ -100,6 +136,7 @@ Layer read_portrait_layer(const M& mem, uptr character) noexcept {
         }
     }
     out.status = status;
+    out.format = status == Status::valid ? format : 0;
     if (status != Status::valid) {
         out.large = Text{};
         out.small = Text{};

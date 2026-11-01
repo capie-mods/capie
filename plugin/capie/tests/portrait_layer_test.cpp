@@ -237,6 +237,56 @@ Vars portrait_variables(const std::string& large, const char* small) {
 }
 
 /**
+ * @brief Packs a name in packing B (ASCII codes, c0 * 16384 + c1 * 128 + c2), written independently.
+ * @param text Text.
+ * @return Elements.
+ */
+std::vector<std::int64_t> pack_b(const std::string& text) {
+    std::vector<std::int64_t> out;
+    for (std::size_t i = 0; i < text.size(); i += 3) {
+        std::int64_t element = 0;
+        for (std::size_t k = 0; k < 3; ++k) {
+            element = (element * 128) + (i + k < text.size() ? static_cast<unsigned char>(text[i + k]) : 0);
+        }
+        out.push_back(element);
+    }
+    return out;
+}
+
+/**
+ * @brief Appends one name in packing B.
+ * @param out Variables.
+ * @param length Length variable.
+ * @param array Array name.
+ * @param text Text.
+ */
+void add_packed_b(Vars& out, const std::string& length, const std::string& array, const std::string& text) {
+    out.emplace_back(length, fp(static_cast<std::int64_t>(text.size())));
+    const auto elements = pack_b(text);
+    if (!elements.empty()) {
+        out.emplace_back(array + "^num", fp(static_cast<std::int64_t>(elements.size())));
+    }
+    for (std::size_t i = 0; i < elements.size(); ++i) {
+        out.emplace_back(array + "^" + std::to_string(i), fp(elements[i]));
+    }
+}
+
+/**
+ * @brief Variables of a format 2 portrait layer (packing B).
+ * @param large Large name (a sprite or a path).
+ * @param small Small name; `nullptr` = no small variables.
+ * @return Variables.
+ */
+Vars portrait_variables_b(const std::string& large, const char* small) {
+    Vars out{{"capie_pt_ver", fp(2)}};
+    add_packed_b(out, "capie_pt_len", "capie_pt_s", large);
+    if (small != nullptr) {
+        add_packed_b(out, "capie_pt_slen", "capie_pt_ss", small);
+    }
+    return out;
+}
+
+/**
  * @brief Replaces a variable.
  * @param vars Variables.
  * @param name Name.
@@ -342,7 +392,9 @@ void decode_tests() {
     check(read(portrait_variables("GFX_a", "GFX_b")).status == layer::Status::valid, "baseline valid");
     const auto base = portrait_variables("GFX_portrait_x", "GFX_portrait_x_small");
     const std::pair<const char*, Vars> invalid[] = {
-        {"version 2", with(base, "capie_pt_ver", fp(2))},
+        {"version 2 with a 17.3 payload", with(base, "capie_pt_ver", fp(2))},
+        {"version 3", with(base, "capie_pt_ver", fp(3))},
+        {"version 0", with(base, "capie_pt_ver", 0)},
         {"large missing", without(base, "capie_pt_len")},
         {"large length 0", with(base, "capie_pt_len", 0)},
         {"large length 64", with(base, "capie_pt_len", fp(64))},
@@ -363,6 +415,101 @@ void decode_tests() {
     check(portrait::read_portrait_layer(empty, 0x1000'0000).status == layer::Status::unreadable,
           "unmapped character: unreadable");
     check(portrait::read_portrait_layer(empty, 0).status == layer::Status::unreadable, "null character: unreadable");
+}
+
+void packing_b_tests() {
+    namespace b = capie::country::packing_b;
+    // Round trip of measured-style paths and sprite names through the element codec.
+    const std::string samples[] = {
+        "gfx/leaders/ABK/Portrait_ABK_Nestor_Lakoba.png",
+        "gfx/leaders/Europe/Portrait_Europe_Generic_land_1.dds",
+        "gfx/leaders/R56/O'Duffy-Eoin.tga",
+        "GFX_portrait_POL_ignacy_moscicki",
+        "GFX_Portrait_d'Annunzio-x",
+        "gfx/" + std::string(118, 'a') + ".png",
+    };
+    for (const auto& text : samples) {
+        b::Text out{};
+        bool ok = b::valid_name(text);
+        const auto elements = pack_b(text);
+        for (std::size_t i = 0; i < elements.size() && ok; ++i) {
+            ok = b::element_of(text, i) == elements[i] && b::decode_element(elements[i], i, text.size(), out);
+        }
+        check(ok && out.view() == text, "packing B round trip: " + text);
+    }
+    check(b::max_element == 2097151 && b::element_of("zzz", 0) == (122 * 16384) + (122 * 128) + 122 &&
+              b::element_of("zzz", 0) <= b::max_element,
+          "packing B: element bound 2 097 151, below the script limit");
+    b::Text out{};
+    check(!b::decode_element(b::max_element + 1, 0, 3, out), "element over 2 097 151 rejected");
+    out = b::Text{};
+    check(!b::decode_element(-1, 0, 3, out), "negative element rejected");
+    out = b::Text{};
+    check(!b::decode_element(('a' * 16384) + ('b' * 128) + 1, 0, 2, out), "non-zero padding rejected");
+    out = b::Text{};
+    check(!b::decode_element(('a' * 16384) + 'c', 0, 3, out), "a 0 in the middle rejected");
+    for (const char bad : {'"', ' ', '\\', ':', '[', '$', static_cast<char>(0xC3)}) {
+        out = b::Text{};
+        check(!b::decode_element((static_cast<unsigned char>(bad) * 16384) + ('a' * 128) + 'a', 0, 3, out),
+              std::string("code outside the set rejected: ") + std::to_string(static_cast<unsigned char>(bad)));
+        check(!b::valid_name(std::string("GFX_a") + bad), "name with a character outside the set rejected");
+    }
+    // Path rules.
+    check(b::valid_path("gfx/leaders/a.png") && b::valid_path("gfx/leaders/a.DDS") && b::valid_path("gfx/x/y.TgA"),
+          "path rules: gfx/ prefix, .dds .png .tga in any case");
+    const char* bad_paths[] = {"gfx/../a.png",   "gfx//a.png", "/gfx/a.png",      "leaders/a.png", "gfx/a.jpg",
+                               "gfx/a.png.txt",  "GFX/a.png",  "gfx/a b.png",     "gfx/a",         "gfx/.png/x",
+                               "gfx/a.p ng",     "gfx/\xC3\xA9.png"};
+    for (const char* path : bad_paths) {
+        check(!b::valid_path(path) && !b::valid_name(path), std::string("path rejected: ") + path);
+    }
+    check(b::valid_name("GFX_x.y-z'") && !b::is_path("GFX_x.y-z'"), "a sprite name may use . - '");
+    check(b::valid_name(std::string(126, 'a')) && !b::valid_name(std::string(127, 'a')) && !b::valid_name(""),
+          "length 1..126");
+}
+
+void format2_decode_tests() {
+    const auto read = [](const Vars& vars) {
+        FakeMemory mem;
+        map_character(mem, 0x1000'0000, 7, vars, 0x3000'0000);
+        return portrait::read_portrait_layer(mem, 0x1000'0000);
+    };
+    const std::string path = "gfx/leaders/ABK/Portrait_ABK_Nestor_Lakoba.png";
+    auto got = read(portrait_variables_b(path, path.c_str()));
+    check(got.status == layer::Status::valid && got.format == 2 && got.large.view() == path &&
+              got.small.view() == path,
+          "format 2: a path, large and small");
+    got = read(portrait_variables_b(path, "GFX_portrait_ABK_small"));
+    check(got.status == layer::Status::valid && got.small.view() == "GFX_portrait_ABK_small",
+          "format 2: mixed, a path large and a sprite small");
+    got = read(portrait_variables_b("GFX_Portrait_d'Annunzio-x", nullptr));
+    check(got.status == layer::Status::valid && got.large.view() == "GFX_Portrait_d'Annunzio-x" && got.small.size == 0,
+          "format 2: a sprite name with ' and -");
+    const std::string longest = "gfx/" + std::string(118, 'p') + ".png";
+    got = read(portrait_variables_b(longest, nullptr));
+    check(got.status == layer::Status::valid && got.large.size == 126, "format 2: 126 characters");
+    got = read(portrait_variables("GFX_a", "GFX_b"));
+    check(got.status == layer::Status::valid && got.format == 1 && got.large.view() == "GFX_a",
+          "format 1 unchanged");
+    const auto base = portrait_variables_b(path, path.c_str());
+    const std::pair<const char*, Vars> invalid[] = {
+        {"length 127", with(base, "capie_pt_len", fp(127))},
+        {"wrong ^num", with(base, "capie_pt_s^num", fp(3))},
+        {"element over the bound", with(base, "capie_pt_s^0", fp(2097152))},
+        {"a 0 in the middle", with(base, "capie_pt_s^2", 0)},
+        {"fraction", with(base, "capie_pt_s^0", fp(1) + 7)},
+        {"path with ..", portrait_variables_b("gfx/../secret.png", nullptr)},
+        {"path without gfx/", portrait_variables_b("leaders/a.png", nullptr)},
+        {"path with a wrong extension", portrait_variables_b("gfx/leaders/a.jpg", nullptr)},
+        {"small path with //", portrait_variables_b(path, "gfx//a.png")},
+        {"17.3 payload under version 2", with(portrait_variables("GFX_a", nullptr), "capie_pt_ver", fp(2))},
+        {"path under version 1", with(portrait_variables_b(path, nullptr), "capie_pt_ver", fp(1))},
+    };
+    for (const auto& [label, vars] : invalid) {
+        const auto bad = read(vars);
+        check(bad.status == layer::Status::invalid && bad.large.size == 0 && bad.format == 0,
+              std::string("format 2 invalid: ") + label);
+    }
 }
 
 void leader_tests() {
@@ -451,7 +598,36 @@ bool fake_valid(const void* entry) {
         *null_target = 1;  // access violation inside the game call
     }
     const auto* e = static_cast<const portrait::Entry*>(entry);
+    if (e->set != 0 && e->kind == 1) {
+        return e->handle != 0;  // the game's rule for a path entry: valid iff the texture is loaded
+    }
     return e->set != 0 && e->kind == 0 && game->sprites.contains(text_of(e->name));
+}
+
+/// @brief Texture files that load (path -> handle), calls and faults of the fake builder.
+struct Textures {
+    std::map<std::string, std::uint64_t> files;  ///< Loadable files.
+    std::map<std::string, int> builds;           ///< Builder calls per path.
+    std::vector<bool> warn_flags;                ///< `warn` and `flag` arguments seen (must be false).
+    bool fault{};                                ///< The builder faults.
+};
+Textures* textures = nullptr;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake game state
+
+void* fake_build(void* out, const void* path, bool warn, bool flag) {
+    const auto text = text_of(*static_cast<const capie::engine::MsvcString*>(path));
+    ++textures->builds[text];
+    textures->warn_flags.push_back(warn || flag);
+    if (textures->fault) {
+        *null_target = 1;  // access violation inside the game call
+    }
+    auto* entry = static_cast<portrait::Entry*>(out);
+    entry->set = 1;
+    entry->kind = 1;
+    const auto& stored = *game->heap.insert(text).first;
+    entry->name = capie::engine::borrowed_string(stored.data(), stored.size());
+    const auto found = textures->files.find(text);
+    entry->handle = found != textures->files.end() ? found->second : 0;
+    return out;
 }
 
 void* fake_resolve(void* /*map*/, void* out, std::int32_t /*type*/, std::int32_t /*size*/, uptr /*character*/,
@@ -649,6 +825,88 @@ void hook_tests() {
           "deactivated: the game's portrait");
 }
 
+void path_hook_tests() {
+    FakeMemory mem;
+    portrait::PortraitLayer<FakeMemory> layer{mem};
+    Game state{};
+    game = &state;
+    Textures files{};
+    textures = &files;
+    const std::string loaded = "gfx/leaders/ABK/Portrait_ABK_Nestor_Lakoba.png";
+    const std::string missing = "gfx/leaders/ABK/missing.png";
+    files.files[loaded] = 0xBEEF;
+    game->sprites = {"GFX_portrait_ABK_small"};
+    constexpr uptr abk = 0x2000'0000;
+    constexpr uptr bul = 0x2100'0000;
+    constexpr uptr char_a = 0x1000'0000;
+    constexpr uptr char_b = 0x1100'0000;
+    map_character(mem, char_a, 21, portrait_variables_b(loaded, "GFX_portrait_ABK_small"), 0x3000'0000);
+    map_character(mem, char_b, 22, portrait_variables_b(missing, missing.c_str()), 0x3100'0000);
+    map_country(mem, abk, char_a);
+    map_country(mem, bul, char_b);
+    mem.map(fake_image + 0x33DD6B0, 8);
+    mem.put(fake_image + 0x33DD6B0, fake_state);
+    mem.map(fake_state, 0x400);
+    mem.put(fake_state + 0x310, fake_list);
+    mem.put(fake_state + 0x31C, std::int32_t{3});
+    mem.map(fake_list, 24);
+    mem.put(fake_list + 8, abk);
+    mem.put(fake_list + 16, bul);
+    const auto game_portrait = std::string("gfx/leaders/game_portrait.dds");
+    portrait::Entry entry{};
+
+    // Without the builder (its pins failed): a path layer is invalid, sprite names keep working.
+    layer.originals() = {&fake_resolve, &fake_valid, &fake_copy, nullptr};
+    layer.activate(fake_image, nullptr);
+    check(layer.enabled() && !layer.paths_enabled(), "no builder: layer on, paths off");
+    auto stats = layer.refresh_all();
+    check(stats.invalid == 2 && stats.layers == 0 && files.builds.empty() && layer.cached_paths() == 0,
+          "no builder: path layers invalid, nothing built");
+    check(resolve_of(layer, char_a, 0, 1, entry) == game_portrait, "no builder: the game's portrait");
+
+    layer.originals() = {&fake_resolve, &fake_valid, &fake_copy, &fake_build};
+    layer.activate(fake_image, nullptr);
+    check(layer.paths_enabled(), "builder: paths on");
+    stats = layer.refresh_all();
+    check(stats.layers == 2 && stats.paths == 2 && files.builds[loaded] == 1 && files.builds[missing] == 1 &&
+              layer.cached_paths() == 2,
+          "commit: each path built once with the game's builder (also a file that does not load)");
+    check(std::ranges::none_of(files.warn_flags, [](bool set) { return set; }), "builder called with warn=false, flag=false");
+    static_cast<void>(layer.refresh_all());
+    static_cast<void>(layer.update(abk));
+    check(files.builds[loaded] == 1 && files.builds[missing] == 1, "cached: a path is never built twice");
+
+    game->resolves = 0;
+    check(resolve_of(layer, char_a, 0, 1, entry) == loaded && entry.set == 1 && entry.kind == 1 &&
+              entry.handle == 0xBEEF && game->resolves == 0,
+          "path large: kind 1, the name copied, the texture handle copied, original not called");
+    check(resolve_of(layer, char_a, 0, 0, entry) == "GFX_portrait_ABK_small" && entry.kind == 0 && entry.handle == 0,
+          "mixed: the small sprite name is a kind 0 entry");
+    const auto valid_before = game->valid_calls;
+    check(resolve_of(layer, char_b, 0, 1, entry) == game_portrait && game->resolves == 1 &&
+              game->valid_calls == valid_before + 1,
+          "texture not loaded (handle 0): checked by the game's validity, then the game's portrait");
+    check(resolve_of(layer, char_a, 1, 1, entry) == game_portrait, "army portrait: the game's");
+
+    // The format 1 layer of another leader is unchanged by path support.
+    check(build_table(mem, char_b + 0xD8, 0x3100'0000, portrait_variables("GFX_portrait_ABK_small", nullptr)),
+          "B format 1");
+    static_cast<void>(layer.update(bul));
+    check(resolve_of(layer, char_b, 0, 1, entry) == "GFX_portrait_ABK_small" && entry.kind == 0,
+          "format 1 sprite still works next to format 2");
+
+    // A builder fault latches, turns paths off; the next new path is invalid.
+    files.fault = true;
+    check(build_table(mem, char_b + 0xD8, 0x3100'0000, portrait_variables_b("gfx/leaders/new.png", nullptr)),
+          "B new path");
+    check(!layer.update(bul) && !layer.paths_enabled() && !capie::engine::game_calls_allowed(),
+          "builder fault: latched, paths off, the layer is not shown");
+    files.fault = false;
+    capie::engine::game_call_faulted.store(false);
+    layer.deactivate();
+    textures = nullptr;
+}
+
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
 }  // namespace
@@ -656,9 +914,12 @@ void hook_tests() {
 int main() {
     try {
         decode_tests();
+        packing_b_tests();
+        format2_decode_tests();
         leader_tests();
         capability_tests();
         hook_tests();
+        path_hook_tests();
     } catch (...) {
         ++failures;
         static_cast<void>(std::printf("FAIL unexpected exception\n"));

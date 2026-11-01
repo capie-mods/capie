@@ -49,6 +49,14 @@ void table_tests() {
         capie::core::Pattern pattern{};
         check(capie::core::decode_pattern(signature.hex, pattern), std::string("decodes ") + signature.id);
     }
+    for (const auto& signature : pins::path_signatures) {
+        capie::core::Pattern pattern{};
+        check(capie::core::decode_pattern(signature.hex, pattern), std::string("decodes ") + signature.id);
+    }
+    for (const auto& pin : pins::path_instruction_pins) {
+        std::array<unsigned char, capie::core::max_pattern_bytes> bytes{};
+        check(capie::core::decode_hex(pin.hex, bytes.data(), bytes.size()) != 0, std::string("decodes ") + pin.id);
+    }
     for (const auto& pin : pins::instruction_pins) {
         std::array<unsigned char, capie::core::max_pattern_bytes> bytes{};
         check(capie::core::decode_hex(pin.hex, bytes.data(), bytes.size()) != 0, std::string("decodes ") + pin.id);
@@ -133,6 +141,29 @@ void exe_tests(const char* path) {
     flip(0x123057E, "leader.first_role_jumps");
     flip(0x2FDD30, "effect.writes_portrait");
     check(pins::first_failed_pin(text) == nullptr, "restored image passes again");
+
+    // Format 2 path support (API level 9): its own switch.
+    failed = pins::first_failed_path_pin(text);
+    check(failed == nullptr, std::string("all path pins pass; first failure: ") + (failed ? failed : "none"));
+    const auto flip_path = [&](std::size_t rva, const char* expected) {
+        image[rva] ^= 0x01U;
+        const char* result = pins::first_failed_path_pin(text);
+        check(result != nullptr && std::string(result) == expected && pins::first_failed_pin(text) == nullptr,
+              std::string("corrupt path byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
+        image[rva] ^= 0x01U;
+    };
+    flip_path(0x14393D0 + 5, "portrait.path_entry");
+    flip_path(0x143945D + 1, "path.kind_one");          // kind 1
+    flip_path(0x1438AE9 + 2, "icon.stores_kind");       // +0x04
+    flip_path(0x1438B21 + 2, "icon.kind_is_path");      // kind 1 loads
+    flip_path(0x1438B66 + 3, "icon.texmgr");            // +0x170
+    flip_path(0x1438B8B + 3, "icon.stores_handle");     // +0x28
+    flip_path(0x1439212 + 2, "valid.kind_path");        // kind 1
+    flip_path(0x1439217 + 3, "valid.handle");           // +0x28
+    flip_path(0x1439466, "path.calls_make_icon");
+    flip_path(0x1438B7D, "icon.calls_add_texture");
+    flip_path(0x1438B87, "icon.calls_get_texture");
+    check(pins::first_failed_path_pin(text) == nullptr, "restored image passes the path pins again");
 }
 
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)

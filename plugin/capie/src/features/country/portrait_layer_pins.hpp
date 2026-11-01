@@ -86,6 +86,51 @@ static_assert(std::size(signatures) == expected_signatures &&
               std::size(instruction_pins) == expected_instruction_pins &&
               std::size(target_pins) == expected_target_pins);
 
+/// @brief Format 2 path support (API level 9): the builder the layer calls (research 3.1).
+inline constexpr core::Signature path_signatures[] = {
+    {"portrait.path_entry", core::SignatureGroup::country_hook, core::rva::portrait_path_entry,
+     "48895C2410488974241857" "4883EC50410FB6F1488BDA488BF94584C0",
+     "PathPortraitEntry prologue: out, path, warn (r8b), flag (r9b) (runtime catalogs research 3.1)"},
+};
+
+/// @brief The builder makes kind 1 through MakeIconEntry, which loads the texture and stores the handle.
+inline constexpr core::InstructionPin path_instruction_pins[] = {
+    {"path.kind_one", 0x143945D, "ba01000000"},           // mov edx,1: kind 1
+    {"icon.stores_kind", 0x1438AE9, "895104"},            // mov [rcx+4],edx
+    {"icon.kind_is_path", 0x1438B21, "83fa01"},           // cmp edx,1: only kind 1 loads
+    {"icon.texmgr", 0x1438B66, "488b9870010000"},         // mov rbx,[rax+170]: sprite db texture manager
+    {"icon.stores_handle", 0x1438B8B, "49894628"},        // mov [r14+28],rax: texture handle
+    {"valid.kind_path", 0x1439212, "83f801"},             // cmp eax,1
+    {"valid.handle", 0x1439217, "4883792800"},            // cmp qword [rcx+28],0: kind 1 valid iff handle
+};
+
+/// @brief Call targets of the path support.
+inline constexpr core::RipPin path_target_pins[] = {
+    {"path.calls_make_icon", 0x1439466, 0x143946A, core::rva::make_icon_entry},
+    {"icon.calls_add_texture", 0x1438B7D, 0x1438B81, core::rva::texture_add},
+    {"icon.calls_get_texture", 0x1438B87, 0x1438B8B, core::rva::texture_get},
+};
+
+/// @brief Expected path signatures.
+inline constexpr std::size_t expected_path_signatures = 1;
+/// @brief Expected path instruction pins.
+inline constexpr std::size_t expected_path_instruction_pins = 7;
+/// @brief Expected path target pins.
+inline constexpr std::size_t expected_path_target_pins = 3;
+static_assert(std::size(path_signatures) == expected_path_signatures &&
+              std::size(path_instruction_pins) == expected_path_instruction_pins &&
+              std::size(path_target_pins) == expected_path_target_pins);
+
+/**
+ * @brief Checks the pins of format 2 path support (its own switch inside the portrait layer).
+ * @param text `.text` of the game image.
+ * @return Null when all pass, else the id of the first failed check.
+ */
+inline const char* first_failed_path_pin(const core::TextSection& text) noexcept {
+    return core::first_failed(text, core::ProcessMemory{}, reinterpret_cast<uptr>(text.base), path_signatures,
+                              path_instruction_pins, path_target_pins);
+}
+
 /**
  * @brief Checks every portrait-layer signature and pin (code bytes only).
  * @param text `.text` of the game image (the image base is `text.base`).

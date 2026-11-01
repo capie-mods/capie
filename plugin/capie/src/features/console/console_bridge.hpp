@@ -339,7 +339,9 @@ public:
                 say(out, "Invalid tag for the command");  // the vanilla text for an unknown tag
                 return out;
             }
-            if (plan.portrait_plan) {
+            if (plan.portrait_plan && plan.path.size != 0) {
+                finish_portrait_plan(plan, true, false);  // format 2 path: the layer checks the texture
+            } else if (plan.portrait_plan) {
                 const auto small = small_candidate(plan);
                 finish_portrait_plan(plan, sprite_exists(plan.sprite.view()),
                                      small.size != 0 && sprite_exists(small.view()));

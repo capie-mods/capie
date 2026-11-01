@@ -319,6 +319,9 @@ InitCode initialize() {
             core::first_wrong_class(core::ProcessMemory{}, reinterpret_cast<core::uptr>(base), core::core_vtable_classes);
     }
     const bool portrait_ok = layer_ok && failed_portrait_pin == nullptr;
+    // Format 2 texture paths have their own switch inside the portrait layer (API level 9).
+    const char* const failed_path_pin = portrait::pins::first_failed_path_pin(text);
+    const bool portrait_paths_ok = portrait_ok && failed_path_pin == nullptr;
     // The colour layer has its own pins and RTTI table; it needs the name layer.
     const auto image = reinterpret_cast<core::uptr>(base);
     const char* failed_colour_pin = colour::pins::first_failed_pin(text, core::ProcessMemory{}, image);
@@ -391,6 +394,10 @@ InitCode initialize() {
     if (portrait_ok) {
         portrait_layer.originals().valid = reinterpret_cast<portrait::ValidFn>(base + core::rva::portrait_valid);
         portrait_layer.originals().copy = reinterpret_cast<portrait::CopyFn>(base + core::rva::string_copy);
+        if (portrait_paths_ok) {
+            portrait_layer.originals().path_entry =
+                reinterpret_cast<portrait::PathFn>(base + core::rva::portrait_path_entry);
+        }
         portrait_layer.activate(reinterpret_cast<core::uptr>(base), &write_line);
     }
     if (colour_ok) {
@@ -400,11 +407,12 @@ InitCode initialize() {
     active.store(true);
     static_cast<void>(std::snprintf(
         line, sizeof(line),
-        "CAPIE_CORE %s initialized: %zu hooks, name layer %s %s, flag layer %s %s, portrait layer %s %s, "
-        "colour layer %s %s, flavor=%s",
+        "CAPIE_CORE %s initialized: %zu hooks, name layer %s %s, flag layer %s %s, portrait layer %s %s "
+        "(paths %s %s), colour layer %s %s, flavor=%s",
         core::capie_version, hook_count, name_layer.enabled() ? "on" : "off", layer_ok ? "" : failed_pin,
         flag_layer.enabled() ? "on" : "off", failed_flag_pin != nullptr ? failed_flag_pin : "",
         portrait_layer.enabled() ? "on" : "off", failed_portrait_pin != nullptr ? failed_portrait_pin : "",
+        portrait_layer.paths_enabled() ? "on" : "off", failed_path_pin != nullptr ? failed_path_pin : "",
         colour_layer.enabled() ? "on" : "off", failed_colour_pin != nullptr ? failed_colour_pin : "",
         core::logging::debug_diagnostics ? "debug" : "release"));
     write_line(core::logging::Channel::lifecycle, line);

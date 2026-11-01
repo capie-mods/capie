@@ -12,6 +12,18 @@
  * original runs unchanged (fail-closed: the game's portrait, never the "unknown leader" image).
  * Game data are never written.
  *
+ * Format 2 (API level 9, CONTRACT.md 18 amendment) adds texture paths (`gfx/...png`). A path entry
+ * is valid for the game only when its texture handle is non-zero, so CAPIE builds it with the
+ * game's own builder (`PathPortraitEntry`, which loads the texture at once through the thread-safe
+ * texture manager) on the logic thread, in `update` and `refresh_all`, exactly as
+ * `create_country_leader` does. Built entries are kept in a per-path cache that is never freed in
+ * the session (the textures are refcounted by the game; a failed load is cached too, so a missing
+ * file is tried once). The hook checks the cached entry with `PortraitEntryValid` (kind 1: the
+ * handle is non-zero) and then fills the caller's buffer as the game's copy does: kind 1, the name
+ * copy-constructed, the handle copied. An entry without a loaded texture is rejected and the game's
+ * portrait shows. Path support has its own switch (the builder slot): without it a path layer is
+ * invalid and sprite names keep working.
+ *
  * Cache: per country, its ruling leader with the two names, written on the logic thread: by
  * `update(country)` from the UpdateNames hook (load, government and name changes) and by
  * `refresh_all()` after `set_variable` of `capie_pt_rev` (any country scope; also the mod's daily
@@ -33,10 +45,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <string>
 #include <string_view>
+#include <utility>
 #include <unordered_map>
 
 namespace capie::country::portrait {
@@ -62,6 +78,10 @@ using ResolveFn = void* (*)(void*, void*, std::int32_t, std::int32_t, uptr, cons
 using ValidFn = engine::PortraitValid;
 /// @brief `string* string_copy(string* out, const string* source)` (copy-construct).
 using CopyFn = engine::StringCopy;
+/// @brief `entry* PathPortraitEntry(entry* out, const string* path, bool warn, bool flag)`.
+using PathFn = engine::PathPortraitEntry;
+/// @brief Most distinct texture paths built in one session (fail-closed bound on loaded textures).
+inline constexpr std::size_t max_cached_paths = 1024;
 /// @brief Log sink.
 using LogFn = void (*)(core::logging::Channel, const char*);
 
@@ -86,6 +106,7 @@ struct Stats {
     std::int32_t leaders{};    ///< Ruling leaders found.
     std::int32_t layers{};     ///< Leaders with a valid layer.
     std::int32_t invalid{};    ///< Leaders with an invalid layer.
+    std::int32_t paths{};      ///< Leaders whose layer names a texture path (format 2).
     bool list_ok{};            ///< The country list was readable.
 };
 
@@ -101,6 +122,7 @@ public:
         ResolveFn resolve{};  ///< ResolvePortrait trampoline.
         ValidFn valid{};      ///< The game's entry validity check (called, never hooked).
         CopyFn copy{};        ///< The game's string copy-construct (called).
+        PathFn path_entry{};  ///< The game's path entry builder (called; null = no path support).
     };
 
     /**
@@ -124,6 +146,23 @@ public:
         image_ = image;
         log_ = log;
         enabled_.store(originals_.resolve != nullptr && originals_.valid != nullptr && originals_.copy != nullptr);
+        paths_enabled_.store(enabled_.load() && originals_.path_entry != nullptr);
+    }
+
+    /// @brief Whether format 2 texture paths are supported (the builder's pins matched). @return State.
+    [[nodiscard]] bool paths_enabled() const noexcept { return enabled_.load() && paths_enabled_.load(); }
+
+    /**
+     * @brief Number of distinct paths built so far (tests and diagnostics).
+     * @return Count.
+     */
+    [[nodiscard]] std::size_t cached_paths() const noexcept {
+        try {
+            const std::shared_lock lock(mutex_);
+            return paths_ ? paths_->size() : 0;
+        } catch (...) {
+            return 0;
+        }
     }
 
     /// @brief Turns the layer off (the hook passes through).
@@ -194,8 +233,8 @@ public:
             return stats;
         }
         note(core::logging::Channel::lifecycle,
-             "CAPIE_PORTRAIT commit list_ok=1 countries=%d leaders=%d layers=%d invalid=%d", stats.countries,
-             stats.leaders, stats.layers, stats.invalid);
+             "CAPIE_PORTRAIT commit list_ok=1 countries=%d leaders=%d layers=%d invalid=%d paths=%d",
+             stats.countries, stats.leaders, stats.layers, stats.invalid, stats.paths);
         return stats;
     }
 
@@ -214,6 +253,9 @@ public:
                   const void* fallback) {
         Text name{};
         if (enabled_.load() && type == type_civilian && out != nullptr && chosen(character, size, name)) {
+            if (packing_b::is_path(name.view())) {
+                return resolve_path(map, out, type, size, character, fallback, name);
+            }
             Entry candidate{};
             candidate.set = 1;
             candidate.kind = 0;
@@ -281,6 +323,123 @@ private:
 
     /// @brief Ruling leader -> chosen sprites.
     using Map = std::unordered_map<uptr, Shown>;
+    /// @brief Texture path -> entry built by the game (stable addresses; never erased in the session).
+    using PathMap = std::map<std::string, std::unique_ptr<Entry>, std::less<>>;
+
+    /**
+     * @brief The cached entry of a path (any thread; shared lock only).
+     * @param path Path.
+     * @return The entry, or null when the path was never built. The pointer stays valid for the session.
+     */
+    const Entry* cached_path(std::string_view path) const noexcept {
+        try {
+            const std::shared_lock lock(mutex_);
+            if (!paths_) {
+                return nullptr;
+            }
+            const auto found = paths_->find(path);
+            return found != paths_->end() ? found->second.get() : nullptr;
+        } catch (...) {
+            return nullptr;
+        }
+    }
+
+    /**
+     * @brief Builds the entry of a path once, with the game's builder (logic thread).
+     * @param path A path that passed the rules.
+     * @return `true` when an entry (loaded or not) is cached for it; the hook checks the handle.
+     */
+    bool ensure_path(std::string_view path) noexcept {
+        if (cached_path(path) != nullptr) {
+            return true;
+        }
+        if (!paths_enabled()) {
+            return false;
+        }
+        try {
+            {
+                const std::shared_lock lock(mutex_);
+                if (paths_ && paths_->size() >= max_cached_paths) {
+                    if (!cap_logged_.exchange(true)) {
+                        note(core::logging::Channel::lifecycle,
+                             "CAPIE_PORTRAIT path cache full (%d paths); further paths show the game's portrait",
+                             static_cast<int>(max_cached_paths));
+                    }
+                    return false;
+                }
+            }
+            auto entry = std::make_unique<Entry>();
+            const std::string owned(path);
+            const auto argument = engine::borrowed_string(owned.data(), owned.size());
+            // The builder runs without CAPIE's lock: it takes the texture manager's own mutex.
+            if (!engine::guarded_path_portrait_entry(originals_.path_entry, entry.get(), &argument)) {
+                if (paths_enabled_.exchange(false)) {
+                    note(core::logging::Channel::lifecycle,
+                         "CAPIE_PORTRAIT path builder failed or refused (fault latch); paths off");
+                }
+                static_cast<void>(entry.release());  // possibly half-built by the game: never destroyed
+                return false;
+            }
+            const bool loaded = entry->handle != 0;
+            {
+                const std::unique_lock lock(mutex_);
+                if (!paths_) {
+                    paths_ = std::make_unique<PathMap>();
+                }
+                paths_->emplace(owned, std::move(entry));
+            }
+            if (path_lines_.fetch_add(1) < max_debug_lines) {
+                note(core::logging::Channel::debug, "CAPIE_PORTRAIT path built loaded=%d path=%s", loaded ? 1 : 0,
+                     owned.c_str());
+            }
+            return true;
+        } catch (...) {  // NOLINT(bugprone-empty-catch): allocation failure: the game's portrait
+            return false;
+        }
+    }
+
+    /**
+     * @brief Hook path for a texture path name: the cached entry, checked by the game, copied out.
+     * @param map Passed through.
+     * @param out Caller's buffer.
+     * @param type Passed through.
+     * @param size Portrait size.
+     * @param character Passed through.
+     * @param fallback Passed through.
+     * @param name The chosen path.
+     * @return `out`.
+     * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
+     */
+    void* resolve_path(void* map, void* out, std::int32_t type, std::int32_t size, uptr character,
+                       const void* fallback, const Text& name) {
+        const Entry* cached = cached_path(name.view());
+        if (cached != nullptr && paths_enabled()) {
+            bool valid = false;
+            if (!engine::guarded_portrait_valid(originals_.valid, cached, valid)) {
+                return game_call_failed(map, out, type, size, character, fallback);
+            }
+            if (valid) {
+                auto* entry = static_cast<Entry*>(out);
+                entry->set = 1;
+                entry->padding = {};
+                entry->kind = 1;
+                if (!engine::guarded_string_copy(originals_.copy, &entry->name, &cached->name)) {
+                    return game_call_failed(map, out, type, size, character, fallback);
+                }
+                entry->handle = cached->handle;
+                if (applied_lines_.fetch_add(1) < max_debug_lines) {
+                    note(core::logging::Channel::debug, "CAPIE_PORTRAIT shown size=%d path=%s", size,
+                         name.bytes.data());
+                }
+                return out;
+            }
+        }
+        if (fallback_lines_.fetch_add(1) < max_debug_lines) {
+            note(core::logging::Channel::lifecycle,
+                 "CAPIE_PORTRAIT texture not loaded size=%d path=%s; game portrait", size, name.bytes.data());
+        }
+        return originals_.resolve(map, out, type, size, character, fallback);
+    }
 
     /**
      * @brief Reads the country list.
@@ -304,7 +463,7 @@ private:
      * @param stats Counters to update (may be null).
      * @return `true` when the leader has a valid layer.
      */
-    bool read_leader(uptr country, uptr& leader, Shown& shown, Stats* stats) const noexcept {
+    bool read_leader(uptr country, uptr& leader, Shown& shown, Stats* stats) noexcept {
         if (!ruling_leader(mem_, image_, country, leader) || leader == 0) {
             return false;
         }
@@ -312,11 +471,27 @@ private:
         if (!core::rd(mem_, leader, core::off::character_id, id)) {
             return false;
         }
-        const auto layer = read_portrait_layer(mem_, leader);
+        auto layer = read_portrait_layer(mem_, leader);
+        const bool has_path = layer.status == Status::valid &&
+                              (packing_b::is_path(layer.large.view()) || packing_b::is_path(layer.small.view()));
+        if (has_path) {
+            // Format 2 paths: built once with the game's builder here, on the logic thread. Without
+            // path support (or a full cache) the layer is invalid and the game's portrait shows.
+            bool built = true;
+            for (const auto* name : {&layer.large, &layer.small}) {
+                if (packing_b::is_path(name->view()) && !ensure_path(name->view())) {
+                    built = false;
+                }
+            }
+            if (!built) {
+                layer.status = Status::invalid;
+            }
+        }
         if (stats != nullptr) {
             ++stats->leaders;
             stats->layers += layer.status == Status::valid ? 1 : 0;
             stats->invalid += layer.status == Status::invalid ? 1 : 0;
+            stats->paths += has_path && layer.status == Status::valid ? 1 : 0;
         }
         if (layer.status != Status::valid) {
             return false;
@@ -383,8 +558,12 @@ private:
     uptr image_{};                                ///< Image base.
     LogFn log_{};                                 ///< Log sink.
     std::atomic<bool> enabled_{false};            ///< Layer active.
-    mutable std::shared_mutex mutex_;             ///< Guards `by_character_`; never held across a game call.
+    std::atomic<bool> paths_enabled_{false};      ///< Format 2 texture paths supported.
+    mutable std::shared_mutex mutex_;             ///< Guards `by_character_` and `paths_`; never held across a game call.
     std::unique_ptr<Map> by_character_;           ///< Ruling leader -> chosen sprites (created on first layer).
+    std::unique_ptr<PathMap> paths_;              ///< Path -> built entry (created on the first path).
+    std::atomic<bool> cap_logged_{false};         ///< The path cache cap was logged.
+    mutable std::atomic<int> path_lines_{0};      ///< Debug line budget.
     mutable std::atomic<int> applied_lines_{0};   ///< Debug line budget.
     mutable std::atomic<int> fallback_lines_{0};  ///< Lifecycle line budget.
     mutable std::atomic<int> refresh_lines_{0};   ///< Debug line budget.

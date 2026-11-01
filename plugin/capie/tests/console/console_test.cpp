@@ -245,6 +245,34 @@ void portrait_plan_tests() {
     }
     plan = plan_typed(CommandId::change_leader_portrait, "POL " + std::string(64, 'a'));
     check(plan.delegate == Delegate::none, "64-character sprite refused");
+    // Format 2 (API level 9): a texture path, packing B, large = small, capie_pt_ver = 2.
+    plan = plan_typed(CommandId::change_leader_portrait, "ABK gfx/a.png");
+    check(plan.delegate == Delegate::eval_effect && plan.portrait_plan && plan.path.view() == "gfx/a.png" &&
+              plan.sprite.size == 0,
+          "a path plans format 2");
+    console::finish_portrait_plan(plan, false, false);
+    check(plan.tokens[0].view() ==
+              "ABK = { random_character = { limit = { is_country_leader = yes } clear_array = capie_pt_s "
+              "add_to_array = { capie_pt_s = 1700728 } add_to_array = { capie_pt_s = 782510 } "
+              "add_to_array = { capie_pt_s = 1849191 } set_variable = { capie_pt_len = 9 } clear_array = capie_pt_ss "
+              "add_to_array = { capie_pt_ss = 1700728 } add_to_array = { capie_pt_ss = 782510 } "
+              "add_to_array = { capie_pt_ss = 1849191 } set_variable = { capie_pt_slen = 9 } "
+              "set_variable = { capie_pt_ver = 2 } } set_variable = { capie_pt_rev = 1 } }",
+          "path effect: packing B, format 2: " + std::string(plan.tokens[0].view()));
+    const std::string longest = "gfx/leaders/" + std::string(110, 'x') + ".png";
+    plan = plan_typed(CommandId::change_leader_portrait, "ABK " + longest);
+    console::finish_portrait_plan(plan, false, false);
+    check(longest.size() == 126 && plan.delegate == Delegate::eval_effect &&
+              plan.tokens[0].view().find("set_variable = { capie_pt_len = 126 } ") != std::string_view::npos,
+          "126-character path accepted");
+    for (const char* bad : {"ABK gfx/../a.png", "ABK gfx//a.png", "ABK /gfx/a.png", "ABK gfx/a.jpg", "ABK leaders/a.png",
+                            "ABK gfx/a'b.jpg"}) {
+        plan = plan_typed(CommandId::change_leader_portrait, bad);
+        check(plan.delegate == Delegate::none && plan.message.view().find("invalid path") != std::string_view::npos,
+              std::string("path refused: ") + bad);
+    }
+    plan = plan_typed(CommandId::change_leader_portrait, "ABK gfx/" + std::string(119, 'a') + ".png");
+    check(plan.delegate == Delegate::none, "127-character path refused");
     plan = plan_typed(CommandId::reset_leader_portrait, "POL");
     check(plan.delegate == Delegate::eval_effect && plan.portrait_plan &&
               plan.tokens[0].view() ==
@@ -982,6 +1010,9 @@ void bridge_tests() {
     check(dispatch("change_leader_portrait FRA GFX_a").find("not found") != std::string::npos &&
               state.calls.size() == calls_now,
           "no sprite database: refused");
+    check(dispatch("change_leader_portrait FRA gfx/leaders/FRA/a.png").empty() && state.calls.size() == calls_now + 1 &&
+              state.calls.back().tokens[0].find("set_variable = { capie_pt_ver = 2 } ") != std::string::npos,
+          "a path needs no sprite database: format 2 through eval_effect");
     state.sprite_database = database;
     check(dispatch("reset_leader_portrait POL").empty() &&
               state.calls.back().tokens[0].starts_with("POL = { random_character = ") &&

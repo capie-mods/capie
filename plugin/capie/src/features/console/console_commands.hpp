@@ -55,6 +55,7 @@
 #pragma once
 #include "../../core/game_build.hpp"
 #include "../country/flag_layer.hpp"
+#include "../country/packing_b.hpp"
 #include "../editor/input_codes.hpp"
 #include "console_line.hpp"
 #include "console_text.hpp"
@@ -197,11 +198,11 @@ inline constexpr std::array<CommandSpec, command_count> command_specs{{
      "Usage: reset_nation_flag <TAG>"},
     {CommandId::change_leader_portrait,
      "change_leader_portrait",
-     "CAPIE: shows a portrait sprite (GFX_...) for a country's ruling leader (its own layer; the game's portrait "
-     "data unchanged). Single player only.",
-     {"<TAG>", "<sprite>", {}},
+     "CAPIE: shows a portrait sprite (GFX_...) or texture file (gfx/...png) for a country's ruling leader (its own "
+     "layer; the game's portrait data unchanged). Single player only.",
+     {"<TAG>", "<sprite or path>", {}},
      2,
-     "Usage: change_leader_portrait <TAG> <sprite name, a-z A-Z 0-9 _>"},
+     "Usage: change_leader_portrait <TAG> <sprite name a-z A-Z 0-9 _, or gfx/... .dds/.png/.tga path>"},
     {CommandId::reset_leader_portrait,
      "reset_leader_portrait",
      "CAPIE: removes a portrait set by change_leader_portrait or a mod; the game's portrait comes back.",
@@ -274,6 +275,7 @@ struct Plan {
     bool portrait_plan{};          ///< A portrait plan: the bridge checks `sprite` and calls `finish_portrait_plan`.
     Text<text::tag_length> tag{};  ///< Country tag of a name command.
     Text<country::flag::max_chars> sprite{};  ///< Large sprite of a portrait plan.
+    Text<country::packing_b::max_chars> path{};  ///< Texture path of a format 2 portrait plan (empty otherwise).
 };
 
 namespace detail {
@@ -462,6 +464,24 @@ void add_packed(Text<Capacity>& out, std::string_view array, std::string_view te
 }
 
 /**
+ * @brief Appends `add_to_array = { <array> = <element> }` for a name in packing B (CONTRACT.md 21.3).
+ * @param out Effect text.
+ * @param array Array name.
+ * @param text Text in the packing B set (checked by the caller).
+ */
+template <std::size_t Capacity>
+void add_packed_b(Text<Capacity>& out, std::string_view array, std::string_view text) noexcept {
+    const auto elements = (text.size() + country::packing_b::chars_per_element - 1) / country::packing_b::chars_per_element;
+    for (std::size_t index = 0; index < elements; ++index) {
+        out.add("add_to_array = { ")
+            .add(array)
+            .add(" = ")
+            .add_number(static_cast<std::size_t>(country::packing_b::element_of(text, index)))
+            .add(" } ");
+    }
+}
+
+/**
  * @brief Whether a text can be stored in the file-name alphabet.
  * @param text Text.
  * @param allow_empty `true` for the cosmetic snapshot.
@@ -587,7 +607,13 @@ inline Plan plan_change_leader_portrait(const line::Arguments& args) noexcept {
         plan.message.add("CAPIE: invalid tag (expected 3 characters A-Z or 0-9)");
         return plan;
     }
-    if (!detail::packable(args.at(1), false)) {
+    const bool path = country::packing_b::is_path(args.at(1));
+    if (path && !country::packing_b::valid_path(args.at(1))) {
+        plan.message.add("CAPIE: invalid path (gfx/... ending in .dds, .png or .tga; 1-126 characters "
+                         "a-z A-Z 0-9 _ - . / '; no .. or //)");
+        return plan;
+    }
+    if (!path && !detail::packable(args.at(1), false)) {
         plan.message.add("CAPIE: invalid sprite name (1-63 characters a-z A-Z 0-9 _)");
         return plan;
     }
@@ -596,7 +622,11 @@ inline Plan plan_change_leader_portrait(const line::Arguments& args) noexcept {
     plan.needs_cosmetic = true;  // the bridge resolves the tag first ("Invalid tag for the command")
     plan.portrait_plan = true;
     plan.tag.add(args.at(0));
-    plan.sprite.add(args.at(1));
+    if (path) {
+        plan.path.add(args.at(1));  // format 2; the file is checked by the layer (texture handle)
+    } else {
+        plan.sprite.add(args.at(1));
+    }
     return plan;
 }
 
@@ -648,6 +678,20 @@ inline void finish_portrait_plan(Plan& plan, bool large_exists, bool small_exist
     auto& effect = plan.tokens[0];
     if (effect.view().ends_with(portrait_commit)) {
         return;  // reset
+    }
+    if (plan.path.size != 0) {
+        // Format 2 (CONTRACT.md 18 amendment): the path in packing B, large and small.
+        effect.add(plan.tag.view()).add(" = { ").add(portrait_leader_scope).add("clear_array = capie_pt_s ");
+        detail::add_packed_b(effect, "capie_pt_s", plan.path.view());
+        effect.add("set_variable = { capie_pt_len = ").add_number(plan.path.size).add(" } clear_array = capie_pt_ss ");
+        detail::add_packed_b(effect, "capie_pt_ss", plan.path.view());
+        effect.add("set_variable = { capie_pt_slen = ").add_number(plan.path.size).add(" } ");
+        effect.add("set_variable = { capie_pt_ver = 2 } ").add(portrait_commit);
+        if (effect.overflow) {
+            plan = Plan{};
+            plan.message.add("CAPIE: path too long for one command");
+        }
+        return;
     }
     if (!large_exists) {
         plan = Plan{};
