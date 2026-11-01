@@ -2142,5 +2142,101 @@
   "replace": "if (const char* catalog = nullptr) {",
   "suite": "tests/catalog_test.cpp",
   "summary": "catalog tests:"
+ },
+ {
+  "name": "catalog-build-flag-union",
+  "file": "src/features/catalog/catalog_build.hpp",
+  "find": "if (std::ranges::binary_search(in_medium, stem) && std::ranges::binary_search(in_small, stem)) {",
+  "replace": "if (std::ranges::binary_search(in_medium, stem) || std::ranges::binary_search(in_small, stem)) {",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-build-keeps-small-sprites",
+  "file": "src/features/catalog/catalog_build.hpp",
+  "find": "&& !low.ends_with(\"_small\");",
+  "replace": ";",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-build-keeps-sprite-files",
+  "file": "src/features/catalog/catalog_build.hpp",
+  "find": "std::ranges::binary_search(used, lower(file))) {",
+  "replace": "false) {",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-build-no-dedupe",
+  "file": "src/features/catalog/catalog_build.hpp",
+  "find": "catalog.items.erase(tail.begin(), tail.end());",
+  "replace": "static_cast<void>(tail);",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-build-no-cap",
+  "file": "src/features/catalog/catalog_build.hpp",
+  "find": "if (catalog.items.size() > max_items) {",
+  "replace": "if (false) {",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-own-prefix-only",
+  "file": "src/features/catalog/catalog_build.hpp",
+  "find": "stem[key.size()] == '_'",
+  "replace": "true",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-portraitown-path-as-name",
+  "file": "src/features/catalog/catalog_build.hpp",
+  "find": "item.name.find(in_path) != std::string::npos",
+  "replace": "item.name.find(in_name) != std::string::npos",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-page-full-last",
+  "file": "src/features/catalog/catalog_build.hpp",
+  "find": "out.count = items - out.first < size ? items - out.first : size;",
+  "replace": "out.count = size;",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-pick-index-not-name",
+  "file": "src/features/catalog/catalog_pick.hpp",
+  "find": "add_173(out, \"capie_sel\", stem);",
+  "replace": "out.add(\"capie_sel_0\", 0);",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-pick-cos-unexpressible-zero",
+  "file": "src/features/catalog/catalog_pick.hpp",
+  "find": "out.add(\"capie_cos_len\", -1);",
+  "replace": "out.add(\"capie_cos_len\", 0);",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-pick-small-is-name",
+  "file": "src/features/catalog/catalog_pick.hpp",
+  "find": "add_b(out, \"capie_sml\", small);",
+  "replace": "add_b(out, \"capie_sml\", name);",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
+ },
+ {
+  "name": "catalog-pick-b-format-one",
+  "file": "src/features/catalog/catalog_pick.hpp",
+  "find": "out.add(\"capie_sel_fmt\", format_b);",
+  "replace": "out.add(\"capie_sel_fmt\", format_173);",
+  "suite": "tests/catalog_build_test.cpp",
+  "summary": "catalog build tests:"
  }
 ]

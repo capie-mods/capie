@@ -27,9 +27,9 @@ Section 20 (ruling-party sub-ideology name layer, record `capie_subideo`) was wi
 test and is not implemented. API level 9 (CAPIE 1.7.0, unreleased; branch `api9-design`) adds the
 portrait layer format 2 (texture paths, section 18.9), the state/VP catalog view and the
 `capie_catalog` record (section 21); it is covered by offline tests and has not run in the game.
-The flag and portrait catalogs of section 21 are **pending spikes** (S1/S2,
-`docs/contributing/test-session-api9-spikes.md`): CAPIE 1.7.0 answers their actions with
-`capie_catalog = 0`. Rows marked **in-game test** below are the open checks.
+The flag and portrait catalogs of section 21 (21.7) are implemented on the assumption that the
+in-game spikes S1/S2 pass (`docs/contributing/test-session-api9-spikes.md`); they are **pending
+spikes**: if a spike fails, 21.7 changes before release. Rows marked **in-game test** below are the open checks.
 
 The variant is B from `docs/API-DECISIONS.md`: plain HOI4 script, data passed through
 temporary variables of one command, no new script keywords. A mod written against this
@@ -129,7 +129,7 @@ a presence signal, not a permission (section 9).
 | `capie_flag` | API level 6: `1` when the country flag layer of section 17 is active in this game session (its pins matched), `0` when CAPIE runs without it. A flag editor refuses with a message when it is `0` or absent |
 | `capie_portrait` | API level 7: `1` when the country leader portrait layer of section 18 is active in this game session (its pins matched), `0` when CAPIE runs without it. A portrait editor refuses with a message when it is `0` or absent |
 | `capie_colour` | API level 8: `1` when the country colour layer of section 19 is active in this game session (its pins and RTTI checks matched and no game call has faulted), `0` otherwise. A colour editor refuses with a message when it is `0` or absent |
-| `capie_catalog` | API level 9: `1` when the catalog views of section 21 are available in this game session (their pins, RTTI and the core's label export matched, and no game call has faulted), `0` otherwise. In CAPIE 1.7 this means the state/VP view; the flag and portrait catalogs are pending spikes and answer `capie_catalog = 0` on their own actions |
+| `capie_catalog` | API level 9: `1` when the catalog views of section 21 are available in this game session (their pins, RTTI and the core's label export matched, and no game call has faulted), `0` otherwise. Each catalog action also reports whether it was served (21.1) |
 | `capie_epoch` | opening epoch read from the carrier, `>= 1` |
 | `capie_nf` | number of fields that follow, `0..4` |
 | `capie_f<n>_err` | `0` valid, otherwise the field error (5.3) |
@@ -996,14 +996,14 @@ Status in CAPIE 1.7.0:
 | Names, records, sentinels, keys (21.2 to 21.5) | implemented |
 | `vp` action, the state/VP view (21.6) | implemented |
 | Packing B (21.3) | implemented (used by the portrait layer format 2, 18.9) |
-| `flag`, `flagown`, `portrait`, `portraitown`, `first`, `prev`, `next`, `last`, `pick`, slot sprites (21.7) | **pending spikes**: the action is forwarded with `capie_catalog = 0` |
+| `flag`, `flagown`, `portrait`, `portraitown`, `first`, `prev`, `next`, `last`, `pick`, slot sprites (21.7) | implemented, **pending spikes** S1/S2 (may change if a spike fails); with their own pins failed the action carries `capie_catalog = 0` |
 
 ### 21.1 Versions and availability
 
 - API level `9`, build `10700`. Every catalog action carries `capie_cap` and `capie_ver`.
 - `capie_catalog` on an editor Apply (5.1) says whether the catalog views are available at all.
   On a catalog action it says whether **that** action was served: `1` served, `0` not available
-  (feature off, or a catalog pending its spikes), negative = a sentinel (21.5).
+  (feature off, or that catalog's own pins failed), negative = a sentinel (21.5).
 - The feature has its own pins and RTTI checks; if they fail, every catalog action carries
   `capie_catalog = 0` and the layers and editors keep working.
 
@@ -1016,9 +1016,11 @@ must match (no case folding, no substring search).
 scripted GUI   capie_v1_cat__<mod>__<view>                        (the scripted_gui key, the "model")
 action         capie_v1_cat__<mod>__<view>__<action>_click          (a button capie_v1_cat__<mod>__<view>__<action>)
 actions        vp                                                  (implemented)
-               flag | flagown | portrait | portraitown              (pending spikes)
-               first | prev | next | last | pick                    (pending spikes)
-text keys      CAPIE_V1_T__<MOD>__<VIEW>__<k>     k = 0..31 for vp (decimal, no padding)
+               flag | flagown | portrait | portraitown              (pending spikes, 21.7)
+               first | prev | next | last | pick                    (pending spikes, 21.7)
+slot sprites   GFX_capie_v1_s__<mod>__<view>__<set>_<slot>          set 0 or 1, slot 0..N-1 (21.7)
+               GFX_capie_v1_s__<mod>__<view>__p<set>                the preview of each set
+text keys      CAPIE_V1_T__<MOD>__<VIEW>__<k>     row/slot k: 0..31 for vp, 0..N-1 for a picker (decimal)
                CAPIE_V1_T__<MOD>__<VIEW>__COUNT   items in the view, decimal
                CAPIE_V1_T__<MOD>__<VIEW>__PAGE    "1 / 1", or "0 / 0" when empty
                CAPIE_V1_T__<MOD>__<VIEW>__SEL     the picked item (empty for vp)
@@ -1056,11 +1058,11 @@ CAPIE removes every incoming `capie_*` record of the click (including a dynamic 
 |---|---|
 | `capie_cap`, `capie_ver` | `9`, `10700` |
 | `capie_catalog` | `1` = served; `0` = not available; `-code` = sentinel (21.5). With anything but `1`, no record below is sent |
-| `capie_cat` | the catalog shown: `3` = vp (`1` flag and `2` portrait are reserved) |
-| `capie_cn` | items in the view (vp: VP provinces, `0..32`) |
-| `capie_pg`, `capie_pgs` | page shown (1-based) and number of pages; vp: `1` and `1`, or `0` and `0` when empty |
-| `capie_pn` | items on the page shown (vp: `= capie_cn`) |
-| `capie_par`, `capie_ppar` | slot set and preview set to show; `0` for vp |
+| `capie_cat` | the catalog shown: `1` flag, `2` portrait, `3` vp |
+| `capie_cn` | items in the view (vp: VP provinces, `0..32`; pickers: up to 65 535) |
+| `capie_pg`, `capie_pgs` | page shown (1-based) and number of pages; `0` and `0` when the view is empty (vp: `1` and `1` otherwise) |
+| `capie_pn` | items on the page shown, `0..N` (vp: `= capie_cn`) |
+| `capie_par`, `capie_ppar` | slot set and preview set to show, `0` or `1` (`0` for vp) |
 | `capie_st` | vp: the scope state's numeric id; `0` when the scope holds no state |
 | `capie_vp_<k>`, `capie_vpv_<k>` | vp: province id and VP value of row `k`, `k = 0 .. capie_cn - 1` |
 
@@ -1077,8 +1079,8 @@ The click is forwarded once with only `capie_cap`, `capie_ver` and `capie_catalo
 |---|---|
 | `-1` | the window is not visible, or it failed CAPIE's consistency check |
 | `-2` | the view registry is full (21.2 limits) |
-| `-3` | the view is invalid (slot sets of a flag or portrait view; pending spikes) |
-| `-4` | `pick` without a valid `capie_v1_slot` (pending spikes) |
+| `-3` | the view is invalid: a flag or portrait action on a view whose slot sets are missing, of different sizes, larger than 48, or without both previews |
+| `-4` | `pick` without a valid `capie_v1_slot` (missing, not whole, negative, or not a slot of the page shown) |
 | `-5` | the game forbids gamestate access on the clicking thread at that moment (`ThreadForbidCount != 0`) |
 
 ### 21.6 The state/VP view (`vp`)
@@ -1134,15 +1136,67 @@ scripted_gui = {
 
 ### 21.7 Flag and portrait catalogs (pending spikes)
 
-Not implemented in CAPIE 1.7.0. Their actions (`flag`, `flagown`, `portrait`, `portraitown`, `first`,
-`prev`, `next`, `last`, `pick`) are forwarded with `capie_catalog = 0`, so a mod can ship the
-buttons now and fall back to its static catalog. The planned design is spec sections 3 to 5:
-slot sprites `GFX_capie_v1_s__<mod>__<view>__<set>_<slot>` declared by the mod and re-pointed by CAPIE
-to the files of the running game, two sets switched by `capie_par`, `pick` names in
-`capie_sel_fmt`/`capie_sel_len`/`capie_sel_<k>` (flag stems in 17.3, paths and sprite names in packing
-B), `capie_sml_*` and `capie_cos_*`. These names are reserved; their final form depends on the
-in-game spikes S1/S2 (`docs/contributing/test-session-api9-spikes.md`) and may still change.
+Implemented on the assumption that the in-game spikes S1/S2 pass; **if a spike fails, this
+subsection changes before release.** The view needs its own pins (slot sprites, the game's file
+listing, the sprite map); without them its actions carry `capie_catalog = 0`.
 
+**Slot sprites (the mod's `.gfx`).** Per view, two sets of `N` sprites (`N` = 1..48) and one preview
+per set; every `texturefile` is a real file of the mod (the placeholder, shown without CAPIE):
+
+```text
+spriteType = { name = "GFX_capie_v1_s__rn__fp__0_0"  texturefile = "gfx/interface/rn/slot_blank.dds" }   # set 0, slots 0..N-1
+spriteType = { name = "GFX_capie_v1_s__rn__fp__1_0"  texturefile = "gfx/interface/rn/slot_blank.dds" }   # set 1, slots 0..N-1
+spriteType = { name = "GFX_capie_v1_s__rn__fp__p0"   texturefile = "gfx/interface/rn/slot_blank.dds" }   # preview, set 0
+spriteType = { name = "GFX_capie_v1_s__rn__fp__p1"   texturefile = "gfx/interface/rn/slot_blank.dds" }   # preview, set 1
+```
+
+`N` is the number of consecutive slots of set 0 from 0; set 1 must have exactly `N`, and both
+previews must exist, else the view is invalid (sentinel `-3`). The grid's `image` is
+`GFX_capie_v1_s__<mod>__<view>__[?ROOT.<par>]_[?<slot>]` with `<par>` stored from `capie_par`; the
+preview is `…__p[?ROOT.<ppar>]` with `<ppar>` stored from `capie_ppar`.
+
+**Catalogs** (built on the clicking machine, from the running game, once per session):
+
+| Catalog | Items | Slot shows | Label (`…__<k>`, `…__SEL`) |
+|---|---|---|---|
+| flag (`capie_cat = 1`) | stems in all of `gfx/flags`, `gfx/flags/medium` and `gfx/flags/small` (`.tga`), 1..63 characters of 17.3 | `gfx/flags/medium/<stem>.tga` | the stem |
+| portrait (`capie_cat = 2`) | sprites named `GFX_portrait*` or `GFX_leader*` (any case, not ending in `_small`), plus `.dds`/`.png`/`.tga` files under `gfx/leaders/` that pass the path rules and are not the file of a listed sprite | the sprite's own file, or the path | the sprite name, or the file name without folders |
+
+Both are sorted by byte order without duplicates (at most 65 535 items); positions mean nothing
+outside the session. The portrait catalog is rebuilt when the sprite database changes (a GUI reload).
+
+**Actions:**
+
+| Action | Effect |
+|---|---|
+| `flag`, `portrait` | the whole catalog, page 1 |
+| `flagown` | stems equal to the scope country's tag `T` or starting with `T_`, and those equal to or starting with `<cosmetic>_` of its current cosmetic tag; empty when the scope is not a country |
+| `portraitown` | sprite names containing `_T_`, paths containing `/T/` |
+| `first`, `prev`, `next`, `last` | page 1, one back (not below 1), one on (not past the last), the last page of the current view; `capie_catalog = 0` before any catalog action of the view |
+| `pick` | the item in the clicked slot of the page shown (`capie_v1_slot`, a dynamic list entry's `value`) |
+
+On a page action CAPIE loads the page into the **hidden** set and the records carry the set to show
+in `capie_par`; on `pick` it loads the item into the hidden preview and flips `capie_ppar`. Labels of
+slots past the end of a page are empty, and those slots show their placeholder.
+
+**Records of a page action:** the header of 21.4 (`capie_catalog = 1`, `capie_cat`, `capie_cn`,
+`capie_pg`, `capie_pgs`, `capie_pn`, `capie_par`, `capie_ppar`). **`pick` adds:**
+
+| Record | Value |
+|---|---|
+| `capie_sel_fmt` | `1` = 17.3 packing (a flag stem), `2` = packing B (a sprite name or a path) |
+| `capie_sel_len`, `capie_sel_0` .. `capie_sel_41` | the item's name: 1..63 characters in format 1 (21 elements), 1..126 in format 2 (42 elements) |
+| `capie_sml_len`, `capie_sml_0` .. `capie_sml_41` | portrait only, packing B: `<name>_small` when that sprite exists, else the name; for a path the same path |
+| `capie_cos_len`, `capie_cos_0` .. `capie_cos_20` | flag only: the scope country's current cosmetic tag in 17.3 packing; `capie_cos_len = 0` when it has none, `-1` (and no elements) when it cannot be expressed in 17.3 |
+
+The largest `pick` adds 10 + 1 + 43 + 43 = 97 records. Store the name, never a position: the flag
+picker writes `capie_cf_*` (section 17) from `capie_sel_*` and, as the snapshot, `capie_cos_*`;
+the portrait picker writes the format 2 variables of 18.9 from `capie_sel_*` and `capie_sml_*`.
+
+**Display rules (spike-dependent):** CAPIE re-points only the hidden set and the hidden preview. It
+releases a replaced texture at least 2 GUI updates later on the UI thread, and never releases a
+portrait-path texture of 18.9. Flipping pages therefore keeps a bounded number of textures loaded
+(about `2 × N + 2` per view).
 ### 21.8 Without CAPIE, multiplayer
 
 - **Without CAPIE:** the action runs the mod's effect with no `capie_*` record; the keys show the

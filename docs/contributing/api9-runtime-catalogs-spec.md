@@ -672,9 +672,14 @@ These change the design above; CONTRACT 18.9 and 21 describe what is built.
    is 0, as the spec's validity rule already says. A missing file may therefore write one texture
    line to `error.log` per path and session (in-game check). At most 1024 distinct paths are built.
    The builder is called with `warn = false`, `flag = false`.
-3. **Pending actions (§5.1, §5.3).** In CAPIE 1.7.0 every action other than `vp` is forwarded with
-   `capie_catalog = 0` (not available), so mods can ship their buttons now. `capie_catalog` on an
-   editor Apply means "the catalog views are available" (the `vp` view in 1.7.0).
+3. **Flag and portrait catalogs (§3, §4, §5).** Implemented after the spike commits, on the
+   assumption that S1/S2 pass (CONTRACT 21.7). Without their own pins (slot sprites, `GetFiles`, the
+   sprite map) their actions carry `capie_catalog = 0`. `GetFiles` is called with a CArray whose
+   allocator is the game's shared allocator global (`rva::gui_structural`, the one its callers pass;
+   pin `files.allocator`); results are never freed (R6). The release pins are part of the sprite pins,
+   so without `ReleaseTexture` the pickers are off (no per-session-cap fallback). A pick's small
+   portrait name is `<sprite>_small` when FindSprite finds it. `capie_catalog` on an editor Apply means
+   "the catalog views are available".
 4. **Labels (§4.5).** A label has `$`, `[`, `]` and control characters replaced by a space (a
    player-given city name cannot open a localisation macro) and is cut at 255 bytes on a UTF-8
    boundary. The core answers the keys from a store the editor DLL fills through the new export

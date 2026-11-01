@@ -8,6 +8,7 @@
  * still passes. Without an argument it only checks that every table entry decodes.
  */
 #include "../src/features/catalog/catalog_pins.hpp"
+#include "../src/features/catalog/catalog_source_pins.hpp"
 
 #include <cstdio>
 #include <cstring>
@@ -153,7 +154,37 @@ void exe_tests(const char* path) {
     flip(0x1439239, "sprite.calls_find", false);
     flip(0x22A782D, "sprite.set_file_releases", false);
     flip(0x22A7850, "sprite.set_file_adds", false);
-    check(pins::first_failed_vp_pin(text) == nullptr && pins::first_failed_sprite_pin(text) == nullptr,
+    failed = pins::first_failed_source_pin(text);
+    check(failed == nullptr, std::string("all source pins pass; first failure: ") + (failed ? failed : "none"));
+    const auto flip_source = [&](std::size_t rva, const char* expected) {
+        image[rva] ^= 0x01U;
+        const char* result = pins::first_failed_source_pin(text);
+        check(result != nullptr && std::string(result) == expected,
+              std::string("corrupt source byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
+        image[rva] ^= 0x01U;
+    };
+    flip_source(0x2560AA0 + 5, "files.get_files");
+    flip_source(0x146808 + 4, "files.allocator_slot");   // +0x10 of the array
+    flip_source(0x14682E + 4, "files.array");
+    flip_source(0x146823 + 4, "files.depth");
+    flip_source(0x14683D + 4, "files.count");            // +0xC
+    flip_source(0x146845 + 3, "files.stride");           // 0x40
+    flip_source(0x2560AF5 + 3, "files.clears");
+    flip_source(0x22A0ED0 + 4, "map.thunk");             // +0x100
+    flip_source(0xA88D5A + 2, "map.bucket_count");       // +0x4
+    flip_source(0xA88D5D + 3, "map.buckets");            // +0x8
+    flip_source(0xA88D80 + 2, "map.node_object");
+    flip_source(0xA88D86 + 3, "map.sprite_name");        // +0x10
+    flip_source(0xA88DB4 + 3, "map.node_next");          // +0x8
+    flip_source(0xBDF353 + 3, "scope.country_read");     // +0x3C8
+    flip_source(0x58191A + 4, "scope.country_write");    // +0x8
+    flip_source(0xC081BA + 10, "tag.text_array");        // +0x358
+    flip_source(0x146804, "files.allocator");
+    flip_source(0x146834, "files.calls_get_files");
+    flip_source(0x22A0ED8, "map.thunk_jumps");
+    flip_source(0xBDF365, "scope.calls_set_country");
+    check(pins::first_failed_vp_pin(text) == nullptr && pins::first_failed_sprite_pin(text) == nullptr &&
+          pins::first_failed_source_pin(text) == nullptr,
           "restored image passes again");
 }
 

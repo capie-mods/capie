@@ -13,8 +13,11 @@
  *   the records of `catalog_records.hpp`. Every 500 ms while the window is visible the Tick hook
  *   reads the names of the same provinces again (at most 32 calls), so a rename shows without a
  *   click.
- * - Every other action (the flag and portrait catalogs, paging, pick): forwarded with
- *   `capie_catalog = 0` until those catalogs ship (pending the spikes S1/S2).
+ * - `flag`, `flagown`, `portrait`, `portraitown`, `first`, `prev`, `next`, `last`, `pick`: the flag
+ *   and portrait catalogs (`catalog_views.hpp`), on the assumption that the spikes S1/S2 pass. They
+ *   need the slot-sprite and source pins as well; without them these actions carry
+ *   `capie_catalog = 0`. A `pick` reads the click's `capie_v1_slot` record before the reserved
+ *   records are removed.
  *
  * A window that is not visible or fails CAPIE's chain check gets sentinel -1, a full registry -2.
  * Without the catalog pins, RTTI or the core's publish export, every action carries
@@ -27,6 +30,8 @@
 #include "catalog_names.hpp"
 #include "catalog_pins.hpp"
 #include "catalog_records.hpp"
+#include "catalog_source_pins.hpp"
+#include "catalog_views.hpp"
 #include "catalog_text.hpp"
 #include "vp_view.hpp"
 
@@ -71,6 +76,7 @@ struct Runtime {
     engine::ProvinceName name{};       ///< The game's ProvinceName.
     engine::GameDelete release{};      ///< The game's operator delete (string release).
     text::PublishFn publish{};         ///< `RNCatalogPublish` of capie_core.dll.
+    bool pickers{};                    ///< The flag and portrait catalogs are armed too.
 };
 
 /// @brief Runtime of this process.
@@ -133,7 +139,21 @@ inline void prepare(const core::TextSection& text, std::uintptr_t image) noexcep
     runtime.publish = publish;
     runtime.ok = true;
     editor::public_catalog_ready.store(true, std::memory_order_release);
-    note("CAPIE_CATALOG on: vp view (flag and portrait catalogs pending the spikes)");
+    const char* picker_pin = pins::first_failed_sprite_pin(text);
+    if (picker_pin == nullptr) {
+        picker_pin = pins::first_failed_source_pin(text);
+    }
+    if (picker_pin == nullptr) {
+        slots::calls = {reinterpret_cast<slots::FindFn>(image + core::rva::sprite_find),
+                        reinterpret_cast<slots::AddFn>(image + core::rva::texture_add),
+                        reinterpret_cast<slots::GetFn>(image + core::rva::texture_get),
+                        reinterpret_cast<slots::SizeFn>(image + core::rva::texture_size),
+                        reinterpret_cast<slots::ReleaseFn>(image + core::rva::texture_release)};
+        pickers::state.get_files = reinterpret_cast<sources::GetFilesFn>(image + core::rva::vfs_get_files);
+        runtime.pickers = true;
+    }
+    note("CAPIE_CATALOG on: vp view; flag and portrait catalogs %s %s", runtime.pickers ? "on" : "off",
+         picker_pin != nullptr ? picker_pin : "");
 }
 
 /**
@@ -165,7 +185,7 @@ inline void publish(const names::Key& key, const char* label) noexcept {
  * @param id Ids.
  */
 inline void publish_empty(const EditorId& id) noexcept {
-    for (std::size_t k = 0; k < vp::max_rows; ++k) {
+    for (std::size_t k = 0; k < slots::max_slots; ++k) {
         publish(names::row_key(id, k), "");
     }
     publish(names::text_key(id, "COUNT"), "0");
@@ -308,7 +328,8 @@ inline bool publish_vp(const View& view, const vp::List& list) noexcept {
  * @return `false` when the click's records could not be copied (then forwarded unchanged).
  * @note Not `noexcept`: it calls the original dispatch.
  */
-inline bool forward(Origin& current, void* opaque_selector, const records::List& list) {
+template <class List>
+bool forward(Origin& current, void* opaque_selector, const List& list) {
     editor::TempVector source{};
     std::size_t kept = 0;
     std::size_t sanitized = 0;
@@ -385,6 +406,35 @@ inline records::List vp_action(std::size_t slot, void* context) noexcept {
     return records::vp_view(list);
 }
 
+/// @brief Record a dynamic list entry carries: the clicked slot of a `pick`.
+inline constexpr std::string_view slot_record = "capie_v1_slot";
+
+/**
+ * @brief The click's `capie_v1_slot` record (spec 5.2), read before the reserved records are removed.
+ * @param context Window context.
+ * @return The slot, or -1 when absent, not whole or negative.
+ */
+inline std::int64_t clicked_slot(void* context) noexcept {
+    editor::TempVector source{};
+    const auto address = reinterpret_cast<std::uintptr_t>(context) + core::off::context_records;
+    if (!engine::guarded_copy(&source, reinterpret_cast<const void*>(address), sizeof(source)) || source.count < 0 ||
+        std::cmp_greater(source.count, editor::max_original_records) || source.data == nullptr) {
+        return -1;
+    }
+    for (int i = 0; i < source.count; ++i) {
+        editor::Record record{};
+        char key[engine::max_name_bytes + 1]{};
+        if (!engine::guarded_copy(&record, source.data + i, sizeof(record)) || !engine::record_key(record, key)) {
+            return -1;
+        }
+        if (std::string_view(key) == slot_record) {
+            const auto raw = record.raw_value;
+            return raw >= 0 && raw % editor::fixed_point == 0 ? raw / editor::fixed_point : -1;
+        }
+    }
+    return -1;
+}
+
 /**
  * @brief Dispatch hook entry for catalog views.
  * @param context Window context.
@@ -423,23 +473,43 @@ inline bool dispatch(void* context, void* opaque_selector) {
     current.public_apply = selector_name.c_str();
     editor::View window{};
     records::List list{};
+    bool picker_action = false;
+    pick::List picked{};
+    const std::int64_t clicked = *action == Action::pick ? clicked_slot(context) : -1;  // before sanitising
     if (editor::public_view(context, model, window) != editor::ViewResult::visible) {
         list = records::sentinel(records::Sentinel::window);
     } else if (!registered) {
         list = records::sentinel(records::Sentinel::registry_full);
-    } else if (!ready() || *action != Action::vp) {
-        list = records::unavailable();  // off, or a catalog pending the spikes
+    } else if (!ready() || (*action != Action::vp && !runtime.pickers)) {
+        list = records::unavailable();  // off, or the catalogs' own pins failed
     } else if (thread_forbid() != 0) {
         list = records::sentinel(records::Sentinel::thread);
-    } else {
+    } else if (*action == Action::vp) {
         list = vp_action(slot, context);
+    } else {
+        picker_action = true;
+        const auto scope = reinterpret_cast<std::uintptr_t>(context) + core::off::context_scope;
+        try {
+            picked = pickers::run(pickers::state.pickers[slot], views[slot].id, *action, scope, clicked,
+                                [](const names::Key& key, const char* text) { publish(key, text); });
+        } catch (...) {
+            picked = pick::List{};
+        }
+        if (picked.overflow || picked.count == 0) {
+            picker_action = false;
+            list = records::unavailable();
+        }
     }
     std::int64_t catalog = 0;
-    static_cast<void>(list.find("capie_catalog", catalog));
+    static_cast<void>(picker_action ? picked.find("capie_catalog", catalog) : list.find("capie_catalog", catalog));
     note("CAPIE_CATALOG action=%s view=%.*s capie_catalog=%lld records=%zu",
          names::action_names[static_cast<std::size_t>(*action)].data(), static_cast<int>(size), name,
-         static_cast<long long>(catalog), list.count);
-    static_cast<void>(forward(current, opaque_selector, list));
+         static_cast<long long>(catalog), picker_action ? picked.count : list.count);
+    if (picker_action) {
+        static_cast<void>(forward(current, opaque_selector, picked));
+    } else {
+        static_cast<void>(forward(current, opaque_selector, list));
+    }
     return true;
 }
 
@@ -466,6 +536,9 @@ inline void bind(void* window) noexcept {
  * @param window Ticking window (pre-filtered as possibly ours).
  */
 inline void tick(void* window) noexcept {
+    if (runtime.pickers && ready()) {
+        slots::drain();  // deferred texture releases of re-pointed slots (UI thread)
+    }
     if (!any_vp.load(std::memory_order_acquire) || !ready()) {
         return;
     }

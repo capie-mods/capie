@@ -96,6 +96,13 @@ inline constexpr std::uintptr_t sprite_lazy_load = 0x22A7F80;
 inline constexpr std::uintptr_t sprite_set_texture_file = 0x22A77D0;
 /// @brief `CSpriteType` vtable (RTTI-checked; a slot sprite must have it).
 inline constexpr std::uintptr_t vt_sprite_type = 0x2BB3420;
+/// @brief `void GetFiles(const char* dir, CArray* out, const char* ends_with, const char* contains, int depth)`:
+/// the VFS listing (honours `replace_path`); called by the flag and portrait catalogs (UI thread).
+inline constexpr std::uintptr_t vfs_get_files = 0x2560AA0;
+/// @brief Sprite map lookup the FindSprite thunk jumps to (map at database +0x100); pinned, never called.
+inline constexpr std::uintptr_t sprite_map_find = 0xA88D30;
+/// @brief `void ScopeSetCountry(scope*, const tag*, bool)`: writes the scope's country at +0x8; pinned.
+inline constexpr std::uintptr_t scope_set_country = 0x581900;
 
 // ---- State/VP view (API level 9; read and called by capie_editor.dll) -------------------------
 /// @brief `string* ProvinceName(province*, string* out, bool* is_vp)`: custom name, else VP name; called.
@@ -289,6 +296,8 @@ inline constexpr std::uintptr_t province_vp = 0x38;             ///< int32 victo
 inline constexpr std::uintptr_t province_custom_name = 0x40;    ///< Player-given name, MSVC string (`province.custom_name`).
 inline constexpr std::uintptr_t province_id = 0xA4;             ///< int32 province id (`province.id`).
 inline constexpr std::uintptr_t scope_state_id = 0xA8;          ///< int32 state id of a scope (`scope.state_id`).
+inline constexpr std::uintptr_t scope_country = 0x8;            ///< int32 country tag of a scope (`scope.country_write`).
+inline constexpr std::uintptr_t gamestate_tag_texts = 0x358;    ///< Tag text array, stride 0x20 (`tag.text_array`).
 inline constexpr std::uintptr_t tls_thread_forbid = 0x10;       ///< int32 `ThreadForbidCount` in the TLS block.
 // ---- Slot sprites (pinned in features/catalog/catalog_pins.hpp, `sprite.*`) ------------------------
 inline constexpr std::uintptr_t sprite_db = 0x48;            ///< Sprite database of a `CSpriteType` (`sprite.database`).

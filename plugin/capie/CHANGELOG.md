@@ -53,16 +53,15 @@ unchanged. Runs on HOI4 1.19.4.2 only.
   `capie_vp_<k>`, `capie_vpv_<k>`), and the keys `CAPIE_V1_T__<MOD>__<VIEW>__<k>` show each
   province's name as the game shows it (a renamed city's new name within half a second). This
   works for any map, also a total conversion's.
+- Flag and portrait pickers (CONTRACT 21.7, pending the in-game spikes): a catalog view lists
+  every flag file and every leader portrait (sprites and image files) of the running game, also
+  of a total conversion, page by page, and a pick sends the chosen file's name to the mod.
 - Every Apply also reports `capie_catalog` (1 when the catalog views work in this game).
 
 ### Changed
 
 - Status text "CAPIE 1.7 loaded"; `CAPIE_API` answers `9`, `CAPIE_BUILD` answers `1.7.0`.
 
-### Not yet
-
-- The flag and portrait pickers of runtime catalogs (CONTRACT 21, "pending spikes"): their
-  actions are answered with `capie_catalog = 0` in this version.
 
 ## [1.6.1] - 2026-11-05
 
