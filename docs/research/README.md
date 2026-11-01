@@ -19,6 +19,7 @@ image base `0x140000000`, and function names are analyst labels, not recovered s
 | [setvariable-slot-hook.md](setvariable-slot-hook.md) | Design (1.19.4.0): the SetVariable hook as an RTTI-checked vtable slot patch (B2/N11) |
 | [subideology-rename-design.md](subideology-rename-design.md) | Design (1.19.4.0), dropped, not implemented: sub-ideology rename through a frame in the politics panel (B1); country colour leads (B3) |
 | [port-1.19.4.1.md](port-1.19.4.1.md) | Hotfix port to HOI4 1.19.4.1: what moved, no layout change, how each hard pin was resolved |
+| [runtime-catalogs-2026-11.md](runtime-catalogs-2026-11.md) | API 9 research (1.19.4.1): what the game holds for flags, portraits, characters, states and VPs; how a scripted GUI can show it; the launcher and `dependencies` |
 
 Each document says what was observed statically, what was observed in the game, and what is still
 open. Raw evidence (decompilations, logs, screenshots) is in [[monorepo archive: docs/evidence](https://github.com/SirCypkowskyy/hoi4-rename-anything/tree/monorepo-before-split-20261014/docs/evidence)](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/README.md).
