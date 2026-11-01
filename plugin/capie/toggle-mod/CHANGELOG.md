@@ -6,7 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.1.2]
+## [1.1.2] - 2026-11-01
 
 - Works with total conversions: the CAPIE mark in the main menu is gone. It needed a copy of the
   game's main menu file, and that copy replaced the main menu of Kaiserreich, KaiserreduX, The New
