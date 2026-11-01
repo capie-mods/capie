@@ -34,6 +34,7 @@
 #include "../../engine/game_calls.hpp"
 #include "../../engine/msvc_string.hpp"
 #include "../../engine/widgets.hpp"
+#include "../catalog/catalog_names.hpp"
 #include "public_names.hpp"
 #include "schema.hpp"
 
@@ -248,7 +249,8 @@ inline ModelClass classify_model(void* model) noexcept {
     }
     // Grammar editors of other mods (public contract): prefix and length only; the public
     // observer parses the whole name with its own fresh read.
-    if (header.size < grammar::min_model_name || header.size > grammar::max_model_name) {
+    // Catalog views (API level 9) use their own prefix and one more byte of length.
+    if (header.size < grammar::min_model_name || header.size > catalog::names::max_model_name) {
         return ModelClass::foreign;
     }
     if (!bytes_read) {
@@ -258,8 +260,9 @@ inline ModelClass classify_model(void* model) noexcept {
             return ModelClass::unreadable;
         }
     }
-    return grammar::may_be_model(std::string_view(bytes, static_cast<std::size_t>(header.size))) ? ModelClass::maybe_own
-                                                                                                  : ModelClass::foreign;
+    const std::string_view name(bytes, static_cast<std::size_t>(header.size));
+    return grammar::may_be_model(name) || catalog::names::may_be_model(name) ? ModelClass::maybe_own
+                                                                             : ModelClass::foreign;
 }
 
 /**

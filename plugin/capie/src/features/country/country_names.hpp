@@ -11,12 +11,12 @@
  * hashing, decoding or locking.
  *
  * For our keys:
- *   - `RN_PLUGIN_STATUS` and `RN_PLUGIN_STATUS_EN` return "CAPIE 1.6 loaded",
- *     `RN_PLUGIN_STATUS_PL` returns "CAPIE 1.6 załadowane" (Rename Anything's localisation picks
+ *   - `RN_PLUGIN_STATUS` and `RN_PLUGIN_STATUS_EN` return "CAPIE 1.7 loaded",
+ *     `RN_PLUGIN_STATUS_PL` returns "CAPIE 1.7 załadowane" (Rename Anything's localisation picks
  *     the language through `$RN_PLUGIN_STATUS_EN$` / `$RN_PLUGIN_STATUS_PL$`, R5-MINOR-2);
  *   - the public keys of the script contract (CONTRACT.md section 8): `CAPIE_STATUS`
- *     returns "CAPIE 1.6", `CAPIE_API` the API level ("8"), `CAPIE_BUILD` the release
- *     ("1.6.2"); the SDK localisation holds their fallbacks;
+ *     returns "CAPIE 1.7", `CAPIE_API` the API level ("9"), `CAPIE_BUILD` the release
+ *     ("1.7.0"); the SDK localisation holds their fallbacks;
  *   - `RN1|Name|Adjective|` (+ `_DEF`, `_ADJ`) returns the name or adjective.
  * Decoded RN1 keys are cached by key: a shared lock and one hash lookup without
  * allocation answer repeat queries; a miss decodes, validates and inserts under an
@@ -31,6 +31,7 @@
  */
 #pragma once
 #include "../../core/game_build.hpp"
+#include "../catalog/catalog_text.hpp"
 #include "capability.hpp"
 #include "country_protocol.hpp"
 
@@ -57,23 +58,23 @@ inline constexpr std::string_view status_key_en = "RN_PLUGIN_STATUS_EN";
 /// @brief Polish status key.
 inline constexpr std::string_view status_key_pl = "RN_PLUGIN_STATUS_PL";
 /// @brief Status text, English (also for the bare key).
-inline constexpr char status_text_en[] = "CAPIE 1.6 loaded";
+inline constexpr char status_text_en[] = "CAPIE 1.7 loaded";
 /// @brief Status text, Polish, UTF-8 ("załadowane": ł = C5 82).
 inline constexpr char status_text_pl[] =
-    "CAPIE 1.6 za\xC5\x82"
+    "CAPIE 1.7 za\xC5\x82"
     "adowane";
 /// @brief The two leading bytes of Rename Anything's keys (`RN1|`, `RN_PLUGIN_STATUS*`).
 inline constexpr char claim_prefix[2] = {'R', 'N'};
 /// @brief The two leading bytes of the public keys (`CAPIE_*`).
 inline constexpr char public_claim_prefix[2] = {'C', 'A'};
-/// @brief Public status key: "CAPIE 1.6" while loaded.
+/// @brief Public status key: "CAPIE 1.7" while loaded.
 inline constexpr std::string_view public_status_key = "CAPIE_STATUS";
 /// @brief Public API level key.
 inline constexpr std::string_view public_api_key = "CAPIE_API";
 /// @brief Public release key.
 inline constexpr std::string_view public_build_key = "CAPIE_BUILD";
 /// @brief Text of `CAPIE_STATUS`.
-inline constexpr char public_status_text[] = "CAPIE 1.6";
+inline constexpr char public_status_text[] = "CAPIE 1.7";
 static_assert(std::string_view(public_status_text).ends_with(core::capie_version) &&
                   std::string_view(status_text_en).starts_with(public_status_text) &&
                   std::string_view(status_text_pl).starts_with(public_status_text),
@@ -195,6 +196,9 @@ inline const char* override_value(std::string_view key) {
     }
     if (const auto* status = status_text(key)) {
         return status;
+    }
+    if (const auto* catalog = catalog::text::store().answer(key)) {
+        return catalog;  // API level 9: a catalog view's label (published by capie_editor.dll)
     }
     return country_value(key);
 }

@@ -341,6 +341,7 @@ Invoke-Test -Source 'host_pins_exe_test.cpp' -Output 'host_pins_exe_test.exe' -A
 Invoke-Test -Source 'window_pins_exe_test.cpp' -Output 'window_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 # Every vtable constant belongs to the expected class (MSVC RTTI, core/rtti.hpp).
 Invoke-Test -Source 'rtti_exe_test.cpp' -Output 'rtti_exe_test.exe' -Arguments $exeArgs | Out-Null
+Invoke-Test -Source 'catalog_test.cpp' -Output 'catalog_test.exe' | Out-Null
 Invoke-Test -Source 'catalog_pins_exe_test.cpp' -Output 'catalog_pins_exe_test.exe' -Arguments $exeArgs | Out-Null
 # The inherited suite loads capie_editor.dll into its own (non-game) process for the wrong-host check.
 Copy-Item -LiteralPath $debugEditor -Destination (Join-Path $script:TestOutDir 'capie_editor.dll') -Force

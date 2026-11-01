@@ -52,6 +52,7 @@
 #include "../core/sha256.hpp"
 #include "../core/signature_table.hpp"
 #include "../features/caption/caption_adapter.hpp"
+#include "../features/catalog/catalog_dispatch.hpp"
 #include "../features/editor/debug_observer.hpp"
 #include "../features/editor/diagnostics.hpp"
 #include "../features/editor/keylog.hpp"
@@ -136,6 +137,7 @@ void __fastcall tick_observed(void* window, char force) {
     if (own) {
         observe_tick(window);
         public_observe_tick(window);
+        catalog::tick(window);  // API level 9: VP labels of a visible catalog view
         if constexpr (debug_diagnostics) {
             observe_key_tick(window);
         }
@@ -169,6 +171,7 @@ void __fastcall bind_observed(void* window) {
     caption_bind(window);
     focus_bind(window);
     public_bind(window);
+    catalog::bind(window);  // API level 9: registers a catalog view and publishes its keys
     View view{};
     const auto result = inspect_window(window, view);
     if (result == ViewResult::unrelated) {
@@ -309,8 +312,9 @@ void __fastcall dispatch_observed(void* context, void* opaque_selector) {
     }
 #endif
     if (!own_commit(context, selector, model_name, model)) {
-        // Grammar editors of other mods (public contract); anything else is forwarded unchanged.
-        if (!public_dispatch(context, opaque_selector)) {
+        // Catalog views (API level 9), then grammar editors of other mods (public contract); anything
+        // else is forwarded unchanged.
+        if (!catalog::dispatch(context, opaque_selector) && !public_dispatch(context, opaque_selector)) {
             original_dispatch(context, opaque_selector);
         }
         return;
@@ -557,6 +561,8 @@ InitCode initialize() {
     engine::share_game_call_latch(shared_latch);
     write_log(shared_latch != nullptr ? "RN_LIFECYCLE game-call fault latch shared with capie_core.dll\r\n"
                                       : "RN_LIFECYCLE game-call fault latch own (capie_core.dll not loaded)\r\n");
+    // Catalog views (API level 9): own pins, RTTI and the core's publish export; off alone on failure.
+    catalog::prepare(text, image_base);
 #if CAPIE_SPIKE
     spike::prepare(text, image_base);  // throwaway spike build; a failed pin turns the spike off
 #endif

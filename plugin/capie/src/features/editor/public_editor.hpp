@@ -726,7 +726,10 @@ inline bool prepare_public(Origin& current, const PublicSnapshot& snapshot) noex
         !append_record(current, kept, public_key_fields, snapshot.count) ||
         !append_record(current, kept, public_key_flag, flag_ready() ? 1U : 0U) ||
         !append_record(current, kept, public_key_portrait, portrait_ready() ? 1U : 0U) ||
-        !append_record(current, kept, public_key_colour, colour_ready() ? 1U : 0U)) {
+        !append_record(current, kept, public_key_colour, colour_ready() ? 1U : 0U) ||
+        !append_record(current, kept, public_key_catalog,
+                       public_catalog_ready.load(std::memory_order_acquire) && engine::game_calls_allowed() ? 1U
+                                                                                                             : 0U)) {
         return false;
     }
     for (std::size_t field = 0; field < snapshot.count; ++field) {

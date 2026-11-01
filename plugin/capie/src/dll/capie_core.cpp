@@ -3,9 +3,9 @@
  * @brief Composition root of `capie_core.dll`: country names, the name layer, status text and the capability export.
  *
  * This DLL hooks the three localisation lookups of the pinned `hoi4.exe` so that RN1 keys
- * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.6
- * loaded" / "CAPIE 1.6 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
- * `CAPIE_BUILD` answer "CAPIE 1.6", "8" and "1.6.2" (`features/country/country_names.hpp`).
+ * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.7
+ * loaded" / "CAPIE 1.7 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
+ * `CAPIE_BUILD` answer "CAPIE 1.7", "9" and "1.7.0" (`features/country/country_names.hpp`).
  *
  * Name layers (API levels 4 and 5, `features/country/name_layer*.hpp`): four more hooks
  * (`UpdateNames`, `BuildNameKey`, `SetVariable::Execute`, `CFaction::GetName`) show a country
@@ -89,7 +89,7 @@ using core::InitCode;
 /// @brief Longest path buffer for the executable path.
 constexpr DWORD max_path_chars = 32768;
 /// @brief Debugger message after a successful initialization.
-constexpr char initialized_message[] = "CAPIE 1.6: country hooks initialized (capie_core, pinned 1.19.5.0)\n";
+constexpr char initialized_message[] = "CAPIE 1.7: country hooks initialized (capie_core, pinned 1.19.5.0)\n";
 /// @brief Size of a lifecycle line buffer.
 constexpr std::size_t line_bytes = 320;
 /// @brief Number of localisation hooks (always installed).
@@ -436,6 +436,27 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNCountryCapabilities() noexcept {
     return capie::country::capabilities_of(capie::country::name_layer.enabled(), capie::country::flag_layer.enabled(),
                                            capie::country::portrait_layer.enabled(),
                                            capie::country::colour_layer.enabled());
+}
+
+/**
+ * @brief Publishes the text of a catalog view key (API level 9; called by `capie_editor.dll`, UI thread).
+ * @param key `CAPIE_V1_T__<MOD>__<VIEW>__<k>` (NUL-terminated, at most `names::max_key` bytes).
+ * @param text Label (NUL-terminated; cleaned and cut at 255 bytes).
+ * @return 1 when stored, 0 otherwise (inactive, bad key, key cap, allocation failure).
+ */
+// NOLINTNEXTLINE(readability-identifier-naming): exported ABI name
+extern "C" __declspec(dllexport) int WINAPI RNCatalogPublish(const char* key, const char* text) noexcept {
+    if (!capie::country::active.load(std::memory_order_acquire) || key == nullptr || text == nullptr) {
+        return 0;
+    }
+    const auto key_size = strnlen_s(key, capie::catalog::names::max_key + 1);
+    const auto text_size = strnlen_s(text, capie::catalog::text::max_text * 4);
+    if (key_size > capie::catalog::names::max_key) {
+        return 0;
+    }
+    return capie::catalog::text::store().publish(std::string_view(key, key_size), std::string_view(text, text_size))
+               ? 1
+               : 0;
 }
 
 /**
