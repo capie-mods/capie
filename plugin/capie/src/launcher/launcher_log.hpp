@@ -231,18 +231,28 @@ inline std::wstring_view notice_text(Notice notice, bool polish) noexcept {
     switch (notice) {
         case Notice::unknown_game_build:
             return polish ? L"CAPIE wymaga aktualizacji do tej wersji Hearts of Iron IV. Gra uruchomi się bez "
-                            L"CAPIE: do czasu aktualizacji zmiana nazw w polu tekstowym i nazwy krajów są wyłączone. "
-                            L"Zaktualizuj CAPIE w menu instalatora (instalacja lub aktualizacja) albo pobierz "
-                            L"najnowsze wydanie: https://github.com/capie-mods/capie/releases/latest"
+                            L"CAPIE: do czasu aktualizacji zmiana nazw w polu tekstowym i nazwy krajów są wyłączone.\n\n"
+                            L"Aby zaktualizować, otwórz PowerShell, wklej tę samą linię co przy instalacji i wybierz "
+                            L"\"Install or update\":\n\n"
+                            L"irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex\n\n"
+                            L"(Ctrl+C kopiuje tekst tego okna.) Strona wydania: "
+                            L"https://github.com/capie-mods/capie/releases/latest"
                           : L"CAPIE needs an update for this Hearts of Iron IV version. The game starts without "
-                            L"CAPIE: in-place renaming and country names are off until then. Update CAPIE from the "
-                            L"installer menu (install or update) or download the latest release: "
+                            L"CAPIE: in-place renaming and country names are off until then.\n\n"
+                            L"To update, open PowerShell, paste the same line you used to install and choose "
+                            L"\"Install or update\":\n\n"
+                            L"irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex\n\n"
+                            L"(Ctrl+C copies the text of this window.) Release page: "
                             L"https://github.com/capie-mods/capie/releases/latest";
         case Notice::bundle_invalid:
             return polish ? L"Pliki CAPIE są niekompletne, zmienione albo folder nie jest zapisywalny. Gra uruchomi "
-                            L"się bez CAPIE. Zainstaluj ponownie: install.ps1 -Install."
+                            L"się bez CAPIE. Aby naprawić, otwórz PowerShell, wklej tę samą linię co przy instalacji "
+                            L"i wybierz \"Install or update\":\n\n"
+                            L"irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex"
                           : L"The CAPIE files are incomplete, modified, or their folder is not writable. The game "
-                            L"starts without CAPIE. Reinstall: install.ps1 -Install.";
+                            L"starts without CAPIE. To repair, open PowerShell, paste the same line you used to "
+                            L"install and choose \"Install or update\":\n\n"
+                            L"irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex";
         case Notice::foreign_game:
             return polish ? L"Uruchomiona gra nie jest plikiem hoi4.exe sprawdzonym przed startem. CAPIE nie "
                             L"zostanie załadowane; gra działa normalnie."

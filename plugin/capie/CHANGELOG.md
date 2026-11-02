@@ -61,6 +61,9 @@ unchanged. Runs on HOI4 1.19.4.2 only.
 ### Changed
 
 - Status text "CAPIE 1.7 loaded"; `CAPIE_API` answers `9`, `CAPIE_BUILD` answers `1.7.0`.
+- Launcher: the notice "CAPIE needs an update for this Hearts of Iron IV version" (and the one
+  about broken CAPIE files) now shows the PowerShell line to paste, the same one as for the
+  install, and the installer option to choose ("Install or update"). Ctrl+C copies the notice.
 
 
 ## [1.6.1] - 2026-11-05

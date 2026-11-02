@@ -454,6 +454,13 @@ void log_and_notices(const std::wstring& dir) {
         const auto text = cl::notice_text(cl::Notice::unknown_game_build, polish);
         check(text.find(cl::release_page_url) != std::wstring_view::npos && text.find(L"CAPIE") == 0,
               "unsupported build notice is actionable (update, release page)");
+        check(text.find(cl::update_command) != std::wstring_view::npos &&
+                  text.find(L"Install or update") != std::wstring_view::npos,
+              "unsupported build notice names the update line and the installer option");
+        check(cl::notice_text(cl::Notice::bundle_invalid, polish).find(cl::update_command) != std::wstring_view::npos,
+              "broken bundle notice names the repair line");
+        check(text.find(L"-CheckUpdate") == std::wstring_view::npos,
+              "no installer switch the player cannot run without the script");
     }
     constexpr UINT on_top = MB_TOPMOST | MB_SETFOREGROUND;
     check((cl::notice_box_style & on_top) == on_top && (cl::error_box_style & on_top) == on_top,
