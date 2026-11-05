@@ -26,25 +26,25 @@ $script:RaUpdatePublicKeyXml = '<RSAKeyValue><Modulus>21/rZrMx9hLPYwh/QMiCnXaOUe
 # "does NOT support your Hearts of Iron IV build" notice (and the release page and update
 # command), never a silent success. CAPIE 1.5.1 replaces them when it is released.
 $script:RaPinnedRelease = [ordered]@{
-    Version             = '1.6.0'
-    ZipName             = 'CAPIE-1.6.0-win64.zip'
-    ZipSha256           = '351923ACE07DF0C204226730B03C3DFD7D54022819D9D1C022AA591DEB753C79'
+    Version             = '1.6.1'
+    ZipName             = 'CAPIE-1.6.1-win64.zip'
+    ZipSha256           = 'B37CB34C62A28D25DB27C562208F510107310B1EA4EB23E0D9A85A38927B7404'
     Files               = [ordered]@{
-        'RenameAnythingLauncher.exe'                                = 'AB1DD952084DADA498C6857EA535E6E5D4860448C8351C9DD8316A1E37DBF5CD'
-        'LICENSE.MinHook.txt'                                       = '4F21F857550D7BE854DA6EA5F2DA4E6775CA4E3FBB535E4F3D961C47D0BF3335'
-        'runtime/capie_core.dll'                                    = '89082E238D3E759BBDBC4811984D7455E94E2CF1607AA87209246E63F5E2DCFE'
-        'runtime/capie_editor.dll'                                  = '57045C51E9DBAEB753E31F5CB591BA53648C6C4EB86B37A025CEB051F1AA277E'
-        'runtime/capie_injector.exe'                                = '3F6F735B8202090F465C7C945C36E633CE954C737E1AC7DF8F6B4C3F48E8E04E'
-        'proxy/version.dll'                                         = 'D019DE82A0FC7585927858299C86897B75FCBD07BFEC36EACF7B23C720A4D855'
-        'mod/capie.mod'                                             = 'E9B1E3B5133B18D792D676835F4B35388C681D928C5BBF5DA0F22C09C05864ED'
-        'mod/capie/descriptor.mod'                                  = '13CD5ABD60E8D55A52FE6B70C3DB5F781DE16FA0C0D89310E6F613686FC5F427'
-        'mod/capie/gfx/interface/capie_menu_mark.dds'               = '6842E6D83D773648EE7A5878EA5B0A2E77C66353C926406CFE95B23C88B2B522'
-        'mod/capie/interface/capie_menu.gfx'                        = 'D3B6C8221365C6499CEEE2611FEF7DAEE74884B578AD2C90C4F20490EF11E952'
-        'mod/capie/interface/frontendmainview.gui'                  = '901F62142B80FEEF88892A64B0DE4D7B96B2B448967D12156BAF2415C6A15918'
-        'mod/capie/localisation/english/capie_switch_l_english.yml' = '3959220345820E9F5B03C2882CFC741584451E18757CF7ADBAEBA914CC249437'
-        'mod/capie/localisation/polish/capie_switch_l_polish.yml'   = '613C322D04AF3719E9DFFB912B16356D9ABBCB1FAC770C92380D585400C084FF'
-        'mod/capie/thumbnail.png'                                   = 'D4BB22A36F572D354E49DCFB54DCF03F03BF844517F261FF2B9BC2D94CFD66FE'
+        'RenameAnythingLauncher.exe' = '7854799601A6CFCD6F2317E104FA9CDD5F247D85CCF6764B3B68615FAA166FF8'
+        'LICENSE.MinHook.txt'        = '4F21F857550D7BE854DA6EA5F2DA4E6775CA4E3FBB535E4F3D961C47D0BF3335'
+        'runtime/capie_core.dll'     = '5C762722E06684B5070C9B986C7961DFD5F1D5B362FA94DB3BEBE8A7CC968BF4'
+        'runtime/capie_editor.dll'   = '08B6940B9B8022B906091515116C8EB0B6596BB8AF1CE6DA8801314DBF2D5FBF'
+        'runtime/capie_injector.exe' = '9C1DB336B0C1F20B54886B8099311ADAE5598A428E7C4524271700C326A6A5FA'
+        'mod/capie.mod'              = 'FABB7645BBC6FE9D95CF4B95D591889BC5E8C068356EBFA67ACD4D0A03F629BC'
+        'mod/capie/descriptor.mod'   = 'D828206E6E0D083C5E137112EF0242C212EEF388117FA0E8B83E4B82B399DCF2'
+        'mod/capie/thumbnail.png'    = 'D4BB22A36F572D354E49DCFB54DCF03F03BF844517F261FF2B9BC2D94CFD66FE'
     }
     # hoi4.exe builds this release's DLLs support (install notice, -Update, -CheckUpdate; the launcher enforces it).
-    SupportedGameSha256 = @('CF781ED178CD801643B233B7E3FCD1C0EFD19BD01AECD24BF07A35F69F10476F')
+    SupportedGameSha256 = @('BCCC62909B6A1EC2C1D5A46EF18608E4D0C7CDC89AD341B7402A23C40F7A8037')
+    # Separate proxy asset: downloaded only for -LoadMethod Proxy (the default Launcher install never reads it).
+    Proxy               = [ordered]@{
+        ZipName   = 'CAPIE-1.6.1-proxy-win64.zip'
+        ZipSha256 = 'E0644287FC07C9423102764A92066DA7379C28FC643A9211738C70229526DBCA'
+        Files     = [ordered]@{ 'proxy/version.dll' = '9F56492BD2098FA1B32AA3902D79AD4D64EB1A65E2EF31CBF3A3B618F70C9B8A' }
+    }
 }
