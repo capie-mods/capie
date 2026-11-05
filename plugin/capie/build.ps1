@@ -371,6 +371,8 @@ if ($LASTEXITCODE -ne 0) { throw 'CAPIE status localisation contract failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Native alphabet differs from the SDK character table' }
 & $Python -I (Join-Path $script:RepoDir 'tools\lint\check_comment_addresses.py')
 if ($LASTEXITCODE -ne 0) { throw 'A comment names an address the code does not pin (name the function instead)' }
+& $Python -I (Join-Path $script:RepoDir 'tools\port\check_literal_join.py')
+if ($LASTEXITCODE -ne 0) { throw 'The port tools do not join adjacent pattern literals' }
 
 # 5. Benchmarks (CAPIE release/debug). The comparisons with the old rev7 bridge and country-status
 # sources (CAPIE_BENCH_LEGACY=1 in hotpath_bench.cpp) are not run: those sources target HOI4 1.19.3.0

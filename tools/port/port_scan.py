@@ -23,6 +23,9 @@ REL32_SIZE = 4
 MIN_ANCHOR_BYTES = 12
 """Shortest pattern, in bytes, that may serve as an anchor for the delta search."""
 
+LITERAL_GAP = r'"\s+"'
+"""Whitespace between two adjacent C string literals, on one line or not (as in apply.py)."""
+
 repo, exe, out = map(pathlib.Path, sys.argv[1:4])
 src = repo / "plugin/capie/src"
 layout = (src / "core/game_layout.hpp").read_text(encoding="utf-8")
@@ -41,8 +44,8 @@ files = [
 ]
 entries: list[dict[str, Any]] = []
 for f in files:
-    # Join split string literals.
-    text = re.sub(r'"\s*\n\s*"', "", f.read_text(encoding="utf-8"))
+    # Join adjacent string literals: "ab" "cd" on one line, or split over lines.
+    text = re.sub(LITERAL_GAP, "", f.read_text(encoding="utf-8"))
     for m in re.finditer(r"\{([^{}]*?)\}", text):
         body = m[1]
         hexes = [

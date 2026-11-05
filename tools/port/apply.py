@@ -29,6 +29,9 @@ RIP_PIN_MIN_NUMBERS = 2
 RIP_PIN_TARGET_NUMBERS = 3
 """Hex numbers a RIP pin needs in its body before the literal target is rewritten."""
 
+PATTERN_LITERALS = r'"(?:[0-9A-Fa-f?]{2})+"(?:\s+"(?:[0-9A-Fa-f?]{2})+")*'
+"""One pattern written as adjacent hex literals, "ab" "cd" on one line or split over lines."""
+
 repo = pathlib.Path(sys.argv[1])
 tables = json.loads(pathlib.Path(sys.argv[2]).read_text())
 mp = json.loads(
@@ -93,7 +96,7 @@ def rewrite_entry(m: re.Match[str], f: pathlib.Path) -> str:
     ident = body[2 : body.index('"', 2)]  # the entry starts with {"<ident>"
     if ident in tables:
         t = tables[ident]
-        lits = list(re.finditer(r'"(?:[0-9A-Fa-f?]{2})+"(?:\s*\n\s*"(?:[0-9A-Fa-f?]{2})+")*', body))
+        lits = list(re.finditer(PATTERN_LITERALS, body))
         pat = next(
             lit
             for lit in lits
