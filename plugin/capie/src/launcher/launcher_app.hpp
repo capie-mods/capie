@@ -61,6 +61,7 @@ enum class GameOutcome : std::uint8_t {
     exited_early,   ///< the game ended before the main menu
     not_ready,      ///< no main menu within the deadline
     failed,         ///< an injector step failed (guardian ran)
+    editor_failed,  ///< the core was loaded, the editor step failed: names show, renaming is off
     playset_off,    ///< the "CAPIE" mod is not enabled in the playset, or the playset is unreadable
 };
 
@@ -108,6 +109,8 @@ constexpr const wchar_t* outcome_name(GameOutcome outcome) noexcept {
             return L"not-ready";
         case GameOutcome::playset_off:
             return L"playset-off";
+        case GameOutcome::editor_failed:
+            return L"editor_failed";
         case GameOutcome::failed:
             break;
     }
@@ -222,7 +225,8 @@ inline Prerequisites checked_prerequisites(const Policy& policy, const std::wstr
  * @param policy Policy.
  * @param log Log.
  * @param notifier Notifier.
- * @return `loaded` or `failed`.
+ * @return `loaded`, `editor_failed` (the core step succeeded, the editor step did not, the game
+ *         still runs) or `failed`.
  * @note The sentinel stays only when the game ended during injection; a refused step with the
  *       game still running is a clean outcome and removes it.
  */
@@ -233,8 +237,9 @@ inline GameOutcome inject(const BoundGame& game, const Prerequisites& prerequisi
         log.write(Level::warning, L"crash guard: sentinel not written; injecting without the breaker");
     }
     InjectionSession session(*prerequisites.game, *prerequisites.bundle, game);
+    std::size_t step = 0;
     try {
-        for (std::size_t step = 0; step < injection_order.size(); ++step) {
+        for (; step < injection_order.size(); ++step) {
             const auto result = session.run_injector(step, policy.timeouts.helper_ms);
             log.write(Level::info, policy.bundle.at(injection_order.at(step)).name + L": " + describe(result));
             if (!may_continue(result, session.intact())) {
@@ -243,13 +248,16 @@ inline GameOutcome inject(const BoundGame& game, const Prerequisites& prerequisi
         }
     } catch (const LauncherError& error) {
         notifier.notify(Notice::capie_failed, error.message());
-        if (running(game.process.get())) {
+        const bool alive = running(game.process.get());
+        if (alive) {
             disarm_sentinel(policy.crash_sentinel);
         } else {
             log.write(Level::warning, L"crash guard: the game ended during injection; the next start skips CAPIE once");
         }
-        session.guardian();
-        return GameOutcome::failed;
+        // Only the editor step failed and the game ran on: capie_core.dll is loaded (names show).
+        const bool editor_only = alive && step < injection_order.size() && injection_order.at(step) == bundle_editor;
+        session.guardian();  // waits for the game to end
+        return editor_only ? GameOutcome::editor_failed : GameOutcome::failed;
     }
     disarm_sentinel(policy.crash_sentinel);
     return GameOutcome::loaded;
@@ -299,8 +307,8 @@ inline GameOutcome handle_game(const BoundGame& game, const Prerequisites& prere
         }
         return GameOutcome::exited_early;
     }
-    if (inject(game, prerequisites, policy, log, notifier) != GameOutcome::loaded) {
-        return GameOutcome::failed;
+    if (const auto injected = inject(game, prerequisites, policy, log, notifier); injected != GameOutcome::loaded) {
+        return injected;
     }
     log.write(Level::info, L"CAPIE loaded into pid=" + std::to_wstring(game.stamp.pid));
     WaitForSingleObject(game.process.get(), INFINITE);
@@ -317,6 +325,14 @@ inline std::pair<std::wstring, std::wstring> run_status(const RunReport& report,
     for (const auto& game : report.games) {
         if (game.outcome == GameOutcome::loaded) {
             return {L"capie-loaded", L"CAPIE was loaded into hoi4.exe pid=" + std::to_wstring(game.stamp.pid) + L"."};
+        }
+    }
+    for (const auto& game : report.games) {
+        if (game.outcome == GameOutcome::editor_failed) {
+            return {L"capie-editor-failed",
+                    L"CAPIE's core was loaded into hoi4.exe pid=" + std::to_wstring(game.stamp.pid) +
+                        L", but its editor did not start: names show, renaming is off. Restart the game; the "
+                        L"cause is in launcher.log and capie_editor.log."};
         }
     }
     if (!latest_notice.empty()) {

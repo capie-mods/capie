@@ -608,9 +608,13 @@ int wmain(int argc, wchar_t** argv) {  // NOLINT(misc-use-internal-linkage): pro
             auto fixture = make_fixture(base, L"editorfail", fake);
             SetEnvironmentVariableW(L"FAKE_INJECT_FAIL_DLL", L"capie_editor.dll");
             const auto result = run(fixture, L"dowser.exe", L"");
-            check(result.report.games.size() == 1 && result.report.games[0].outcome == cl::GameOutcome::failed &&
-                      of_role(result.lines, L"injector").size() == 2,
-                  "editor refused: failure reported after both steps");
+            check(result.report.games.size() == 1 &&
+                      result.report.games[0].outcome == cl::GameOutcome::editor_failed &&
+                      of_role(result.lines, L"injector").size() == 2 && result.notices == 1,
+                  "editor refused: core loaded, editor failed, one notice");
+            check(status_of(fixture).find(L"outcome=capie-editor-failed") != std::wstring::npos &&
+                      status_of(fixture).find(L"renaming is off") != std::wstring::npos,
+                  "status: editor failed, not game-without-capie");
         }
         {  // Outer deadline: the launcher stops waiting but keeps the injector's handles until it ends.
             auto fixture = make_fixture(base, L"timeout", fake);

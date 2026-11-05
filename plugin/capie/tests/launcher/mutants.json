@@ -390,5 +390,29 @@
   "replace": "    return true;",
   "suite": "tests/launcher/launcher_unit_test.cpp",
   "summary": "launcher unit tests:"
+ },
+ {
+  "name": "editor-failure-as-failure",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "return editor_only ? GameOutcome::editor_failed : GameOutcome::failed;",
+  "replace": "return !editor_only ? GameOutcome::editor_failed : GameOutcome::failed;",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "editor-failure-status-without-capie",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "        if (game.outcome == GameOutcome::editor_failed) {\n            return {L\"capie-editor-failed\",",
+  "replace": "        if (false) {\n            return {L\"capie-editor-failed\",",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
+ },
+ {
+  "name": "core-failure-as-editor-failure",
+  "file": "src/launcher/launcher_app.hpp",
+  "find": "const bool editor_only = alive && step < injection_order.size() && injection_order.at(step) == bundle_editor;",
+  "replace": "const bool editor_only = alive && step < injection_order.size();",
+  "suite": "tests/launcher/launcher_flow_test.cpp",
+  "summary": "launcher flow tests:"
  }
 ]
