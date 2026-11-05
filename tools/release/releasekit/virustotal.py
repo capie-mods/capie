@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from releasekit import github
 from releasekit.console import Status
-from releasekit.package import sha256_bytes
+from releasekit.package import proxy_asset, sha256_bytes
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -361,6 +361,10 @@ def run(ctx: Context) -> bool:
         reporter.record(STEP, status, f"{zip_path} not built yet")
         return ctx.options.dry_run
     targets = targets_from_zip(zip_name, zip_path.read_bytes())
+    proxy = proxy_asset(ctx)
+    if proxy is not None and proxy.is_file():
+        # The opt-in proxy is its own asset; its report goes into the release notes as well.
+        targets += targets_from_zip(proxy.name, proxy.read_bytes())
     if ctx.options.dry_run:
         for target in targets:
             reporter.line(

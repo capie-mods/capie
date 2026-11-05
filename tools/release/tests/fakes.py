@@ -205,6 +205,7 @@ argv = ["{pwsh}", "-File", "plugin/capie/build_launcher.ps1"]
 [bundle]
 zip_name = "CAPIE-{version}-win64.zip"
 launcher_zip_path = "RenameAnythingLauncher.exe"
+proxy_zip_name = "CAPIE-{version}-proxy-win64.zip"
 [[bundle.files]]
 zip = "RenameAnythingLauncher.exe"
 source = "plugin/build/capie-launcher/RenameAnythingLauncher.exe"
@@ -224,6 +225,7 @@ reviewed = true
 zip = "proxy/version.dll"
 source = "plugin/build/capie-proxy/version.dll"
 optional = true
+asset = "proxy"
 [bundle.switch_mod]
 source_dir = "plugin/capie/toggle-mod/capie"
 zip_dir = "mod/capie"
@@ -400,6 +402,7 @@ def manifest_json(  # noqa: PLR0913 - mirrors the script's parameters
     api_level: int = 0,
     game_version: str = "",
     summary_b64: str = "",
+    proxy_zip: Path | None = None,
 ) -> str:
     """What ``sign-release-manifest.ps1 -MakeManifest`` writes.
 
@@ -410,15 +413,12 @@ def manifest_json(  # noqa: PLR0913 - mirrors the script's parameters
         api_level: ``-CapieApiLevel`` (0 = field left out).
         game_version: ``-GameVersion`` (empty = field left out).
         summary_b64: ``-ChangelogSummaryBase64`` (empty = field left out).
+        proxy_zip: ``-ProxyZipPath`` (``None`` = field left out).
 
     Returns:
         Manifest JSON.
     """
-    with zipfile.ZipFile(zip_path) as archive:
-        files = {
-            i.filename: hashlib.sha256(archive.read(i)).hexdigest().upper()
-            for i in archive.infolist()
-        }
+    files = _zip_hashes(zip_path)
     data: dict[str, object] = {
         "schema": 1,
         "version": version,
@@ -434,7 +434,29 @@ def manifest_json(  # noqa: PLR0913 - mirrors the script's parameters
     summary = json.loads(base64.b64decode(summary_b64).decode("utf-8")) if summary_b64 else []
     if summary:
         data["changelog_summary"] = summary
+    if proxy_zip is not None:
+        data["proxy"] = {
+            "zipName": proxy_zip.name,
+            "zipSha256": hashlib.sha256(proxy_zip.read_bytes()).hexdigest().upper(),
+            "files": _zip_hashes(proxy_zip),
+        }
     return json.dumps(data, indent=2)
+
+
+def _zip_hashes(zip_path: Path) -> dict[str, str]:
+    """Upper-case SHA-256 of every entry of a ZIP.
+
+    Args:
+        zip_path: ZIP file.
+
+    Returns:
+        Hashes by entry name, in ZIP order.
+    """
+    with zipfile.ZipFile(zip_path) as archive:
+        return {
+            i.filename: hashlib.sha256(archive.read(i)).hexdigest().upper()
+            for i in archive.infolist()
+        }
 
 
 def _arg(argv: Sequence[str], name: str) -> str:
@@ -538,6 +560,7 @@ class FakeRunner:
                 api_level=int(_arg(call, "-CapieApiLevel")),
                 game_version=_arg(call, "-GameVersion"),
                 summary_b64=_arg(call, "-ChangelogSummaryBase64"),
+                proxy_zip=Path(_arg(call, "-ProxyZipPath")) if "-ProxyZipPath" in call else None,
             )
             Path(_arg(call, "-OutPath")).write_text(text, encoding="utf-8")
             return 0, "Wrote manifest"

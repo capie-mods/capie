@@ -17,6 +17,7 @@ import pytest
 from fakes import KeyPair
 from releasekit import changelog
 from releasekit.config import (
+    PROXY_ASSET,
     VISIBILITY_VALUES,
     CommandSpec,
     ConfigError,
@@ -27,6 +28,7 @@ from releasekit.console import Reporter, Status, use_color
 from releasekit.runner import expand_command, quote
 from releasekit.signing import (
     PinnedRelease,
+    ProxyPin,
     SigningError,
     bundle_inputs,
     pinned_fields,
@@ -329,3 +331,50 @@ def test_every_configured_item_renders_a_parseable_vdf() -> None:
                 description,
             )
             assert vdf_problem(fields, render_vdf(fields)) is None, item.key
+
+
+def test_pinned_block_with_a_proxy_asset_keeps_the_top_level_fields() -> None:
+    """The nested Proxy fields never shadow the release's own Version, ZipName and ZipSha256."""
+    path = REPO / "tools/bootstrap/src/Shared/Configuration.ps1"
+    original = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    pinned = PinnedRelease(
+        "1.6.1",
+        "CAPIE-1.6.1-win64.zip",
+        "B" * 64,
+        (("RenameAnythingLauncher.exe", "C" * 64),),
+        ("E" * 64,),
+        ProxyPin("CAPIE-1.6.1-proxy-win64.zip", "F" * 64, (("proxy/version.dll", "A" * 64),)),
+    )
+    block = render_pinned_block(pinned)
+    new = replace_pinned_block(original, block)
+    assert pinned_fields(new) == {
+        "Version": "1.6.1",
+        "ZipName": "CAPIE-1.6.1-win64.zip",
+        "ZipSha256": "B" * 64,
+    }
+    assert "        ZipName   = 'CAPIE-1.6.1-proxy-win64.zip'" in block
+    assert block.isascii()
+    assert max(len(line) for line in block.splitlines()) <= 160  # noqa: PLR2004 - lint limit
+
+
+def test_real_config_ships_the_proxy_separately_and_rejects_a_proxy_without_its_zip(
+    tmp_path: Path,
+) -> None:
+    """release.toml keeps version.dll out of the main ZIP; asset = "proxy" needs proxy_zip_name.
+
+    Args:
+        tmp_path: pytest temporary folder.
+    """
+    source = REPO / "tools" / "release" / "release.toml"
+    config = load_config(source)
+    proxy_files = [f.zip_path for f in config.bundle.files if f.asset == PROXY_ASSET]
+    assert proxy_files == ["proxy/version.dll"]
+    assert config.bundle.proxy_zip_name == "CAPIE-{version}-proxy-win64.zip"
+    text = source.read_text(encoding="utf-8")
+    broken = tmp_path / "release.toml"
+    broken.write_text(re.sub(r"(?m)^proxy_zip_name = .*$", "", text), encoding="utf-8")
+    with pytest.raises(ConfigError, match="proxy_zip_name"):
+        load_config(broken)
+    broken.write_text(text.replace('asset = "proxy"', 'asset = "elsewhere"'), encoding="utf-8")
+    with pytest.raises(ConfigError, match="'asset' must be"):
+        load_config(broken)

@@ -105,6 +105,10 @@ argv = ["{pwsh}", "-NoProfile", "-File", "plugin/capie/build_proxy.ps1"]
 # digits, . _ - only).
 zip_name = "CAPIE-{version}-win64.zip"
 launcher_zip_path = "RenameAnythingLauncher.exe"
+# The opt-in proxy loader is its own release asset (files with asset = "proxy"), listed in the
+# signed manifest's "proxy" field. Only -LoadMethod Proxy downloads it, so an antivirus false
+# positive on version.dll cannot block the default Launcher install or update (CAPIE 1.6.1).
+proxy_zip_name = "CAPIE-{version}-proxy-win64.zip"
 
 [[bundle.files]]
 zip = "RenameAnythingLauncher.exe"
@@ -130,10 +134,12 @@ source = "plugin/build/capie-launcher/runtime/capie_injector.exe"
 reviewed = true
 
 [[bundle.files]]
-# Opt-in proxy loader (ADR-0024); a bundle without it refuses -LoadMethod Proxy.
+# Opt-in proxy loader (ADR-0024); a bundle without it refuses -LoadMethod Proxy. It goes into
+# the separate proxy ZIP (proxy_zip_name), never into the main ZIP.
 zip = "proxy/version.dll"
 source = "plugin/build/capie-proxy/version.dll"
 optional = true
+asset = "proxy"
 
 [bundle.switch_mod]
 # The "CAPIE" switch mod: mod/capie.mod (generated from descriptor.mod plus path) and

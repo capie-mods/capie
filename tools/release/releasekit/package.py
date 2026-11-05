@@ -16,8 +16,11 @@ and this step). A fresh build therefore never matches the pins. The step:
    ``capie_release`` strings of ``game_build.hpp`` (ASCII or UTF-16LE), so the manifest's
    ``supportedGameSha256`` is the build the binaries really accept.
 4. Assembles the ZIP in the layout ``install.ps1`` expects (launcher at the root,
-   ``runtime/``, ``proxy/version.dll``, ``mod/capie.mod`` + ``mod/capie/``), byte for byte
-   reproducible from the same inputs (fixed timestamps, fixed order).
+   ``runtime/``, ``mod/capie.mod`` + ``mod/capie/``), byte for byte reproducible from the same
+   inputs (fixed timestamps, fixed order). Files with ``asset = "proxy"`` (the opt-in
+   ``proxy/version.dll``) go into a separate ZIP (``proxy_zip_name``) that the signed manifest
+   lists under ``proxy``: the default Launcher install never downloads it, so an antivirus false
+   positive on the proxy cannot block a normal install or update.
 5. ``sign-release-manifest.ps1 -MakeManifest`` and ``-Sign`` (key path from the command
    line, refused inside the repository), then re-checks the manifest and the signature.
 6. Writes ``SHA256SUMS.txt``, ``build-info.json`` and the installer pin block
@@ -36,11 +39,13 @@ from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
 from releasekit import changelog, gitinfo
+from releasekit.config import PROXY_ASSET
 from releasekit.console import Status
 from releasekit.runner import quote
 from releasekit.signing import (
     BundleInput,
     PinnedRelease,
+    ProxyPin,
     PublicKey,
     SigningError,
     bundle_inputs,
@@ -159,6 +164,63 @@ def entry_problems(entries: Sequence[BundleEntry], launcher: str) -> list[str]:
     if launcher not in {e.name for e in entries}:
         problems.append(f"launcher {launcher} is missing")
     return problems
+
+
+def proxy_zip_name(ctx: Context) -> str:
+    """File name of the separate proxy ZIP of this version.
+
+    Args:
+        ctx: Run context.
+
+    Returns:
+        The name, or an empty string when the configuration has no proxy asset.
+    """
+    name = ctx.config.bundle.proxy_zip_name
+    return name.format(version=ctx.version) if name else ""
+
+
+def split_entries(
+    ctx: Context, entries: Sequence[BundleEntry]
+) -> tuple[list[BundleEntry], list[BundleEntry]]:
+    """Separate the main ZIP's entries from the proxy ZIP's (``asset = "proxy"``).
+
+    Args:
+        ctx: Run context.
+        entries: All bundle entries in ZIP order.
+
+    Returns:
+        Main entries and proxy entries, each in ZIP order.
+    """
+    proxy_paths = {f.zip_path for f in ctx.config.bundle.files if f.asset == PROXY_ASSET}
+    main = [e for e in entries if e.name not in proxy_paths]
+    proxy = [e for e in entries if e.name in proxy_paths]
+    return main, proxy
+
+
+def proxy_asset(ctx: Context) -> Path | None:
+    """The proxy ZIP that belongs to the release in the output folder, or ``None``.
+
+    It belongs to the release when the manifest there lists a ``proxy`` field, or (before the
+    manifest exists) when it is configured and was built.
+
+    Args:
+        ctx: Run context.
+
+    Returns:
+        The path (it may be missing when the manifest names it), or ``None``.
+    """
+    name = proxy_zip_name(ctx)
+    if not name:
+        return None
+    path = ctx.out_dir / name
+    manifest = ctx.out_dir / MANIFEST_NAME
+    listed = False
+    if manifest.is_file():
+        try:
+            listed = isinstance(json.loads(manifest.read_text(encoding="utf-8")).get("proxy"), dict)
+        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+            listed = False
+    return path if listed or path.is_file() else None
 
 
 def write_zip(path: Path, entries: Sequence[BundleEntry]) -> None:
@@ -663,8 +725,41 @@ def summary_argument(ctx: Context) -> str:
     return base64.b64encode(data).decode("ascii")
 
 
-def check_manifest(
-    ctx: Context, manifest: bytes, zip_name: str, zip_sha: str, entries: Sequence[BundleEntry]
+def _proxy_manifest_problems(
+    listed: object, proxy: tuple[str, str, Sequence[BundleEntry]] | None
+) -> list[str]:
+    """Compare the manifest's ``proxy`` field with the separate proxy ZIP.
+
+    Args:
+        listed: The manifest's ``proxy`` value (``None`` when absent).
+        proxy: Name, SHA-256 and entries of the proxy ZIP, or ``None`` when none was built.
+
+    Returns:
+        Problem names for :func:`check_manifest` (empty when they agree).
+    """
+    if proxy is None:
+        return [] if listed is None else ["proxy (listed although no proxy ZIP was built)"]
+    if not isinstance(listed, dict):
+        return ["proxy (missing)"]
+    name, sha, entries = proxy
+    files = {str(k): str(v).upper() for k, v in dict(listed.get("files", {})).items()}
+    if (
+        listed.get("zipName") != name
+        or str(listed.get("zipSha256", "")).upper() != sha
+        or files != {e.name: e.sha256 for e in entries}
+    ):
+        return ["proxy ZIP name, hash or files"]
+    return []
+
+
+def check_manifest(  # noqa: PLR0913 - the main ZIP, its entries and the proxy ZIP
+    ctx: Context,
+    manifest: bytes,
+    zip_name: str,
+    zip_sha: str,
+    entries: Sequence[BundleEntry],
+    *,
+    proxy: tuple[str, str, Sequence[BundleEntry]] | None = None,
 ) -> bool:
     """Compare the generated manifest with what was packed.
 
@@ -674,6 +769,7 @@ def check_manifest(
         zip_name: ZIP file name.
         zip_sha: ZIP SHA-256.
         entries: ZIP entries.
+        proxy: Name, SHA-256 and entries of the separate proxy ZIP, or ``None``.
 
     Returns:
         True when version, ZIP name and hash, every file hash and the game hash agree.
@@ -681,7 +777,7 @@ def check_manifest(
     data = json.loads(manifest.decode("utf-8"))
     files = {str(k): str(v).upper() for k, v in dict(data.get("files", {})).items()}
     expected_files = {e.name: e.sha256 for e in entries}
-    problems = []
+    problems = _proxy_manifest_problems(data.get("proxy"), proxy)
     if data.get("version") != ctx.version:
         problems.append("version")
     if data.get("zipName") != zip_name or str(data.get("zipSha256", "")).upper() != zip_sha:
@@ -701,7 +797,10 @@ def check_manifest(
             STEP, Status.FAIL, f"manifest disagrees with the ZIP: {', '.join(problems)}"
         )
         return False
-    ctx.reporter.record(STEP, Status.OK, f"manifest lists {len(files)} files with their SHA-256")
+    extra = "" if proxy is None else f" plus the proxy ZIP {proxy[0]}"
+    ctx.reporter.record(
+        STEP, Status.OK, f"manifest lists {len(files)} files with their SHA-256{extra}"
+    )
     return True
 
 
@@ -807,11 +906,16 @@ def plan(
     for spec in ctx.config.build.commands:
         ctx.run_spec(STEP, spec)
     out = ctx.out_dir
-    ctx.reporter.line(Status.PLAN, f"write {out / zip_name} with {len(entries)} entries:")
-    for entry in entries:
-        ctx.reporter.line(
-            Status.PLAN, f"  {entry.name}  {entry.sha256[:16]}...  ({len(entry.data)} bytes)"
-        )
+    main, proxy = split_entries(ctx, entries)
+    groups = [(zip_name, main)]
+    if proxy:
+        groups.append((proxy_zip_name(ctx), proxy))
+    for name, group in groups:
+        ctx.reporter.line(Status.PLAN, f"write {out / name} with {len(group)} entries:")
+        for entry in group:
+            ctx.reporter.line(
+                Status.PLAN, f"  {entry.name}  {entry.sha256[:16]}...  ({len(entry.data)} bytes)"
+            )
     for source in missing:
         ctx.reporter.record(STEP, Status.WARN, f"not built yet: {source}")
     sign = ctx.config.signing.sign_script
@@ -824,6 +928,7 @@ def plan(
                 "-MakeManifest",
                 "-ZipPath",
                 str(out / zip_name),
+                *(("-ProxyZipPath", str(out / proxy_zip_name(ctx))) if proxy else ()),
                 "-Version",
                 ctx.version,
                 "-SupportedGameSha256",
@@ -914,13 +1019,27 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
     """
     out = ctx.out_dir
     out.mkdir(parents=True, exist_ok=True)
-    # A failed re-run must not leave the old manifest, signature and sums next to a new ZIP.
-    for stale in (MANIFEST_NAME, SIGNATURE_NAME, SUMS_NAME):
+    # A failed re-run must not leave the old manifest, signature, sums or proxy ZIP behind.
+    proxy_name = proxy_zip_name(ctx)
+    for stale in (MANIFEST_NAME, SIGNATURE_NAME, SUMS_NAME, *((proxy_name,) if proxy_name else ())):
         (out / stale).unlink(missing_ok=True)
+    entries, proxy_entries = split_entries(ctx, entries)
     zip_path = out / zip_name
     write_zip(zip_path, entries)
     zip_sha = sha256_bytes(zip_path.read_bytes())
     ctx.reporter.record(STEP, Status.OK, f"{zip_name} {zip_sha} ({len(entries)} files)")
+    proxy_path: Path | None = None
+    proxy_sha = ""
+    if proxy_entries:
+        proxy_path = out / proxy_name
+        write_zip(proxy_path, proxy_entries)
+        proxy_sha = sha256_bytes(proxy_path.read_bytes())
+        ctx.reporter.record(
+            STEP,
+            Status.OK,
+            f"{proxy_name} {proxy_sha} ({len(proxy_entries)} files; only -LoadMethod Proxy "
+            "downloads it)",
+        )
     sign = ctx.config.signing.sign_script
     manifest_path = out / MANIFEST_NAME
     made = _run_checked(
@@ -932,6 +1051,7 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
             "-MakeManifest",
             "-ZipPath",
             str(zip_path),
+            *(("-ProxyZipPath", str(proxy_path)) if proxy_path is not None else ()),
             "-Version",
             ctx.version,
             "-SupportedGameSha256",
@@ -956,11 +1076,13 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
         return False
     manifest = manifest_path.read_bytes()
     signature = (out / SIGNATURE_NAME).read_text(encoding="utf-8")
-    if not check_manifest(ctx, manifest, zip_name, zip_sha, entries) or not check_signature(
-        ctx, manifest, signature, key
-    ):
+    proxy_check = (proxy_name, proxy_sha, proxy_entries) if proxy_path is not None else None
+    if not check_manifest(
+        ctx, manifest, zip_name, zip_sha, entries, proxy=proxy_check
+    ) or not check_signature(ctx, manifest, signature, key):
         return False
-    assets = [zip_path, manifest_path, out / SIGNATURE_NAME]
+    assets = [zip_path, *((proxy_path,) if proxy_path is not None else ()), manifest_path]
+    assets.append(out / SIGNATURE_NAME)
     sums = "".join(f"{sha256_bytes(p.read_bytes()).lower()}  {p.name}\n" for p in assets)
     (out / SUMS_NAME).write_text(sums, encoding="ascii", newline="\n")
     commit = gitinfo.head_commit(ctx.runner, ctx.config.root)
@@ -972,6 +1094,12 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
         "supportedGameSha256": [ctx.capie.game_sha256],
         "builtLocally": True,
     }
+    if proxy_path is not None:
+        info["proxy"] = {
+            "name": proxy_name,
+            "sha256": proxy_sha,
+            "files": {e.name: e.sha256 for e in proxy_entries},
+        }
     (out / BUILD_INFO_NAME).write_text(
         json.dumps(info, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
@@ -983,6 +1111,9 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
             zip_sha,
             tuple((e.name, e.sha256) for e in entries),
             (ctx.capie.game_sha256,),
+            None
+            if proxy_path is None
+            else ProxyPin(proxy_name, proxy_sha, tuple((e.name, e.sha256) for e in proxy_entries)),
         ),
     )
     ctx.reporter.record(STEP, Status.OK, f"release files in {out}")

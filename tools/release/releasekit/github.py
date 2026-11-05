@@ -30,6 +30,8 @@ from releasekit.package import (
     SIGNATURE_NAME,
     SUMS_NAME,
     installer_public_key,
+    proxy_asset,
+    proxy_zip_name,
     sha256_bytes,
 )
 from releasekit.runner import quote
@@ -60,12 +62,15 @@ def assets(ctx: Context) -> list[Path]:
         ctx: Run context.
 
     Returns:
-        ZIP, manifest, signature, checksums and the installer, in upload order.
+        ZIP, the separate proxy ZIP (when the release has one), manifest, signature, checksums
+        and the installer, in upload order.
     """
     out = ctx.out_dir
     zip_name = ctx.config.bundle.zip_name.format(version=ctx.version)
+    proxy = proxy_asset(ctx)
     return [
         out / zip_name,
+        *((proxy,) if proxy is not None else ()),
         out / MANIFEST_NAME,
         out / SIGNATURE_NAME,
         out / SUMS_NAME,
@@ -122,6 +127,17 @@ def build_notes(ctx: Context, commit: str) -> str | None:
             "The installer verifies the signed `release-manifest.json`",
             "before it installs anything.",
             "",
+            "## Antivirus",
+            "",
+            "Some antivirus programs report the optional proxy `version.dll`",
+            "(a DLL the game loads by design) as a false positive.",
+            "The default Launcher install never downloads it:",
+            "it ships separately for `-LoadMethod Proxy` only.",
+            "If your antivirus quarantined a CAPIE file, compare its SHA-256 with",
+            "`release-manifest.json` and the checksums below, then restore or allow that one file",
+            "(Windows Security > Virus & threat protection > Protection history).",
+            "Please do not turn your antivirus off.",
+            "",
             "## VirusTotal",
             "",
             virustotal,
@@ -151,15 +167,17 @@ def _gh(ctx: Context, *args: str) -> tuple[str, ...]:
 
 
 def _zip_problems(zip_path: Path, manifest: dict[str, object]) -> list[str]:
-    """Re-hash the ZIP and its files against the manifest.
+    """Re-hash the ZIP and its files against the manifest (or its ``proxy`` field).
 
     Args:
-        zip_path: Release ZIP.
-        manifest: Parsed ``release-manifest.json``.
+        zip_path: Release ZIP, or the separate proxy ZIP.
+        manifest: Parsed ``release-manifest.json``, or its ``proxy`` object.
 
     Returns:
         One line per mismatch.
     """
+    if not zip_path.is_file():
+        return [f"{zip_path.name} is missing although {MANIFEST_NAME} lists it"]
     problems: list[str] = []
     zip_sha = sha256_bytes(zip_path.read_bytes())
     if manifest.get("zipName") != zip_path.name:
@@ -199,7 +217,18 @@ def asset_problems(ctx: Context) -> list[str]:
     if not isinstance(data, dict):
         return [f"{MANIFEST_NAME} is not a JSON object"]
     problems = _zip_problems(zip_path, data)
-    signed = (zip_path, out / MANIFEST_NAME, out / SIGNATURE_NAME)  # what SHA256SUMS.txt lists
+    listed_proxy = data.get("proxy")
+    proxy_path: Path | None = None
+    if isinstance(listed_proxy, dict):
+        expected_name = proxy_zip_name(ctx)
+        listed_name = str(listed_proxy.get("zipName", ""))
+        if expected_name and listed_name != expected_name:
+            problems.append(f"{MANIFEST_NAME} names proxy ZIP {listed_name!r}, not {expected_name}")
+        proxy_path = out / (expected_name or listed_name)
+        problems += _zip_problems(proxy_path, listed_proxy)
+    proxy_files = (proxy_path,) if proxy_path is not None and proxy_path.is_file() else ()
+    # What SHA256SUMS.txt lists.
+    signed = (zip_path, *proxy_files, out / MANIFEST_NAME, out / SIGNATURE_NAME)
     expected = {p.name: sha256_bytes(p.read_bytes()).lower() for p in signed}
     sums: dict[str, str] = {}
     for line in (out / SUMS_NAME).read_text(encoding="ascii", errors="replace").splitlines():

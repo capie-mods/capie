@@ -32,6 +32,13 @@ the item), shown as "Hidden" on the Workshop page.
 """
 
 
+MAIN_ASSET = "main"
+"""``asset`` of a bundle file in the main release ZIP (the default)."""
+
+PROXY_ASSET = "proxy"
+"""``asset`` of a bundle file in the separate proxy ZIP (``proxy_zip_name``)."""
+
+
 class ConfigError(ValueError):
     """The configuration file is missing a key or has a value of the wrong type."""
 
@@ -59,6 +66,9 @@ class BundleFile:
     source: str
     optional: bool = False
     reviewed: bool = False
+    # MAIN_ASSET, or PROXY_ASSET for the opt-in proxy loader: the default Launcher install never
+    # downloads the proxy ZIP, so an antivirus false positive on version.dll cannot block it.
+    asset: str = MAIN_ASSET
 
 
 @dataclass(frozen=True)
@@ -95,6 +105,8 @@ class BundleConfig:
     launcher_zip_path: str
     files: tuple[BundleFile, ...]
     switch_mod: SwitchModConfig
+    # Name of the separate proxy ZIP ({version} placeholder); empty when no file is in it.
+    proxy_zip_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -313,6 +325,66 @@ def _integer(data: Mapping[str, object], key: str, default: int) -> int:
     return value
 
 
+def _asset(data: Mapping[str, object]) -> str:
+    """Read the ``asset`` of a bundle file.
+
+    Args:
+        data: ``[[bundle.files]]`` table.
+
+    Returns:
+        ``MAIN_ASSET`` or ``PROXY_ASSET``.
+
+    Raises:
+        ConfigError: Another value.
+    """
+    value = _string(data, "asset", MAIN_ASSET)
+    if value not in {MAIN_ASSET, PROXY_ASSET}:
+        msg = f"'asset' must be {MAIN_ASSET!r} or {PROXY_ASSET!r}, not {value!r}"
+        raise ConfigError(msg)
+    return value
+
+
+def _bundle(bundle: Mapping[str, object], switch: Mapping[str, object]) -> BundleConfig:
+    """Build the bundle configuration.
+
+    Args:
+        bundle: ``[bundle]`` table.
+        switch: ``[bundle.switch_mod]`` table.
+
+    Returns:
+        The bundle configuration.
+
+    Raises:
+        ConfigError: A file is in the proxy ZIP but ``proxy_zip_name`` is not set.
+    """
+    config = BundleConfig(
+        zip_name=_string(bundle, "zip_name"),
+        launcher_zip_path=_string(bundle, "launcher_zip_path"),
+        files=tuple(
+            BundleFile(
+                zip_path=_string(f, "zip"),
+                source=_string(f, "source"),
+                optional=_flag(f, "optional"),
+                reviewed=_flag(f, "reviewed"),
+                asset=_asset(f),
+            )
+            for f in _tables(bundle, "files")
+        ),
+        switch_mod=SwitchModConfig(
+            source_dir=_string(switch, "source_dir"),
+            zip_dir=_string(switch, "zip_dir"),
+            descriptor_zip_path=_string(switch, "descriptor_zip_path"),
+            descriptor_path_value=_string(switch, "descriptor_path_value"),
+            descriptor_name=_string(switch, "descriptor_name"),
+        ),
+        proxy_zip_name=_string(bundle, "proxy_zip_name", ""),
+    )
+    if any(f.asset == PROXY_ASSET for f in config.files) and not config.proxy_zip_name:
+        msg = "a [[bundle.files]] entry has asset = 'proxy' but [bundle] proxy_zip_name is not set"
+        raise ConfigError(msg)
+    return config
+
+
 def _flag(data: Mapping[str, object], key: str) -> bool:
     """Read an optional boolean (default false).
 
@@ -439,26 +511,7 @@ def parse_config(data: Mapping[str, object], path: Path) -> ReleaseConfig:
             rebuild_capie=_command(_table(build, "rebuild_capie")),
             commands=tuple(_command(c) for c in _tables(build, "commands")),
         ),
-        bundle=BundleConfig(
-            zip_name=_string(bundle, "zip_name"),
-            launcher_zip_path=_string(bundle, "launcher_zip_path"),
-            files=tuple(
-                BundleFile(
-                    zip_path=_string(f, "zip"),
-                    source=_string(f, "source"),
-                    optional=_flag(f, "optional"),
-                    reviewed=_flag(f, "reviewed"),
-                )
-                for f in _tables(bundle, "files")
-            ),
-            switch_mod=SwitchModConfig(
-                source_dir=_string(switch, "source_dir"),
-                zip_dir=_string(switch, "zip_dir"),
-                descriptor_zip_path=_string(switch, "descriptor_zip_path"),
-                descriptor_path_value=_string(switch, "descriptor_path_value"),
-                descriptor_name=_string(switch, "descriptor_name"),
-            ),
-        ),
+        bundle=_bundle(bundle, switch),
         signing=SigningConfig(
             sign_script=_string(signing, "sign_script"),
             installer_configuration=_string(signing, "installer_configuration"),

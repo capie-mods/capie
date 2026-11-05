@@ -49,8 +49,8 @@ _PINNED_BLOCK = re.compile(
 )
 """The pinned release block of the installer configuration."""
 
-_PINNED_FIELD = re.compile(r"^\s*(Version|ZipName|ZipSha256)\s*=\s*'([^']*)'", re.MULTILINE)
-"""A scalar field inside the pinned release block."""
+_PINNED_FIELD = re.compile(r"^ {4}(Version|ZipName|ZipSha256)\s*=\s*'([^']*)'", re.MULTILINE)
+"""A top-level scalar field of the pinned release block (the nested Proxy fields are deeper)."""
 
 
 class SigningError(ValueError):
@@ -238,6 +238,15 @@ def reviewed_hashes(text: str) -> dict[str, str]:
 
 
 @dataclass(frozen=True)
+class ProxyPin:
+    """The separate proxy asset of a pinned release (downloaded only for -LoadMethod Proxy)."""
+
+    zip_name: str
+    zip_sha256: str
+    files: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
 class PinnedRelease:
     """Values of the installer's pinned release."""
 
@@ -246,6 +255,7 @@ class PinnedRelease:
     zip_sha256: str
     files: tuple[tuple[str, str], ...]
     game_sha256: tuple[str, ...]
+    proxy: ProxyPin | None = None
 
 
 def render_pinned_block(pinned: PinnedRelease) -> str:
@@ -262,6 +272,20 @@ def render_pinned_block(pinned: PinnedRelease) -> str:
         f"        {f"'{name}'".ljust(width)} = '{digest}'" for name, digest in pinned.files
     )
     games = ", ".join(f"'{h}'" for h in pinned.game_sha256)
+    proxy: list[str] = []
+    if pinned.proxy is not None:
+        proxy_files = "; ".join(f"'{name}' = '{digest}'" for name, digest in pinned.proxy.files)
+        proxy = [
+            (
+                "    # Separate proxy asset: downloaded only for -LoadMethod Proxy "
+                "(the default Launcher install never reads it)."
+            ),
+            "    Proxy               = [ordered]@{",
+            f"        ZipName   = '{pinned.proxy.zip_name}'",
+            f"        ZipSha256 = '{pinned.proxy.zip_sha256}'",
+            f"        Files     = [ordered]@{{ {proxy_files} }}",
+            "    }",
+        ]
     return "\n".join(
         [
             "$script:RaPinnedRelease = [ordered]@{",
@@ -276,6 +300,7 @@ def render_pinned_block(pinned: PinnedRelease) -> str:
                 "(install notice, -Update, -CheckUpdate; the launcher enforces it)."
             ),
             f"    SupportedGameSha256 = @({games})",
+            *proxy,
             "}",
         ]
     )

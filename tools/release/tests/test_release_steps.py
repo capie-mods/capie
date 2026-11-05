@@ -931,3 +931,87 @@ def test_a_vdf_steamcmd_would_misread_is_never_sent(
     assert harness.run(*args, "--update-description") == 1
     assert "item.vdf unexpected key" in harness.output
     assert harness.runner.interactive == []
+
+
+# --- proxy as a separate asset (antivirus false positives, CAPIE 1.6.1) --------------
+
+
+def _build_with_proxy(harness: Harness, *extra: str) -> Path:
+    """Build a release whose proxy was built too.
+
+    Args:
+        harness: Test harness.
+        *extra: More build options.
+
+    Returns:
+        The proxy ZIP.
+    """
+    proxy = harness.root / "plugin/build/capie-proxy/version.dll"
+    proxy.parent.mkdir(parents=True, exist_ok=True)
+    proxy.write_bytes(b"MZ proxy" + IDENTITY_ASCII)
+    assert _build(harness, *extra) == 0, harness.output
+    return harness.out / "CAPIE-1.4.0-proxy-win64.zip"
+
+
+def test_build_ships_the_proxy_as_its_own_signed_asset(harness: Harness) -> None:
+    """version.dll is never in the main ZIP; the manifest lists its own ZIP under ``proxy``.
+
+    Args:
+        harness: Test harness.
+    """
+    proxy_zip = _build_with_proxy(harness)
+    with zipfile.ZipFile(harness.out / "CAPIE-1.4.0-win64.zip") as archive:
+        assert archive.namelist() == EXPECTED_ENTRIES
+    with zipfile.ZipFile(proxy_zip) as archive:
+        assert archive.namelist() == ["proxy/version.dll"]
+    manifest = json.loads((harness.out / "release-manifest.json").read_text(encoding="utf-8"))
+    assert "proxy/version.dll" not in manifest["files"]
+    assert manifest["schema"] == 1
+    assert manifest["proxy"]["zipName"] == proxy_zip.name
+    proxy_sha = hashlib.sha256(proxy_zip.read_bytes()).hexdigest()
+    assert manifest["proxy"]["zipSha256"] == proxy_sha.upper()
+    assert manifest["proxy"]["files"] == {
+        "proxy/version.dll": hashlib.sha256(b"MZ proxy" + IDENTITY_ASCII).hexdigest().upper()
+    }
+    assert f"{proxy_sha}  {proxy_zip.name}" in (harness.out / "SHA256SUMS.txt").read_text(
+        encoding="ascii"
+    )
+    info = json.loads((harness.out / "build-info.json").read_text(encoding="utf-8"))
+    assert info["proxy"]["name"] == proxy_zip.name
+    assert "only -LoadMethod Proxy downloads it" in harness.output
+
+
+def test_release_uploads_and_re_verifies_the_proxy_asset(harness: Harness) -> None:
+    """The proxy ZIP is attached to the release; a proxy ZIP changed after signing is refused.
+
+    Args:
+        harness: Test harness.
+    """
+    proxy_zip = _build_with_proxy(harness)
+    assert harness.run("release") == 0, harness.output
+    (create,) = harness.runner.mutating()
+    assert str(proxy_zip) in create
+    notes = (harness.out / "release-notes.md").read_text(encoding="utf-8")
+    assert "The default Launcher install never downloads it" in notes
+    assert "Please do not turn your antivirus off" in notes
+    harness.runner.calls.clear()
+    with zipfile.ZipFile(proxy_zip, "a") as archive:
+        archive.writestr("extra.txt", "not signed")
+    _release_refused(harness, f"the files inside {proxy_zip.name} differ")
+
+
+def test_build_write_pins_adds_the_proxy_pin(harness: Harness) -> None:
+    """--write-pins writes the proxy asset into the installer's pinned release.
+
+    Args:
+        harness: Test harness.
+    """
+    proxy_zip = _build_with_proxy(harness, "--write-pins")
+    text = (harness.root / "tools/bootstrap/src/Shared/Configuration.ps1").read_text(
+        encoding="utf-8"
+    )
+    proxy_sha = hashlib.sha256(proxy_zip.read_bytes()).hexdigest().upper()
+    assert "    Proxy               = [ordered]@{" in text
+    assert f"        ZipSha256 = '{proxy_sha}'" in text
+    assert "ZipName             = 'CAPIE-1.4.0-win64.zip'" in text
+    assert "'proxy/version.dll'                                         =" not in text
