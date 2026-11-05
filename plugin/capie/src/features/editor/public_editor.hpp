@@ -864,7 +864,10 @@ inline bool public_dispatch(void* context, void* opaque_selector) {
 #endif
     PublicSnapshot snapshot{};
     auto code = static_cast<unsigned>(PublicSentinel::registry_full);
-    if (registered) {
+    if (!engine::game_calls_allowed()) {
+        // The fault latch is set: every field read would be refused. Lasting, so not "stale" (CONTRACT 5.2).
+        code = static_cast<unsigned>(PublicSentinel::stopped);
+    } else if (registered) {
         code = capture_public(commit, view, snapshot);
     }
     if (code != 0) {

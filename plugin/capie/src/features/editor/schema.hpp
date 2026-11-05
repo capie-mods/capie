@@ -162,6 +162,7 @@ enum class StaleCode : unsigned {
     stale = 1,          ///< Unseeded, jump, rollback suspicion or failed re-prefill: Cancel and reopen fixes it.
     no_counter = 2,     ///< Revision carrier missing or unreadable: reopening does not help.
     counter_limit = 3,  ///< Revision counter at 999: reopening does not help.
+    stopped = 4,        ///< CAPIE stopped (fault latch, or the core's name layers off): only a restart helps.
 };
 
 // ---- Timing and diagnostics ------------------------------------------------------------------

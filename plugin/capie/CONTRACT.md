@@ -166,6 +166,17 @@ with only `capie_cap`, `capie_ver` and `capie_epoch = -code`:
 | `-1` | Opening not ready or changed while capturing (first frame after opening, a rebind, the epoch changed, a field disappeared, prefill still running), or the window failed CAPIE's consistency check | Close and reopen the editor |
 | `-2` | Editor registry full (section 3 limits) | Nothing in this session; a mod author issue |
 | `-3` | Editor layout invalid: a fifth field (`__5`), or a gap (field `n + 1` without field `n`) | A mod author issue |
+| `-4` | CAPIE stopped (CAPIE 1.7): a fault inside a call into the game set the fault latch, and CAPIE calls the game no more until it restarts, so no field can be read | Save, then restart the game; reopening the editor does not help |
+
+Code `-4` is new in CAPIE 1.7 and has no API level of its own: a mod never asks for it, it only
+receives it, and its meaning does not depend on anything else in the command. A script written
+before it treats `-4` like any value that is not its stored opening (the SDK's error 12, "close
+and reopen"), so it keeps working and only shows a less precise message. Check `capie_epoch = -4`
+before the generic epoch comparison.
+
+Rename Anything's private editors (section 11) receive the same codes as `rn_ip_cmd_epoch = -code`.
+Their country editor gets `-4` as well when `capie_core.dll` is not loaded or does not report its
+name layers (`RNCountryCapabilities`), because a stored name would not be shown.
 
 When the editor window is not visible, CAPIE drops the click and logs it; the game's own
 effect does not run. This matches Rename Anything's rule for a click that cannot belong to a
@@ -303,6 +314,7 @@ the 1-based position when one applies.
 | 12 | stale opening: sentinel `-1`, or `capie_epoch` is not the stored opening | header |
 | 13 | editor registry full (sentinel `-2`) | header |
 | 14 | editor layout invalid (sentinel `-3`) | header |
+| 15 | CAPIE stopped (sentinel `-4`, CAPIE 1.7): save, then restart the game. Reserved for the SDK release after CAPIE 1.7; an older SDK reports 12 | header |
 | 16 | multiplayer lock: not every human player confirmed the same CAPIE build | handshake |
 | 20 | not allowed by the permission rule | caller's check |
 | 21..26 | field transport error 1..6 (section 5.3) | payload |

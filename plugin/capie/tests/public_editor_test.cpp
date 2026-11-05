@@ -609,6 +609,18 @@ void sentinel_tests() {
     click(noepoch, apply_of(noepoch));
     check(value_of("capie_epoch") == -1, "missing epoch carrier -> -1");
 
+    // CAPIE stopped (fault latch set): a ready editor gets sentinel -4, not -1, and no payload;
+    // the same editor carries its payload again once the latch is clear (tests only).
+    auto& halted = make_window("capie_v1_ed__mymod__halted", 0b1, "1");
+    tick_observed(halted.window.data(), 0);
+    capie::engine::game_call_faulted.store(true);
+    click(halted, apply_of(halted));
+    capie::engine::game_call_faulted.store(false);
+    check(value_of("capie_epoch") == -4 && capie_records() == 3 && count_of("capie_nf") == 0,
+          "fault latch -> CAPIE-stopped sentinel -4 with cap and ver only");
+    click(halted, apply_of(halted));
+    check(value_of("capie_epoch") == 1 && count_of("capie_nf") == 1, "latch clear -> payload again");
+
     // Hidden window: dropped, the game's effect does not run.
     auto& hidden = make_window("capie_v1_ed__mymod__hidden", 0b1, "1");
     tick_observed(hidden.window.data(), 0);

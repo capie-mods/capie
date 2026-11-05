@@ -95,6 +95,7 @@ enum class PublicSentinel : unsigned {
     stale = 1,           ///< Opening not ready or changed: close and reopen.
     registry_full = 2,   ///< Session limit of grammar editors reached.
     layout_invalid = 3,  ///< A fifth field, or a gap between fields.
+    stopped = 4,         ///< CAPIE stopped calling the game after a fault: only a restart helps (CAPIE 1.7).
 };
 
 }  // namespace capie::editor

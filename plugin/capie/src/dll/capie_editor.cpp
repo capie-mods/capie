@@ -336,21 +336,26 @@ void __fastcall dispatch_observed(void* context, void* opaque_selector) {
         stale = true;
     }
     if (stale) {
-        // RN6: never drop an own Apply silently while its own editor window is live.
-        if (stale_eligible(context, model) &&
-            dispatch_stale(current, opaque_selector,
-                           caption_ok ? static_cast<unsigned>(StaleCode::stale) : caption_code)) {
+        // RN6: never drop an own Apply silently while its own editor window is live. A lasting
+        // cause (the fault latch refuses every widget read) is "CAPIE stopped", never "stale":
+        // reopening the editor cannot fix it.
+        unsigned code = caption_ok ? static_cast<unsigned>(StaleCode::stale) : caption_code;
+        if (own_apply_stopped(model)) {
+            code = static_cast<unsigned>(StaleCode::stopped);
+        }
+        if (stale_eligible(context, model) && dispatch_stale(current, opaque_selector, code)) {
             return;
         }
         bridge_rejected(current.id, "own-action-dropped-before-dispatch");
         return;
     }
     if (original_ctor == nullptr || !prepare_transport(current, snapshots) || !still_current(current, snapshots)) {
-        // RN6 again (scan M1): the payload could not be built or the window changed (also: country
-        // hooks not active in capie_core.dll). The script shows the stale sentinel as an error; a
-        // dedicated "core inactive" code would need a contract change in the mod (open).
-        if (original_ctor != nullptr && stale_eligible(context, model) &&
-            dispatch_stale(current, opaque_selector, static_cast<unsigned>(StaleCode::stale))) {
+        // RN6 again (scan M1): the payload could not be built or the window changed. A lasting
+        // cause (country hooks not active in capie_core.dll, or the fault latch) is sentinel -4,
+        // "CAPIE stopped"; anything else is the plain stale sentinel -1.
+        const auto code = own_apply_stopped(model) ? static_cast<unsigned>(StaleCode::stopped)
+                                                   : static_cast<unsigned>(StaleCode::stale);
+        if (original_ctor != nullptr && stale_eligible(context, model) && dispatch_stale(current, opaque_selector, code)) {
             return;
         }
         bridge_rejected(current.id, "own-action-dropped-before-dispatch");

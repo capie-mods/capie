@@ -108,7 +108,7 @@ void* __fastcall fake_instant(void* root, const capie::engine::NameView* view, b
         return world->own[m].revision.data();
     return nullptr;
 }
-unsigned leader_lookups = 0, bump_generation_on_lookup = 0;
+unsigned leader_lookups = 0, bump_generation_on_lookup = 0, latch_on_lookup = 0;
 void* __fastcall fake_edit(void* root, const capie::engine::NameView* view, bool, bool) {
     const auto name_text = capie::engine::borrowed_string(view->data, static_cast<std::size_t>(view->size));
     const MsvcString* name = &name_text;
@@ -116,6 +116,8 @@ void* __fastcall fake_edit(void* root, const capie::engine::NameView* view, bool
         // B02: simulate a lifecycle change (e.g. a concurrent rebind) on a chosen lookup, AFTER the
         // prefill's last same-opening check, so prefill completes but readiness is not committed.
         if (++leader_lookups == bump_generation_on_lookup) ++lifecycle[0].generation;
+        // 18b: another game call (here: of the other DLL) faults while this Apply is being captured.
+        if (leader_lookups == latch_on_lookup) capie::engine::game_call_faulted.store(true);
         return world->leader_edit.data();
     }
     return nullptr;
@@ -494,6 +496,33 @@ int main() {
     const auto m1_hidden = dispatch_originals;
     dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
     check(dispatch_originals == m1_hidden, "M1: hidden editor still drops (no sentinel)");
+
+    // 18b. CAPIE stopped: with the fault latch set the live editor's Apply is the lasting sentinel
+    //      -4 ("restart the game"), never -1 ("reopen"), and no widget is looked up; the country
+    //      editor without capie_core.dll's name layers is lasting as well.
+    show(LE, true); tick_observed(le, 0);
+    check(lifecycle[0].prefilled, "18b: leader prefilled");
+    check(!own_apply_stopped(0) && own_apply_stopped(country_model), "18b: country without the core is lasting");
+    game_call_faulted.store(true);
+    check(own_apply_stopped(0), "18b: the latch is lasting for every editor");
+    const auto stopped_before = dispatch_originals;
+    const auto stopped_lookups = leader_lookups;
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    game_call_faulted.store(false);
+    check(dispatch_originals == stopped_before + 1 && captured_raw("rn_ip_cmd_epoch") == -400000 &&
+              captured_count("rn_native_ok") == 0 && leader_lookups == stopped_lookups,
+          "18b: latched -> forwarded once as sentinel -4, no payload, no lookup");
+    check(count(logs(), "stale-sentinel epoch=-4 reason=capie-stopped") == 1, "18b: -4 logged with its reason");
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    check(captured_count("rn_native_ok") == 1 && captured_raw("rn_ip_cmd_epoch") > 0, "18b: latch clear -> payload again");
+    leader_lookups = 0; latch_on_lookup = 1;                          // the latch trips after the capture
+    dispatch_observed(le_context, const_cast<MsvcString*>(&leader_apply));
+    latch_on_lookup = 0;
+    game_call_faulted.store(false);
+    check(captured_raw("rn_ip_cmd_epoch") == -400000 && captured_count("rn_native_ok") == 0 &&
+              count(logs(), "stale-sentinel epoch=-4 reason=capie-stopped") == 2,
+          "18b: latch during the capture -> the final re-check sends -4, not -1");
+    show(LE, false); tick_observed(le, 0);
 
     // 19. Ghidra review G3: root flag 0x04 means "being destroyed": invalid (no game call), not hidden.
     show(LE, true);

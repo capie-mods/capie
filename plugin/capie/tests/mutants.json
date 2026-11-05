@@ -2238,5 +2238,51 @@
   "replace": "out.add(\"capie_sel_fmt\", format_173);",
   "suite": "tests/catalog_build_test.cpp",
   "summary": "catalog build tests:"
+  "name": "own-stopped-as-stale",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "        if (own_apply_stopped(model)) {\n            code = static_cast<unsigned>(StaleCode::stopped);",
+  "replace": "        if (false) {\n            code = static_cast<unsigned>(StaleCode::stopped);",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "own-final-stopped-as-stale",
+  "file": "src/dll/capie_editor.cpp",
+  "find": "const auto code = own_apply_stopped(model) ? static_cast<unsigned>(StaleCode::stopped)",
+  "replace": "const auto code = false ? static_cast<unsigned>(StaleCode::stopped)",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "stopped-ignores-country",
+  "file": "src/features/editor/transport.hpp",
+  "find": "return !engine::game_calls_allowed() || (model == country_model && !country_ready());",
+  "replace": "return !engine::game_calls_allowed();",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "stopped-ignores-latch",
+  "file": "src/features/editor/transport.hpp",
+  "find": "return !engine::game_calls_allowed() || (model == country_model && !country_ready());",
+  "replace": "return model == country_model && !country_ready();",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "stale-code-range-drops-stopped",
+  "file": "src/features/editor/transport.hpp",
+  "find": "code > static_cast<unsigned>(StaleCode::stopped)) {",
+  "replace": "code > static_cast<unsigned>(StaleCode::counter_limit)) {",
+  "suite": "tests/legacy/editor_integration_test.cpp",
+  "summary": "caption refresh bridge integration:"
+ },
+ {
+  "name": "public-stopped-as-capture",
+  "file": "src/features/editor/public_editor.hpp",
+  "find": "    if (!engine::game_calls_allowed()) {\n        // The fault latch is set",
+  "replace": "    if (false) {\n        // The fault latch is set",
+  "suite": "tests/public_editor_test.cpp",
+  "summary": "public editor tests:"
  }
 ]

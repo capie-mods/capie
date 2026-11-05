@@ -19,7 +19,8 @@
  * identical read after building the records, and for the country `capie_core.dll`
  * reporting its capability. Any failure drops the Apply with a logged guard, or, while
  * the own editor window is live, forwards a payload-free sentinel (`rn_ip_cmd_epoch =
- * -code`, see `StaleCode`) so the script can tell the player what to do (RN6/R5).
+ * -code`, see `StaleCode`; -4 when CAPIE stopped, `own_apply_stopped`) so the script can tell
+ * the player what to do (RN6/R5).
  *
  * Exactly one original dispatch per click; no retry; no lock across it.
  *
@@ -572,9 +573,22 @@ inline bool stale_eligible(void* context, std::size_t model) noexcept {
 }
 
 /**
+ * @brief Whether an own Apply without a payload fails for a lasting reason (sentinel `StaleCode::stopped`).
+ *
+ * Lasting: CAPIE stopped calling the game (the shared fault latch is set), or, for the country
+ * editor, `capie_core.dll` does not report its name layers. Reopening the editor cannot fix
+ * either, so the script must not tell the player to reopen it. Checked afresh at the click.
+ * @param model Model index.
+ * @return `true` for a lasting reason; `false` when reopening may help (plain stale, -1).
+ */
+inline bool own_apply_stopped(std::size_t model) noexcept {
+    return !engine::game_calls_allowed() || (model == country_model && !country_ready());
+}
+
+/**
  * @brief Log name of a sentinel code.
- * @param code 1, 2 or 3.
- * @return "no-counter", "counter-limit" or "stale".
+ * @param code 1, 2, 3 or 4.
+ * @return "no-counter", "counter-limit", "capie-stopped" or "stale".
  */
 inline const char* stale_reason(unsigned code) noexcept {
     if (code == static_cast<unsigned>(StaleCode::no_counter)) {
@@ -583,6 +597,9 @@ inline const char* stale_reason(unsigned code) noexcept {
     if (code == static_cast<unsigned>(StaleCode::counter_limit)) {
         return "counter-limit";
     }
+    if (code == static_cast<unsigned>(StaleCode::stopped)) {
+        return "capie-stopped";
+    }
     return "stale";
 }
 
@@ -590,13 +607,13 @@ inline const char* stale_reason(unsigned code) noexcept {
  * @brief Forwards an own Apply with only the original non-reserved records and `rn_ip_cmd_epoch = -code`.
  * @param current Dispatch frame.
  * @param opaque_selector Selector argument of Dispatch.
- * @param code Sentinel code (1 stale, 2 no counter, 3 counter limit; anything else becomes 1).
+ * @param code Sentinel code (1 stale, 2 no counter, 3 counter limit, 4 CAPIE stopped; anything else becomes 1).
  * @return `false` when the vector could not be copied (the caller then drops and logs).
  * @note Not `noexcept`: it calls the original, whose exceptions pass through (scan N6).
  */
 inline bool dispatch_stale(Origin& current, void* opaque_selector, unsigned code) {
     const auto context_address = reinterpret_cast<std::uintptr_t>(current.context);
-    if (code < static_cast<unsigned>(StaleCode::stale) || code > static_cast<unsigned>(StaleCode::counter_limit)) {
+    if (code < static_cast<unsigned>(StaleCode::stale) || code > static_cast<unsigned>(StaleCode::stopped)) {
         code = static_cast<unsigned>(StaleCode::stale);
     }
     if (original_ctor == nullptr || current.model >= model_count ||
