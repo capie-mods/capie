@@ -82,7 +82,7 @@
   <line class="arrow" x1="202" y1="120" x2="229" y2="120" marker-end="url(#ah)"/>
   <line class="arrow" x1="402" y1="120" x2="429" y2="120" marker-end="url(#ah)"/>
   <line class="arrow" x1="622" y1="120" x2="649" y2="120" marker-end="url(#ah)"/>
-  <text class="lab" x="368" y="60">version 1.19.4.1</text>
+  <text class="lab" x="368" y="60">version 1.19.4.2</text>
 
   <path class="arrowfb" d="M317 170 L317 224 L429 224" marker-end="url(#ahf)"/>
   <text class="labf" x="326" y="198">unknown</text>

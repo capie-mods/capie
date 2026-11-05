@@ -35,21 +35,21 @@ using core::uptr;
 
 /// @brief Window field stores in Tick and in the inlined window construction of the rebuild.
 inline constexpr core::InstructionPin instruction_pins[] = {
-    {"tick.window_desired", 0xBDB7E4, "8883F90B0000"},               // Tick: mov [rbx+BF9],al (visible trigger)
-    {"window_ctor.idler", 0xBDBEAA, "4889BBE0000000"},               // mov [rbx+E0],rdi
-    {"window_ctor.model", 0xBDBEB1, "4889B3E8000000"},               // mov [rbx+E8],rsi (scripted-GUI template)
-    {"window_ctor.manager", 0xBDBEB8, "4C89B3F0000000"},             // mov [rbx+F0],r14 (the manager)
-    {"window_ctor.root_zero", 0xBDBEBF, "33F64889B3F8000000"},       // xor esi,esi; mov [rbx+F8],rsi
-    {"window_ctor.parent_zero", 0xBDBEC8, "4889B300010000"},         // mov [rbx+100],rsi
-    {"window_ctor.parent_sg_zero", 0xBDBECF, "4889B308010000"},      // mov [rbx+108],rsi
-    {"window_ctor.context", 0xBDBED6, "488D8B10010000"},             // lea rcx,[rbx+110]: this of the context ctor
-    {"window_ctor.parent_seen", 0xBDBEEC, "66C783F80B00000100"},     // mov word [rbx+BF8],1 (parent seen, desired 0)
+    {"tick.window_desired", 0xBDB854, "8883F90B0000"},               // Tick: mov [rbx+BF9],al (visible trigger)
+    {"window_ctor.idler", 0xBDBF1A, "4889BBE0000000"},               // mov [rbx+E0],rdi
+    {"window_ctor.model", 0xBDBF21, "4889B3E8000000"},               // mov [rbx+E8],rsi (scripted-GUI template)
+    {"window_ctor.manager", 0xBDBF28, "4C89B3F0000000"},             // mov [rbx+F0],r14 (the manager)
+    {"window_ctor.root_zero", 0xBDBF2F, "33F64889B3F8000000"},       // xor esi,esi; mov [rbx+F8],rsi
+    {"window_ctor.parent_zero", 0xBDBF38, "4889B300010000"},         // mov [rbx+100],rsi
+    {"window_ctor.parent_sg_zero", 0xBDBF3F, "4889B308010000"},      // mov [rbx+108],rsi
+    {"window_ctor.context", 0xBDBF46, "488D8B10010000"},             // lea rcx,[rbx+110]: this of the context ctor
+    {"window_ctor.parent_seen", 0xBDBF5C, "66C783F80B00000100"},     // mov word [rbx+BF8],1 (parent seen, desired 0)
 };
 
 /// @brief The construction's two calls: the context constructor, then Bind on the new window.
 inline constexpr core::RipPin target_pins[] = {
-    {"window_ctor.context_ctor_call", 0xBDBEE7, 0xBDBEEB, core::rva::window_context_ctor},
-    {"window_ctor.bind_call", 0xBDBF0E, 0xBDBF12, core::rva::window_bind},
+    {"window_ctor.context_ctor_call", 0xBDBF57, 0xBDBF5B, core::rva::window_context_ctor},
+    {"window_ctor.bind_call", 0xBDBF7E, 0xBDBF82, core::rva::window_bind},
 };
 
 /// @brief Expected instruction pins.

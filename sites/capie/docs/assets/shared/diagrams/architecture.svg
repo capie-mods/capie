@@ -81,7 +81,7 @@
   <line class="wire" x1="609" y1="336" x2="609" y2="382"/>
 
   <!-- Layer 3: game -->
-  <text class="caps" x="32" y="372">HEARTS OF IRON IV 1.19.4.1</text>
+  <text class="caps" x="32" y="372">HEARTS OF IRON IV 1.19.4.2</text>
   <rect class="node" x="32" y="382" width="816" height="80" rx="2"/>
   <text class="item" x="48" y="427">Game commands</text>
   <line class="div" x1="236.5" y1="402" x2="236.5" y2="442"/>

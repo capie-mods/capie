@@ -113,25 +113,25 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0x1439F40 + 5, "portrait.resolve");
-    flip(0x1439200 + 6, "portrait.valid");
-    flip(0xB96487 + 4, "ui.size_small_is_zero");      // [rsp+0x90]
-    flip(0xB964C8 + 4, "ui.character_argument");      // [rsp+0x20]
-    flip(0x1439FE9 + 3, "resolve.character_id");      // +0x0C
-    flip(0x143922D + 3, "valid.name");                // +0x08
-    flip(0x102AB25 + 3, "character.write_portraits");  // +0x78
-    flip(0x102ADAB + 3, "character.write_variables");  // +0xD8
-    flip(0x1029766 + 3, "character.read_variables");   // +0xD8
-    flip(0x717370 + 3, "leader.politics");            // +0xF90
-    flip(0x2FDC37 + 3, "leader.ruling_party");        // +0xD0
-    flip(0x1230500 + 2, "leader.first_role");         // +0x7C
-    flip(0x2C1410 + 3, "leader.character");           // +0x08
-    flip(0x2FDCB4 + 4, "effect.civilian_large");      // size 1
-    flip(0xB964E1, "ui.calls_resolve");
-    flip(0xB964EC, "ui.calls_valid");
-    flip(0x2FDC33, "leader.calls_politics");
-    flip(0x123050E, "leader.first_role_jumps");
-    flip(0x2FDCC0, "effect.writes_portrait");
+    flip(0x1439FB0 + 5, "portrait.resolve");
+    flip(0x1439270 + 6, "portrait.valid");
+    flip(0xB964F7 + 4, "ui.size_small_is_zero");      // [rsp+0x90]
+    flip(0xB96538 + 4, "ui.character_argument");      // [rsp+0x20]
+    flip(0x143A059 + 3, "resolve.character_id");      // +0x0C
+    flip(0x143929D + 3, "valid.name");                // +0x08
+    flip(0x102AB95 + 3, "character.write_portraits");  // +0x78
+    flip(0x102AE1B + 3, "character.write_variables");  // +0xD8
+    flip(0x10297D6 + 3, "character.read_variables");   // +0xD8
+    flip(0x7173E0 + 3, "leader.politics");            // +0xF90
+    flip(0x2FDCA7 + 3, "leader.ruling_party");        // +0xD0
+    flip(0x1230570 + 2, "leader.first_role");         // +0x7C
+    flip(0x2C1480 + 3, "leader.character");           // +0x08
+    flip(0x2FDD24 + 4, "effect.civilian_large");      // size 1
+    flip(0xB96551, "ui.calls_resolve");
+    flip(0xB9655C, "ui.calls_valid");
+    flip(0x2FDCA3, "leader.calls_politics");
+    flip(0x123057E, "leader.first_role_jumps");
+    flip(0x2FDD30, "effect.writes_portrait");
     check(pins::first_failed_pin(text) == nullptr, "restored image passes again");
 }
 

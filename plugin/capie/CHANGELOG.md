@@ -9,11 +9,27 @@ release notes, so write it for players and mod authors. Format:
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-05
+
+Hotfix for Hearts of Iron IV 1.19.4.2. Nothing else changed: the script API is still level 8, so
+every mod that works with CAPIE 1.6.0 (and mods built for CAPIE 1.5) works without changes.
+
 ### Changed
 
+- CAPIE now runs on HOI4 1.19.4.2 only (Steam, x64, `hoi4.exe` SHA-256 `BCCC6290…7A8037`). On
+  1.19.4.1 it stays off and the game starts without it, as on any other unsupported build. Steam
+  updates the game automatically, so update CAPIE to 1.6.1 (run the installer again).
+- Every address and byte signature was re-checked for the new build. Code and data moved by a
+  few hundred bytes to a few kilobytes; no structure layout changed. The details are in
+  `docs/research/port-1.19.4.2.md`.
+- `CAPIE_BUILD` answers `1.6.1`; the build number sent as `capie_ver` is `10601`.
 - The "CAPIE" switch mod in the ZIP (`mod/capie`, the local copy) is version 1.1.2: no CAPIE mark
   in the main menu any more, and no interface, graphics or localisation file. Its copy of the
   game's main menu file replaced the main menu of total conversions such as Kaiserreich.
+
+### Fixed
+
+- CAPIE no longer refuses to start after the 1.19.4.2 game update.
 
 ## [1.6.0] - 2026-11-01
 

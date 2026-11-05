@@ -1,6 +1,6 @@
 /**
  * @file console_layout.hpp
- * @brief Byte layouts of the game's console objects (HOI4 1.19.4.1, SHA CF781ED1...; ported in docs/research/port-1.19.4.1.md).
+ * @brief Byte layouts of the game's console objects (HOI4 1.19.4.2, SHA BCCC6290...; ported in docs/research/port-1.19.4.2.md).
  *
  * Every offset is proven by one instruction pin in `console_wiring.hpp` ("re-evidence.md" is the
  * console RE report of session 2026-10-11):
@@ -36,21 +36,21 @@ using engine::MsvcString;
 /// @brief RVA of the console singleton slot (stored by `console.singleton_create`, pins `console.singleton_store*`).
 inline constexpr uptr console_slot_rva = 0x368F540;
 /// @brief RVA of the add-or-replace function (`console.add_or_replace`).
-inline constexpr uptr add_or_replace_rva = 0x2537250;
+inline constexpr uptr add_or_replace_rva = 0x2537390;
 /// @brief RVA of MSVC `std::string::assign(const char*, size_t)` (called by `set_cosmetic_tag`).
 inline constexpr uptr string_assign_rva = 0x12B3C0;
 /// @brief RVA of the vanilla `set_cosmetic_tag` console action.
-inline constexpr uptr set_cosmetic_tag_rva = 0x299AC0;
+inline constexpr uptr set_cosmetic_tag_rva = 0x299B30;
 /// @brief RVA of the vanilla `drop_cosmetic_tag` console action.
-inline constexpr uptr drop_cosmetic_tag_rva = 0x26A6E0;
+inline constexpr uptr drop_cosmetic_tag_rva = 0x26A750;
 /// @brief RVA of the vanilla `eval_effect` console action.
-inline constexpr uptr eval_effect_rva = 0x27A8C0;
+inline constexpr uptr eval_effect_rva = 0x27A930;
 /// @brief RVA of the console command lookup (by name and alias).
-inline constexpr uptr lookup_rva = 0x2537DF0;
+inline constexpr uptr lookup_rva = 0x2537F30;
 /// @brief RVA of the `CCountry` cosmetic-tag setter the vanilla `set_cosmetic_tag` calls.
-inline constexpr uptr country_set_cosmetic_rva = 0x759370;
+inline constexpr uptr country_set_cosmetic_rva = 0x7593E0;
 /// @brief RVA of the dispatcher's gate message ("Console not available in multiplayer or ironman mode.").
-inline constexpr uptr gate_message_rva = 0x2C03C70;
+inline constexpr uptr gate_message_rva = 0x2C04AF0;
 
 /// @brief Offset of the entry array data pointer in the console.
 inline constexpr uptr console_entries = 0x00;
@@ -154,7 +154,7 @@ inline constexpr uptr sprite_find_rva = core::rva::sprite_find;
 /// @brief RVA of the global sprite database pointer (read by the portrait validity check).
 inline constexpr uptr sprite_database_rva = core::rva::sprite_database_global;
 /// @brief RVA of the tag parser called by `set_cosmetic_tag`.
-inline constexpr uptr tag_parse_rva = 0x1168A70;
+inline constexpr uptr tag_parse_rva = 0x1168AE0;
 /// @brief RVA of the country lookup called by `set_cosmetic_tag`.
 inline constexpr uptr country_of_rva = core::rva::country_of;
 /// @brief Offset of the cosmetic tag string in a country (pin `country.cosmetic_tag`: `lea rsi,[rcx+1488]`).
