@@ -17,12 +17,16 @@
 #include "../launcher/crash_guard.hpp"
 #include "../launcher/file_pin.hpp"
 #include "../launcher/game_location.hpp"
+#include "../launcher/launcher_log.hpp"
 
 #include <shellapi.h>
 
 #include <array>
+#include <cstring>
 #include <memory>
+#include <string>
 #include <string_view>
+#include <utility>
 
 namespace capie::proxy {
 
@@ -211,6 +215,38 @@ inline const char* result_name(LoadResult result) noexcept {
     case LoadResult::crash_guard_skipped:
         return "crash_guard_skipped; the previous start ended during CAPIE initialization; CAPIE skipped once";
     default: return "unexpected; CAPIE initialization refused";
+    }
+}
+
+/// @brief Widens ASCII text (the result names).
+inline std::wstring ascii_wide(const char* text) {
+    return std::wstring(text, text + std::strlen(text));
+}
+
+/**
+ * @brief `last-status.txt` outcome of a proxy start (same file and tags as the launcher's).
+ *
+ * The proxy has no window: a message box from inside the running game would steal the focus of a
+ * full-screen game, so the player learns of a failed editor from the status keys in the game
+ * ("editor off, restart the game") and from this file.
+ * @param outcome Result of `load_payload`.
+ * @param pid Game process ID.
+ * @return Outcome tag and one sentence for the player.
+ */
+inline std::pair<std::wstring, std::wstring> proxy_status(const Outcome& outcome, DWORD pid) {
+    const auto game = L"hoi4.exe pid=" + std::to_wstring(pid);
+    switch (outcome.result) {
+    case LoadResult::loaded:
+        return {L"capie-loaded", L"CAPIE was loaded into " + game + L" by the version.dll loader."};
+    case LoadResult::editor_init_failed:
+        return {L"capie-editor-failed", L"CAPIE's core was loaded into " + game +
+                                            L", but its editor did not start (code " +
+                                            std::to_wstring(outcome.init_code) +
+                                            L"): names show, renaming is off. Restart the game; the cause is in "
+                                            L"proxy.log and capie_editor.log."};
+    default:
+        return {L"game-without-capie", L"The version.dll loader did not load CAPIE into " + game + L": " +
+                                           ascii_wide(result_name(outcome.result)) + L"."};
     }
 }
 

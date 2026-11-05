@@ -85,6 +85,11 @@ DWORD WINAPI startup(void*) noexcept {
         const auto outcome = capie::proxy::load_payload(policy);
         capie::proxy::write_log(app_data, std::string(capie::proxy::result_name(outcome.result)) +
                                            "; code=" + std::to_string(outcome.init_code));
+        // The player-visible record of this start (the launcher writes the same file in launcher mode).
+        const auto [status, message] = capie::proxy::proxy_status(outcome, GetCurrentProcessId());
+        static_cast<void>(capie::launcher::write_status_file(app_data + L"\\" + capie::launcher::status_file_name,
+                                                             status, message,
+                                                             app_data + L"\\" + capie::proxy::log_file));
     } catch (...) {
         OutputDebugStringA("CAPIE proxy: startup refused after an internal error\n");
     }

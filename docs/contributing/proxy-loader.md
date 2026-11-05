@@ -42,6 +42,13 @@ An initializer failure is recorded in `proxy.log`; a core already activated is r
 editor initialization fails, and the game must be restarted. No module with possible live
 hooks is unloaded.
 
+Since CAPIE 1.7 every activated proxy start also replaces `last-status.txt` in the same folder
+(the launcher's file and format): `capie-loaded`, `capie-editor-failed` (core loaded, editor
+refused, with its code) or `game-without-capie`. The proxy shows no message box: it runs inside
+the game, and a topmost box would take the focus from a full-screen game. In the game the status
+keys say "CAPIE 1.x: editor off, restart the game" while the editor is not running
+(`plugin/capie/CONTRACT.md` section 8).
+
 The DLL hashes compiled into the proxy come from `plugin/capie/deploy/bundle-inputs.json`, the
 same list the launcher bundle is built from (format in `plugin/capie/deploy/DEPLOYMENT.md`);
 `build_proxy.ps1` reads the generated header back and fails when its pins differ from that list.

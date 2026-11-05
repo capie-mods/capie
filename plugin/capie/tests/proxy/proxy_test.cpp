@@ -256,12 +256,36 @@ void payload_tests(const std::wstring& scratch, const std::wstring& fixtures, st
     }
     check(cp::load_payload(policy).result == cp::LoadResult::co_load_refused, "existing CAPIE module refused");
 }
+/// @brief CAPIE 1.7: the proxy records its outcome in last-status.txt, with its own tag for a failed editor.
+void status_tests(const std::wstring& scratch) {
+    namespace cp = capie::proxy;
+    const auto loaded = cp::proxy_status({cp::LoadResult::loaded, 0}, 42);
+    check(loaded.first == L"capie-loaded" && loaded.second.find(L"pid=42") != std::wstring::npos, "status: loaded");
+    const auto editor = cp::proxy_status({cp::LoadResult::editor_init_failed, 20}, 42);
+    check(editor.first == L"capie-editor-failed" && editor.second.find(L"code 20") != std::wstring::npos &&
+              editor.second.find(L"renaming is off") != std::wstring::npos,
+          "status: editor failed has its own tag and code");
+    const auto core = cp::proxy_status({cp::LoadResult::core_init_failed, 31}, 42);
+    check(core.first == L"game-without-capie" && core.second.find(L"core_init_failed") != std::wstring::npos,
+          "status: core failed is a game without CAPIE");
+    const auto file = std::filesystem::path(scratch) / L"last-status.txt";
+    check(capie::launcher::write_status_file(file.wstring(), editor.first, editor.second, L"C:\\x\\proxy.log"),
+          "status file written");
+    std::ifstream input(file, std::ios::binary);
+    const std::string text((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    check(text.starts_with("time=") && text.find("\r\noutcome=capie-editor-failed\r\nmessage=CAPIE's core") !=
+                                           std::string::npos &&
+              text.ends_with("\r\nlog=C:\\x\\proxy.log\r\n"),
+          "status file: the launcher's four lines");
+}
+
 } // namespace
 
 int wmain(int argc, wchar_t** argv) {
     if (argc != 4 && argc != 5) { return 2; }
     try {
         std::filesystem::create_directories(argv[1]);
+        status_tests(argv[1]);
         if (argc == 4) {
             activation_tests(argv[1]);
             forwarding_tests(argv[2]);

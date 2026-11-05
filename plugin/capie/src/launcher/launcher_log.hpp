@@ -39,6 +39,20 @@ namespace capie::launcher {
 /// @brief Title of every launcher dialog.
 inline constexpr wchar_t dialog_title[] = L"Rename Anything / CAPIE";
 
+/**
+ * @brief Replaces a status file (`last-status.txt`) with four `key=value` lines.
+ *
+ * Written to a temporary file and moved over the old one, so a reader sees the previous or the
+ * new status, never a half-written one. Shared by the launcher (`Log::status`) and the proxy.
+ * @param target Status file path.
+ * @param outcome Short tag (for example `capie-loaded`, `capie-editor-failed`, `game-without-capie`).
+ * @param message One sentence for the player (line breaks become spaces).
+ * @param log_path The log that holds the details.
+ * @return `true` when the file was replaced.
+ */
+inline bool write_status_file(const std::wstring& target, std::wstring_view outcome, std::wstring_view message,
+                              std::wstring_view log_path) noexcept;
+
 /// @brief Severity of a log line.
 enum class Level : std::uint8_t { info, warning, error };
 
@@ -150,23 +164,8 @@ public:
             if (target.empty()) {
                 return;
             }
-            const std::string text = "time=" + utc_stamp() + "\r\noutcome=" + to_utf8(single_line(outcome)) +
-                                     "\r\nmessage=" + to_utf8(single_line(message)) + "\r\nlog=" + to_utf8(path_) +
-                                     "\r\n";
-            const auto temporary = target + L"." + std::to_wstring(GetCurrentProcessId()) + L".tmp";
             const std::scoped_lock lock(mutex_);
-            bool written = false;
-            {
-                const Handle file(CreateFileW(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
-                                              FILE_ATTRIBUTE_NORMAL, nullptr));
-                DWORD actual = 0;
-                written = file &&
-                          WriteFile(file.get(), text.data(), static_cast<DWORD>(text.size()), &actual, nullptr) != 0 &&
-                          actual == text.size();
-            }
-            if (!written || MoveFileExW(temporary.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING) == 0) {
-                DeleteFileW(temporary.c_str());
-            }
+            static_cast<void>(write_status_file(target, outcome, message, path_));
         } catch (...) {
             return;  // the status file is a convenience; it never affects the launch
         }
@@ -193,6 +192,34 @@ private:
     std::wstring path_;
     std::mutex mutex_;
 };
+
+inline bool write_status_file(const std::wstring& target, std::wstring_view outcome, std::wstring_view message,
+                              std::wstring_view log_path) noexcept {
+    try {
+        if (target.empty()) {
+            return false;
+        }
+        const std::string text = "time=" + utc_stamp() + "\r\noutcome=" + to_utf8(single_line(outcome)) +
+                                 "\r\nmessage=" + to_utf8(single_line(message)) + "\r\nlog=" + to_utf8(log_path) +
+                                 "\r\n";
+        const auto temporary = target + L"." + std::to_wstring(GetCurrentProcessId()) + L".tmp";
+        bool written = false;
+        {
+            const Handle file(CreateFileW(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                                          FILE_ATTRIBUTE_NORMAL, nullptr));
+            DWORD actual = 0;
+            written = file && WriteFile(file.get(), text.data(), static_cast<DWORD>(text.size()), &actual, nullptr) != 0 &&
+                      actual == text.size();
+        }
+        if (!written || MoveFileExW(temporary.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING) == 0) {
+            DeleteFileW(temporary.c_str());
+            return false;
+        }
+        return true;
+    } catch (...) {
+        return false;  // the status file is a convenience; it never affects the game
+    }
+}
 
 /// @brief Things the player is told about.
 enum class Notice : std::uint8_t {
