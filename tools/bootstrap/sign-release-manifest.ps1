@@ -9,7 +9,9 @@
                      (refuses to overwrite) and prints the PUBLIC key XML for install.ps1
                      ($RaUpdatePublicKeyXml in tools/bootstrap/src/Shared/Configuration.ps1).
       -MakeManifest  hashes every file inside -ZipPath plus the ZIP itself and writes the
-                     schema-1 manifest JSON to -OutPath.
+                     schema-1 manifest JSON to -OutPath. With -ProxyZipPath the separate proxy
+                     asset (CAPIE-x.y.z-proxy-win64.zip, only proxy/version.dll) is listed in the
+                     optional "proxy" field, so the default Launcher install never downloads it.
       -Sign          signs the exact bytes of -ManifestPath (RSA PKCS#1 v1.5, SHA-256) and
                      writes <manifest>.sig (Base64).
     Keep the private key OUTSIDE the repository (ideally on removable/encrypted storage).
@@ -28,6 +30,10 @@
 
 .PARAMETER ZipPath
     Release ZIP for -MakeManifest.
+
+.PARAMETER ProxyZipPath
+    Separate proxy ZIP for -MakeManifest (optional; must hold proxy/version.dll, which then must not
+    be in -ZipPath).
 
 .PARAMETER Version
     Release version for -MakeManifest (x.y.z).
@@ -66,7 +72,8 @@
     .\sign-release-manifest.ps1 -MakeManifest -ZipPath .\RenameAnything-0.2.0-win64.zip -Version 0.2.0 `
         -SupportedGameSha256 7DC947BE... -OutPath .\release-manifest.json
     .\sign-release-manifest.ps1 -Sign -ManifestPath .\release-manifest.json -PrivateKeyPath D:\keys\ra-update.private.xml
-    # upload release-manifest.json, release-manifest.json.sig and the ZIP as release assets
+    # (add -ProxyZipPath .\RenameAnything-0.2.0-proxy-win64.zip when the proxy is a separate asset)
+    # upload release-manifest.json, release-manifest.json.sig and the ZIP(s) as release assets
 #>
 [CmdletBinding()]
 [OutputType([string])]
@@ -76,6 +83,7 @@ param(
     [switch]$Sign,
     [string]$PrivateKeyPath,
     [string]$ZipPath,
+    [string]$ProxyZipPath,
     [string]$Version,
     [string[]]$SupportedGameSha256 = @(),
     [ValidateRange(0, 1000)][int]$CapieApiLevel = 0,
@@ -92,6 +100,7 @@ $script:SignManifestSchema = 1
 $script:SignJsonDepth = 5
 $script:SignHashAlgorithm = 'SHA256'
 $script:SignSignatureSuffix = '.sig'
+$script:SignProxyEntry = 'proxy/version.dll'
 $script:SignUtf8 = New-Object System.Text.UTF8Encoding($false)
 
 function Assert-SignArgument {
@@ -204,6 +213,8 @@ function ConvertTo-SignManifestJson {
         Supported game version text; empty leaves game_version out.
     .PARAMETER Summary
         Short change lines; none leaves changelog_summary out.
+    .PARAMETER ProxyPath
+        Separate proxy ZIP; empty leaves the proxy field out (older layout).
     .OUTPUTS
         System.String
     .EXAMPLE
@@ -217,20 +228,32 @@ function ConvertTo-SignManifestJson {
         [AllowEmptyCollection()][string[]]$GameSha256 = @(),
         [int]$ApiLevel = 0,
         [AllowEmptyString()][string]$GameVersionText = '',
-        [AllowEmptyCollection()][string[]]$Summary = @()
+        [AllowEmptyCollection()][string[]]$Summary = @(),
+        [AllowEmptyString()][string]$ProxyPath = ''
     )
+    $files = Get-SignZipEntryHash -Path $Path
     $manifest = [ordered]@{
         schema              = $script:SignManifestSchema
         version             = $ReleaseVersion
         zipName             = [IO.Path]::GetFileName($Path)
         zipSha256           = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
-        files               = [pscustomobject](Get-SignZipEntryHash -Path $Path)
+        files               = [pscustomobject]$files
         supportedGameSha256 = @($GameSha256 | ForEach-Object { $_.ToUpperInvariant() })
     }
     # Optional display data for the installer's version picker (schema 1 stays valid without it).
     if ($ApiLevel -gt 0) { $manifest['capie_api_level'] = $ApiLevel }
     if ($GameVersionText) { $manifest['game_version'] = $GameVersionText }
     if (@($Summary).Count -gt 0) { $manifest['changelog_summary'] = @($Summary) }
+    if ($ProxyPath) {
+        $proxyFiles = Get-SignZipEntryHash -Path $ProxyPath
+        if (-not $proxyFiles.Contains($script:SignProxyEntry)) { throw "$ProxyPath does not contain $($script:SignProxyEntry)." }
+        foreach ($k in $proxyFiles.Keys) { if ($files.Contains($k)) { throw "$k is in both ZIPs; the main ZIP must not hold the proxy." } }
+        $manifest['proxy'] = [pscustomobject][ordered]@{
+            zipName   = [IO.Path]::GetFileName($ProxyPath)
+            zipSha256 = (Get-FileHash -LiteralPath $ProxyPath -Algorithm SHA256).Hash
+            files     = [pscustomobject]$proxyFiles
+        }
+    }
     return ([pscustomobject]$manifest | ConvertTo-Json -Depth $script:SignJsonDepth)
 }
 
@@ -282,7 +305,7 @@ if ($MakeManifest) {
         $summary = @([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ChangelogSummaryBase64)) | ConvertFrom-Json)
     }
     $json = ConvertTo-SignManifestJson -Path $ZipPath -ReleaseVersion $Version -GameSha256 $SupportedGameSha256 `
-        -ApiLevel $CapieApiLevel -GameVersionText $GameVersion -Summary $summary
+        -ApiLevel $CapieApiLevel -GameVersionText $GameVersion -Summary $summary -ProxyPath $ProxyZipPath
     [IO.File]::WriteAllText($OutPath, $json, $script:SignUtf8)
     Write-Output "Wrote $OutPath"
     return

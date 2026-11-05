@@ -26,6 +26,8 @@ $script:RaSteamRestartExe = $null  # steam.exe to start again after the change
 $script:RaReleaseCache = $null  # releases listed in this run (one GitHub request per run)
 $script:RaForce = $false        # -Force: -Update may install a release that does not support the game; -Uninstall without Steam
 $script:RaUpdateHeldBack = $false # -Update kept the installed version because the newest does not support the game
+$script:RaProxyWanted = $false  # this run installs or keeps the Proxy method (only then a release's version.dll is unpacked)
+$script:RaLocalPackagePath = $null # -PackagePath: the proxy ZIP of an offline install is looked for next to it
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -103,6 +105,11 @@ $script:RaHttpGet = {
 # --- File bytes (the byte-exact localconfig.vdf path) ---------------------
 # ReadAllBytes(Path) -> byte[]
 $script:RaReadAllBytes = { param([string]$Path) , [IO.File]::ReadAllBytes($Path) }
+# OpenRead(Path) -> System.IO.Stream (read only; the caller disposes it). Every file hash reads through it.
+$script:RaOpenRead = {
+    param([string]$Path)
+    [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::Read -bor [IO.FileShare]::Delete))
+}
 # WriteAllBytes(Path, Bytes) -> nothing
 $script:RaWriteAllBytes = { param([string]$Path, [byte[]]$Bytes) [IO.File]::WriteAllBytes($Path, $Bytes) }
 # CopyFile(Source, Destination) -> nothing (overwrites)

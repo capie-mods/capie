@@ -40,6 +40,11 @@ $script:RaRootDirName = 'RenameAnything'                    # under %LOCALAPPDAT
 $script:RaLauncherExeName = 'RenameAnythingLauncher.exe'
 $script:RaProxyFileName = 'version.dll'
 $script:RaProxyBundlePath = 'proxy/version.dll'
+# Win32 errors Windows returns when an antivirus blocks a file (as HRESULT 0x8007xxxx in .NET):
+# ERROR_VIRUS_INFECTED (225) and ERROR_VIRUS_DELETED (226).
+$script:RaAntivirusWin32Errors = @(225, 226)
+$script:RaWin32HResultMask = 0xFFFF
+$script:RaWin32HResultFacility = 0x80070000
 $script:RaProxyConfigName = 'proxy.enabled'
 $script:RaProxyConfigContent = "CAPIE_PROXY_ENABLED_V1`n"
 $script:RaProxyFlag = '-capie'
@@ -117,6 +122,8 @@ $script:RaGitHubDownloadPrefixFormat = 'https://github.com/{0}/releases/download
 # What a player is told to open or run when the installed CAPIE does not support the game build.
 $script:RaGitHubLatestPageFormat = 'https://github.com/{0}/releases/latest'
 $script:RaGitHubLatestInstallerFormat = 'https://github.com/{0}/releases/latest/download/install.ps1'
+# Release page of one version (its notes list the SHA-256 of every asset): repo, tag prefix, version.
+$script:RaGitHubReleasePageFormat = 'https://github.com/{0}/releases/tag/{1}{2}'
 $script:RaManifestAssetName = 'release-manifest.json'
 $script:RaSignatureAssetName = 'release-manifest.json.sig'
 $script:RaSignatureFileSuffix = '.sig'

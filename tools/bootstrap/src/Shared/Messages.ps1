@@ -118,6 +118,21 @@ $script:RaMessages = @{
     DisableDone                ='Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
     PurgeDone                  = 'Uninstalled. No files of this setup are left, and the Steam launch options are as they were before.'
     ReleaseVerified            = 'Release {0}: signed manifest verified.'
+    AntivirusBlocked           = @(
+        "Your antivirus blocked {0} as a virus or potentially unwanted software, so setup could not read it:`n",
+        "  {1}`n",
+        "This is a false positive: {0} is part of the signed {2} release. Its SHA-256 is`n",
+        "  {3}`n",
+        "and it is listed in release-manifest.json on the release page {4}`n",
+        "To continue: open Windows Security > Virus & threat protection > Protection history, select the entry for`n",
+        "this file, check that its path is the one above, then choose Actions > Restore (or Allow on device), and run`n",
+        'this setup again. With another antivirus, restore the file from its quarantine or add that one file as an ',
+        'exception. Please do not turn your antivirus off.'
+    ) -join ''
+    AntivirusProxyHint         = @(
+        'Only the optional Proxy method needs version.dll: the default Launcher method (-LoadMethod Launcher) ',
+        'does not download, unpack or install it.'
+    ) -join ''
     WorkshopModPresent         = @(
         'The CAPIE mod from the Workshop is subscribed ({0}), so no local copy is installed. Keep only one: ',
         'with two mods of the same name the game skips the Workshop one.'

@@ -26,7 +26,7 @@ $origRepo = $script:RaGitHubRepo
 $origKey = $script:RaUpdatePublicKeyXml
 $origPinned = $script:RaPinnedRelease
 $origAdapters = @{
-    ReadAllBytes = $script:RaReadAllBytes; WriteAllBytes = $script:RaWriteAllBytes; CopyFile = $script:RaCopyFile
+    OpenRead = $script:RaOpenRead; ReadAllBytes = $script:RaReadAllBytes; WriteAllBytes = $script:RaWriteAllBytes; CopyFile = $script:RaCopyFile
     ReadShortcut = $script:RaReadShortcut; WriteShortcut = $script:RaWriteShortcut; Now = $script:RaNow
     GetRegistryValue = $script:RaGetRegistryValue; WriteHost = $script:RaWriteHost
 }
@@ -258,8 +258,11 @@ function New-TestPackage {
         Include a proxy asset with distinct bytes for each release.
     .PARAMETER WithMod
         Include the "CAPIE" switch mod under mod/ (descriptor text carries the version).
+    .PARAMETER SeparateProxy
+        Put the proxy into its own ZIP (RA-<Version>-proxy.zip, manifest field Proxy) like CAPIE
+        1.6.1 and later, instead of into the main ZIP.
     .OUTPUTS
-        System.Collections.Hashtable (Zip, Manifest)
+        System.Collections.Hashtable (Zip, Manifest, ProxyZip)
     .EXAMPLE
         New-TestPackage $dir -Tamper 'extra'
     #>
@@ -270,7 +273,8 @@ function New-TestPackage {
         [Parameter(Position = 1)][ValidateSet('none', 'filehash', 'extra', 'zipslip', 'missing')][string]$Tamper = 'none',
         [string]$Version = '0.1.0',
         [switch]$WithProxy,
-        [switch]$WithMod
+        [switch]$WithMod,
+        [switch]$SeparateProxy
     )
     $src = Join-Path $Dir 'pkgsrc'
     New-Item -ItemType Directory -Force -Path (Join-Path $src 'runtime') | Out-Null
@@ -313,7 +317,24 @@ function New-TestPackage {
         }
     } finally { $z.Dispose() }
     $manifest.ZipSha256 = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
-    return @{ Zip = $zip; Manifest = $manifest }
+    $proxyZip = $null
+    if ($SeparateProxy) {
+        $proxyZip = Join-Path $Dir "RA-$Version-proxy.zip"
+        if (Test-Path $proxyZip) { Remove-Item $proxyZip -Force }
+        $proxyBytes = $utf8.GetBytes('proxy-' + $Version)
+        $z = [IO.Compression.ZipFile]::Open($proxyZip, 'Create')
+        try {
+            $s = $z.CreateEntry('proxy/version.dll').Open()
+            $s.Write($proxyBytes, 0, $proxyBytes.Length)
+            $s.Dispose()
+        } finally { $z.Dispose() }
+        $manifest['Proxy'] = [ordered]@{
+            ZipName   = [IO.Path]::GetFileName($proxyZip)
+            ZipSha256 = (Get-FileHash -LiteralPath $proxyZip -Algorithm SHA256).Hash
+            Files     = [ordered]@{ 'proxy/version.dll' = (Get-RaSha256OfData $proxyBytes) }
+        }
+    }
+    return @{ Zip = $zip; Manifest = $manifest; ProxyZip = $proxyZip }
 }
 
 function Reset-Env {
@@ -346,6 +367,8 @@ function Reset-Env {
     $script:RaBeforeCurrentSwap = $null
     $script:RaForce = $false
     $script:RaUpdateHeldBack = $false
+    $script:RaProxyWanted = $false
+    $script:RaLocalPackagePath = $null
     # The real machine may run HOI4: tests never look at real processes.
     $script:RaGetGameProcess = { @() }
     $script:RaGetSteamProcess = { @() }
@@ -368,6 +391,7 @@ function Reset-Env {
     $script:RaUpdatePublicKeyXml = $origKey
     $script:RaPinnedRelease = $origPinned
     $script:RaFolderPicker = $null
+    $script:RaOpenRead = $origAdapters.OpenRead
     $script:RaReadAllBytes = $origAdapters.ReadAllBytes
     $script:RaWriteAllBytes = $origAdapters.WriteAllBytes
     $script:RaCopyFile = $origAdapters.CopyFile
@@ -867,8 +891,10 @@ function New-SignedRelease {
         Release notes body of the listed release.
     .PARAMETER Date
         published_at of the listed release.
+    .PARAMETER SeparateProxy
+        Ship a proxy as its own asset (sign-release-manifest.ps1 -ProxyZipPath), like CAPIE 1.6.1+.
     .OUTPUTS
-        System.Collections.Hashtable (Zip, ManifestPath, Base, ZipName)
+        System.Collections.Hashtable (Zip, ManifestPath, Base, ZipName, ProxyZipName)
     .EXAMPLE
         New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
     #>
@@ -884,9 +910,10 @@ function New-SignedRelease {
         [switch]$WithMod,
         [int]$ApiLevel = 0,
         [string]$Notes = '',
-        [string]$Date = '2026-10-01T12:00:00Z'
+        [string]$Date = '2026-10-01T12:00:00Z',
+        [switch]$SeparateProxy
     )
-    $pkg = New-TestPackage (Join-Path $Dir "rel-$Version") -Version $Version -WithMod:$WithMod
+    $pkg = New-TestPackage (Join-Path $Dir "rel-$Version") -Version $Version -WithMod:$WithMod -SeparateProxy:$SeparateProxy
     $mPath = Join-Path $Dir "rel-$Version\release-manifest.json"
     $extra = @{}
     if ($ApiLevel -gt 0) {
@@ -896,6 +923,7 @@ function New-SignedRelease {
             ChangelogSummaryBase64 = [Convert]::ToBase64String($utf8.GetBytes('["First change","Second change"]'))
         }
     }
+    if ($SeparateProxy) { $extra['ProxyZipPath'] = $pkg.ProxyZip }
     [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version $Version -SupportedGameSha256 $GameSha -OutPath $mPath @extra)
     [void](& $signScript -Sign -ManifestPath $mPath -PrivateKeyPath $KeyPath)
     if (-not $Tag) { $Tag = "v$Version" }
@@ -914,7 +942,15 @@ function New-SignedRelease {
     $script:fakeWeb["$base/release-manifest.json"] = [IO.File]::ReadAllBytes($mPath)
     $script:fakeWeb["$base/release-manifest.json.sig"] = [IO.File]::ReadAllBytes("$mPath.sig")
     $script:fakeWeb["$base/$zipName"] = [IO.File]::ReadAllBytes($pkg.Zip)
-    return @{ Zip = $pkg.Zip; ManifestPath = $mPath; Base = $base; ZipName = $zipName }
+    $proxyZipName = $null
+    if ($SeparateProxy) {
+        $proxyZipName = [IO.Path]::GetFileName($pkg.ProxyZip)
+        $rel.assets += [pscustomobject]@{ name = $proxyZipName; browser_download_url = "$base/$proxyZipName" }
+        $script:fakeWeb[$fakeGitHubApiUrl] = $utf8.GetBytes(($rel | ConvertTo-Json -Depth 5))
+        $script:fakeWeb[$fakeGitHubListUrl] = $utf8.GetBytes((ConvertTo-Json -InputObject @($script:fakeReleases.ToArray()) -Depth 6))
+        $script:fakeWeb["$base/$proxyZipName"] = [IO.File]::ReadAllBytes($pkg.ProxyZip)
+    }
+    return @{ Zip = $pkg.Zip; ManifestPath = $mPath; Base = $base; ZipName = $zipName; ProxyZipName = $proxyZipName }
 }
 
 function Initialize-UpdateEnv {
@@ -2782,5 +2818,239 @@ Describe 'Delivery safety (game build notice, running game, Steam before files, 
         Remove-RaUnusedVersion $state
         @(Get-ChildItem $script:RaRoot -Directory | ForEach-Object Name | Sort-Object) -join ',' | Should Be '0.1.0,0.3.0,0.4.0'
         [void]$dir
+    }
+}
+
+function New-AntivirusError {
+    <#
+    .SYNOPSIS
+        The IOException Windows gives when an antivirus blocks (225) or removed (226) a file.
+    .DESCRIPTION
+        HRESULT 0x800700E1 / 0x800700E2 with the English Windows message, like a real
+        Microsoft Defender block of version.dll.
+    .PARAMETER Win32Code
+        ERROR_VIRUS_INFECTED (225) or ERROR_VIRUS_DELETED (226).
+    .OUTPUTS
+        System.IO.IOException
+    .EXAMPLE
+        throw (New-AntivirusError 225)
+    #>
+    [CmdletBinding()]
+    [OutputType([System.IO.IOException])]
+    param([Parameter(Position = 0)][ValidateSet(225, 226)][int]$Win32Code = 225)
+    $text = if ($Win32Code -eq 225) {
+        'Operation did not complete successfully because the file contains a virus or potentially unwanted software.'
+    } else { 'Operation did not complete successfully because the file contains a virus and was deleted.' }
+    return (New-Object System.IO.IOException($text, [int](0x80070000 -bor $Win32Code)))
+}
+
+function Set-AntivirusBlock {
+    <#
+    .SYNOPSIS
+        Simulates an antivirus on every file read of the installer (the OpenRead adapter).
+    .DESCRIPTION
+        A path matching the pattern throws New-AntivirusError 225 (blocked); with -Delete the file
+        is removed first and 226 is thrown (deleted), as Defender does with an on-access detection.
+        Every blocked path is recorded in $script:avHits.
+    .PARAMETER Pattern
+        Regular expression for the paths the antivirus flags.
+    .PARAMETER Delete
+        Remove the file before failing.
+    .OUTPUTS
+        None.
+    .EXAMPLE
+        Set-AntivirusBlock 'version\.dll' -Delete
+    #>
+    [CmdletBinding()]
+    [OutputType([void])]
+    param([Parameter(Mandatory, Position = 0)][string]$Pattern, [switch]$Delete)
+    $script:avPattern = $Pattern
+    $script:avDelete = [bool]$Delete
+    $script:avHits = New-Object System.Collections.ArrayList
+    $script:avOrigOpen = $origAdapters.OpenRead
+    $script:RaOpenRead = {
+        param([string]$Path)
+        if ($Path -match $script:avPattern) {
+            [void]$script:avHits.Add($Path)
+            if ($script:avDelete) {
+                [IO.File]::Delete($Path)
+                throw (New-AntivirusError 226)
+            }
+            throw (New-AntivirusError 225)
+        }
+        & $script:avOrigOpen $Path
+    }
+}
+
+Describe 'Antivirus false positives (proxy version.dll as a separate asset, Launcher never needs it)' {
+    It 'recognizes ERROR_VIRUS_INFECTED / ERROR_VIRUS_DELETED in every wrapping, and nothing else' {
+        Test-RaAntivirusError (New-AntivirusError 225) | Should Be $true
+        Test-RaAntivirusError (New-AntivirusError 226) | Should Be $true
+        Test-RaAntivirusError (New-Object ComponentModel.Win32Exception 225) | Should Be $true
+        $wrapped = New-Object System.Management.Automation.MethodInvocationException('outer', (New-AntivirusError 225))
+        Test-RaAntivirusError $wrapped | Should Be $true
+        $caught = $false
+        try { throw (New-AntivirusError 226) } catch { $caught = Test-RaAntivirusError $_ }
+        $caught | Should Be $true
+        Test-RaAntivirusError (New-Object IO.FileNotFoundException 'gone') | Should Be $false
+        Test-RaAntivirusError (New-Object IO.IOException('access denied', [int](0x80070005))) | Should Be $false
+        Test-RaAntivirusError (New-Object IO.IOException('other facility', [int](0x800400E1))) | Should Be $false
+        Test-RaAntivirusError (New-Object ComponentModel.Win32Exception 5) | Should Be $false
+        Test-RaAntivirusError $null | Should Be $false
+    }
+    It 'the real hashing path keeps the Windows error recognizable (no Get-FileHash "cannot be read")' {
+        $dir = Reset-Env 'av-hash'
+        $p = Join-Path $dir 'version.dll'
+        Write-Utf8 $p 'proxy'
+        Set-AntivirusBlock 'version\.dll$'
+        $err = $null
+        try { [void](Get-RaFileSha256 $p) } catch { $err = $_ }
+        Test-RaAntivirusError $err | Should Be $true
+        Assert-RaThrow { Get-RaCheckedFileSha256 $p -Sha256 ('AB' * 32) -Version '1.6.1' } 'false positive'
+    }
+    It 'default Launcher install of an older release ZIP never unpacks or reads its proxy version.dll' {
+        $dir = Reset-Env 'av-launcher-legacy'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage $dir -WithProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        Set-AntivirusBlock 'version\.dll'
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        $script:avHits.Count | Should Be 0
+        Test-Path (Join-Path (Get-RaVersionDir '0.1.0') 'proxy') | Should Be $false
+        Test-RaInstalledVersion $pkg.Manifest (Get-RaVersionDir '0.1.0') | Should Be $true
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        $script:avHits.Count | Should Be 0
+        Test-Path (Join-Path (Get-RaGameDir $steam) 'version.dll') | Should Be $false
+    }
+    It 'separate proxy asset: the signed manifest keeps schema 1 without proxy/version.dll in files; Launcher never downloads it, Proxy does' {
+        $dir = Reset-Env 'av-proxy-asset'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $key = Join-Path $dir 'update.private.xml'
+        $script:RaUpdatePublicKeyXml = (& $signScript -NewKey -PrivateKeyPath $key -KeySize 2048) | Out-String
+        $script:RaGitHubRepo = 'test-owner/test-repo'
+        $r = New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key -SeparateProxy
+        $j = [IO.File]::ReadAllText($r.ManifestPath) | ConvertFrom-Json
+        $j.schema | Should Be 1
+        @($j.files.PSObject.Properties.Name) -contains 'proxy/version.dll' | Should Be $false
+        $j.proxy.zipName | Should Be $r.ProxyZipName
+        Set-AntivirusBlock 'version\.dll'
+        (Invoke-RaMain @{ Install = $true; Latest = $true; LoadMethod = 'Launcher'; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        @($script:requested | Where-Object { $_ -like '*proxy*' }).Count | Should Be 0
+        $script:avHits.Count | Should Be 0
+        (Read-RaState).Proxy | Should Be $null
+        Test-Path (Join-Path (Get-RaVersionDir '0.2.0') 'proxy') | Should Be $false
+        $script:RaOpenRead = $origAdapters.OpenRead
+        (Invoke-RaMain @{ Install = $true; Latest = $true; LoadMethod = 'Proxy'; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        @($script:requested | Where-Object { $_ -eq "$($r.Base)/$($r.ProxyZipName)" }).Count | Should Be 1
+        $state = Read-RaState
+        Test-RaOwnProxy $state $state.Proxy.Path | Should Be $true
+        [IO.File]::ReadAllText($state.Proxy.Path) | Should Be 'proxy-0.2.0'
+        @(Get-RaKnownProxyHash) -contains $state.Proxy.Sha256 | Should Be $true
+        Test-RaInstalledVersion (Read-RaStoredManifest '0.2.0') (Get-RaVersionDir '0.2.0') | Should Be $true
+        (Invoke-RaMain @{ Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        Test-Path (Join-Path (Get-RaGameDir $steam) 'version.dll') | Should Be $false
+    }
+    It 'a tampered proxy ZIP from the release is refused by its signed ZIP hash; nothing reaches the game folder' {
+        $dir = Reset-Env 'av-proxy-tampered'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $key = Join-Path $dir 'update.private.xml'
+        $script:RaUpdatePublicKeyXml = (& $signScript -NewKey -PrivateKeyPath $key -KeySize 2048) | Out-String
+        $script:RaGitHubRepo = 'test-owner/test-repo'
+        $r = New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key -SeparateProxy
+        $evil = New-TestPackage (Join-Path $dir 'evil') -Version '0.2.1' -SeparateProxy
+        $script:fakeWeb["$($r.Base)/$($r.ProxyZipName)"] = [IO.File]::ReadAllBytes($evil.ProxyZip)
+        (Invoke-RaMain @{ Install = $true; Latest = $true; LoadMethod = 'Proxy'; Yes = $true; SteamRoot = $steam }) | Should Be 1
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'Proxy package SHA256 mismatch'
+        Test-Path (Join-Path (Get-RaGameDir $steam) 'version.dll') | Should Be $false
+        Test-Path (Join-Path (Get-RaVersionDir '0.2.0') 'proxy') | Should Be $false
+        (Read-RaState).Proxy | Should Be $null
+    }
+    It 'offline Proxy install takes the proxy ZIP from next to -PackagePath (no download)' {
+        $dir = Reset-Env 'av-proxy-offline'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage $dir -SeparateProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        $script:requested.Count | Should Be 0
+        [IO.File]::ReadAllText((Read-RaState).Proxy.Path) | Should Be 'proxy-0.1.0'
+    }
+    It 'an existing Proxy installation updates to a separate proxy asset and rolls back to the older proxy' {
+        $dir = Reset-Env 'av-proxy-update'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $p1 = New-TestPackage (Join-Path $dir 'v1') -WithProxy
+        $script:RaPinnedRelease = $p1.Manifest
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $p1.Zip }) | Should Be 0
+        $key = Join-Path $dir 'update.private.xml'
+        $script:RaUpdatePublicKeyXml = (& $signScript -NewKey -PrivateKeyPath $key -KeySize 2048) | Out-String
+        $script:RaGitHubRepo = 'test-owner/test-repo'
+        $r = New-SignedRelease -Dir $dir -Version '0.2.0' -KeyPath $key -SeparateProxy
+        (Invoke-RaMain @{ Update = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        @($script:requested | Where-Object { $_ -eq "$($r.Base)/$($r.ProxyZipName)" }).Count | Should Be 1
+        $state = Read-RaState
+        $state.InstalledVersion | Should Be '0.2.0'
+        [IO.File]::ReadAllText($state.Proxy.Path) | Should Be 'proxy-0.2.0'
+        (Invoke-RaMain @{ Rollback = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        [IO.File]::ReadAllText((Read-RaState).Proxy.Path) | Should Be 'proxy-0.1.0'
+    }
+    It 'an antivirus block of a needed file stops with the player-facing explanation and installs nothing' {
+        $dir = Reset-Env 'av-blocked'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage $dir
+        $script:RaPinnedRelease = $pkg.Manifest
+        Set-AntivirusBlock 'rename_anything_country\.dll$'
+        (Invoke-RaMain @{ Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 1
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match 'blocked rename_anything_country\.dll as a virus or potentially unwanted software'
+        $log | Should Match 'false positive'
+        $log | Should Match 'Windows Security > Virus & threat protection > Protection history'
+        $log | Should Match $pkg.Manifest.Files['runtime/rename_anything_country.dll']
+        $log | Should Match 'releases/tag/v0\.1\.0'
+        $log | Should Match 'Please do not turn your antivirus off'
+        $log | Should Not Match 'cannot be read'
+        $log | Should Not Match 'Launcher method'
+        Test-Path (Get-RaVersionDir '0.1.0') | Should Be $false
+        Test-Path (Get-RaCurrentLink) | Should Be $false
+    }
+    It 'an antivirus that deletes the proxy in Proxy mode is explained (with the Launcher alternative); Launcher still installs' {
+        $dir = Reset-Env 'av-proxy-deleted'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage $dir -SeparateProxy
+        $script:RaPinnedRelease = $pkg.Manifest
+        Set-AntivirusBlock 'version\.dll' -Delete
+        (Invoke-RaMain @{ LoadMethod = 'Proxy'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 1
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match 'blocked version\.dll as a virus'
+        $log | Should Match $pkg.Manifest.Proxy.Files['proxy/version.dll']
+        $log | Should Match 'default Launcher method \(-LoadMethod Launcher\) does not'
+        Test-Path (Join-Path (Get-RaGameDir $steam) 'version.dll') | Should Be $false
+        (Read-RaState).Proxy | Should Be $null
+        @(Get-ChildItem -LiteralPath $script:RaRoot -Force -Filter '.staging-*').Count | Should Be 0
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; SteamRoot = $steam; PackagePath = $pkg.Zip }) | Should Be 0
+        (Read-RaState).LoadMethod | Should Be 'Launcher'
+    }
+    It 'proxy fields are validated: never in both ZIPs, own valid name, JSON round trip keeps them' {
+        $dir = Reset-Env 'av-proxy-manifest'
+        $both = New-TestPackage (Join-Path $dir 'both') -WithProxy -SeparateProxy
+        $out = Join-Path $dir 'm.json'
+        Assert-RaThrow { & $signScript -MakeManifest -ZipPath $both.Zip -ProxyZipPath $both.ProxyZip -Version '0.1.0' -OutPath $out } 'in both ZIPs'
+        Assert-RaThrow { Test-RaManifest $both.Manifest } 'listed twice'
+        $same = New-TestPackage (Join-Path $dir 'same') -SeparateProxy
+        $same.Manifest.Proxy.ZipName = $same.Manifest.ZipName
+        Assert-RaThrow { Test-RaManifest $same.Manifest } 'invalid proxy ZIP name'
+        $ok = New-TestPackage (Join-Path $dir 'ok') -SeparateProxy
+        $back = ConvertFrom-RaManifestJson (ConvertTo-RaManifestJson $ok.Manifest)
+        $back.Proxy.ZipSha256 | Should Be $ok.Manifest.Proxy.ZipSha256
+        Get-RaManifestProxySha256 $back | Should Be $ok.Manifest.Proxy.Files['proxy/version.dll']
+        $legacy = New-TestPackage (Join-Path $dir 'legacy') -WithProxy
+        Get-RaManifestProxySha256 $legacy.Manifest | Should Be $legacy.Manifest.Files['proxy/version.dll']
+        $none = New-TestPackage (Join-Path $dir 'none')
+        $null -eq (Get-RaManifestProxySha256 $none.Manifest) | Should Be $true
     }
 }

@@ -56,6 +56,8 @@ function Initialize-RaRun {
     $script:RaMpWarningShown = $false
     $script:RaForce = [bool]$Options['Force']
     $script:RaUpdateHeldBack = $false
+    $script:RaProxyWanted = $false
+    $script:RaLocalPackagePath = if ($Options['PackagePath']) { [string]$Options['PackagePath'] } else { $null }
     if (-not $NoBanner) {
         Write-RaHost (Get-RaText 'Title') -Color White
         Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
@@ -234,6 +236,8 @@ function Invoke-RaSetupAction {
     }
     $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
     if ($plan.LoadMethod -eq 'Proxy' -and -not $gameDir) { throw 'HOI4 installation not found through Steam libraries; proxy was not installed.' }
+    # Only the Proxy method needs version.dll: the default Launcher method never unpacks or reads it.
+    $script:RaProxyWanted = $plan.LoadMethod -eq 'Proxy'
     if ($plan.LoadMethod -eq 'Launcher') {
         Remove-RaProxy $State
         if (-not $script:RaDry) { $State.LoadMethod = 'Launcher' }
@@ -305,6 +309,8 @@ function Invoke-RaAction {
         Write-RaLog $_.Exception.Message -Level WARN -NoConsole
     }
     $gameDir = { Get-RaGameDirOrNull $steamRootPath }
+    # Update and rollback keep the method of the installation; an install decides in Invoke-RaSetupAction.
+    $script:RaProxyWanted = [bool]$state.Proxy -or $state.LoadMethod -eq 'Proxy'
     $readOnly = $Options.Disable -or $Options.RemoveSteamLaunchOption -or $Options['ListVersions'] -or $Options.CheckUpdate
     if ($Options.Uninstall -or -not $readOnly) {
         Assert-RaGameClosed

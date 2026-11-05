@@ -34,7 +34,8 @@
 .PARAMETER LoadMethod
     Launcher (default): the CAPIE launcher in the Steam launch options; nothing in the game folder;
     CAPIE loads only when the "CAPIE" mod is enabled in the playset. Proxy (explicit alternative,
-    alias -Method): game-local version.dll activated by -capie; it does not read the playset.
+    alias -Method): game-local version.dll activated by -capie; it does not read the playset. Only
+    this method downloads, unpacks and installs version.dll (a separate proxy ZIP since CAPIE 1.6.1).
 
 .PARAMETER ProxyActivation
     Flag (default): requires -capie. Config: explicit persistent activation fallback.
@@ -77,7 +78,8 @@
     Ask no questions; the actions must be given as switches.
 
 .PARAMETER PackagePath
-    Already downloaded release ZIP to install instead of downloading it.
+    Already downloaded release ZIP to install instead of downloading it. With -LoadMethod Proxy put
+    the proxy ZIP of the release (CAPIE-x.y.z-proxy-win64.zip) next to it; otherwise it is downloaded.
 
 .PARAMETER SteamRoot
     Steam folder override (default: HKCU\Software\Valve\Steam\SteamPath).
@@ -255,6 +257,11 @@ $script:RaRootDirName = 'RenameAnything'                    # under %LOCALAPPDAT
 $script:RaLauncherExeName = 'RenameAnythingLauncher.exe'
 $script:RaProxyFileName = 'version.dll'
 $script:RaProxyBundlePath = 'proxy/version.dll'
+# Win32 errors Windows returns when an antivirus blocks a file (as HRESULT 0x8007xxxx in .NET):
+# ERROR_VIRUS_INFECTED (225) and ERROR_VIRUS_DELETED (226).
+$script:RaAntivirusWin32Errors = @(225, 226)
+$script:RaWin32HResultMask = 0xFFFF
+$script:RaWin32HResultFacility = 0x80070000
 $script:RaProxyConfigName = 'proxy.enabled'
 $script:RaProxyConfigContent = "CAPIE_PROXY_ENABLED_V1`n"
 $script:RaProxyFlag = '-capie'
@@ -332,6 +339,8 @@ $script:RaGitHubDownloadPrefixFormat = 'https://github.com/{0}/releases/download
 # What a player is told to open or run when the installed CAPIE does not support the game build.
 $script:RaGitHubLatestPageFormat = 'https://github.com/{0}/releases/latest'
 $script:RaGitHubLatestInstallerFormat = 'https://github.com/{0}/releases/latest/download/install.ps1'
+# Release page of one version (its notes list the SHA-256 of every asset): repo, tag prefix, version.
+$script:RaGitHubReleasePageFormat = 'https://github.com/{0}/releases/tag/{1}{2}'
 $script:RaManifestAssetName = 'release-manifest.json'
 $script:RaSignatureAssetName = 'release-manifest.json.sig'
 $script:RaSignatureFileSuffix = '.sig'
@@ -443,6 +452,8 @@ $script:RaSteamRestartExe = $null  # steam.exe to start again after the change
 $script:RaReleaseCache = $null  # releases listed in this run (one GitHub request per run)
 $script:RaForce = $false        # -Force: -Update may install a release that does not support the game; -Uninstall without Steam
 $script:RaUpdateHeldBack = $false # -Update kept the installed version because the newest does not support the game
+$script:RaProxyWanted = $false  # this run installs or keeps the Proxy method (only then a release's version.dll is unpacked)
+$script:RaLocalPackagePath = $null # -PackagePath: the proxy ZIP of an offline install is looked for next to it
 
 # --- Console and prompts --------------------------------------------------
 # ReadHost(Prompt) -> string
@@ -520,6 +531,11 @@ $script:RaHttpGet = {
 # --- File bytes (the byte-exact localconfig.vdf path) ---------------------
 # ReadAllBytes(Path) -> byte[]
 $script:RaReadAllBytes = { param([string]$Path) , [IO.File]::ReadAllBytes($Path) }
+# OpenRead(Path) -> System.IO.Stream (read only; the caller disposes it). Every file hash reads through it.
+$script:RaOpenRead = {
+    param([string]$Path)
+    [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::Read -bor [IO.FileShare]::Delete))
+}
 # WriteAllBytes(Path, Bytes) -> nothing
 $script:RaWriteAllBytes = { param([string]$Path, [byte[]]$Bytes) [IO.File]::WriteAllBytes($Path, $Bytes) }
 # CopyFile(Source, Destination) -> nothing (overwrites)
@@ -777,6 +793,21 @@ $script:RaMessages = @{
     DisableDone                ='Disabled. Steam starts the game without CAPIE. Files stay installed; run -SteamLaunchOption to turn it on again.'
     PurgeDone                  = 'Uninstalled. No files of this setup are left, and the Steam launch options are as they were before.'
     ReleaseVerified            = 'Release {0}: signed manifest verified.'
+    AntivirusBlocked           = @(
+        "Your antivirus blocked {0} as a virus or potentially unwanted software, so setup could not read it:`n",
+        "  {1}`n",
+        "This is a false positive: {0} is part of the signed {2} release. Its SHA-256 is`n",
+        "  {3}`n",
+        "and it is listed in release-manifest.json on the release page {4}`n",
+        "To continue: open Windows Security > Virus & threat protection > Protection history, select the entry for`n",
+        "this file, check that its path is the one above, then choose Actions > Restore (or Allow on device), and run`n",
+        'this setup again. With another antivirus, restore the file from its quarantine or add that one file as an ',
+        'exception. Please do not turn your antivirus off.'
+    ) -join ''
+    AntivirusProxyHint         = @(
+        'Only the optional Proxy method needs version.dll: the default Launcher method (-LoadMethod Launcher) ',
+        'does not download, unpack or install it.'
+    ) -join ''
     WorkshopModPresent         = @(
         'The CAPIE mod from the Workshop is subscribed ({0}), so no local copy is installed. Keep only one: ',
         'with two mods of the same name the game skips the Workshop one.'
@@ -1325,7 +1356,9 @@ function Get-RaFileSha256 {
     .SYNOPSIS
         SHA-256 of a file as upper-case hex.
     .DESCRIPTION
-        Single place for file hashing (Get-FileHash, read-only).
+        Single place for file hashing (read-only, through the OpenRead adapter). Same format as
+        Get-FileHash, but a failure keeps the .NET exception (an antivirus block stays
+        recognizable by Test-RaAntivirusError instead of becoming Get-FileHash's "cannot be read").
     .PARAMETER Path
         File to hash.
     .OUTPUTS
@@ -1336,7 +1369,123 @@ function Get-RaFileSha256 {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$Path)
-    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+    $stream = & $script:RaOpenRead $Path
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '') } finally {
+        $sha.Dispose()
+        $stream.Dispose()
+    }
+}
+
+function Test-RaAntivirusError {
+    <#
+    .SYNOPSIS
+        Tests whether an error means that an antivirus blocked or removed the file.
+    .DESCRIPTION
+        Walks the exception chain (an ErrorRecord, PowerShell's MethodInvocationException and
+        inner exceptions) for the Win32 errors ERROR_VIRUS_INFECTED (225) and ERROR_VIRUS_DELETED
+        (226), as an HRESULT or a native error code. The check never depends on the (localized)
+        message text.
+    .PARAMETER ErrorObject
+        ErrorRecord or Exception.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        try { Get-RaFileSha256 $p } catch { if (Test-RaAntivirusError $_) { 'blocked' } }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Position = 0)][AllowNull()][object]$ErrorObject)
+    $ex = if ($ErrorObject -is [System.Management.Automation.ErrorRecord]) { $ErrorObject.Exception } else { $ErrorObject }
+    while ($ex -is [Exception]) {
+        $codes = @($ex.HResult)
+        if ($ex -is [ComponentModel.Win32Exception]) { $codes += $ex.NativeErrorCode }
+        foreach ($code in $codes) {
+            $low = $code -band $script:RaWin32HResultMask
+            # A plain Win32 code, or an HRESULT of FACILITY_WIN32 (0x8007xxxx).
+            $win32 = ($code -eq $low) -or (($code -band (-bnot $script:RaWin32HResultMask)) -eq $script:RaWin32HResultFacility)
+            if ($win32 -and $script:RaAntivirusWin32Errors -contains $low) { return $true }
+        }
+        $ex = $ex.InnerException
+    }
+    return $false
+}
+
+function Get-RaAntivirusText {
+    <#
+    .SYNOPSIS
+        The player-facing explanation of an antivirus block of one release file.
+    .DESCRIPTION
+        Names the file and its path, says that it is a false positive of a signed release file,
+        gives its SHA-256 and the release page that lists it, and the way to restore or allow it in
+        Windows Security > Protection history. It never suggests turning the antivirus off. For
+        the proxy version.dll it adds that the default Launcher method does not need the file.
+    .PARAMETER Path
+        Blocked file.
+    .PARAMETER Sha256
+        SHA-256 the signed manifest gives for the file, or empty.
+    .PARAMETER Version
+        CAPIE version the file belongs to, or empty (then the latest release page is named).
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        throw (Get-RaAntivirusText -Path $dest -Sha256 $hash -Version '1.6.1')
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$Path,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$Sha256,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$Version
+    )
+    $name = [IO.Path]::GetFileName($Path)
+    $page = if ($Version) { $script:RaGitHubReleasePageFormat -f $script:RaGitHubRepo, $script:RaReleaseTagPrefix, $Version }
+    else { $script:RaGitHubLatestPageFormat -f $script:RaGitHubRepo }
+    $hash = if ($Sha256) { $Sha256.ToUpperInvariant() } else { '(see SHA256SUMS.txt)' }
+    $release = if ($Version) { "CAPIE $Version" } else { 'CAPIE' }
+    $text = Get-RaText 'AntivirusBlocked' @($name, $Path, $release, $hash, $page)
+    if ($name -ieq $script:RaProxyFileName -or $Path -match '(?i)-proxy-') { $text += ' ' + (Get-RaText 'AntivirusProxyHint') }
+    return $text
+}
+
+function Get-RaCheckedFileSha256 {
+    <#
+    .SYNOPSIS
+        SHA-256 of a release file; an antivirus block becomes the player-facing explanation.
+    .DESCRIPTION
+        Like Get-RaFileSha256, but when the antivirus blocked the file (Test-RaAntivirusError), or
+        removed a file this run has just written (-JustWritten: it is gone right after the write),
+        it throws Get-RaAntivirusText instead of the raw .NET error. Every other error is rethrown
+        unchanged.
+    .PARAMETER Path
+        File to hash.
+    .PARAMETER Sha256
+        Expected SHA-256 (for the message only), or empty.
+    .PARAMETER Version
+        CAPIE version of the file (for the message only), or empty.
+    .PARAMETER JustWritten
+        The file was written by this run a moment ago, so a missing file means it was removed.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaCheckedFileSha256 $dest -Sha256 $expected -Version $m.Version -JustWritten
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$Path,
+        [AllowEmptyString()][AllowNull()][string]$Sha256,
+        [AllowEmptyString()][AllowNull()][string]$Version,
+        [switch]$JustWritten
+    )
+    try { return (Get-RaFileSha256 $Path) } catch {
+        $removed = $JustWritten -and -not (Test-Path -LiteralPath $Path)
+        if ((Test-RaAntivirusError $_) -or $removed) {
+            Write-RaLog "Antivirus block of ${Path}: $($_.Exception.Message)" -Level WARN -NoConsole
+            throw (Get-RaAntivirusText -Path $Path -Sha256 $Sha256 -Version $Version)
+        }
+        throw
+    }
 }
 #endregion Shared/TextFile.ps1
 
@@ -1604,6 +1753,69 @@ function Test-RaManifest {
     foreach ($h in @($Manifest.SupportedGameSha256 | Where-Object { $_ })) {
         if (-not (Test-RaSha256Text $h)) { throw 'Release manifest: bad game hash.' }
     }
+    if (-not $Manifest.Contains('Proxy')) { $Manifest['Proxy'] = $null }
+    $proxy = $Manifest.Proxy
+    if ($null -eq $proxy) { return }
+    # Optional separate proxy asset (CAPIE 1.6.1+): its own ZIP, only for -LoadMethod Proxy.
+    if ($proxy.ZipName -notmatch $script:RaZipNamePattern -or $proxy.ZipName -ieq $Manifest.ZipName) { throw 'Release manifest: invalid proxy ZIP name.' }
+    if (-not (Test-RaSha256Text $proxy.ZipSha256)) { throw 'Release manifest: bad proxy ZIP hash.' }
+    if (-not $proxy.Files -or -not $proxy.Files.Contains($script:RaProxyBundlePath)) { throw 'Release manifest: proxy asset without proxy/version.dll.' }
+    foreach ($k in $proxy.Files.Keys) {
+        if (-not (Test-RaSha256Text $proxy.Files[$k])) { throw "Release manifest: bad hash for $k" }
+        if ($k -notmatch $script:RaManifestPathPattern -or $k -match $script:RaDotSegmentPattern) { throw "Release manifest: unsafe path $k" }
+        if ($Manifest.Files.Contains($k)) { throw "Release manifest: $k is listed twice." }
+    }
+}
+
+function Get-RaManifestProxySha256 {
+    <#
+    .SYNOPSIS
+        The signed SHA-256 of a release's proxy version.dll, or $null when the release has none.
+    .DESCRIPTION
+        CAPIE 1.6.1 and later list it in the separate proxy asset (manifest field proxy); older
+        releases list proxy/version.dll among the files of the main ZIP.
+    .PARAMETER Manifest
+        Manifest dictionary.
+    .OUTPUTS
+        System.String (upper case)
+    .EXAMPLE
+        Get-RaManifestProxySha256 (Read-RaStoredManifest $state.Proxy.Version)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowNull()][System.Collections.IDictionary]$Manifest)
+    if (-not $Manifest) { return $null }
+    $source = Get-RaProxySource $Manifest
+    if (-not $source) { return $null }
+    return ([string]$source.Files[$script:RaProxyBundlePath]).ToUpperInvariant()
+}
+
+function Get-RaProxySource {
+    <#
+    .SYNOPSIS
+        The ZIP (name, hash, files) that holds a release's proxy version.dll, or $null.
+    .DESCRIPTION
+        For a release with a separate proxy asset: a manifest-shaped dictionary of that asset
+        (same Version, so its default download URL is the release's). For an older release the
+        main manifest itself, whose ZIP also holds the proxy.
+    .PARAMETER Manifest
+        Manifest dictionary.
+    .OUTPUTS
+        System.Collections.IDictionary
+    .EXAMPLE
+        $source = Get-RaProxySource $manifest
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Collections.IDictionary], [System.Collections.Specialized.OrderedDictionary])]
+    param([Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Manifest)
+    if ($Manifest.Contains('Proxy') -and $Manifest.Proxy) {
+        return [ordered]@{
+            Version = $Manifest.Version; ZipName = $Manifest.Proxy.ZipName; ZipSha256 = $Manifest.Proxy.ZipSha256
+            Files = $Manifest.Proxy.Files
+        }
+    }
+    if ($Manifest.Files.Contains($script:RaProxyBundlePath)) { return $Manifest }
+    return $null
 }
 
 function Compare-RaVersion {
@@ -1638,7 +1850,11 @@ function Test-RaInstalledVersion {
         Verifies an installed version folder against its manifest.
     .DESCRIPTION
         True only when the folder holds exactly the manifest's files (same count) and
-        every file has its pinned SHA-256.
+        every file has its pinned SHA-256. The proxy version.dll (proxy/version.dll) is not part
+        of this check: it is there only for the Proxy method, may be missing (never unpacked, or
+        removed by an antivirus) and is verified by Install-RaProxy before every use, so the
+        default Launcher method never reads it. An antivirus block of a checked file throws the
+        player-facing explanation (Get-RaCheckedFileSha256).
     .PARAMETER Manifest
         Manifest dictionary.
     .PARAMETER Dir
@@ -1655,12 +1871,15 @@ function Test-RaInstalledVersion {
         [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$Dir
     )
     if (-not (Test-Path -LiteralPath $Dir -PathType Container)) { return $false }
-    $files = @(Get-ChildItem -LiteralPath $Dir -Recurse -File -Force)
-    if ($files.Count -ne $Manifest.Files.Count) { return $false }
-    foreach ($k in $Manifest.Files.Keys) {
+    $proxyPath = [IO.Path]::GetFullPath((Join-Path $Dir ($script:RaProxyBundlePath -replace '/', '\')))
+    $files = @(Get-ChildItem -LiteralPath $Dir -Recurse -File -Force | Where-Object { $_.FullName -ine $proxyPath })
+    $keys = @($Manifest.Files.Keys | Where-Object { $_ -ne $script:RaProxyBundlePath })
+    if ($files.Count -ne $keys.Count) { return $false }
+    foreach ($k in $keys) {
         $p = Join-Path $Dir ($k -replace '/', '\')
         if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { return $false }
-        if ((Get-RaFileSha256 $p) -ne $Manifest.Files[$k].ToUpperInvariant()) { return $false }
+        $expected = $Manifest.Files[$k].ToUpperInvariant()
+        if ((Get-RaCheckedFileSha256 $p -Sha256 $expected -Version $Manifest.Version) -ne $expected) { return $false }
     }
     return $true
 }
@@ -1672,13 +1891,18 @@ function Expand-RaVerifiedZip {
     .DESCRIPTION
         Refuses unexpected, duplicate and missing entries (which also blocks zip-slip
         names such as ../x, because they are never in the manifest). Directory entries
-        are skipped.
+        are skipped. With -Only, the other listed entries are checked for presence but never
+        written (so the default Launcher method never unpacks the proxy version.dll of an older
+        release). An antivirus that blocks or removes an extracted file is reported with the
+        player-facing explanation, naming the file, its path and its signed SHA-256.
     .PARAMETER Manifest
         Manifest dictionary.
     .PARAMETER ZipPath
         ZIP file whose own hash was already verified.
     .PARAMETER Destination
         Empty staging folder.
+    .PARAMETER Only
+        Entries to extract; default all.
     .OUTPUTS
         None.
     .EXAMPLE
@@ -1689,7 +1913,8 @@ function Expand-RaVerifiedZip {
     param(
         [Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Manifest,
         [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$ZipPath,
-        [Parameter(Mandatory, Position = 2)][ValidateNotNullOrEmpty()][string]$Destination
+        [Parameter(Mandatory, Position = 2)][ValidateNotNullOrEmpty()][string]$Destination,
+        [AllowNull()][string[]]$Only
     )
     Add-Type -AssemblyName System.IO.Compression -ErrorAction SilentlyContinue
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -1702,12 +1927,17 @@ function Expand-RaVerifiedZip {
             if (-not $Manifest.Files.Contains($name)) { throw "Package contains an unexpected file: $name" }
             if ($seen.ContainsKey($name)) { throw "Package contains a duplicate entry: $name" }
             $seen[$name] = $true
+            if ($null -ne $Only -and $Only -notcontains $name) { continue }
             $dest = Join-Path $Destination ($name -replace '/', '\')
             $parent = Split-Path -Parent $dest
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-            [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $false)
-            $h = Get-RaFileSha256 $dest
-            if ($h -ne $Manifest.Files[$name].ToUpperInvariant()) { throw "SHA256 mismatch for $name (got $h)" }
+            $expected = $Manifest.Files[$name].ToUpperInvariant()
+            try { [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $false) } catch {
+                if (Test-RaAntivirusError $_) { throw (Get-RaAntivirusText -Path $dest -Sha256 $expected -Version $Manifest.Version) }
+                throw
+            }
+            $h = Get-RaCheckedFileSha256 $dest -Sha256 $expected -Version $Manifest.Version -JustWritten
+            if ($h -ne $expected) { throw "SHA256 mismatch for $name (got $h)" }
         }
     } finally { $zip.Dispose() }
     foreach ($k in $Manifest.Files.Keys) { if (-not $seen.ContainsKey($k)) { throw "Package is missing $k" } }
@@ -1736,6 +1966,11 @@ function ConvertTo-RaManifestJson {
     if ($Manifest.Contains('ApiLevel') -and $Manifest.ApiLevel) { $data['capie_api_level'] = [int]$Manifest.ApiLevel }
     if ($Manifest.Contains('GameVersion') -and $Manifest.GameVersion) { $data['game_version'] = [string]$Manifest.GameVersion }
     if ($Manifest.Contains('ChangelogSummary') -and @($Manifest.ChangelogSummary).Count -gt 0) { $data['changelog_summary'] = @($Manifest.ChangelogSummary) }
+    if ($Manifest.Contains('Proxy') -and $Manifest.Proxy) {
+        $data['proxy'] = [pscustomobject][ordered]@{
+            zipName = $Manifest.Proxy.ZipName; zipSha256 = $Manifest.Proxy.ZipSha256; files = [pscustomobject]$Manifest.Proxy.Files
+        }
+    }
     return ([pscustomobject]$data | ConvertTo-Json -Depth $script:RaJsonDepth)
 }
 
@@ -1767,6 +2002,17 @@ function ConvertFrom-RaManifestJson {
     $m['ApiLevel'] = if ($j.PSObject.Properties['capie_api_level']) { [int]$j.capie_api_level } else { $null }
     $m['GameVersion'] = if ($j.PSObject.Properties['game_version']) { [string]$j.game_version } else { $null }
     $m['ChangelogSummary'] = if ($j.PSObject.Properties['changelog_summary']) { @($j.changelog_summary | ForEach-Object { [string]$_ }) } else { @() }
+    # Separate proxy asset (CAPIE 1.6.1+); older manifests list proxy/version.dll under files.
+    $m['Proxy'] = $null
+    if ($j.PSObject.Properties['proxy'] -and $j.proxy) {
+        $proxyFiles = [ordered]@{}
+        if ($j.proxy.PSObject.Properties['files'] -and $j.proxy.files) {
+            foreach ($p in $j.proxy.files.PSObject.Properties) { $proxyFiles[$p.Name] = [string]$p.Value }
+        }
+        $zipNameValue = if ($j.proxy.PSObject.Properties['zipName']) { [string]$j.proxy.zipName } else { '' }
+        $zipShaValue = if ($j.proxy.PSObject.Properties['zipSha256']) { [string]$j.proxy.zipSha256 } else { '' }
+        $m['Proxy'] = [ordered]@{ ZipName = $zipNameValue; ZipSha256 = $zipShaValue; Files = $proxyFiles }
+    }
     Test-RaManifest $m
     return $m
 }
@@ -2374,6 +2620,9 @@ function Install-RaVersion {
         its SHA-256 before extraction, extracts into a staging folder with per-file
         checks, re-verifies the staging folder and only then moves it into place (a
         broken existing folder is moved aside). Stores the manifest for later rollback.
+        The proxy version.dll of an older release ZIP is unpacked only when this run uses the
+        Proxy method ($script:RaProxyWanted); newer releases ship it as a separate asset that
+        Install-RaProxy fetches.
     .PARAMETER Manifest
         Manifest of the version.
     .PARAMETER LocalZip
@@ -2406,13 +2655,15 @@ function Install-RaVersion {
     $package = Get-RaPackageZip -Manifest $Manifest -LocalZip $LocalZip -ZipUrl $ZipUrl
     $staging = Join-Path $script:RaRoot ($script:RaStagingPrefix + (New-RaUniqueName))
     try {
-        $hash = Get-RaFileSha256 $package.Path
+        $hash = Get-RaCheckedFileSha256 $package.Path -Sha256 $Manifest.ZipSha256 -Version $Manifest.Version -JustWritten:$package.Downloaded
         if ($hash -ne $Manifest.ZipSha256.ToUpperInvariant()) {
             throw "Package SHA256 mismatch: expected $($Manifest.ZipSha256), got $hash. Nothing was installed."
         }
         Write-RaLog "Package $($Manifest.ZipName): SHA256 matches the manifest."
         New-Item -ItemType Directory -Path $staging | Out-Null
-        Expand-RaVerifiedZip -Manifest $Manifest -ZipPath $package.Path -Destination $staging
+        # An older release ZIP also holds the proxy version.dll: unpack it only for the Proxy method.
+        $only = @($Manifest.Files.Keys | Where-Object { $script:RaProxyWanted -or $_ -ne $script:RaProxyBundlePath })
+        Expand-RaVerifiedZip -Manifest $Manifest -ZipPath $package.Path -Destination $staging -Only $only
         if (-not (Test-RaInstalledVersion $Manifest $staging)) { throw 'Staged files failed verification.' }
         if (Test-Path -LiteralPath $dir) {
             $broken = "$dir$($script:RaBrokenInfix)$((Get-RaNow).ToString($script:RaBrokenTimestampFormat))"
@@ -2751,7 +3002,8 @@ function Get-RaKnownProxyHash {
         }
     }
     foreach ($m in $manifests) {
-        if ($m.Files.Contains($script:RaProxyBundlePath)) { $hashes += ([string]$m.Files[$script:RaProxyBundlePath]).ToUpperInvariant() }
+        $proxyHash = Get-RaManifestProxySha256 $m
+        if ($proxyHash) { $hashes += $proxyHash }
     }
     return @($hashes | Sort-Object -Unique)
 }
@@ -3582,8 +3834,7 @@ function Test-RaOwnProxy {
         $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
         if ($item.PSIsContainer -or (Test-RaReparsePoint $item)) { return $false }
         $manifest = Read-RaStoredManifest $State.Proxy.Version
-        return ($manifest -and $manifest.Files.Contains($script:RaProxyBundlePath) -and
-            $manifest.Files[$script:RaProxyBundlePath] -ieq $State.Proxy.Sha256 -and
+        return ($manifest -and (Get-RaManifestProxySha256 $manifest) -ieq $State.Proxy.Sha256 -and
             (Get-RaFileSha256 $Path) -ieq $State.Proxy.Sha256)
     } catch { return $false }
 }
@@ -3679,6 +3930,80 @@ function Set-RaProxyActivation {
     $State.ProxyActivation = $Activation
 }
 
+function Find-RaLocalProxyZip {
+    <#
+    .SYNOPSIS
+        A local ZIP (from -PackagePath) that holds a release's proxy, or $null.
+    .DESCRIPTION
+        Candidates: the -PackagePath ZIP itself (an older release ZIP holds the proxy) and a file
+        named like the proxy asset next to it. Only a candidate whose SHA-256 is the signed one is
+        returned; without a match the caller downloads the asset.
+    .PARAMETER Source
+        Proxy source from Get-RaProxySource.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Find-RaLocalProxyZip (Get-RaProxySource $manifest)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Source)
+    $package = $script:RaLocalPackagePath
+    if (-not $package -or -not (Test-Path -LiteralPath $package -PathType Leaf)) { return $null }
+    $full = (Resolve-Path -LiteralPath $package).ProviderPath
+    foreach ($candidate in @($full, (Join-Path (Split-Path -Parent $full) $Source.ZipName))) {
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+        if ((Get-RaCheckedFileSha256 $candidate -Sha256 $Source.ZipSha256 -Version $Source.Version) -eq $Source.ZipSha256.ToUpperInvariant()) {
+            return $candidate
+        }
+    }
+    return $null
+}
+
+function Add-RaProxyFile {
+    <#
+    .SYNOPSIS
+        Puts a release's verified proxy version.dll into its version folder (Proxy method only).
+    .DESCRIPTION
+        Called when <root>\<version>\proxy\version.dll is missing: the release ships the proxy as
+        a separate asset (CAPIE 1.6.1+), the default Launcher method skipped it, or an antivirus
+        removed it. Takes the proxy ZIP from next to -PackagePath or downloads it from the
+        release (on request only: this runs only for -LoadMethod Proxy), checks the ZIP's signed
+        SHA-256, extracts only proxy/version.dll with its own hash check and moves it into place.
+    .PARAMETER Manifest
+        Verified manifest of the installed version.
+    .OUTPUTS
+        System.String (path of the proxy in the version folder)
+    .EXAMPLE
+        Add-RaProxyFile $manifest
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Manifest)
+    $source = Get-RaProxySource $Manifest
+    if (-not $source) { throw 'Release does not contain the signed proxy/version.dll asset. Use -LoadMethod Launcher for an older release.' }
+    $target = Join-Path (Get-RaVersionDir $Manifest.Version) ($script:RaProxyBundlePath -replace '/', '\')
+    Initialize-RaRoot
+    $package = Get-RaPackageZip -Manifest $source -LocalZip (Find-RaLocalProxyZip $source) -ZipUrl $null
+    $staging = Join-Path $script:RaRoot ($script:RaStagingPrefix + (New-RaUniqueName))
+    try {
+        $hash = Get-RaCheckedFileSha256 $package.Path -Sha256 $source.ZipSha256 -Version $source.Version -JustWritten:$package.Downloaded
+        if ($hash -ne $source.ZipSha256.ToUpperInvariant()) {
+            throw "Proxy package SHA256 mismatch: expected $($source.ZipSha256), got $hash. The proxy was not installed."
+        }
+        New-Item -ItemType Directory -Path $staging | Out-Null
+        Expand-RaVerifiedZip -Manifest $source -ZipPath $package.Path -Destination $staging -Only @($script:RaProxyBundlePath)
+        $parent = Split-Path -Parent $target
+        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        [IO.File]::Move((Join-Path $staging ($script:RaProxyBundlePath -replace '/', '\')), $target)
+    } finally {
+        Remove-RaTempItem $staging -Recurse
+        if ($package.Downloaded) { Remove-RaTempItem $package.Path }
+    }
+    Write-RaLog "Proxy of $($Manifest.Version) verified: $target"
+    return $target
+}
+
 function Install-RaProxy {
     <#
     .SYNOPSIS
@@ -3686,7 +4011,9 @@ function Install-RaProxy {
     .DESCRIPTION
         Uses a new temporary file and an atomic replace for a previously owned file.
         New destinations use File.Move, which cannot overwrite a racing foreign file.
-        The previous proxy is restored if installation or verification fails.
+        The previous proxy is restored if installation or verification fails. When the version
+        folder has no proxy/version.dll yet, Add-RaProxyFile fetches the signed proxy asset first.
+        An antivirus block is reported with the player-facing explanation.
     .PARAMETER State
         Installer state, modified in memory.
     .PARAMETER GameDir
@@ -3713,7 +4040,8 @@ function Install-RaProxy {
         throw "Foreign or modified version.dll left untouched: $path. Choose -LoadMethod Launcher or resolve the conflict manually."
     }
     if ($script:RaDry) { Write-RaLog "[dry-run] would install verified proxy $path from $Version" -Level PLAN; return }
-    if (-not $manifest -or -not $manifest.Files.Contains($script:RaProxyBundlePath)) {
+    $sha = Get-RaManifestProxySha256 $manifest
+    if (-not $sha) {
         throw 'Release does not contain the signed proxy/version.dll asset. Use -LoadMethod Launcher for an older release.'
     }
     $sourceDir = Get-RaVersionDir $Version
@@ -3721,16 +4049,20 @@ function Install-RaProxy {
     if ($State.Proxy -and $State.Proxy.Path -ine $path) {
         throw 'A proxy is already recorded in another game directory. Uninstall it before choosing another directory.'
     }
-    $sha = $manifest.Files[$script:RaProxyBundlePath].ToUpperInvariant()
     if ($exists -and (Get-RaFileSha256 $path) -eq $sha) { $State.Proxy = [pscustomobject]@{ Path = $path; Sha256 = $sha; Version = $Version }; return }
+    $source = Join-Path $sourceDir ($script:RaProxyBundlePath -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { $source = Add-RaProxyFile $manifest }
     $tmp = $path + '.' + (New-RaUniqueName) + '.tmp'
     $backup = $path + '.' + (New-RaUniqueName) + '.bak'
     $installed = $false
     $success = $false
     $oldRecord = $State.Proxy
     try {
-        [IO.File]::Copy((Join-Path $sourceDir ($script:RaProxyBundlePath -replace '/', '\')), $tmp, $false)
-        if ((Get-RaFileSha256 $tmp) -ne $sha) { throw 'Staged proxy hash mismatch.' }
+        try { [IO.File]::Copy($source, $tmp, $false) } catch {
+            if (Test-RaAntivirusError $_) { throw (Get-RaAntivirusText -Path $source -Sha256 $sha -Version $Version) }
+            throw
+        }
+        if ((Get-RaCheckedFileSha256 $tmp -Sha256 $sha -Version $Version -JustWritten) -ne $sha) { throw 'Staged proxy hash mismatch.' }
         if ($exists) {
             if (-not (Test-RaOwnProxy $State $path)) { throw 'Proxy changed during installation; left untouched.' }
             [IO.File]::Replace($tmp, $path, $backup)
@@ -6289,6 +6621,8 @@ function Initialize-RaRun {
     $script:RaMpWarningShown = $false
     $script:RaForce = [bool]$Options['Force']
     $script:RaUpdateHeldBack = $false
+    $script:RaProxyWanted = $false
+    $script:RaLocalPackagePath = if ($Options['PackagePath']) { [string]$Options['PackagePath'] } else { $null }
     if (-not $NoBanner) {
         Write-RaHost (Get-RaText 'Title') -Color White
         Write-RaHost (Get-RaText 'Intro' @((Get-RaLogPath)))
@@ -6467,6 +6801,8 @@ function Invoke-RaSetupAction {
     }
     $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
     if ($plan.LoadMethod -eq 'Proxy' -and -not $gameDir) { throw 'HOI4 installation not found through Steam libraries; proxy was not installed.' }
+    # Only the Proxy method needs version.dll: the default Launcher method never unpacks or reads it.
+    $script:RaProxyWanted = $plan.LoadMethod -eq 'Proxy'
     if ($plan.LoadMethod -eq 'Launcher') {
         Remove-RaProxy $State
         if (-not $script:RaDry) { $State.LoadMethod = 'Launcher' }
@@ -6538,6 +6874,8 @@ function Invoke-RaAction {
         Write-RaLog $_.Exception.Message -Level WARN -NoConsole
     }
     $gameDir = { Get-RaGameDirOrNull $steamRootPath }
+    # Update and rollback keep the method of the installation; an install decides in Invoke-RaSetupAction.
+    $script:RaProxyWanted = [bool]$state.Proxy -or $state.LoadMethod -eq 'Proxy'
     $readOnly = $Options.Disable -or $Options.RemoveSteamLaunchOption -or $Options['ListVersions'] -or $Options.CheckUpdate
     if ($Options.Uninstall -or -not $readOnly) {
         Assert-RaGameClosed

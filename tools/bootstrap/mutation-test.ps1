@@ -47,7 +47,7 @@ $script:MutationBaselineName = '(baseline, no mutation)'
 $script:Mutations = [ordered]@{
     'zip-hash-skip'              = @(, @('if ($hash -ne $Manifest.ZipSha256.ToUpperInvariant()) {', 'if ($false) {'))
     'file-hash-skip-both'        = @(
-        @('if ($h -ne $Manifest.Files[$name].ToUpperInvariant())', 'if ($false)'),
+        @('if ($h -ne $expected) { throw "SHA256 mismatch', 'if ($false) { throw "SHA256 mismatch'),
         @("if (-not (Test-RaInstalledVersion `$Manifest `$staging)) { throw 'Staged files failed verification.' }", '')
     )
     'no-restore'                 = @(, @('& $script:RaCopyFile $backup $ConfigPath', '$null = $backup'))
@@ -96,6 +96,9 @@ $script:Mutations = [ordered]@{
     'sweep-follows-links'        = @(, @('-and (Test-RaPlainTree $item.FullName)', ''))
     'swap-deletes-old-first'     = @(, @('            [IO.Directory]::Move($link, $aside)', '            Remove-RaJunction $link'))
     'cleanup-throws'             = @(, @('    } catch { Write-RaLog "Could not delete temporary', '    } catch { throw; Write-RaLog "Could not delete temporary'))
+    'launcher-unpacks-proxy'     = @(, @('Where-Object { $script:RaProxyWanted -or $_ -ne $script:RaProxyBundlePath }', 'Where-Object { $true }'))
+    'proxy-zip-hash-skip'        = @(, @('if ($hash -ne $source.ZipSha256.ToUpperInvariant()) {', 'if ($false) {'))
+    'antivirus-raw-error'        = @(, @('throw (Get-RaAntivirusText -Path $Path', 'throw; $null = (Get-RaAntivirusText -Path $Path'))
 }
 
 function Invoke-MutationRun {

@@ -57,6 +57,69 @@ function Test-RaManifest {
     foreach ($h in @($Manifest.SupportedGameSha256 | Where-Object { $_ })) {
         if (-not (Test-RaSha256Text $h)) { throw 'Release manifest: bad game hash.' }
     }
+    if (-not $Manifest.Contains('Proxy')) { $Manifest['Proxy'] = $null }
+    $proxy = $Manifest.Proxy
+    if ($null -eq $proxy) { return }
+    # Optional separate proxy asset (CAPIE 1.6.1+): its own ZIP, only for -LoadMethod Proxy.
+    if ($proxy.ZipName -notmatch $script:RaZipNamePattern -or $proxy.ZipName -ieq $Manifest.ZipName) { throw 'Release manifest: invalid proxy ZIP name.' }
+    if (-not (Test-RaSha256Text $proxy.ZipSha256)) { throw 'Release manifest: bad proxy ZIP hash.' }
+    if (-not $proxy.Files -or -not $proxy.Files.Contains($script:RaProxyBundlePath)) { throw 'Release manifest: proxy asset without proxy/version.dll.' }
+    foreach ($k in $proxy.Files.Keys) {
+        if (-not (Test-RaSha256Text $proxy.Files[$k])) { throw "Release manifest: bad hash for $k" }
+        if ($k -notmatch $script:RaManifestPathPattern -or $k -match $script:RaDotSegmentPattern) { throw "Release manifest: unsafe path $k" }
+        if ($Manifest.Files.Contains($k)) { throw "Release manifest: $k is listed twice." }
+    }
+}
+
+function Get-RaManifestProxySha256 {
+    <#
+    .SYNOPSIS
+        The signed SHA-256 of a release's proxy version.dll, or $null when the release has none.
+    .DESCRIPTION
+        CAPIE 1.6.1 and later list it in the separate proxy asset (manifest field proxy); older
+        releases list proxy/version.dll among the files of the main ZIP.
+    .PARAMETER Manifest
+        Manifest dictionary.
+    .OUTPUTS
+        System.String (upper case)
+    .EXAMPLE
+        Get-RaManifestProxySha256 (Read-RaStoredManifest $state.Proxy.Version)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Position = 0)][AllowNull()][System.Collections.IDictionary]$Manifest)
+    if (-not $Manifest) { return $null }
+    $source = Get-RaProxySource $Manifest
+    if (-not $source) { return $null }
+    return ([string]$source.Files[$script:RaProxyBundlePath]).ToUpperInvariant()
+}
+
+function Get-RaProxySource {
+    <#
+    .SYNOPSIS
+        The ZIP (name, hash, files) that holds a release's proxy version.dll, or $null.
+    .DESCRIPTION
+        For a release with a separate proxy asset: a manifest-shaped dictionary of that asset
+        (same Version, so its default download URL is the release's). For an older release the
+        main manifest itself, whose ZIP also holds the proxy.
+    .PARAMETER Manifest
+        Manifest dictionary.
+    .OUTPUTS
+        System.Collections.IDictionary
+    .EXAMPLE
+        $source = Get-RaProxySource $manifest
+    #>
+    [CmdletBinding()]
+    [OutputType([System.Collections.IDictionary], [System.Collections.Specialized.OrderedDictionary])]
+    param([Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Manifest)
+    if ($Manifest.Contains('Proxy') -and $Manifest.Proxy) {
+        return [ordered]@{
+            Version = $Manifest.Version; ZipName = $Manifest.Proxy.ZipName; ZipSha256 = $Manifest.Proxy.ZipSha256
+            Files = $Manifest.Proxy.Files
+        }
+    }
+    if ($Manifest.Files.Contains($script:RaProxyBundlePath)) { return $Manifest }
+    return $null
 }
 
 function Compare-RaVersion {
@@ -91,7 +154,11 @@ function Test-RaInstalledVersion {
         Verifies an installed version folder against its manifest.
     .DESCRIPTION
         True only when the folder holds exactly the manifest's files (same count) and
-        every file has its pinned SHA-256.
+        every file has its pinned SHA-256. The proxy version.dll (proxy/version.dll) is not part
+        of this check: it is there only for the Proxy method, may be missing (never unpacked, or
+        removed by an antivirus) and is verified by Install-RaProxy before every use, so the
+        default Launcher method never reads it. An antivirus block of a checked file throws the
+        player-facing explanation (Get-RaCheckedFileSha256).
     .PARAMETER Manifest
         Manifest dictionary.
     .PARAMETER Dir
@@ -108,12 +175,15 @@ function Test-RaInstalledVersion {
         [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$Dir
     )
     if (-not (Test-Path -LiteralPath $Dir -PathType Container)) { return $false }
-    $files = @(Get-ChildItem -LiteralPath $Dir -Recurse -File -Force)
-    if ($files.Count -ne $Manifest.Files.Count) { return $false }
-    foreach ($k in $Manifest.Files.Keys) {
+    $proxyPath = [IO.Path]::GetFullPath((Join-Path $Dir ($script:RaProxyBundlePath -replace '/', '\')))
+    $files = @(Get-ChildItem -LiteralPath $Dir -Recurse -File -Force | Where-Object { $_.FullName -ine $proxyPath })
+    $keys = @($Manifest.Files.Keys | Where-Object { $_ -ne $script:RaProxyBundlePath })
+    if ($files.Count -ne $keys.Count) { return $false }
+    foreach ($k in $keys) {
         $p = Join-Path $Dir ($k -replace '/', '\')
         if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { return $false }
-        if ((Get-RaFileSha256 $p) -ne $Manifest.Files[$k].ToUpperInvariant()) { return $false }
+        $expected = $Manifest.Files[$k].ToUpperInvariant()
+        if ((Get-RaCheckedFileSha256 $p -Sha256 $expected -Version $Manifest.Version) -ne $expected) { return $false }
     }
     return $true
 }
@@ -125,13 +195,18 @@ function Expand-RaVerifiedZip {
     .DESCRIPTION
         Refuses unexpected, duplicate and missing entries (which also blocks zip-slip
         names such as ../x, because they are never in the manifest). Directory entries
-        are skipped.
+        are skipped. With -Only, the other listed entries are checked for presence but never
+        written (so the default Launcher method never unpacks the proxy version.dll of an older
+        release). An antivirus that blocks or removes an extracted file is reported with the
+        player-facing explanation, naming the file, its path and its signed SHA-256.
     .PARAMETER Manifest
         Manifest dictionary.
     .PARAMETER ZipPath
         ZIP file whose own hash was already verified.
     .PARAMETER Destination
         Empty staging folder.
+    .PARAMETER Only
+        Entries to extract; default all.
     .OUTPUTS
         None.
     .EXAMPLE
@@ -142,7 +217,8 @@ function Expand-RaVerifiedZip {
     param(
         [Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Manifest,
         [Parameter(Mandatory, Position = 1)][ValidateNotNullOrEmpty()][string]$ZipPath,
-        [Parameter(Mandatory, Position = 2)][ValidateNotNullOrEmpty()][string]$Destination
+        [Parameter(Mandatory, Position = 2)][ValidateNotNullOrEmpty()][string]$Destination,
+        [AllowNull()][string[]]$Only
     )
     Add-Type -AssemblyName System.IO.Compression -ErrorAction SilentlyContinue
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -155,12 +231,17 @@ function Expand-RaVerifiedZip {
             if (-not $Manifest.Files.Contains($name)) { throw "Package contains an unexpected file: $name" }
             if ($seen.ContainsKey($name)) { throw "Package contains a duplicate entry: $name" }
             $seen[$name] = $true
+            if ($null -ne $Only -and $Only -notcontains $name) { continue }
             $dest = Join-Path $Destination ($name -replace '/', '\')
             $parent = Split-Path -Parent $dest
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-            [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $false)
-            $h = Get-RaFileSha256 $dest
-            if ($h -ne $Manifest.Files[$name].ToUpperInvariant()) { throw "SHA256 mismatch for $name (got $h)" }
+            $expected = $Manifest.Files[$name].ToUpperInvariant()
+            try { [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $false) } catch {
+                if (Test-RaAntivirusError $_) { throw (Get-RaAntivirusText -Path $dest -Sha256 $expected -Version $Manifest.Version) }
+                throw
+            }
+            $h = Get-RaCheckedFileSha256 $dest -Sha256 $expected -Version $Manifest.Version -JustWritten
+            if ($h -ne $expected) { throw "SHA256 mismatch for $name (got $h)" }
         }
     } finally { $zip.Dispose() }
     foreach ($k in $Manifest.Files.Keys) { if (-not $seen.ContainsKey($k)) { throw "Package is missing $k" } }
@@ -189,6 +270,11 @@ function ConvertTo-RaManifestJson {
     if ($Manifest.Contains('ApiLevel') -and $Manifest.ApiLevel) { $data['capie_api_level'] = [int]$Manifest.ApiLevel }
     if ($Manifest.Contains('GameVersion') -and $Manifest.GameVersion) { $data['game_version'] = [string]$Manifest.GameVersion }
     if ($Manifest.Contains('ChangelogSummary') -and @($Manifest.ChangelogSummary).Count -gt 0) { $data['changelog_summary'] = @($Manifest.ChangelogSummary) }
+    if ($Manifest.Contains('Proxy') -and $Manifest.Proxy) {
+        $data['proxy'] = [pscustomobject][ordered]@{
+            zipName = $Manifest.Proxy.ZipName; zipSha256 = $Manifest.Proxy.ZipSha256; files = [pscustomobject]$Manifest.Proxy.Files
+        }
+    }
     return ([pscustomobject]$data | ConvertTo-Json -Depth $script:RaJsonDepth)
 }
 
@@ -220,6 +306,17 @@ function ConvertFrom-RaManifestJson {
     $m['ApiLevel'] = if ($j.PSObject.Properties['capie_api_level']) { [int]$j.capie_api_level } else { $null }
     $m['GameVersion'] = if ($j.PSObject.Properties['game_version']) { [string]$j.game_version } else { $null }
     $m['ChangelogSummary'] = if ($j.PSObject.Properties['changelog_summary']) { @($j.changelog_summary | ForEach-Object { [string]$_ }) } else { @() }
+    # Separate proxy asset (CAPIE 1.6.1+); older manifests list proxy/version.dll under files.
+    $m['Proxy'] = $null
+    if ($j.PSObject.Properties['proxy'] -and $j.proxy) {
+        $proxyFiles = [ordered]@{}
+        if ($j.proxy.PSObject.Properties['files'] -and $j.proxy.files) {
+            foreach ($p in $j.proxy.files.PSObject.Properties) { $proxyFiles[$p.Name] = [string]$p.Value }
+        }
+        $zipNameValue = if ($j.proxy.PSObject.Properties['zipName']) { [string]$j.proxy.zipName } else { '' }
+        $zipShaValue = if ($j.proxy.PSObject.Properties['zipSha256']) { [string]$j.proxy.zipSha256 } else { '' }
+        $m['Proxy'] = [ordered]@{ ZipName = $zipNameValue; ZipSha256 = $zipShaValue; Files = $proxyFiles }
+    }
     Test-RaManifest $m
     return $m
 }

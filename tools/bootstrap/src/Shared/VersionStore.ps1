@@ -53,6 +53,9 @@ function Install-RaVersion {
         its SHA-256 before extraction, extracts into a staging folder with per-file
         checks, re-verifies the staging folder and only then moves it into place (a
         broken existing folder is moved aside). Stores the manifest for later rollback.
+        The proxy version.dll of an older release ZIP is unpacked only when this run uses the
+        Proxy method ($script:RaProxyWanted); newer releases ship it as a separate asset that
+        Install-RaProxy fetches.
     .PARAMETER Manifest
         Manifest of the version.
     .PARAMETER LocalZip
@@ -85,13 +88,15 @@ function Install-RaVersion {
     $package = Get-RaPackageZip -Manifest $Manifest -LocalZip $LocalZip -ZipUrl $ZipUrl
     $staging = Join-Path $script:RaRoot ($script:RaStagingPrefix + (New-RaUniqueName))
     try {
-        $hash = Get-RaFileSha256 $package.Path
+        $hash = Get-RaCheckedFileSha256 $package.Path -Sha256 $Manifest.ZipSha256 -Version $Manifest.Version -JustWritten:$package.Downloaded
         if ($hash -ne $Manifest.ZipSha256.ToUpperInvariant()) {
             throw "Package SHA256 mismatch: expected $($Manifest.ZipSha256), got $hash. Nothing was installed."
         }
         Write-RaLog "Package $($Manifest.ZipName): SHA256 matches the manifest."
         New-Item -ItemType Directory -Path $staging | Out-Null
-        Expand-RaVerifiedZip -Manifest $Manifest -ZipPath $package.Path -Destination $staging
+        # An older release ZIP also holds the proxy version.dll: unpack it only for the Proxy method.
+        $only = @($Manifest.Files.Keys | Where-Object { $script:RaProxyWanted -or $_ -ne $script:RaProxyBundlePath })
+        Expand-RaVerifiedZip -Manifest $Manifest -ZipPath $package.Path -Destination $staging -Only $only
         if (-not (Test-RaInstalledVersion $Manifest $staging)) { throw 'Staged files failed verification.' }
         if (Test-Path -LiteralPath $dir) {
             $broken = "$dir$($script:RaBrokenInfix)$((Get-RaNow).ToString($script:RaBrokenTimestampFormat))"
@@ -430,7 +435,8 @@ function Get-RaKnownProxyHash {
         }
     }
     foreach ($m in $manifests) {
-        if ($m.Files.Contains($script:RaProxyBundlePath)) { $hashes += ([string]$m.Files[$script:RaProxyBundlePath]).ToUpperInvariant() }
+        $proxyHash = Get-RaManifestProxySha256 $m
+        if ($proxyHash) { $hashes += $proxyHash }
     }
     return @($hashes | Sort-Object -Unique)
 }

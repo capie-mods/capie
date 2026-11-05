@@ -59,8 +59,7 @@ function Test-RaOwnProxy {
         $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
         if ($item.PSIsContainer -or (Test-RaReparsePoint $item)) { return $false }
         $manifest = Read-RaStoredManifest $State.Proxy.Version
-        return ($manifest -and $manifest.Files.Contains($script:RaProxyBundlePath) -and
-            $manifest.Files[$script:RaProxyBundlePath] -ieq $State.Proxy.Sha256 -and
+        return ($manifest -and (Get-RaManifestProxySha256 $manifest) -ieq $State.Proxy.Sha256 -and
             (Get-RaFileSha256 $Path) -ieq $State.Proxy.Sha256)
     } catch { return $false }
 }
@@ -156,6 +155,80 @@ function Set-RaProxyActivation {
     $State.ProxyActivation = $Activation
 }
 
+function Find-RaLocalProxyZip {
+    <#
+    .SYNOPSIS
+        A local ZIP (from -PackagePath) that holds a release's proxy, or $null.
+    .DESCRIPTION
+        Candidates: the -PackagePath ZIP itself (an older release ZIP holds the proxy) and a file
+        named like the proxy asset next to it. Only a candidate whose SHA-256 is the signed one is
+        returned; without a match the caller downloads the asset.
+    .PARAMETER Source
+        Proxy source from Get-RaProxySource.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Find-RaLocalProxyZip (Get-RaProxySource $manifest)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Source)
+    $package = $script:RaLocalPackagePath
+    if (-not $package -or -not (Test-Path -LiteralPath $package -PathType Leaf)) { return $null }
+    $full = (Resolve-Path -LiteralPath $package).ProviderPath
+    foreach ($candidate in @($full, (Join-Path (Split-Path -Parent $full) $Source.ZipName))) {
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+        if ((Get-RaCheckedFileSha256 $candidate -Sha256 $Source.ZipSha256 -Version $Source.Version) -eq $Source.ZipSha256.ToUpperInvariant()) {
+            return $candidate
+        }
+    }
+    return $null
+}
+
+function Add-RaProxyFile {
+    <#
+    .SYNOPSIS
+        Puts a release's verified proxy version.dll into its version folder (Proxy method only).
+    .DESCRIPTION
+        Called when <root>\<version>\proxy\version.dll is missing: the release ships the proxy as
+        a separate asset (CAPIE 1.6.1+), the default Launcher method skipped it, or an antivirus
+        removed it. Takes the proxy ZIP from next to -PackagePath or downloads it from the
+        release (on request only: this runs only for -LoadMethod Proxy), checks the ZIP's signed
+        SHA-256, extracts only proxy/version.dll with its own hash check and moves it into place.
+    .PARAMETER Manifest
+        Verified manifest of the installed version.
+    .OUTPUTS
+        System.String (path of the proxy in the version folder)
+    .EXAMPLE
+        Add-RaProxyFile $manifest
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][System.Collections.IDictionary]$Manifest)
+    $source = Get-RaProxySource $Manifest
+    if (-not $source) { throw 'Release does not contain the signed proxy/version.dll asset. Use -LoadMethod Launcher for an older release.' }
+    $target = Join-Path (Get-RaVersionDir $Manifest.Version) ($script:RaProxyBundlePath -replace '/', '\')
+    Initialize-RaRoot
+    $package = Get-RaPackageZip -Manifest $source -LocalZip (Find-RaLocalProxyZip $source) -ZipUrl $null
+    $staging = Join-Path $script:RaRoot ($script:RaStagingPrefix + (New-RaUniqueName))
+    try {
+        $hash = Get-RaCheckedFileSha256 $package.Path -Sha256 $source.ZipSha256 -Version $source.Version -JustWritten:$package.Downloaded
+        if ($hash -ne $source.ZipSha256.ToUpperInvariant()) {
+            throw "Proxy package SHA256 mismatch: expected $($source.ZipSha256), got $hash. The proxy was not installed."
+        }
+        New-Item -ItemType Directory -Path $staging | Out-Null
+        Expand-RaVerifiedZip -Manifest $source -ZipPath $package.Path -Destination $staging -Only @($script:RaProxyBundlePath)
+        $parent = Split-Path -Parent $target
+        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        [IO.File]::Move((Join-Path $staging ($script:RaProxyBundlePath -replace '/', '\')), $target)
+    } finally {
+        Remove-RaTempItem $staging -Recurse
+        if ($package.Downloaded) { Remove-RaTempItem $package.Path }
+    }
+    Write-RaLog "Proxy of $($Manifest.Version) verified: $target"
+    return $target
+}
+
 function Install-RaProxy {
     <#
     .SYNOPSIS
@@ -163,7 +236,9 @@ function Install-RaProxy {
     .DESCRIPTION
         Uses a new temporary file and an atomic replace for a previously owned file.
         New destinations use File.Move, which cannot overwrite a racing foreign file.
-        The previous proxy is restored if installation or verification fails.
+        The previous proxy is restored if installation or verification fails. When the version
+        folder has no proxy/version.dll yet, Add-RaProxyFile fetches the signed proxy asset first.
+        An antivirus block is reported with the player-facing explanation.
     .PARAMETER State
         Installer state, modified in memory.
     .PARAMETER GameDir
@@ -190,7 +265,8 @@ function Install-RaProxy {
         throw "Foreign or modified version.dll left untouched: $path. Choose -LoadMethod Launcher or resolve the conflict manually."
     }
     if ($script:RaDry) { Write-RaLog "[dry-run] would install verified proxy $path from $Version" -Level PLAN; return }
-    if (-not $manifest -or -not $manifest.Files.Contains($script:RaProxyBundlePath)) {
+    $sha = Get-RaManifestProxySha256 $manifest
+    if (-not $sha) {
         throw 'Release does not contain the signed proxy/version.dll asset. Use -LoadMethod Launcher for an older release.'
     }
     $sourceDir = Get-RaVersionDir $Version
@@ -198,16 +274,20 @@ function Install-RaProxy {
     if ($State.Proxy -and $State.Proxy.Path -ine $path) {
         throw 'A proxy is already recorded in another game directory. Uninstall it before choosing another directory.'
     }
-    $sha = $manifest.Files[$script:RaProxyBundlePath].ToUpperInvariant()
     if ($exists -and (Get-RaFileSha256 $path) -eq $sha) { $State.Proxy = [pscustomobject]@{ Path = $path; Sha256 = $sha; Version = $Version }; return }
+    $source = Join-Path $sourceDir ($script:RaProxyBundlePath -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { $source = Add-RaProxyFile $manifest }
     $tmp = $path + '.' + (New-RaUniqueName) + '.tmp'
     $backup = $path + '.' + (New-RaUniqueName) + '.bak'
     $installed = $false
     $success = $false
     $oldRecord = $State.Proxy
     try {
-        [IO.File]::Copy((Join-Path $sourceDir ($script:RaProxyBundlePath -replace '/', '\')), $tmp, $false)
-        if ((Get-RaFileSha256 $tmp) -ne $sha) { throw 'Staged proxy hash mismatch.' }
+        try { [IO.File]::Copy($source, $tmp, $false) } catch {
+            if (Test-RaAntivirusError $_) { throw (Get-RaAntivirusText -Path $source -Sha256 $sha -Version $Version) }
+            throw
+        }
+        if ((Get-RaCheckedFileSha256 $tmp -Sha256 $sha -Version $Version -JustWritten) -ne $sha) { throw 'Staged proxy hash mismatch.' }
         if ($exists) {
             if (-not (Test-RaOwnProxy $State $path)) { throw 'Proxy changed during installation; left untouched.' }
             [IO.File]::Replace($tmp, $path, $backup)

@@ -109,7 +109,9 @@ function Get-RaFileSha256 {
     .SYNOPSIS
         SHA-256 of a file as upper-case hex.
     .DESCRIPTION
-        Single place for file hashing (Get-FileHash, read-only).
+        Single place for file hashing (read-only, through the OpenRead adapter). Same format as
+        Get-FileHash, but a failure keeps the .NET exception (an antivirus block stays
+        recognizable by Test-RaAntivirusError instead of becoming Get-FileHash's "cannot be read").
     .PARAMETER Path
         File to hash.
     .OUTPUTS
@@ -120,5 +122,121 @@ function Get-RaFileSha256 {
     [CmdletBinding()]
     [OutputType([string])]
     param([Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$Path)
-    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+    $stream = & $script:RaOpenRead $Path
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '') } finally {
+        $sha.Dispose()
+        $stream.Dispose()
+    }
+}
+
+function Test-RaAntivirusError {
+    <#
+    .SYNOPSIS
+        Tests whether an error means that an antivirus blocked or removed the file.
+    .DESCRIPTION
+        Walks the exception chain (an ErrorRecord, PowerShell's MethodInvocationException and
+        inner exceptions) for the Win32 errors ERROR_VIRUS_INFECTED (225) and ERROR_VIRUS_DELETED
+        (226), as an HRESULT or a native error code. The check never depends on the (localized)
+        message text.
+    .PARAMETER ErrorObject
+        ErrorRecord or Exception.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        try { Get-RaFileSha256 $p } catch { if (Test-RaAntivirusError $_) { 'blocked' } }
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Position = 0)][AllowNull()][object]$ErrorObject)
+    $ex = if ($ErrorObject -is [System.Management.Automation.ErrorRecord]) { $ErrorObject.Exception } else { $ErrorObject }
+    while ($ex -is [Exception]) {
+        $codes = @($ex.HResult)
+        if ($ex -is [ComponentModel.Win32Exception]) { $codes += $ex.NativeErrorCode }
+        foreach ($code in $codes) {
+            $low = $code -band $script:RaWin32HResultMask
+            # A plain Win32 code, or an HRESULT of FACILITY_WIN32 (0x8007xxxx).
+            $win32 = ($code -eq $low) -or (($code -band (-bnot $script:RaWin32HResultMask)) -eq $script:RaWin32HResultFacility)
+            if ($win32 -and $script:RaAntivirusWin32Errors -contains $low) { return $true }
+        }
+        $ex = $ex.InnerException
+    }
+    return $false
+}
+
+function Get-RaAntivirusText {
+    <#
+    .SYNOPSIS
+        The player-facing explanation of an antivirus block of one release file.
+    .DESCRIPTION
+        Names the file and its path, says that it is a false positive of a signed release file,
+        gives its SHA-256 and the release page that lists it, and the way to restore or allow it in
+        Windows Security > Protection history. It never suggests turning the antivirus off. For
+        the proxy version.dll it adds that the default Launcher method does not need the file.
+    .PARAMETER Path
+        Blocked file.
+    .PARAMETER Sha256
+        SHA-256 the signed manifest gives for the file, or empty.
+    .PARAMETER Version
+        CAPIE version the file belongs to, or empty (then the latest release page is named).
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        throw (Get-RaAntivirusText -Path $dest -Sha256 $hash -Version '1.6.1')
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$Path,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$Sha256,
+        [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$Version
+    )
+    $name = [IO.Path]::GetFileName($Path)
+    $page = if ($Version) { $script:RaGitHubReleasePageFormat -f $script:RaGitHubRepo, $script:RaReleaseTagPrefix, $Version }
+    else { $script:RaGitHubLatestPageFormat -f $script:RaGitHubRepo }
+    $hash = if ($Sha256) { $Sha256.ToUpperInvariant() } else { '(see SHA256SUMS.txt)' }
+    $release = if ($Version) { "CAPIE $Version" } else { 'CAPIE' }
+    $text = Get-RaText 'AntivirusBlocked' @($name, $Path, $release, $hash, $page)
+    if ($name -ieq $script:RaProxyFileName -or $Path -match '(?i)-proxy-') { $text += ' ' + (Get-RaText 'AntivirusProxyHint') }
+    return $text
+}
+
+function Get-RaCheckedFileSha256 {
+    <#
+    .SYNOPSIS
+        SHA-256 of a release file; an antivirus block becomes the player-facing explanation.
+    .DESCRIPTION
+        Like Get-RaFileSha256, but when the antivirus blocked the file (Test-RaAntivirusError), or
+        removed a file this run has just written (-JustWritten: it is gone right after the write),
+        it throws Get-RaAntivirusText instead of the raw .NET error. Every other error is rethrown
+        unchanged.
+    .PARAMETER Path
+        File to hash.
+    .PARAMETER Sha256
+        Expected SHA-256 (for the message only), or empty.
+    .PARAMETER Version
+        CAPIE version of the file (for the message only), or empty.
+    .PARAMETER JustWritten
+        The file was written by this run a moment ago, so a missing file means it was removed.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-RaCheckedFileSha256 $dest -Sha256 $expected -Version $m.Version -JustWritten
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$Path,
+        [AllowEmptyString()][AllowNull()][string]$Sha256,
+        [AllowEmptyString()][AllowNull()][string]$Version,
+        [switch]$JustWritten
+    )
+    try { return (Get-RaFileSha256 $Path) } catch {
+        $removed = $JustWritten -and -not (Test-Path -LiteralPath $Path)
+        if ((Test-RaAntivirusError $_) -or $removed) {
+            Write-RaLog "Antivirus block of ${Path}: $($_.Exception.Message)" -Level WARN -NoConsole
+            throw (Get-RaAntivirusText -Path $Path -Sha256 $Sha256 -Version $Version)
+        }
+        throw
+    }
 }

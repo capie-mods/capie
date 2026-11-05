@@ -13,6 +13,21 @@ signing key are placeholders, so the script refuses to install until a real rele
 exists. Proxy mode also requires `proxy/version.dll` in the verified release manifest;
 a launcher-only package refuses `-LoadMethod Proxy`.
 
+**Antivirus false positives (CAPIE 1.6.1):** since 1.6.1 the proxy ships as its own release
+asset, `CAPIE-x.y.z-proxy-win64.zip`, listed in the signed manifest's optional `proxy` field
+(`zipName`, `zipSha256`, `files`; schema 1 unchanged, so older installers ignore it and keep
+working in Launcher mode). The default Launcher method never downloads, unpacks or hashes
+`version.dll`: `Test-RaInstalledVersion` leaves `proxy/version.dll` out, and the main ZIP of an
+older release is unpacked without it unless the run uses the Proxy method. `Install-RaProxy`
+fetches the proxy asset only when it is needed (from next to `-PackagePath`, otherwise from the
+release), checks the ZIP hash and the file hash, and keeps it in `<version>\proxy\`. When an
+antivirus blocks or removes a file the setup needs (Win32 `ERROR_VIRUS_INFECTED` 225 /
+`ERROR_VIRUS_DELETED` 226, recognized by `Test-RaAntivirusError` from the HRESULT, never from
+the localized message), the run stops with one explanation: the file, its path, that it is a
+false positive, its signed SHA-256 and release page, and how to restore or allow it in Windows
+Security > Protection history. It never suggests turning the antivirus off. File hashing reads
+through the `$script:RaOpenRead` adapter, which the tests replace to simulate a block.
+
 * Windows PowerShell 5.1 (built into Windows) or PowerShell 7, without extra modules.
   Proxy mode needs write access to the game folder; the script does not elevate itself.
 * Proxy mode adds only `version.dll` to the game directory. It never overwrites another
@@ -203,7 +218,8 @@ only our quoted fragment, and a leading bare `%command%` is dropped, which means
 Manual undo: Steam > Library > Hearts of Iron IV > Properties > General > Launch Options,
 delete `-capie` (Proxy) or the quoted `…\RenameAnythingLauncher.exe` part (Launcher).
 
-**Game-local DLL:** Proxy mode copies the manifest-verified `proxy/version.dll` to the
+**Game-local DLL:** Proxy mode copies the manifest-verified `proxy/version.dll` (from the
+separate proxy asset since 1.6.1) to the
 Steam-discovered directory containing `hoi4.exe`. The installer records its absolute
 path, release version and SHA256 in `state.json`. An existing `version.dll` is changed
 or removed only when both the ownership record and stored release manifest prove its

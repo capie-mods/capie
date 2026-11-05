@@ -34,7 +34,8 @@
 .PARAMETER LoadMethod
     Launcher (default): the CAPIE launcher in the Steam launch options; nothing in the game folder;
     CAPIE loads only when the "CAPIE" mod is enabled in the playset. Proxy (explicit alternative,
-    alias -Method): game-local version.dll activated by -capie; it does not read the playset.
+    alias -Method): game-local version.dll activated by -capie; it does not read the playset. Only
+    this method downloads, unpacks and installs version.dll (a separate proxy ZIP since CAPIE 1.6.1).
 
 .PARAMETER ProxyActivation
     Flag (default): requires -capie. Config: explicit persistent activation fallback.
@@ -77,7 +78,8 @@
     Ask no questions; the actions must be given as switches.
 
 .PARAMETER PackagePath
-    Already downloaded release ZIP to install instead of downloading it.
+    Already downloaded release ZIP to install instead of downloading it. With -LoadMethod Proxy put
+    the proxy ZIP of the release (CAPIE-x.y.z-proxy-win64.zip) next to it; otherwise it is downloaded.
 
 .PARAMETER SteamRoot
     Steam folder override (default: HKCU\Software\Valve\Steam\SteamPath).
