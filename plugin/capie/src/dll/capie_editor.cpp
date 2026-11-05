@@ -509,6 +509,22 @@ InitCode initialize() {
             return InitCode::co_load_refused;
         }
     }
+    // The log opens before every other check, so a refused start (unsupported game, signature,
+    // caption, focus or RTTI mismatch) is recorded by `finish_initialization` too.
+    wchar_t log_path[max_path_chars]{};
+    if (GetModuleFileNameW(own_module, log_path, max_path_chars) == 0) {
+        return InitCode::log_unavailable;
+    }
+    auto* slash = std::wcsrchr(log_path, L'\\');
+    if (slash == nullptr || wcscpy_s(slash + 1, max_path_chars - static_cast<std::size_t>(slash + 1 - log_path),
+                                     core::editor_log_name) != 0) {
+        return InitCode::log_unavailable;
+    }
+    core::logging::log_file = CreateFileW(log_path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                          OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (core::logging::log_file == INVALID_HANDLE_VALUE) {
+        return InitCode::log_unavailable;
+    }
     wchar_t executable[max_path_chars]{};
     if (GetModuleFileNameW(nullptr, executable, max_path_chars) == 0 ||
         core::sha256_file(executable) != core::game_exe_sha256) {
@@ -533,20 +549,6 @@ InitCode initialize() {
     if (core::first_wrong_class(core::ProcessMemory{}, reinterpret_cast<core::uptr>(base), core::editor_vtable_classes) !=
         nullptr) {
         return InitCode::rtti_mismatch;
-    }
-    wchar_t log_path[max_path_chars]{};
-    if (GetModuleFileNameW(own_module, log_path, max_path_chars) == 0) {
-        return InitCode::log_unavailable;
-    }
-    auto* slash = std::wcsrchr(log_path, L'\\');
-    if (slash == nullptr || wcscpy_s(slash + 1, max_path_chars - static_cast<std::size_t>(slash + 1 - log_path),
-                                     core::editor_log_name) != 0) {
-        return InitCode::log_unavailable;
-    }
-    core::logging::log_file = CreateFileW(log_path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                                          OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (core::logging::log_file == INVALID_HANDLE_VALUE) {
-        return InitCode::log_unavailable;
     }
     // The scripted-window offsets every feature reads, proven in the game's own stores (N10).
     if (const char* failed = window_pins::first_failed_pin(text, core::ProcessMemory{}, reinterpret_cast<core::uptr>(base));
