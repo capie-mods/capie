@@ -78,6 +78,25 @@ int main() {
     check(is(lookup_z("CAPIE_STATUS"), game_text) && forwarded == 1, "inactive: forwarded once");
 
     active.store(true);
+    // CAPIE 1.7: the status keys say "editor off" until the editor reports a start, after a
+    // failed start and after a game-call fault (shared latch); API and build never change.
+    using capie::country::editor_state;
+    check(is(override_value("CAPIE_STATUS"), "CAPIE 1.7: editor off") &&
+              is(override_value("RN_PLUGIN_STATUS"), "CAPIE 1.7: editor off, restart the game") &&
+              is(override_value("RN_PLUGIN_STATUS_EN"), "CAPIE 1.7: editor off, restart the game") &&
+              is(override_value("RN_PLUGIN_STATUS_PL"),
+                 "CAPIE 1.7: edytor wy\xC5\x82\xC4\x85"
+                 "czony, uruchom gr\xC4\x99 ponownie") &&
+              is(override_value("CAPIE_API"), "9"),
+          "editor not reported: editor off");
+    editor_state.store(20);  // signature_mismatch
+    check(is(override_value("CAPIE_STATUS"), "CAPIE 1.7: editor off"), "editor start failed: editor off");
+    RNEditorReport(0);  // what capie_editor.dll calls after a successful start
+    capie::engine::game_call_faulted.store(true);
+    check(is(override_value("CAPIE_STATUS"), "CAPIE 1.7: editor off") &&
+              is(override_value("RN_PLUGIN_STATUS"), "CAPIE 1.7: editor off, restart the game"),
+          "fault latch: editor off");
+    capie::engine::game_call_faulted.store(false);
     check(is(override_value("CAPIE_STATUS"), "CAPIE 1.7"), "CAPIE_STATUS");
     check(is(override_value("CAPIE_API"), "9"), "CAPIE_API");
     check(is(override_value("CAPIE_BUILD"), "1.7.0"), "CAPIE_BUILD");

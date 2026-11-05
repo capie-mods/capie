@@ -104,4 +104,10 @@ constexpr bool colour_active(std::uint32_t value) noexcept {
 /// @brief Name of the capability export.
 inline constexpr char capabilities_export[] = "RNCountryCapabilities";
 
+/// @brief Export of `capie_core.dll` (CAPIE 1.7): `void RNEditorReport(DWORD code)`. The editor DLL
+/// reports the exit code of its `RNInitialize` (0 = running), so the status keys can say "editor off".
+inline constexpr char editor_report_export[] = "RNEditorReport";
+/// @brief Editor state before the editor DLL reported (not loaded, not initialized yet, or failed to call).
+inline constexpr std::uint32_t editor_unreported = 0xFFFFFFFFU;
+
 }  // namespace capie::country

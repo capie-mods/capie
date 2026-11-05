@@ -469,6 +469,22 @@ extern "C" __declspec(dllexport) void* WINAPI RNGameCallLatch() noexcept {
 }
 
 /**
+ * @brief `capie_editor.dll` reports the exit code of its `RNInitialize` (CAPIE 1.7).
+ *
+ * The status keys say "editor off" until it reports 0, and again after a fault (country_names.hpp,
+ * `editor_running`). Written once by the editor's initializer; logged.
+ * @param code `InitCode` exit value; 0 = the editor runs.
+ */
+// NOLINTNEXTLINE(readability-identifier-naming): exported ABI name
+extern "C" __declspec(dllexport) void WINAPI RNEditorReport(DWORD code) noexcept {
+    capie::country::editor_state.store(code, std::memory_order_release);
+    char line[64]{};
+    static_cast<void>(std::snprintf(line, sizeof(line), "CAPIE_CORE editor reported code=%lu (%s)", code,
+                                    code == 0 ? "editor on" : "editor off"));
+    capie::country::write_line(capie::core::logging::Channel::lifecycle, line);
+}
+
+/**
  * @brief Initializes the country hooks (remote thread from the injector, outside DllMain).
  * @param unused Ignored.
  * @return 0 on success; see `capie::core::InitCode`.

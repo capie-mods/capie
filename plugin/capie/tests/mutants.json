@@ -2356,5 +2356,45 @@
   "replace": "__except (game_call_exception(GetExceptionInformation(), GameCall::find_widget))",
   "suite": "tests/game_calls_test.cpp",
   "summary": "game calls tests:"
+ },
+ {
+  "name": "status-ignores-editor",
+  "file": "src/features/country/country_names.hpp",
+  "find": "return editor_running() ? public_status_text : public_status_off_text;",
+  "replace": "return public_status_text;",
+  "suite": "tests/public_keys_test.cpp",
+  "summary": "public keys tests:"
+ },
+ {
+  "name": "rn-status-ignores-editor",
+  "file": "src/features/country/country_names.hpp",
+  "find": "return editor_running() ? status_text_en : status_off_en;",
+  "replace": "return status_text_en;",
+  "suite": "tests/public_keys_test.cpp",
+  "summary": "public keys tests:"
+ },
+ {
+  "name": "editor-running-ignores-latch",
+  "file": "src/features/country/country_names.hpp",
+  "find": "return editor_state.load(std::memory_order_acquire) == 0 && engine::game_calls_allowed();",
+  "replace": "return editor_state.load(std::memory_order_acquire) == 0;",
+  "suite": "tests/public_keys_test.cpp",
+  "summary": "public keys tests:"
+ },
+ {
+  "name": "editor-running-ignores-report",
+  "file": "src/features/country/country_names.hpp",
+  "find": "return editor_state.load(std::memory_order_acquire) == 0 && engine::game_calls_allowed();",
+  "replace": "return engine::game_calls_allowed();",
+  "suite": "tests/public_keys_test.cpp",
+  "summary": "public keys tests:"
+ },
+ {
+  "name": "editor-report-dropped",
+  "file": "src/dll/capie_core.cpp",
+  "find": "    capie::country::editor_state.store(code, std::memory_order_release);\n",
+  "replace": "    static_cast<void>(code);\n",
+  "suite": "tests/public_keys_test.cpp",
+  "summary": "public keys tests:"
  }
 ]

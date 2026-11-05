@@ -169,6 +169,7 @@ int main() {
               !exists("RN1|Polska|polski|") && original_calls == 3,
           "inactive forwards");
     active.store(true);
+    editor_state.store(0);  // the editor DLL reported a successful start (status "loaded")
     std::vector<std::string> corpus = {
         "",
         "R",

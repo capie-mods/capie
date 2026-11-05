@@ -14,6 +14,9 @@
  *   - `RN_PLUGIN_STATUS` and `RN_PLUGIN_STATUS_EN` return "CAPIE 1.7 loaded",
  *     `RN_PLUGIN_STATUS_PL` returns "CAPIE 1.7 załadowane" (Rename Anything's localisation picks
  *     the language through `$RN_PLUGIN_STATUS_EN$` / `$RN_PLUGIN_STATUS_PL$`, R5-MINOR-2);
+ *     while the editor is off (`editor_running`: `capie_editor.dll` did not report a successful
+ *     start, or the shared fault latch is set) they say "editor off, restart the game" instead,
+ *     and `CAPIE_STATUS` returns "CAPIE 1.6: editor off" (CAPIE 1.7);
  *   - the public keys of the script contract (CONTRACT.md section 8): `CAPIE_STATUS`
  *     returns "CAPIE 1.7", `CAPIE_API` the API level ("9"), `CAPIE_BUILD` the release
  *     ("1.7.0"); the SDK localisation holds their fallbacks;
@@ -32,6 +35,7 @@
 #pragma once
 #include "../../core/game_build.hpp"
 #include "../catalog/catalog_text.hpp"
+#include "../../engine/game_calls.hpp"
 #include "capability.hpp"
 #include "country_protocol.hpp"
 
@@ -82,6 +86,33 @@ static_assert(std::string_view(public_status_text).ends_with(core::capie_version
 
 /// @brief `true` after a successful initialization; read by every hook.
 inline std::atomic<bool> active = false;
+
+/// @brief Exit code of the editor DLL's `RNInitialize` (`RNEditorReport`), `editor_unreported` before it.
+inline std::atomic<std::uint32_t> editor_state{editor_unreported};
+
+/// @brief English status text while the editor is off.
+inline constexpr char status_off_en[] = "CAPIE 1.6: editor off, restart the game";
+/// @brief Polish status text while the editor is off, UTF-8 ("wyłączony, uruchom grę ponownie").
+inline constexpr char status_off_pl[] =
+    "CAPIE 1.6: edytor wy\xC5\x82\xC4\x85"
+    "czony, uruchom gr\xC4\x99 ponownie";
+/// @brief Text of `CAPIE_STATUS` while the editor is off.
+inline constexpr char public_status_off_text[] = "CAPIE 1.6: editor off";
+static_assert(std::string_view(status_off_en).starts_with(public_status_off_text) &&
+                  std::string_view(status_off_pl).starts_with(public_status_text) &&
+                  std::string_view(public_status_off_text).starts_with(public_status_text),
+              "the editor-off texts name the same version");
+
+/**
+ * @brief Whether the editor DLL is running: it reported a successful start and no game call faulted.
+ *
+ * The fault latch read here is this DLL's own, which the editor adopts (`engine::share_game_call_latch`),
+ * so a fault in either DLL turns the status to "editor off". Two atomic loads; only status keys ask.
+ * @return `false` before the editor reported, after a failed start, or after a fault.
+ */
+inline bool editor_running() noexcept {
+    return editor_state.load(std::memory_order_acquire) == 0 && engine::game_calls_allowed();
+}
 
 /// @brief Transparent hash so the cache can be searched with a `string_view` (no allocation).
 struct KeyHash {
@@ -138,13 +169,13 @@ inline bool may_claim_z(const char* key) noexcept {
  */
 inline const char* status_text(std::string_view key) noexcept {
     if (key == status_key || key == status_key_en) {
-        return status_text_en;
+        return editor_running() ? status_text_en : status_off_en;
     }
     if (key == status_key_pl) {
-        return status_text_pl;
+        return editor_running() ? status_text_pl : status_off_pl;
     }
     if (key == public_status_key) {
-        return public_status_text;
+        return editor_running() ? public_status_text : public_status_off_text;
     }
     if (key == public_api_key) {
         return core::capie_api_text;

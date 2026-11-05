@@ -13,6 +13,9 @@ int main() {
     // Inactive (failed/unstarted init): nothing is overridden.
     CHECK(override_value("RN_PLUGIN_STATUS") == nullptr && override_value("RN_PLUGIN_STATUS_PL") == nullptr);
     active.store(true);
+    // CAPIE 1.7: until capie_editor.dll reports its start the status says the editor is off.
+    CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS"), "CAPIE 1.7: editor off, restart the game") == 0);
+    RNEditorReport(0);
     CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS"), "CAPIE 1.7 loaded") == 0);
     CHECK(std::strcmp(override_value("RN_PLUGIN_STATUS_EN"), "CAPIE 1.7 loaded") == 0);
     // UTF-8 bytes of "załadowane": l-stroke = C5 82.

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract, encoder via public_names_test the country and faction name layers, the flag layer, the host probe, the leader portrait layer, the country colour layer, the game-call fault latch, the CAPIE-stopped sentinel, the fault log and the Tick hot path (256 mutants).
+    Mutation check of the CAPIE caption core, focus release, editor bridge, bounded reader and public contract, encoder via public_names_test the country and faction name layers, the flag layer, the host probe, the leader portrait layer, the country colour layer, the game-call fault latch, the CAPIE-stopped sentinel, the fault log, the editor-off status and the Tick hot path (261 mutants).
 
 .DESCRIPTION
     Reads tests/mutants.json: each mutant is one exact, unique textual replacement in one

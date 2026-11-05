@@ -263,6 +263,13 @@ fallback, which is what players see without CAPIE.
 | `CAPIE_API` | `9` (`8`, `7`, `6`, `5`, `4`, `2`) | `0` |
 | `CAPIE_BUILD` | `1.7.0` (`1.6.0`, `1.5.1`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`) | `-` |
 
+Since CAPIE 1.7, `CAPIE_STATUS` answers `CAPIE 1.x: editor off` while `capie_editor.dll` is not
+running: it has not reported a successful start to `capie_core.dll` (not loaded, or its
+initialization failed), or a call into the game faulted and CAPIE stopped calling the game
+(section 5.2, sentinel `-4`). Rename Anything's private status keys (`RN_PLUGIN_STATUS`, `_EN`)
+then answer `CAPIE 1.x: editor off, restart the game`, `_PL` the Polish text. Every text still
+starts with `CAPIE 1.x`; `CAPIE_API` and `CAPIE_BUILD` do not change.
+
 They are text only. A trigger cannot read them, so they decide what is shown, never what runs.
 Nest them in your own keys (`MYMOD_CAPIE_LINE: "$CAPIE_STATUS$"`). Whether the main menu draws
 text through the hooked lookups is OPEN (architecture note Q10).

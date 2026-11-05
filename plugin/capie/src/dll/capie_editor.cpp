@@ -638,6 +638,48 @@ InitCode initialize() {
     return InitCode::ok;
 }
 
+/**
+ * @brief Tells `capie_core.dll` how the editor's start ended (`RNEditorReport`), for the status keys.
+ *
+ * Without the core (or its export, an older core) nothing happens. The core is pinned by
+ * `core_game_call_latch` once the editor got that far; here the module is looked up afresh.
+ * @param code Exit code of `RNInitialize`; 0 = running.
+ */
+void report_to_core(DWORD code) noexcept {
+    using Report = void(WINAPI*)(DWORD);
+    HMODULE module = GetModuleHandleW(core::core_dll_name);
+    if (module == nullptr) {
+        return;
+    }
+    const auto report = reinterpret_cast<Report>(GetProcAddress(module, country::editor_report_export));
+    if (report == nullptr) {
+        return;
+    }
+    __try {
+        report(code);
+    } __except (core::memory_exception(GetExceptionCode())) {
+        return;
+    }
+}
+
+/**
+ * @brief Logs a failed start (the log is open for every code after the co-load check) and reports it.
+ * @param code `RNInitialize` exit code.
+ * @return `code`.
+ */
+DWORD finish_initialization(DWORD code) noexcept {
+    if (code != 0) {
+        char line[core::logging::suffix_capacity]{};
+        const int count = std::snprintf(line, sizeof(line),
+                                        "RN_LIFECYCLE initialization failed code=%lu; editor off until the game "
+                                        "restarts\r\n",
+                                        code);
+        write_log(line, core::logging::stored_bytes(count, sizeof(line)));
+    }
+    report_to_core(code);
+    return code;
+}
+
 }  // namespace
 }  // namespace capie::editor
 
@@ -692,11 +734,13 @@ extern "C" __declspec(dllexport) DWORD WINAPI RNInitialize(void* unused) {
     if (!capie::editor::init_state.compare_exchange_strong(expected, 1)) {
         return capie::editor::active.load() ? to_exit_code(InitCode::ok) : to_exit_code(InitCode::retry_refused);
     }
+    DWORD code = to_exit_code(InitCode::unexpected_exception);
     try {
-        return to_exit_code(capie::editor::initialize());
+        code = to_exit_code(capie::editor::initialize());
     } catch (...) {
-        return to_exit_code(InitCode::unexpected_exception);
+        code = to_exit_code(InitCode::unexpected_exception);
     }
+    return capie::editor::finish_initialization(code);
 }
 
 /**
