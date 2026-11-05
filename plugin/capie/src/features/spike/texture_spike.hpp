@@ -384,6 +384,24 @@ inline void next_flag(std::array<char, max_path>& out) noexcept {
 }
 
 /**
+ * @brief Re-points a sprite to the next flag of the cycle that loads in this mod set.
+ * @param name Sprite name.
+ * @param out Receives the path that was shown (or the last one tried).
+ * @return `true` when a flag was shown; flags missing in this mod set are skipped (at most one
+ *         pass over the list), so a wrong list choice cannot stall the cycle.
+ */
+inline bool repoint_next(const char* name, std::array<char, max_path>& out) noexcept {
+    const std::size_t tries = state.krx ? krx_flags.size() : vanilla_flags.size();
+    for (std::size_t i = 0; i < tries && state.ok; ++i) {
+        next_flag(out);
+        if (repoint(name, out.data())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * @brief Forwards an S2 flip with its records (the frame substitution of the grammar editors).
  * @param context Window context.
  * @param selector Selector string.
@@ -435,8 +453,7 @@ inline void flip(void* context, const MsvcString* selector) {
     remember_placeholder(2, sprite_s2[1]);
     const int hidden = 1 - state.shown_set;
     std::array<char, max_path> path{};
-    next_flag(path);
-    if (!repoint(sprite_s2[static_cast<std::size_t>(hidden)], path.data())) {
+    if (!repoint_next(sprite_s2[static_cast<std::size_t>(hidden)], path)) {
         note("CAPIE_SPIKE flip n=%d skipped (set %d not re-pointed); click forwarded unchanged", state.flips + 1,
              hidden);
         editor::original_dispatch(context, const_cast<MsvcString*>(selector));
@@ -481,8 +498,8 @@ inline bool dispatch(void* context, void* opaque_selector) {
     if (engine::name_equals(selector, select_s1)) {
         remember_placeholder(0, sprite_s1);
         std::array<char, max_path> path{};
-        next_flag(path);
-        note("CAPIE_SPIKE s1 click path=%s ok=%d", path.data(), repoint(sprite_s1, path.data()) ? 1 : 0);
+        const bool shown = repoint_next(sprite_s1, path);
+        note("CAPIE_SPIKE s1 click path=%s ok=%d", path.data(), shown ? 1 : 0);
     } else if (engine::name_equals(selector, select_s2)) {
         flip(context, selector);
         return true;
