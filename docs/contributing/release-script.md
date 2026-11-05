@@ -62,9 +62,10 @@ identity of `game_build.hpp` (see below), and writes:
 
 | File | Content |
 | --- | --- |
-| `CAPIE-<version>-win64.zip` | `RenameAnythingLauncher.exe`, `LICENSE.MinHook.txt`, `runtime/` (core, editor, injector), `proxy/version.dll`, `mod/capie.mod` and `mod/capie/` |
-| `release-manifest.json`, `.sig` | from `sign-release-manifest.ps1 -MakeManifest` and `-Sign`, then checked again: every file hash, the ZIP hash, the supported game hash, the signature |
-| `SHA256SUMS.txt` | checksums of the ZIP, manifest and signature |
+| `CAPIE-<version>-win64.zip` | `RenameAnythingLauncher.exe`, `LICENSE.MinHook.txt`, `runtime/` (core, editor, injector), `mod/capie.mod` and `mod/capie/` |
+| `CAPIE-<version>-proxy-win64.zip` | only `proxy/version.dll` (`asset = "proxy"` in `release.toml`, when the proxy was built); listed in the manifest's `proxy` field and downloaded only for `-LoadMethod Proxy`, so an antivirus false positive on the proxy cannot block the default install |
+| `release-manifest.json`, `.sig` | from `sign-release-manifest.ps1 -MakeManifest` (with `-ProxyZipPath`) and `-Sign`, then checked again: every file hash, both ZIP hashes, the supported game hash, the signature |
+| `SHA256SUMS.txt` | checksums of the ZIP, the proxy ZIP, manifest and signature |
 | `build-info.json` | version, commit, file hashes (not uploaded) |
 | `installer-pins.ps1.txt` | the `$script:RaPinnedRelease` block for the installer (not uploaded) |
 

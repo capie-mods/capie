@@ -11,6 +11,11 @@ possible. Every released binary will be scanned on VirusTotal and the results li
 release notes. Until then the current development builds were checked only with a local Windows
 Defender scan, which found no threats. The source is public and you can build it yourself.
 
+If Windows Security stopped an install or update because a CAPIE file "contains a virus or
+potentially unwanted software" (usually the optional proxy `version.dll`), see
+[The antivirus blocked a CAPIE file](install.md#antivirus). Since CAPIE 1.6.1 the default
+launcher method does not need that file at all.
+
 ## Does CAPIE change my game files?
 
 No. It never writes to the game folder. It works in memory while the game runs and is gone when

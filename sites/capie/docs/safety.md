@@ -15,7 +15,9 @@ the loading method chosen for release, adds no file to the game folder at all.
 
 The proxy alternative adds one `version.dll` to the game folder. The installer refuses an
 existing foreign `version.dll`, and uninstall removes only a file whose recorded path and
-verified release hash still match.
+verified release hash still match. Since CAPIE 1.6.1 `version.dll` is a separate release
+download (`CAPIE-x.y.z-proxy-win64.zip`, listed with its SHA-256 in the signed manifest) that
+only the proxy method fetches; the default launcher method never downloads, unpacks or reads it.
 
 Both loading methods open
 `hoi4.exe` read-only to check its hash. Runtime files and diagnostics live under
@@ -104,5 +106,11 @@ Kageyu under the BSD 2-Clause license.
 - Achievements: any mod that changes files under `common/` changes the game's checksum, and
   achievements need an unmodified checksum. That is a game rule, not a CAPIE rule.
 - Antivirus warnings: CAPIE loads itself into another process, which some malware also does, so
-  heuristic warnings are possible. The scans above and the source code are the answer.
+  heuristic warnings are possible. The scans above and the source code are the answer. Microsoft
+  Defender's cloud heuristic reports the proxy `version.dll` of CAPIE 1.6.0 as
+  `Trojan:Win32/Posilod.CA!cl`, a false positive of a machine-learning detection. That is why
+  the proxy is a separate download since CAPIE 1.6.1. When the setup meets a blocked file it stops,
+  names the file, its path and its signed SHA-256, and explains how to restore or allow that one
+  file; see [The antivirus blocked a CAPIE file](install.md#antivirus). It never asks you to turn
+  the antivirus off.
 - Multiplayer: never tested with two players. See [Multiplayer](multiplayer.md).

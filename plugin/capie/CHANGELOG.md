@@ -30,6 +30,14 @@ every mod that works with CAPIE 1.6.0 (and mods built for CAPIE 1.5) works witho
 ### Fixed
 
 - CAPIE no longer refuses to start after the 1.19.4.2 game update.
+- Updating no longer fails when an antivirus (Microsoft Defender reports
+  `Trojan:Win32/Posilod.CA!cl`, a false positive) quarantines the optional proxy `version.dll`.
+  The proxy is now a separate download, `CAPIE-1.6.1-proxy-win64.zip`, listed with its SHA-256 in
+  the signed `release-manifest.json`. Only the Proxy method fetches it, so the default Launcher
+  install and update never download, unpack or read `version.dll`. If an antivirus blocks a file
+  the setup does need, it stops with a clear message: which file, that it is a false positive,
+  its SHA-256 and release page, and how to restore or allow that one file in Windows Security >
+  Protection history, instead of a raw `Get-FileHash` error.
 
 ## [1.6.0] - 2026-11-01
 

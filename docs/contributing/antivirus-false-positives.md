@@ -12,6 +12,61 @@ its own engine ([VirusTotal: false positive contacts](https://docs.virustotal.co
 Rescan first (the "Reanalyze" button). If the detection is still there, report it to the vendor
 with the VirusTotal link.
 
+## Release 1.6.0: Microsoft Defender flags the proxy
+
+Players reported that updating to 1.6.0 failed: Defender quarantined `version.dll` while the
+installer hashed it ("Get-FileHash : The file 'version.dll' cannot be read: Operation did not
+complete successfully because the file contains a virus or potentially unwanted software").
+A local scan on 2026-11-05 (security intelligence 1.463.140.0,
+`MpCmdRun.exe -Scan -ScanType 3 -File <path> -DisableRemediation`) confirms it:
+
+| File | SHA-256 | Defender |
+|---|---|---|
+| `CAPIE-1.6.0-win64.zip` | `351923ace07df0c204226730b03c3dfd7d54022819d9d1c022aa591deb753c79` | `Trojan:Win32/Posilod.CA!cl` on `->proxy/version.dll` only |
+| `proxy/version.dll` | `d019de82a0fc7585927858299c86897b75fcbd07bfec36eacf7b23c720a4d855` | `Trojan:Win32/Posilod.CA!cl` |
+
+`!cl` marks a cloud machine-learning verdict. Real-time protection quarantines the file on the
+first read, even of a local build in `plugin/build/capie-proxy`, so restore a local build from
+Protection history (or rebuild it) before you scan or package it. The launcher, runtime DLLs,
+injector and mod files are not flagged. Since 1.6.1 the installer no longer needs `version.dll`
+for the default Launcher method, and the release ships it as `CAPIE-x.y.z-proxy-win64.zip`.
+
+Report it at <https://www.microsoft.com/en-us/wdsi/filesubmission>: sign in with a Microsoft
+account, choose **Software developer**, product **Microsoft Defender Antivirus (Windows 10/11)**,
+upload `version.dll` from the 1.6.0 ZIP (or the ZIP), answer **Incorrectly detected as
+malware/malicious**, detection name `Trojan:Win32/Posilod.CA!cl`, and paste:
+
+```text
+CAPIE (Cyprian's API Extender) is an open-source (MIT) native extension for the PC game
+Hearts of Iron IV. Microsoft Defender detects version.dll from our signed 1.6.0 release as
+Trojan:Win32/Posilod.CA!cl (cloud ML verdict, security intelligence 1.463.140.0). We believe
+this is a false positive and ask you to review it.
+
+File: proxy/version.dll inside CAPIE-1.6.0-win64.zip
+  SHA-256 d019de82a0fc7585927858299c86897b75fcbd07bfec36eacf7b23c720a4d855
+  ZIP SHA-256 351923ace07df0c204226730b03c3dfd7d54022819d9d1c022aa591deb753c79
+Release: https://github.com/capie-mods/capie/releases/tag/v1.6.0
+Source:  https://github.com/capie-mods/capie (plugin/capie/src/proxy)
+
+What the file does: it is an optional "version.dll proxy" that the user installs on purpose
+into the game folder next to hoi4.exe, with our installer and only when they choose the
+Proxy loading method. It forwards every export of the system version.dll to the real
+C:\Windows\System32\version.dll and, only when the game is started with the -capie argument
+(or the user created an explicit activation file), loads the CAPIE runtime DLLs from
+%LOCALAPPDATA%\RenameAnything\current\runtime after checking their SHA-256 against hashes
+compiled into the proxy. It does not use the network, does not persist anywhere else, does
+not elevate privileges and does not touch any other process. Every release file is listed
+with its SHA-256 in a release manifest signed with the project's RSA key; the installer
+verifies the signature and every hash before installing anything.
+
+Players are affected: Defender quarantines the file while our installer verifies it, so
+updates fail. Please remove the detection for this file. I can provide further builds or
+answer questions.
+```
+
+Add the submission ID and the answer here when it comes back. Submit the 1.6.1 proxy too if
+Defender flags it.
+
 ## Release 1.5.0: status
 
 Files from <https://github.com/capie-mods/capie/releases/tag/v1.5.0>. Tick a box when the report

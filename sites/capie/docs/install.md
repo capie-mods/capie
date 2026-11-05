@@ -183,8 +183,8 @@ Work through these in order and test after each one:
    `descriptor.mod`.
 6. Check your antivirus. Some antivirus programs block or quarantine CAPIE, because it loads
    code into the game. Look in the antivirus history for `RenameAnythingLauncher.exe`,
-   `capie_core.dll`, `capie_editor.dll` or `capie_injector.exe`. Restore them, add
-   `%LOCALAPPDATA%\RenameAnything` as an exception, and run the setup again.
+   `capie_core.dll`, `capie_editor.dll` or `capie_injector.exe`, and restore or allow them as
+   described in [The antivirus blocked a CAPIE file](#antivirus). Then run the setup again.
 7. If none of this helps, use the [proxy method](#proxy).
 
 ### The setup does not offer to change the launch options
@@ -217,6 +217,37 @@ first and restores it if the result differs from what it expected:
   Open Windows PowerShell as in step 2.
 - A failed signature or hash check means the download was incomplete or changed. Delete the
   files, download them again, and do not mix files from different releases.
+- "Get-FileHash : The file 'version.dll' cannot be read: ... contains a virus or potentially
+  unwanted software" came from the setup of CAPIE 1.6.0 and older. See the next section.
+
+### The antivirus blocked a CAPIE file { #antivirus }
+
+Some antivirus programs, Microsoft Defender among them, report the optional proxy `version.dll`
+as a threat (Defender calls it `Trojan:Win32/Posilod.CA!cl`). This is a false positive: the file
+loads CAPIE into the game, and loading code into another program is something malware does too.
+Windows then says that a file "contains a virus or potentially unwanted software", or that the
+`RenameAnything` folder contained a potentially unwanted file, and the update stops.
+
+Since CAPIE 1.6.1 the default launcher method no longer needs `version.dll`. It is a separate
+download (`CAPIE-x.y.z-proxy-win64.zip`) that only the [proxy method](#proxy) fetches, so a
+normal install or update never touches it. If an older setup stopped on `version.dll`, run the
+newest setup (Step 2, way A); it downloads the newest setup script from the release page.
+
+If the setup still reports a blocked file, it names the file, its folder and its SHA-256. To
+continue:
+
+1. Open **Windows Security**, **Virus & threat protection**, **Protection history**.
+2. Select the entry for that file. Check that its path is the one the setup named, under
+   `%LOCALAPPDATA%\RenameAnything` or, for the proxy, the game folder.
+3. Choose **Actions**, then **Restore** for a quarantined file, or **Allow on device** for a
+   blocked one. With another antivirus, restore the file from its quarantine, or add that one
+   file as an exception.
+4. Run the setup again and choose **Install or update**.
+
+You can check a restored file first: in PowerShell, `Get-FileHash "<path of the file>"` must
+show the same SHA-256 as `release-manifest.json` and `SHA256SUMS.txt` on the
+[release page](https://github.com/capie-mods/capie/releases/latest). Please do not turn your
+antivirus off; allowing that one file is enough.
 
 ### Wrong game version { #wrong-version }
 
@@ -235,7 +266,9 @@ With the activation below it needs no Steam launch option, and CAPIE loads in ev
 start while it is installed.
 
 1. Run the setup once more and choose **Uninstall**, so the two methods do not overlap.
-2. Download the release files as in way B and run, in that folder:
+2. Download the release files as in way B, plus `CAPIE-x.y.z-proxy-win64.zip` from the same
+   release (since CAPIE 1.6.1 the proxy is a separate download; without the file the setup
+   downloads it itself). Then run, in that folder:
 
     ```powershell
     powershell -ExecutionPolicy Bypass -File .\install.ps1 -Install -PackagePath .\CAPIE-1.5.0-win64.zip -LoadMethod Proxy -ProxyActivation Config
@@ -246,7 +279,8 @@ start while it is installed.
 
 If the setup cannot write to the game folder, run PowerShell as administrator for this step.
 The setup never replaces a `version.dll` it did not install. If another mod or tool already
-has one there, this method cannot be used.
+has one there, this method cannot be used. Antivirus programs flag `version.dll` more often
+than the launcher; if yours does, see [The antivirus blocked a CAPIE file](#antivirus).
 
 To switch it off, delete `%LOCALAPPDATA%\RenameAnything\proxy.enabled`, or uninstall.
 
@@ -278,7 +312,8 @@ and choose **Install or update**. The setup accepts a release only when its mani
 the signature of the key built into the script, its tag matches the manifest, and every file
 matches the SHA-256 in the manifest. If you already have the newest version, it repairs the
 installation instead. Steam points at the `current` folder link, so an update does not change
-the launch options again.
+the launch options again. If your antivirus stops an update, see
+[The antivirus blocked a CAPIE file](#antivirus).
 
 With the downloaded script from way B:
 
