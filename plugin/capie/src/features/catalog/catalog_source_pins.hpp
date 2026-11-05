@@ -36,24 +36,24 @@ inline constexpr core::InstructionPin source_instruction_pins[] = {
     {"files.depth", 0x146823, "44897c2420"},               // mov [rsp+20],r15d: fifth argument
     {"files.count", 0x14683D, "486344243c"},               // movsxd rax,[rsp+3C]: array +0xC = count
     {"files.stride", 0x146845, "49c1e606"},                // shl r14,6: 0x40-byte entries
-    {"files.clears", 0x2560AF5, "44896e0c"},               // mov [rsi+C],r13d: count reset
-    {"map.thunk", 0x22A0ED0, "4881c100010000"},            // add rcx,100: the map inside the database
-    {"map.bucket_count", 0xA88D5A, "f77304"},              // div dword [rbx+4]
-    {"map.buckets", 0xA88D5D, "488b5b08488b1cd3"},         // mov rbx,[rbx+8]; mov rbx,[rbx+rdx*8]
-    {"map.node_object", 0xA88D80, "488b33"},               // mov rsi,[rbx]
-    {"map.sprite_name", 0xA88D86, "488d4e10"},             // lea rcx,[rsi+10]
-    {"map.node_next", 0xA88DB4, "488b5b08"},               // mov rbx,[rbx+8]
-    {"scope.country_read", 0xBDF353, "488d97c8030000"},    // lea rdx,[rdi+3C8]: context scope +0x8
-    {"scope.country_write", 0x58191A, "8b07894308"},       // mov eax,[rdi]; mov [rbx+8],eax
-    {"tag.text_array", 0xC081BA, "48630348c1e00548038158030000"},  // movsxd; shl 5; add rax,[rcx+358]
+    {"files.clears", 0x2560C35, "44896e0c"},               // mov [rsi+C],r13d: count reset
+    {"map.thunk", 0x22A0F40, "4881c100010000"},            // add rcx,100: the map inside the database
+    {"map.bucket_count", 0xA88DCA, "f77304"},              // div dword [rbx+4]
+    {"map.buckets", 0xA88DCD, "488b5b08488b1cd3"},         // mov rbx,[rbx+8]; mov rbx,[rbx+rdx*8]
+    {"map.node_object", 0xA88DF0, "488b33"},               // mov rsi,[rbx]
+    {"map.sprite_name", 0xA88DF6, "488d4e10"},             // lea rcx,[rsi+10]
+    {"map.node_next", 0xA88E24, "488b5b08"},               // mov rbx,[rbx+8]
+    {"scope.country_read", 0xBDF3C3, "488d97c8030000"},    // lea rdx,[rdi+3C8]: context scope +0x8
+    {"scope.country_write", 0x58198A, "8b07894308"},       // mov eax,[rdi]; mov [rbx+8],eax
+    {"tag.text_array", 0xC0822A, "48630348c1e00548038158030000"},  // movsxd; shl 5; add rax,[rcx+358]
 };
 
 /// @brief Call and global targets.
 inline constexpr core::RipPin source_target_pins[] = {
     {"files.allocator", 0x146804, 0x146808, core::rva::gui_structural},
     {"files.calls_get_files", 0x146834, 0x146838, core::rva::vfs_get_files},
-    {"map.thunk_jumps", 0x22A0ED8, 0x22A0EDC, core::rva::sprite_map_find},
-    {"scope.calls_set_country", 0xBDF365, 0xBDF369, core::rva::scope_set_country},
+    {"map.thunk_jumps", 0x22A0F48, 0x22A0F4C, core::rva::sprite_map_find},
+    {"scope.calls_set_country", 0xBDF3D5, 0xBDF3D9, core::rva::scope_set_country},
 };
 
 /// @brief Expected count.

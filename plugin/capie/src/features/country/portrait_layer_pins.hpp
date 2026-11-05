@@ -95,20 +95,20 @@ inline constexpr core::Signature path_signatures[] = {
 
 /// @brief The builder makes kind 1 through MakeIconEntry, which loads the texture and stores the handle.
 inline constexpr core::InstructionPin path_instruction_pins[] = {
-    {"path.kind_one", 0x143945D, "ba01000000"},           // mov edx,1: kind 1
-    {"icon.stores_kind", 0x1438AE9, "895104"},            // mov [rcx+4],edx
-    {"icon.kind_is_path", 0x1438B21, "83fa01"},           // cmp edx,1: only kind 1 loads
-    {"icon.texmgr", 0x1438B66, "488b9870010000"},         // mov rbx,[rax+170]: sprite db texture manager
-    {"icon.stores_handle", 0x1438B8B, "49894628"},        // mov [r14+28],rax: texture handle
-    {"valid.kind_path", 0x1439212, "83f801"},             // cmp eax,1
-    {"valid.handle", 0x1439217, "4883792800"},            // cmp qword [rcx+28],0: kind 1 valid iff handle
+    {"path.kind_one", 0x14394CD, "ba01000000"},           // mov edx,1: kind 1
+    {"icon.stores_kind", 0x1438B59, "895104"},            // mov [rcx+4],edx
+    {"icon.kind_is_path", 0x1438B91, "83fa01"},           // cmp edx,1: only kind 1 loads
+    {"icon.texmgr", 0x1438BD6, "488b9870010000"},         // mov rbx,[rax+170]: sprite db texture manager
+    {"icon.stores_handle", 0x1438BFB, "49894628"},        // mov [r14+28],rax: texture handle
+    {"valid.kind_path", 0x1439282, "83f801"},             // cmp eax,1
+    {"valid.handle", 0x1439287, "4883792800"},            // cmp qword [rcx+28],0: kind 1 valid iff handle
 };
 
 /// @brief Call targets of the path support.
 inline constexpr core::RipPin path_target_pins[] = {
-    {"path.calls_make_icon", 0x1439466, 0x143946A, core::rva::make_icon_entry},
-    {"icon.calls_add_texture", 0x1438B7D, 0x1438B81, core::rva::texture_add},
-    {"icon.calls_get_texture", 0x1438B87, 0x1438B8B, core::rva::texture_get},
+    {"path.calls_make_icon", 0x14394D6, 0x14394DA, core::rva::make_icon_entry},
+    {"icon.calls_add_texture", 0x1438BED, 0x1438BF1, core::rva::texture_add},
+    {"icon.calls_get_texture", 0x1438BF7, 0x1438BFB, core::rva::texture_get},
 };
 
 /// @brief Expected path signatures.

@@ -18,7 +18,7 @@ Run the whole session twice: once on **vanilla**, once with **KaiserreduX** (Wor
 
 ## Before you start
 
-- Game: HOI4 **1.19.4.1** (`hoi4.exe` SHA-256 `CF781ED1…10476F`). On any other build the injector refuses.
+- Game: HOI4 **1.19.4.2** (`hoi4.exe` SHA-256 `BCCC6290…7A8037`). On any other build the injector refuses.
 - Build the spike (from the repository root; it refuses any output folder but `plugin\build\capie-spike`):
   ```powershell
   pwsh -NoProfile -File plugin/capie/build.ps1 -MinHookDir C:\Users\cypko\AppData\Local\capie-deps\minhook -Spike -SkipBenchmarks

@@ -1,5 +1,5 @@
 {
-  "_doc": "Old (1.19.4.1) -> new (1.19.4.2) RVA of every pinned item, by pin id. Evidence: docs/research/port-1.19.4.2.md. Keys are the 1.6.0 ids (the 1.19.4.0 names that map_1.19.4.1.json still carried for six renamed signatures are replaced by their 1.19.4.1 names). The jump-table entries rebuild.case_* follow rebuild_mode_table and were set by hand (gen_tables disassembles code, not tables).",
+  "_doc": "Old (1.19.4.1) -> new (1.19.4.2) RVA of every pinned item, by pin id. Evidence: docs/research/port-1.19.4.2.md. Keys are the 1.6.0 ids (the 1.19.4.0 names that map_1.19.4.1.json still carried for six renamed signatures are replaced by their 1.19.4.1 names). The jump-table entries rebuild.case_* follow rebuild_mode_table and were set by hand (gen_tables disassembles code, not tables). API 9 (CAPIE 1.7.0, branch api9-design rebased onto 1.6.1): the 69 pins of catalog_pins.hpp, catalog_source_pins.hpp and the portrait path pins, and 18 rva constants (tls_index unchanged), keyed by their 1.7.0 ids; every pin is old + the region shift with the same bytes (port-1.19.4.2.md, section API level 9).",
   "signatures": {
     "country.lookup_n": "0x241F170",
     "country.lookup_z": "0x241F090",
@@ -79,7 +79,11 @@
     "focus.2371D90": "0x2371E00",
     "focus.2371E10": "0x2371E80",
     "focus.2379EC0": "0x2379F30",
-    "focus.22BD4C0": "0x22BD530"
+    "focus.22BD4C0": "0x22BD530",
+    "portrait.path_entry": "0x1439440",
+    "vp.province_name": "0xEEF2E0",
+    "sprite.release": "0x248B630",
+    "files.get_files": "0x2560BE0"
   },
   "instruction_pins": {
     "atlas.cosmetic_keys": "0x12CE5C0",
@@ -176,7 +180,55 @@
     "update.mode_count": "0xFBF889",
     "define.ui_target": "0x752DC9",
     "define.map_target": "0x752E1B",
-    "rebuild.mode_bound": "0xFB8009"
+    "rebuild.mode_bound": "0xFB8009",
+    "scope.state_id": "0xBDE868",
+    "scope.set_state": "0x5829CF",
+    "state.count": "0x3E904D",
+    "state.array": "0x3E9058",
+    "state.province_count": "0xA2A1EA",
+    "state.provinces": "0xA2A1FB",
+    "province.vp_read": "0xA2A207",
+    "province.vp_write": "0xEF27B6",
+    "province.id": "0xEEEE1B",
+    "province.custom_name": "0xEEF2F8",
+    "province.custom_string": "0xEEF2FF",
+    "tls.thread_forbid": "0x1439305",
+    "string.big_threshold": "0x1438C0F",
+    "string.big_extra": "0x1438C18",
+    "string.big_check": "0x1438C27",
+    "sprite.lazy_flag": "0x22A8004",
+    "sprite.texture_id": "0x22A8010",
+    "sprite.path_length": "0x22A801D",
+    "sprite.database": "0x22A802A",
+    "sprite.texmgr": "0x22A802E",
+    "sprite.options": "0x22A8039",
+    "sprite.path": "0x22A804D",
+    "sprite.store_id": "0x22A8059",
+    "sprite.store_texture": "0x22A8069",
+    "sprite.store_size": "0x22A80B9",
+    "sprite.release_nolock": "0x248B65D",
+    "files.allocator_slot": "0x146808",
+    "files.array": "0x14682E",
+    "files.depth": "0x146823",
+    "files.count": "0x14683D",
+    "files.stride": "0x146845",
+    "files.clears": "0x2560C35",
+    "map.thunk": "0x22A0F40",
+    "map.bucket_count": "0xA88DCA",
+    "map.buckets": "0xA88DCD",
+    "map.node_object": "0xA88DF0",
+    "map.sprite_name": "0xA88DF6",
+    "map.node_next": "0xA88E24",
+    "scope.country_read": "0xBDF3C3",
+    "scope.country_write": "0x58198A",
+    "tag.text_array": "0xC0822A",
+    "path.kind_one": "0x14394CD",
+    "icon.stores_kind": "0x1438B59",
+    "icon.kind_is_path": "0x1438B91",
+    "icon.texmgr": "0x1438BD6",
+    "icon.stores_handle": "0x1438BFB",
+    "valid.kind_path": "0x1439282",
+    "valid.handle": "0x1439287"
   },
   "rip_pins": {
     "variable_get.find": [
@@ -423,6 +475,91 @@
       "0xFBA4B0",
       "0xFBA4B4",
       "0x29F5BE8"
+    ],
+    "scope.calls_set_state": [
+      "0xBDE881",
+      "0xBDE885",
+      "scope_set_state"
+    ],
+    "tls.index": [
+      "0x14392DF",
+      "0x14392E3",
+      "tls_index"
+    ],
+    "string.calls_delete": [
+      "0x1438C31",
+      "0x1438C35",
+      "game_delete"
+    ],
+    "sprite.calls_add_texture": [
+      "0x22A8055",
+      "0x22A8059",
+      "texture_add"
+    ],
+    "sprite.calls_get_texture": [
+      "0x22A8065",
+      "0x22A8069",
+      "texture_get"
+    ],
+    "sprite.calls_texture_size": [
+      "0x22A8083",
+      "0x22A8087",
+      "texture_size"
+    ],
+    "sprite.database_global": [
+      "0x14392A4",
+      "0x14392A8",
+      "sprite_database_global"
+    ],
+    "sprite.calls_find": [
+      "0x14392A9",
+      "0x14392AD",
+      "sprite_find"
+    ],
+    "sprite.set_file_releases": [
+      "0x22A789D",
+      "0x22A78A1",
+      "texture_release"
+    ],
+    "sprite.set_file_adds": [
+      "0x22A78C0",
+      "0x22A78C4",
+      "texture_add"
+    ],
+    "files.allocator": [
+      "0x146804",
+      "0x146808",
+      "gui_structural"
+    ],
+    "files.calls_get_files": [
+      "0x146834",
+      "0x146838",
+      "vfs_get_files"
+    ],
+    "map.thunk_jumps": [
+      "0x22A0F48",
+      "0x22A0F4C",
+      "sprite_map_find"
+    ],
+    "scope.calls_set_country": [
+      "0xBDF3D5",
+      "0xBDF3D9",
+      "scope_set_country"
+    ],
+    "path.calls_make_icon": [
+      "0x14394D6",
+      "0x14394DA",
+      "make_icon_entry"
+    ],
+    "icon.calls_add_texture": [
+      "0x1438BED",
+      "0x1438BF1",
+      "texture_add"
+    ],
+    "icon.calls_get_texture": [
+      "0x1438BF7",
+      "0x1438BFB",
+      "texture_get"
     ]
   },
   "rva": {
@@ -511,7 +648,25 @@
     "define_ui_color_value": "0x33E542C",
     "vt_country_colors": "0x279F560",
     "vt_color": "0x2796208",
-    "vt_country": "0x2864730"
+    "vt_country": "0x2864730",
+    "portrait_path_entry": "0x1439440",
+    "make_icon_entry": "0x1438B30",
+    "texture_add": "0x2488D10",
+    "texture_get": "0x24897B0",
+    "game_delete": "0x25A0218",
+    "texture_size": "0x24895E0",
+    "texture_release": "0x248B630",
+    "sprite_lazy_load": "0x22A7FF0",
+    "sprite_set_texture_file": "0x22A7840",
+    "vt_sprite_type": "0x2BB4260",
+    "vfs_get_files": "0x2560BE0",
+    "sprite_map_find": "0xA88DA0",
+    "scope_set_country": "0x581970",
+    "province_name": "0xEEF2E0",
+    "scope_set_state": "0x5829A0",
+    "tls_index": "0x3693A98",
+    "vt_state": "0x29B4D58",
+    "vt_province": "0x29EE358"
   },
   "off": {},
   "host": {

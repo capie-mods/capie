@@ -89,6 +89,39 @@ new file and cross-checked (scratch scripts `build_map.py`, pefile/capstone):
 - New accepted table `tools/port/accepted-1.19.4.2.json`, pinned in `check_signature_table.py`.
   Its SHA-256 is that of the CRLF working-copy file (as for 1.19.4.1, with `core.autocrlf=true`).
 
+## API level 9
+
+CAPIE 1.7.0 (branch `api9-design`, written and read on 1.19.4.1) was rebased onto 1.6.1 and its
+own pins were ported the same way: `port.py triage` on the rebased sources (231 entries; the 4 new
+signatures moved with one unique hit each, the 48 new instruction pins only matched by the
+untrusted global search of short patterns; RIP pins are not scanned), then every new pin placed at its 1.19.4.1 address plus the shift of its region
+(table above) and checked on the new file. All 69 have the same bytes there, and every RIP/rel32
+pin decodes to the located new value of its named constant, so no structure offset changed.
+
+| Group | File | Pins | Shift |
+|---|---|---|---|
+| VP view (`vp.*`, `scope.*`, `state.*`, `province.*`, `tls.*`, `string.*`) | `catalog_pins.hpp` | 1 + 15 + 3 | +0x70 (`MakeIconEntry` inline release, `ProvinceName`, the GUI updater, the state readers), +0x140 (`game_delete`) |
+| Slot sprites (`sprite.*`) | `catalog_pins.hpp` | 1 + 11 + 7 | +0x70 (lazy loader `22A7FF0`, `SetTextureFile` `22A7840`), +0x140 (`ReleaseTexture` `248B630`) |
+| Catalog sources (`files.*`, `map.*`, `scope.*`, `tag.*`) | `catalog_source_pins.hpp` | 1 + 15 + 4 | 0 (the `GetFiles` caller at `1467xx`), +0x70 (sprite map, scope setter, tag text), +0x140 (`GetFiles` `2560BE0`) |
+| Portrait format 2 (`portrait.path_entry`, `path.*`, `icon.*`, `valid.*`) | `portrait_layer_pins.hpp` | 1 + 7 + 3 | +0x70 (`PathPortraitEntry` `1439440`, `MakeIconEntry` `1438B30`) |
+
+- 18 new `rva::` constants, all from `port.py locate` (136 anchors, all unique): 17 moved
+  (`texture_add` `2488D10`, `texture_get` `24897B0`, `texture_size` `24895E0`, `texture_release`
+  `248B630`, `game_delete` `25A0218`, `vfs_get_files` `2560BE0`, …), `tls_index` `3693A98`
+  unchanged (`.data`). The three new RTTI vtables: `CState` `29B4D58` (+0x20), `CProvince`
+  `29EE358` (+0x110), `CSpriteType` `2BB4260` (+0xE40); `rtti_exe_test` checks the class names.
+- No new signature id names an address, so none was renamed. The old → new values are in
+  `map_1.19.4.2.json` under their 1.7.0 ids; `generate`/`apply` ran on that subset only, so the
+  1.6.1 patterns stay byte for byte. `sprite.release_nolock` keeps its trailing `e8` (call opcode)
+  that `gen_tables.py` would drop.
+- `catalog_source_pins.hpp` and the portrait path signature write a pattern as several literals on
+  one line; `port_scan.py` and `apply.py` joined only literals split over lines, so the scan saw
+  10 of 49 bytes and `apply` would have replaced only the first literal. Both now join any
+  whitespace between literals (`tools/port/check_literal_join.py`, run by `build.ps1`). The two
+  patterns kept their literal layout (bytes unchanged).
+- Not pinned, not checked on the new file: `off::texmgr_live` (`+0x38`, a diagnostic counter of the
+  spike log only).
+
 ## Multiple builds
 
 Not supported by the DLL: `game_build.hpp` holds one `game_exe_sha256` ("the only accepted
@@ -99,5 +132,7 @@ therefore supports 1.19.4.2 only; Steam updates the game automatically.
 
 - In-game test on 1.19.4.2 (text fields, name, flag, portrait, colour, faction, caption refresh,
   focus release, console off); the offline and `*_exe_test` checks pass.
+- API level 9 on 1.19.4.2: the spikes S1/S2 (`docs/contributing/test-session-api9-spikes.md`),
+  the VP view and portrait format 2 in game.
 - Release pipeline: reviewed binary hashes, installer pins and Workshop texts are written at
   release time and were not changed here.

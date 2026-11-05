@@ -117,43 +117,43 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0xEEF270 + 5, "vp.province_name", true);
-    flip(0xBDE7F8 + 2, "scope.state_id", true);          // +0x468
-    flip(0x58295F + 2, "scope.set_state", true);         // +0xA8
-    flip(0x3E8FDD + 2, "state.count", true);             // +0x2D4
-    flip(0x3E8FE8 + 3, "state.array", true);             // +0x2C8
-    flip(0xA2A17A + 2, "state.province_count", true);    // +0x24
-    flip(0xA2A18B + 3, "state.provinces", true);         // +0x18
-    flip(0xA2A197 + 3, "province.vp_read", true);        // +0x38
-    flip(0xEF2746 + 2, "province.vp_write", true);       // +0x38
-    flip(0xEEEDAB + 2, "province.id", true);             // +0xA4
-    flip(0xEEF288 + 3, "province.custom_name", true);    // +0x50
-    flip(0xEEF28F + 3, "province.custom_string", true);  // +0x40
-    flip(0x1439295 + 1, "tls.thread_forbid", true);      // +0x10
-    flip(0x1438B9F + 3, "string.big_threshold", true);
-    flip(0x1438BA8 + 3, "string.big_extra", true);
-    flip(0x1438BB7 + 3, "string.big_check", true);
-    flip(0xBDE811, "scope.calls_set_state", true);
-    flip(0x143926F, "tls.index", true);
-    flip(0x1438BC1, "string.calls_delete", true);
-    flip(0x248B4F0 + 5, "sprite.release", false);
-    flip(0x22A7F94 + 2, "sprite.lazy_flag", false);      // +0x1D3
-    flip(0x22A7FA0 + 2, "sprite.texture_id", false);     // +0x1A0
-    flip(0x22A7FBA + 3, "sprite.database", false);       // +0x48
-    flip(0x22A7FBE + 3, "sprite.texmgr", false);         // +0x170
-    flip(0x22A7FC9 + 4, "sprite.options", false);
-    flip(0x22A7FDD + 3, "sprite.path", false);           // +0x70
-    flip(0x22A7FE9 + 2, "sprite.store_id", false);
-    flip(0x22A7FF9 + 3, "sprite.store_texture", false);
-    flip(0x22A8049 + 3, "sprite.store_size", false);     // +0xA4
-    flip(0x248B51D + 1, "sprite.release_nolock", false);
-    flip(0x22A7FE5, "sprite.calls_add_texture", false);
-    flip(0x22A7FF5, "sprite.calls_get_texture", false);
-    flip(0x22A8013, "sprite.calls_texture_size", false);
-    flip(0x1439234, "sprite.database_global", false);
-    flip(0x1439239, "sprite.calls_find", false);
-    flip(0x22A782D, "sprite.set_file_releases", false);
-    flip(0x22A7850, "sprite.set_file_adds", false);
+    flip(0xEEF2E0 + 5, "vp.province_name", true);
+    flip(0xBDE868 + 2, "scope.state_id", true);          // +0x468
+    flip(0x5829CF + 2, "scope.set_state", true);         // +0xA8
+    flip(0x3E904D + 2, "state.count", true);             // +0x2D4
+    flip(0x3E9058 + 3, "state.array", true);             // +0x2C8
+    flip(0xA2A1EA + 2, "state.province_count", true);    // +0x24
+    flip(0xA2A1FB + 3, "state.provinces", true);         // +0x18
+    flip(0xA2A207 + 3, "province.vp_read", true);        // +0x38
+    flip(0xEF27B6 + 2, "province.vp_write", true);       // +0x38
+    flip(0xEEEE1B + 2, "province.id", true);             // +0xA4
+    flip(0xEEF2F8 + 3, "province.custom_name", true);    // +0x50
+    flip(0xEEF2FF + 3, "province.custom_string", true);  // +0x40
+    flip(0x1439305 + 1, "tls.thread_forbid", true);      // +0x10
+    flip(0x1438C0F + 3, "string.big_threshold", true);
+    flip(0x1438C18 + 3, "string.big_extra", true);
+    flip(0x1438C27 + 3, "string.big_check", true);
+    flip(0xBDE881, "scope.calls_set_state", true);
+    flip(0x14392DF, "tls.index", true);
+    flip(0x1438C31, "string.calls_delete", true);
+    flip(0x248B630 + 5, "sprite.release", false);
+    flip(0x22A8004 + 2, "sprite.lazy_flag", false);      // +0x1D3
+    flip(0x22A8010 + 2, "sprite.texture_id", false);     // +0x1A0
+    flip(0x22A802A + 3, "sprite.database", false);       // +0x48
+    flip(0x22A802E + 3, "sprite.texmgr", false);         // +0x170
+    flip(0x22A8039 + 4, "sprite.options", false);
+    flip(0x22A804D + 3, "sprite.path", false);           // +0x70
+    flip(0x22A8059 + 2, "sprite.store_id", false);
+    flip(0x22A8069 + 3, "sprite.store_texture", false);
+    flip(0x22A80B9 + 3, "sprite.store_size", false);     // +0xA4
+    flip(0x248B65D + 1, "sprite.release_nolock", false);
+    flip(0x22A8055, "sprite.calls_add_texture", false);
+    flip(0x22A8065, "sprite.calls_get_texture", false);
+    flip(0x22A8083, "sprite.calls_texture_size", false);
+    flip(0x14392A4, "sprite.database_global", false);
+    flip(0x14392A9, "sprite.calls_find", false);
+    flip(0x22A789D, "sprite.set_file_releases", false);
+    flip(0x22A78C0, "sprite.set_file_adds", false);
     failed = pins::first_failed_source_pin(text);
     check(failed == nullptr, std::string("all source pins pass; first failure: ") + (failed ? failed : "none"));
     const auto flip_source = [&](std::size_t rva, const char* expected) {
@@ -163,26 +163,26 @@ void exe_tests(const char* path) {
               std::string("corrupt source byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip_source(0x2560AA0 + 5, "files.get_files");
+    flip_source(0x2560BE0 + 5, "files.get_files");
     flip_source(0x146808 + 4, "files.allocator_slot");   // +0x10 of the array
     flip_source(0x14682E + 4, "files.array");
     flip_source(0x146823 + 4, "files.depth");
     flip_source(0x14683D + 4, "files.count");            // +0xC
     flip_source(0x146845 + 3, "files.stride");           // 0x40
-    flip_source(0x2560AF5 + 3, "files.clears");
-    flip_source(0x22A0ED0 + 4, "map.thunk");             // +0x100
-    flip_source(0xA88D5A + 2, "map.bucket_count");       // +0x4
-    flip_source(0xA88D5D + 3, "map.buckets");            // +0x8
-    flip_source(0xA88D80 + 2, "map.node_object");
-    flip_source(0xA88D86 + 3, "map.sprite_name");        // +0x10
-    flip_source(0xA88DB4 + 3, "map.node_next");          // +0x8
-    flip_source(0xBDF353 + 3, "scope.country_read");     // +0x3C8
-    flip_source(0x58191A + 4, "scope.country_write");    // +0x8
-    flip_source(0xC081BA + 10, "tag.text_array");        // +0x358
+    flip_source(0x2560C35 + 3, "files.clears");
+    flip_source(0x22A0F40 + 4, "map.thunk");             // +0x100
+    flip_source(0xA88DCA + 2, "map.bucket_count");       // +0x4
+    flip_source(0xA88DCD + 3, "map.buckets");            // +0x8
+    flip_source(0xA88DF0 + 2, "map.node_object");
+    flip_source(0xA88DF6 + 3, "map.sprite_name");        // +0x10
+    flip_source(0xA88E24 + 3, "map.node_next");          // +0x8
+    flip_source(0xBDF3C3 + 3, "scope.country_read");     // +0x3C8
+    flip_source(0x58198A + 4, "scope.country_write");    // +0x8
+    flip_source(0xC0822A + 10, "tag.text_array");        // +0x358
     flip_source(0x146804, "files.allocator");
     flip_source(0x146834, "files.calls_get_files");
-    flip_source(0x22A0ED8, "map.thunk_jumps");
-    flip_source(0xBDF365, "scope.calls_set_country");
+    flip_source(0x22A0F48, "map.thunk_jumps");
+    flip_source(0xBDF3D5, "scope.calls_set_country");
     check(pins::first_failed_vp_pin(text) == nullptr && pins::first_failed_sprite_pin(text) == nullptr &&
           pins::first_failed_source_pin(text) == nullptr,
           "restored image passes again");

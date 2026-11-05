@@ -76,45 +76,45 @@ inline constexpr std::uintptr_t role_character_getter = 0x2C1480;
 inline constexpr std::uintptr_t leader_portrait_write = 0x143B1D0;
 /// @brief `entry* PathPortraitEntry(entry* out, const string* path, bool warn, bool flag)`: always kind 1,
 /// loads the texture at once; called by the portrait layer for format 2 paths (logic thread).
-inline constexpr std::uintptr_t portrait_path_entry = 0x14393D0;
+inline constexpr std::uintptr_t portrait_path_entry = 0x1439440;
 /// @brief `entry* MakeIconEntry(entry* out, int kind, string&& name, bool flag)`: the texture load of a
 /// kind-1 entry; pinned (the builder's tail call), never called.
-inline constexpr std::uintptr_t make_icon_entry = 0x1438AC0;
+inline constexpr std::uintptr_t make_icon_entry = 0x1438B30;
 /// @brief `int AddTexture(texmgr*, const string* path, const options*, bool load_now)`; pinned, never called.
-inline constexpr std::uintptr_t texture_add = 0x2488BD0;
+inline constexpr std::uintptr_t texture_add = 0x2488D10;
 /// @brief `texture* GetTexture(texmgr*, int id)`; pinned, never called.
-inline constexpr std::uintptr_t texture_get = 0x2489670;
+inline constexpr std::uintptr_t texture_get = 0x24897B0;
 /// @brief `void operator delete(void*, size_t)` of the game's CRT (jump thunk); called to free game strings.
-inline constexpr std::uintptr_t game_delete = 0x25A00D8;
+inline constexpr std::uintptr_t game_delete = 0x25A0218;
 /// @brief `int* TextureSize(texmgr*, int out[2], int id)`: width and height of a texture; called (spikes).
-inline constexpr std::uintptr_t texture_size = 0x24894A0;
+inline constexpr std::uintptr_t texture_size = 0x24895E0;
 /// @brief `void ReleaseTexture(texmgr*, int id)`: takes the AddTexture mutex, drops one reference; called (spikes).
-inline constexpr std::uintptr_t texture_release = 0x248B4F0;
+inline constexpr std::uintptr_t texture_release = 0x248B630;
 /// @brief `CSpriteType` lazy texture loader (writes +0x1A0, +0x170, +0xA4); pinned, never called.
-inline constexpr std::uintptr_t sprite_lazy_load = 0x22A7F80;
+inline constexpr std::uintptr_t sprite_lazy_load = 0x22A7FF0;
 /// @brief `CSpriteType::SetTextureFile` (release, AddTexture, GetTexture, TextureSize); pinned, never called.
-inline constexpr std::uintptr_t sprite_set_texture_file = 0x22A77D0;
+inline constexpr std::uintptr_t sprite_set_texture_file = 0x22A7840;
 /// @brief `CSpriteType` vtable (RTTI-checked; a slot sprite must have it).
-inline constexpr std::uintptr_t vt_sprite_type = 0x2BB3420;
+inline constexpr std::uintptr_t vt_sprite_type = 0x2BB4260;
 /// @brief `void GetFiles(const char* dir, CArray* out, const char* ends_with, const char* contains, int depth)`:
 /// the VFS listing (honours `replace_path`); called by the flag and portrait catalogs (UI thread).
-inline constexpr std::uintptr_t vfs_get_files = 0x2560AA0;
+inline constexpr std::uintptr_t vfs_get_files = 0x2560BE0;
 /// @brief Sprite map lookup the FindSprite thunk jumps to (map at database +0x100); pinned, never called.
-inline constexpr std::uintptr_t sprite_map_find = 0xA88D30;
+inline constexpr std::uintptr_t sprite_map_find = 0xA88DA0;
 /// @brief `void ScopeSetCountry(scope*, const tag*, bool)`: writes the scope's country at +0x8; pinned.
-inline constexpr std::uintptr_t scope_set_country = 0x581900;
+inline constexpr std::uintptr_t scope_set_country = 0x581970;
 
 // ---- State/VP view (API level 9; read and called by capie_editor.dll) -------------------------
 /// @brief `string* ProvinceName(province*, string* out, bool* is_vp)`: custom name, else VP name; called.
-inline constexpr std::uintptr_t province_name = 0xEEF270;
+inline constexpr std::uintptr_t province_name = 0xEEF2E0;
 /// @brief `void ScopeSetState(scope*, int state_id, bool)`: writes the scope's state id at +0xA8; pinned.
-inline constexpr std::uintptr_t scope_set_state = 0x582930;
+inline constexpr std::uintptr_t scope_set_state = 0x5829A0;
 /// @brief The game's `_tls_index` (static TLS slot of hoi4.exe); read for `ThreadForbidCount`.
 inline constexpr std::uintptr_t tls_index = 0x3693A98;
 /// @brief `CState` primary vtable (RTTI-checked; every state the view reads must have it).
-inline constexpr std::uintptr_t vt_state = 0x29B4D38;
+inline constexpr std::uintptr_t vt_state = 0x29B4D58;
 /// @brief `CProvince` primary vtable (RTTI-checked; every province the view reads must have it).
-inline constexpr std::uintptr_t vt_province = 0x29EE248;
+inline constexpr std::uintptr_t vt_province = 0x29EE358;
 
 // ---- Country colour layer (hooked, called or read by capie_core.dll) ---------------------
 /// @brief `const CCountryColors* GetMapColors(const CCountry*)`: walks to the overlord, returns `+0x350`; hooked.

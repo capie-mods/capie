@@ -152,17 +152,17 @@ void exe_tests(const char* path) {
               std::string("corrupt path byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip_path(0x14393D0 + 5, "portrait.path_entry");
-    flip_path(0x143945D + 1, "path.kind_one");          // kind 1
-    flip_path(0x1438AE9 + 2, "icon.stores_kind");       // +0x04
-    flip_path(0x1438B21 + 2, "icon.kind_is_path");      // kind 1 loads
-    flip_path(0x1438B66 + 3, "icon.texmgr");            // +0x170
-    flip_path(0x1438B8B + 3, "icon.stores_handle");     // +0x28
-    flip_path(0x1439212 + 2, "valid.kind_path");        // kind 1
-    flip_path(0x1439217 + 3, "valid.handle");           // +0x28
-    flip_path(0x1439466, "path.calls_make_icon");
-    flip_path(0x1438B7D, "icon.calls_add_texture");
-    flip_path(0x1438B87, "icon.calls_get_texture");
+    flip_path(0x1439440 + 5, "portrait.path_entry");
+    flip_path(0x14394CD + 1, "path.kind_one");          // kind 1
+    flip_path(0x1438B59 + 2, "icon.stores_kind");       // +0x04
+    flip_path(0x1438B91 + 2, "icon.kind_is_path");      // kind 1 loads
+    flip_path(0x1438BD6 + 3, "icon.texmgr");            // +0x170
+    flip_path(0x1438BFB + 3, "icon.stores_handle");     // +0x28
+    flip_path(0x1439282 + 2, "valid.kind_path");        // kind 1
+    flip_path(0x1439287 + 3, "valid.handle");           // +0x28
+    flip_path(0x14394D6, "path.calls_make_icon");
+    flip_path(0x1438BED, "icon.calls_add_texture");
+    flip_path(0x1438BF7, "icon.calls_get_texture");
     check(pins::first_failed_path_pin(text) == nullptr, "restored image passes the path pins again");
 }
 
