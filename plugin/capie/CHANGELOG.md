@@ -65,6 +65,25 @@ unchanged. Runs on HOI4 1.19.4.2 only.
   about broken CAPIE files) now shows the PowerShell line to paste, the same one as for the
   install, and the installer option to choose ("Install or update"). Ctrl+C copies the notice.
 
+- An editor that cannot work for the rest of the session no longer says "out of date, open it
+  again". After a fault inside a call into the game (CAPIE then stops calling the game until it
+  restarts), and for the country editor when `capie_core.dll` is missing or has no name layers,
+  an Apply now carries the new sentinel `-4`, "CAPIE stopped" (`capie_epoch` for script-API
+  editors, `rn_ip_cmd_epoch` for Rename Anything's own). Mods written before it read `-4` as a
+  stale opening and keep working; Rename Anything 0.5 says "CAPIE stopped after an error. Save,
+  then restart the game." No new API level (CONTRACT 5.2, 10).
+- The status keys no longer say "loaded" when only half of CAPIE runs: while the editor DLL has
+  not started, failed to start or stopped after a fault, `CAPIE_STATUS` reads
+  "CAPIE 1.x: editor off" and Rename Anything's status line "CAPIE 1.x: editor off, restart the
+  game" (CONTRACT 8). `capie_editor.dll` reports its start to `capie_core.dll`
+  (`RNEditorReport`).
+- The fault latch is no longer silent: the first fault (which call, exception code, thread) and
+  the first refused call are written once to `capie_core.log` or `capie_editor.log`.
+- `capie_editor.log` now records every failed start, also an unsupported game or a signature
+  mismatch (the log used to open only after those checks).
+- The launcher's `last-status.txt` says `capie-editor-failed` when the core was loaded but the
+  editor was refused (it said `game-without-capie`). The `version.dll` loader writes the same
+  file now, so a failed editor start shows outside `proxy.log` too.
 
 ## [1.6.1] - 2026-11-05
 
