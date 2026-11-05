@@ -33,11 +33,27 @@
  * (`share_game_call_latch`). The core always loads first (proxy and launcher); an editor
  * without a loaded core keeps its own latch, and then has no core calls to stop.
  *
+ * Log (CAPIE 1.7). The first fault a module's filter sees is written once to that module's log
+ * (`capie_core.log` or `capie_editor.log`): which call, the exception code and the thread. The
+ * first call the latch refuses is written once as well, so a log that shows a refusal without a
+ * fault line says the other DLL faulted. The fault line is written from the filter, before the
+ * game's frames unwind: one `WriteFile` of a stack buffer formatted by hand, no CRT, no
+ * allocation and no lock (an appended line of one write does not interleave).
+ *
+ * Why the latch is not narrowed (CAPIE 1.7 review). A fault in the colour or portrait layer also
+ * stops the text editors. A narrower latch (one per layer) was considered and rejected: the
+ * filter unwinds the game's frames without running their destructors, so a lock the game held
+ * (the GUI's, the map's, the allocator's) or a half-updated object may be left behind, and that
+ * state is shared by every game function, not owned by the layer that faulted. Which locks a
+ * given game function takes is not pinned, so no call can be shown to be independent of
+ * another. Keeping every game call off is the only safe answer; the player is told to restart.
+ *
  * `image_base` is the base of the running `hoi4.exe`, set once at initialization (tests
  * set it to an owned fake image). It is a scalar, not a borrowed pointer.
  */
 #pragma once
 #include "../core/game_layout.hpp"
+#include "../core/log.hpp"
 #include "../core/memory.hpp"
 #include "msvc_string.hpp"
 
@@ -139,6 +155,150 @@ inline void share_game_call_latch(std::atomic<bool>* shared) noexcept {
     game_call_latch.store(shared, std::memory_order_release);
 }
 
+/// @brief The game functions CAPIE calls, named in the fault and refusal log lines.
+enum class GameCall : unsigned {
+    find_widget,      ///< FindEdit or FindInstantText.
+    set_text,         ///< SetText (prefill).
+    refresh_edit,     ///< CEditBox refresh (prefill).
+    caption_request,  ///< RequestViewRefresh (caption refresh).
+    focus_switch,     ///< FocusSwitch (focus release).
+    portrait_valid,   ///< PortraitEntryValid (portrait layer).
+    string_copy,      ///< The game's string copy (portrait and faction layers).
+    update_names,     ///< UpdateNames trampoline (name layer commit).
+    refresh_colour,   ///< RefreshCountryColor (colour layer).
+};
+
+/**
+ * @brief Log name of a game call.
+ * @param call Call.
+ * @return Static ASCII name.
+ */
+constexpr const char* game_call_name(GameCall call) noexcept {
+    switch (call) {
+        case GameCall::find_widget:
+            return "FindWidget";
+        case GameCall::set_text:
+            return "SetText";
+        case GameCall::refresh_edit:
+            return "RefreshEdit";
+        case GameCall::caption_request:
+            return "RequestViewRefresh";
+        case GameCall::focus_switch:
+            return "FocusSwitch";
+        case GameCall::portrait_valid:
+            return "PortraitEntryValid";
+        case GameCall::string_copy:
+            return "StringCopy";
+        case GameCall::update_names:
+            return "UpdateNames";
+        case GameCall::refresh_colour:
+            return "RefreshCountryColor";
+    }
+    return "unknown";
+}
+
+/// @brief Set once this module wrote its fault line (one per session and module).
+inline std::atomic<bool> fault_logged{false};
+/// @brief Set once this module wrote its refusal line (one per session and module).
+inline std::atomic<bool> refusal_logged{false};
+
+/// @brief Size of a fault or refusal line.
+inline constexpr std::size_t fault_line_capacity = 224;
+
+/**
+ * @brief A log line built without the CRT (usable inside an exception filter).
+ *
+ * Text that does not fit is cut; the line always ends with CR LF.
+ */
+struct FaultLine {
+    char text[fault_line_capacity]{};  ///< Bytes.
+    std::size_t size{};                ///< Bytes used.
+
+    /**
+     * @brief Appends NUL-terminated text.
+     * @param part Text.
+     */
+    void add(const char* part) noexcept {
+        for (; part != nullptr && *part != '\0' && size < fault_line_capacity - 2; ++part) {
+            text[size++] = *part;
+        }
+    }
+
+    /**
+     * @brief Appends `0x` and eight upper-case hex digits.
+     * @param value Value (the low 32 bits).
+     */
+    void hex(unsigned long value) noexcept {
+        constexpr char digits[] = "0123456789ABCDEF";
+        char buffer[11] = {'0', 'x'};
+        for (unsigned i = 0; i < 8; ++i) {
+            buffer[9 - i] = digits[(value >> (4U * i)) & 0xFU];
+        }
+        buffer[10] = '\0';
+        add(buffer);
+    }
+
+    /**
+     * @brief Appends a decimal number.
+     * @param value Value.
+     */
+    void decimal(unsigned long value) noexcept {
+        char buffer[16]{};
+        std::size_t at = sizeof(buffer) - 1;
+        do {
+            buffer[--at] = static_cast<char>('0' + value % 10);
+            value /= 10;
+        } while (value != 0 && at != 0);
+        add(buffer + at);
+    }
+
+    /// @brief Ends the line with CR LF and writes it with one `WriteFile` (no lock, no allocation).
+    void write() noexcept {
+        text[size++] = '\r';
+        text[size++] = '\n';
+        core::logging::write_bytes(text, size);
+    }
+};
+
+/**
+ * @brief Writes this module's fault line once: the call, the exception code and the thread.
+ * @param call Faulting call.
+ * @param code Exception code.
+ * @note Runs inside the SEH filter: no CRT, no allocation, no lock.
+ */
+inline void note_game_call_fault(GameCall call, unsigned long code) noexcept {
+    if (fault_logged.exchange(true, std::memory_order_acq_rel)) {
+        return;
+    }
+    FaultLine line{};
+    line.add("CAPIE_FAULT game call ");
+    line.add(game_call_name(call));
+    line.add(" faulted: exception=");
+    line.hex(code);
+    line.add(" thread=");
+    line.decimal(GetCurrentThreadId());
+    line.add("; CAPIE calls the game no more until it restarts (editors answer -4, CAPIE stopped)");
+    line.write();
+}
+
+/**
+ * @brief Writes this module's refusal line once, when the latch refuses a call.
+ * @param call Refused call.
+ */
+inline void note_game_call_refused(GameCall call) noexcept {
+    if (refusal_logged.exchange(true, std::memory_order_acq_rel)) {
+        return;
+    }
+    FaultLine line{};
+    line.add("CAPIE_FAULT game call ");
+    line.add(game_call_name(call));
+    line.add(" refused: the fault latch is set (");
+    line.add(fault_logged.load(std::memory_order_acquire) ? "fault in this DLL, see above"
+                                                          : "fault in the other CAPIE DLL, see its log");
+    line.add("); later refusals are not logged");
+    line.write();
+}
+
 /// @brief Exception code of an MSVC C++ `throw` (`'msc' | 0xE0000000`).
 inline constexpr unsigned long cpp_exception_code = 0xE06D7363;
 
@@ -167,13 +327,17 @@ inline EndProcess end_process = &terminate_process;
  * game's reporter sees it with the throw's own context (nothing is unwound yet); when the
  * reporter asks for the end of the process (`EXCEPTION_EXECUTE_HANDLER`), the process ends here.
  * Any other verdict (a debugger, or a test's `end_process` that returns) is passed on.
- * Every other exception continues its normal search.
+ * Every other exception continues its normal search. Either latching kind is logged once first.
  * @param info Exception information from `GetExceptionInformation()`.
+ * @param call The game call the wrapper made (for the log line).
  * @return The SEH verdict.
  */
-inline int game_call_exception(EXCEPTION_POINTERS* info) noexcept {
+inline int game_call_exception(EXCEPTION_POINTERS* info, GameCall call) noexcept {
     const unsigned long code =
         info != nullptr && info->ExceptionRecord != nullptr ? info->ExceptionRecord->ExceptionCode : 0;
+    if (memory_exception(code) == EXCEPTION_EXECUTE_HANDLER || code == cpp_exception_code) {
+        note_game_call_fault(call, code);
+    }
     if (memory_exception(code) == EXCEPTION_EXECUTE_HANDLER) {
         game_call_latch.load(std::memory_order_acquire)->store(true, std::memory_order_release);
         return EXCEPTION_EXECUTE_HANDLER;
@@ -196,6 +360,16 @@ inline int game_call_exception(EXCEPTION_POINTERS* info) noexcept {
  */
 [[nodiscard]] inline bool game_calls_allowed() noexcept {
     return !game_call_latch.load(std::memory_order_acquire)->load(std::memory_order_acquire);
+}
+
+/**
+ * @brief After a refused wrapper call: logs the first refusal when the latch was the reason.
+ * @param call The refused call.
+ */
+inline void refused_note(GameCall call) noexcept {
+    if (!game_calls_allowed()) {
+        note_game_call_refused(call);
+    }
 }
 
 /**
@@ -226,6 +400,7 @@ inline std::uintptr_t expected_widget_vtable(FindWidget lookup) noexcept {
  */
 inline void* guarded_find(FindWidget lookup, void* root, const char* name) noexcept {
     if (lookup == nullptr || root == nullptr || name == nullptr || !game_calls_allowed()) {
+        refused_note(GameCall::find_widget);
         return nullptr;
     }
     const NameView view{name, static_cast<std::int32_t>(std::strlen(name))};
@@ -233,7 +408,7 @@ inline void* guarded_find(FindWidget lookup, void* root, const char* name) noexc
     void* widget = nullptr;
     __try {
         widget = lookup(root, &view, false, false);
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::find_widget)) {
         return nullptr;
     }
     // The type check is a CAPIE read: guarded, and never counted as a game-call fault.
@@ -254,12 +429,13 @@ inline void* guarded_find(FindWidget lookup, void* root, const char* name) noexc
  */
 inline bool guarded_set(void* edit, const MsvcString* text) noexcept {
     if (set_text == nullptr || edit == nullptr || text == nullptr || !game_calls_allowed()) {
+        refused_note(GameCall::set_text);
         return false;
     }
     __try {
         set_text(reinterpret_cast<void*>(reinterpret_cast<std::uintptr_t>(edit) + core::off::edit_buffer), text);
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::set_text)) {
         return false;
     }
 }
@@ -271,12 +447,13 @@ inline bool guarded_set(void* edit, const MsvcString* text) noexcept {
  */
 inline bool guarded_refresh(void* edit) noexcept {
     if (refresh_edit == nullptr || edit == nullptr || !game_calls_allowed()) {
+        refused_note(GameCall::refresh_edit);
         return false;
     }
     __try {
         refresh_edit(edit);
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::refresh_edit)) {
         return false;
     }
 }
@@ -290,12 +467,13 @@ inline bool guarded_refresh(void* edit) noexcept {
 inline bool caption_call(void* gui, int index) noexcept {
     if (caption_request == nullptr || gui == nullptr || index != core::value::politics_view_index ||
         !game_calls_allowed()) {
+        refused_note(GameCall::caption_request);
         return false;
     }
     __try {
         caption_request(gui, index);
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::caption_request)) {
         return false;
     }
 }
@@ -307,12 +485,13 @@ inline bool caption_call(void* gui, int index) noexcept {
  */
 inline bool focus_call_null(void* manager) noexcept {
     if (focus_switch == nullptr || manager == nullptr || !game_calls_allowed()) {
+        refused_note(GameCall::focus_switch);
         return false;
     }
     __try {
         focus_switch(manager, nullptr);
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::focus_switch)) {
         return false;
     }
 }
@@ -327,12 +506,13 @@ inline bool focus_call_null(void* manager) noexcept {
 inline bool guarded_portrait_valid(PortraitValid valid, const void* entry, bool& result) noexcept {
     result = false;
     if (valid == nullptr || entry == nullptr || !game_calls_allowed()) {
+        refused_note(GameCall::portrait_valid);
         return false;
     }
     __try {
         result = valid(entry);
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::portrait_valid)) {
         return false;
     }
 }
@@ -349,12 +529,13 @@ inline bool guarded_portrait_valid(PortraitValid valid, const void* entry, bool&
  */
 inline bool guarded_string_copy(StringCopy copy, void* out, const void* source) noexcept {
     if (copy == nullptr || out == nullptr || source == nullptr || !game_calls_allowed()) {
+        refused_note(GameCall::string_copy);
         return false;
     }
     __try {
         copy(out, source);
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::string_copy)) {
         return false;
     }
 }
@@ -367,12 +548,13 @@ inline bool guarded_string_copy(StringCopy copy, void* out, const void* source) 
  */
 inline bool guarded_update_names(UpdateNames update, std::uintptr_t country) noexcept {
     if (update == nullptr || country == 0 || !game_calls_allowed()) {
+        refused_note(GameCall::update_names);
         return false;
     }
     __try {
         static_cast<void>(update(country));
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::update_names)) {
         return false;
     }
 }
@@ -488,12 +670,13 @@ inline bool guarded_string_release(GameDelete free_block, MsvcString* value) noe
  */
 inline bool guarded_refresh_colour(RefreshColour refresh, void* map, const std::int32_t* tag) noexcept {
     if (refresh == nullptr || map == nullptr || tag == nullptr || !game_calls_allowed()) {
+        refused_note(GameCall::refresh_colour);
         return false;
     }
     __try {
         refresh(map, tag);
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::refresh_colour)) {
         return false;
     }
 }

@@ -9,7 +9,8 @@
  * between the two DLLs (`share_game_call_latch`) is checked with a stand-in for the core's latch.
  * A C++ exception inside a game call (scan N6) must latch and reach the crash reporter (a stand-in
  * for `UnhandledExceptionFilter`), any other exception must pass on unlatched.
- * Owned memory only; no game process.
+ * The first fault and the first refusal of a module are logged once each (`log_tests`, a
+ * temporary file as the log). Owned memory and a temporary file only; no game process.
  */
 #include "../src/engine/game_calls.hpp"
 
@@ -17,6 +18,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <stdexcept>
+#include <string>
 
 namespace {
 
@@ -342,6 +344,129 @@ void cpp_exception_tests() {
     reset();
 }
 
+/// @brief The temporary log of `log_tests`.
+struct TempLog {
+    wchar_t path[MAX_PATH]{};  ///< File path.
+
+    /// @brief Creates the file and makes it this module's log.
+    TempLog() {
+        wchar_t folder[MAX_PATH]{};
+        static_cast<void>(GetTempPathW(MAX_PATH, folder));
+        static_cast<void>(GetTempFileNameW(folder, L"cgc", 0, path));
+        capie::core::logging::log_file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                     nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    }
+    /// @brief Closes and deletes the file; logging is off again.
+    ~TempLog() {
+        CloseHandle(capie::core::logging::log_file);
+        capie::core::logging::log_file = INVALID_HANDLE_VALUE;
+        DeleteFileW(path);
+    }
+    TempLog(const TempLog&) = delete;
+    TempLog& operator=(const TempLog&) = delete;
+    TempLog(TempLog&&) = delete;
+    TempLog& operator=(TempLog&&) = delete;
+
+    /**
+     * @brief Everything written so far.
+     * @return File contents.
+     */
+    [[nodiscard]] std::string text() const {
+        std::string out;
+        HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+                                  FILE_ATTRIBUTE_NORMAL, nullptr);
+        char buffer[4096];
+        DWORD read = 0;
+        while (file != INVALID_HANDLE_VALUE && ReadFile(file, buffer, sizeof(buffer), &read, nullptr) != 0 && read != 0) {
+            out.append(buffer, read);
+        }
+        CloseHandle(file);
+        return out;
+    }
+};
+
+/**
+ * @brief Occurrences of a text.
+ * @param text Text.
+ * @param part Searched text.
+ * @return Count.
+ */
+int occurrences(const std::string& text, const std::string& part) {
+    int count = 0;
+    for (auto at = text.find(part); at != std::string::npos; at = text.find(part, at + 1)) {
+        ++count;
+    }
+    return count;
+}
+
+/// @brief CAPIE 1.7: the first fault and the first refusal are logged once each, with call, code and thread.
+void log_tests() {
+    const MsvcString text = borrowed_string("x", 1);
+    const TempLog log;
+    check(log.text().empty(), "log: empty at the start");
+    reset();
+    fault_logged.store(false);
+    refusal_logged.store(false);
+    bool valid = false;
+    check(!guarded_portrait_valid(nullptr, entry, valid) && log.text().empty(),
+          "log: an unresolved call without a fault writes nothing");
+    set_text = faulting_set;
+    check(!guarded_set(edit, &text), "log: SetText faults");
+    const std::string fault_line = "CAPIE_FAULT game call SetText faulted: exception=0xC0000005 thread=" +
+                                   std::to_string(GetCurrentThreadId()) + "; ";
+    check(occurrences(log.text(), fault_line) == 1, "log: the fault names the call, the code and the thread");
+    check(occurrences(log.text(), "\r\n") == 1, "log: one line, CR LF");
+    check(guarded_find(find_edit, root, "a") == nullptr && !guarded_set(edit, &text), "log: refused calls");
+    check(occurrences(log.text(), "CAPIE_FAULT game call FindWidget refused: the fault latch is set (fault in this DLL") ==
+              1 && occurrences(log.text(), "\r\n") == 2,
+          "log: the first refusal only, with its call");
+    game_call_faulted.store(false);
+    check(!guarded_set(edit, &text) && occurrences(log.text(), "faulted:") == 1, "log: a second fault is not logged");
+
+    // A refusal after a fault of the other DLL (shared latch) says so.
+    reset();
+    fault_logged.store(false);
+    refusal_logged.store(false);
+    std::atomic<bool> other{true};
+    share_game_call_latch(&other);
+    check(!focus_call_null(manager) && calls.focus == 0, "log: refused by the other DLL's fault");
+    check(occurrences(log.text(), "game call FocusSwitch refused: the fault latch is set (fault in the other CAPIE DLL") ==
+              1,
+          "log: refusal after the other DLL's fault");
+
+    // A C++ exception is logged with its code before the reporter runs.
+    reset();
+    fault_logged.store(false);
+    unhandled_report = &fake_report;
+    end_process = &fake_end;
+    reported = Reported{};
+    refresh_edit = nullptr;
+    set_text = throwing_set;
+    check(!guarded_set(edit, &text) && occurrences(log.text(), "SetText faulted: exception=0xE06D7363 thread=") == 1,
+          "log: C++ exception logged with its code");
+    unhandled_report = &UnhandledExceptionFilter;
+    end_process = &terminate_process;
+
+    // The formatter: exact hex and decimal, a cut line still ends with CR LF.
+    FaultLine line{};
+    line.hex(0);
+    line.add(" ");
+    line.hex(0xC000001DUL);
+    line.add(" ");
+    line.decimal(0);
+    line.add(" ");
+    line.decimal(4294967295UL);
+    check(std::string(line.text, line.size) == "0x00000000 0xC000001D 0 4294967295", "log: number formatting");
+    FaultLine cut{};
+    for (int i = 0; i < 40; ++i) {
+        cut.add("0123456789");
+    }
+    check(cut.size == fault_line_capacity - 2, "log: a long line is cut");
+    reset();
+    fault_logged.store(false);
+    refusal_logged.store(false);
+}
+
 }  // namespace
 
 /**
@@ -357,6 +482,7 @@ int main() {
     core_wrapper_tests();
     shared_latch_tests();
     cpp_exception_tests();
+    log_tests();
     static_cast<void>(std::printf("game calls tests: %d checks, %d failures\n", checks, failures));
     return failures != 0 ? 1 : 0;
 }

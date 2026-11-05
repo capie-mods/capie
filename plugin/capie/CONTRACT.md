@@ -172,7 +172,9 @@ Code `-4` is new in CAPIE 1.7 and has no API level of its own: a mod never asks 
 receives it, and its meaning does not depend on anything else in the command. A script written
 before it treats `-4` like any value that is not its stored opening (the SDK's error 12, "close
 and reopen"), so it keeps working and only shows a less precise message. Check `capie_epoch = -4`
-before the generic epoch comparison.
+before the generic epoch comparison. CAPIE logs the fault once, with the call, the exception code
+and the thread, in the log of the DLL whose call faulted (`capie_core.log` or `capie_editor.log`),
+and the first refused call once in each DLL's log.
 
 Rename Anything's private editors (section 11) receive the same codes as `rn_ip_cmd_epoch = -code`.
 Their country editor gets `-4` as well when `capie_core.dll` is not loaded or does not report its

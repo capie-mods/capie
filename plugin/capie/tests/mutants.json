@@ -2284,5 +2284,77 @@
   "replace": "    if (false) {\n        // The fault latch is set",
   "suite": "tests/public_editor_test.cpp",
   "summary": "public editor tests:"
+ },
+ {
+  "name": "fault-logged-every-time",
+  "file": "src/engine/game_calls.hpp",
+  "find": "    if (fault_logged.exchange(true, std::memory_order_acq_rel)) {\n        return;\n    }\n",
+  "replace": "    fault_logged.store(true);\n",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "fault-not-logged",
+  "file": "src/engine/game_calls.hpp",
+  "find": "        note_game_call_fault(call, code);\n",
+  "replace": "        static_cast<void>(call);\n",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "cpp-fault-not-logged",
+  "file": "src/engine/game_calls.hpp",
+  "find": "if (memory_exception(code) == EXCEPTION_EXECUTE_HANDLER || code == cpp_exception_code) {\n        note_game_call_fault",
+  "replace": "if (memory_exception(code) == EXCEPTION_EXECUTE_HANDLER) {\n        note_game_call_fault",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "refusal-logged-every-time",
+  "file": "src/engine/game_calls.hpp",
+  "find": "    if (refusal_logged.exchange(true, std::memory_order_acq_rel)) {\n        return;\n    }\n",
+  "replace": "    refusal_logged.store(true);\n",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "refusal-not-logged",
+  "file": "src/engine/game_calls.hpp",
+  "find": "    if (!game_calls_allowed()) {\n        note_game_call_refused(call);\n    }",
+  "replace": "    static_cast<void>(call);",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "refusal-logged-without-latch",
+  "file": "src/engine/game_calls.hpp",
+  "find": "    if (!game_calls_allowed()) {\n        note_game_call_refused(call);\n    }",
+  "replace": "    note_game_call_refused(call);",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "refusal-blames-wrong-dll",
+  "file": "src/engine/game_calls.hpp",
+  "find": "line.add(fault_logged.load(std::memory_order_acquire) ? \"fault in this DLL, see above\"",
+  "replace": "line.add(true ? \"fault in this DLL, see above\"",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "fault-line-hex-reversed",
+  "file": "src/engine/game_calls.hpp",
+  "find": "buffer[9 - i] = digits[(value >> (4U * i)) & 0xFU];",
+  "replace": "buffer[2 + i] = digits[(value >> (4U * i)) & 0xFU];",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
+ },
+ {
+  "name": "fault-line-wrong-call",
+  "file": "src/engine/game_calls.hpp",
+  "find": "__except (game_call_exception(GetExceptionInformation(), GameCall::set_text))",
+  "replace": "__except (game_call_exception(GetExceptionInformation(), GameCall::find_widget))",
+  "suite": "tests/game_calls_test.cpp",
+  "summary": "game calls tests:"
  }
 ]
