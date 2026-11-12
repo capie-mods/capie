@@ -56,12 +56,15 @@ $script:RaGameUserModRelPath = 'Paradox Interactive\Hearts of Iron IV\mod'
 # local copy is not installed (the local copy is also named differently: "CAPIE (local copy)").
 $script:RaWorkshopModDescriptor = 'ugc_3819929471.mod'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
+$script:RaUpdateShortcutFileName = 'Update CAPIE.lnk'   # points at Update CAPIE.bat (ADR-0038)
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'
 # Click-to-update (ADR-0038): a batch file in the root folder runs the local installer copy with -Update.
 $script:RaUpdateBatchName = 'Update CAPIE.bat'
 $script:RaSetupCopyDirName = 'setup'
 $script:RaSetupCopyFileName = 'install.ps1'
+# Release asset of the installer; a 1.7.0+ manifest lists its SHA-256 (field installer).
+$script:RaInstallerAssetName = 'install.ps1'
 # Text every generated install.ps1 carries (build-install.ps1); a script without it is never copied.
 $script:RaGeneratedScriptMarker = '# GENERATED FILE: edit tools/bootstrap/src/* and run tools/bootstrap/build-install.ps1.'
 # Windows PowerShell 5.1, always present; the batch file never depends on PATH or on pwsh.

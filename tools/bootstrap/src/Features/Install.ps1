@@ -70,6 +70,7 @@ function Install-RaLatest {
         [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$LocalZip
     )
     $remote = Get-RaRemoteRelease $LocalManifestPath
+    [void](Receive-RaReleaseInstaller $remote)
     $m = $remote.Manifest
     [void](Install-RaVersion -Manifest $m -LocalZip $LocalZip -ZipUrl $remote.ZipUrl)
     Set-RaActiveVersion $State $m.Version

@@ -53,6 +53,7 @@ function Initialize-RaRun {
     $script:RaSteamClosedByUs = $false
     $script:RaSteamRestartExe = $null
     $script:RaReleaseCache = $null
+    $script:RaReleaseInstallerBytes = $null
     $script:RaMpWarningShown = $false
     $script:RaForce = [bool]$Options['Force']
     $script:RaUpdateHeldBack = $false
@@ -272,6 +273,11 @@ function Invoke-RaSetupAction {
         $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
         [void](New-RaShortcut -State $State -Folder $plan.ShortcutFolder -LauncherPath $launcher -GameDir $gameDir)
         Save-RaState $State
+        # "Update CAPIE" next to the game shortcut and in the Start menu (ADR-0038); never fails the run.
+        if (Install-RaUpdateBatch $State) {
+            foreach ($folder in @($plan.ShortcutFolder, (& $script:RaStartMenuPath))) { [void](New-RaUpdateShortcut $State $folder) }
+            Save-RaState $State
+        }
     }
     if ($plan.Install) {
         Remove-RaUnusedVersion $State

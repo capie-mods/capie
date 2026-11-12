@@ -71,6 +71,7 @@ $script:RaMessages = @{
     Done                       = 'Done.'
     DryRunNote                 = 'DRY RUN: nothing will be written.'
     ShortcutComment            = 'HOI4 with CAPIE, the native extension used by Rename Anything. Not declared multiplayer-compatible.'
+    UpdateShortcutComment      = 'Update CAPIE: runs the local CAPIE setup with -Update (signed releases only).'
     NotInstalled               = 'The launcher is not installed yet. Run with -Install first.'
     UninstallDone              = 'Uninstalled. Workshop mods and saves were not touched. The log was kept: {0}'
     Failed                     = 'FAILED: {0}'

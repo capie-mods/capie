@@ -3,7 +3,11 @@
 # this installer in <root>\setup\install.ps1 and writes <root>\Update CAPIE.bat, which runs that
 # copy with -Update when the player double-clicks it. Nothing runs on its own: the batch file
 # makes the same signed-manifest and SHA-256 checked -Update a player can type, one click away.
+# The copy is the running installer, or, after -Update, the newest release's install.ps1 when its
+# signed manifest lists that file's SHA-256 (it is then used from the next click on).
 # ---------------------------------------------------------------------------
+
+$script:RaReleaseInstallerBytes = $null   # verified install.ps1 of the newest release, this run only
 
 function Get-RaUpdateBatchPath {
     <#
@@ -60,9 +64,82 @@ function Get-RaSelfScriptText {
     $ast = ${function:Get-RaSelfScriptText}.Ast
     while ($ast.Parent) { $ast = $ast.Parent }
     $text = $ast.Extent.Text
-    if (-not $text -or -not $text.Contains($script:RaGeneratedScriptMarker) -or -not $text.Contains('function Invoke-RaMain')) { return $null }
-    foreach ($ch in $text.ToCharArray()) { if ([int]$ch -gt 127) { return $null } }
+    if (-not (Test-RaInstallerText $text)) { return $null }
     return $text
+}
+
+function Test-RaInstallerText {
+    <#
+    .SYNOPSIS
+        Tests whether a text is a generated install.ps1.
+    .DESCRIPTION
+        Pure ASCII, the generated-file marker and the entry point. A signed hash says the bytes
+        are the release's; this check keeps anything else (an HTML error page, a truncated
+        file) out of the copy that Update CAPIE.bat runs.
+    .PARAMETER Text
+        Script text.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaInstallerText $text
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$Text)
+    if (-not $Text -or -not $Text.Contains($script:RaGeneratedScriptMarker) -or -not $Text.Contains('function Invoke-RaMain')) { return $false }
+    foreach ($ch in $Text.ToCharArray()) { if ([int]$ch -gt 127) { return $false } }
+    return $true
+}
+
+function Receive-RaReleaseInstaller {
+    <#
+    .SYNOPSIS
+        Fetches and verifies the newest release's install.ps1 for the local installer copy.
+    .DESCRIPTION
+        Only when the signed manifest lists the installer (name and SHA-256, CAPIE 1.7.0+): the
+        asset (or install.ps1 next to an offline manifest) is read, its SHA-256 must equal the
+        signed one and it must be a generated install.ps1. Then its bytes are kept for
+        Install-RaUpdateBatch, which writes them as setup\install.ps1 at the end of this run. The
+        downloaded installer is never run in this run. Any problem is a warning and keeps the
+        running installer as the copy; it never fails the update.
+    .PARAMETER Remote
+        Result of Get-RaRemoteRelease.
+    .OUTPUTS
+        System.Boolean ($true when a verified installer is kept for the copy)
+    .EXAMPLE
+        [void](Receive-RaReleaseInstaller $remote)
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$Remote)
+    $script:RaReleaseInstallerBytes = $null
+    $m = $Remote.Manifest
+    if (-not $m.Contains('Installer') -or -not $m.Installer) { return $false }
+    $name = "$($script:RaInstallerAssetName) of CAPIE $($m.Version)"
+    $kept = 'the installer copy is kept.'
+    $source = if ($Remote.PSObject.Properties['InstallerSource']) { [string]$Remote.InstallerSource } else { '' }
+    if (-not $source) {
+        Write-RaLog "The signed manifest lists $name, but the release has no such asset; $kept" -Level WARN
+        return $false
+    }
+    try {
+        $bytes = if ($source -match $script:RaHttpsPrefixPattern) { Get-RaHttpContent $source } else { [IO.File]::ReadAllBytes($source) }
+        $hash = Get-RaSha256OfData $bytes
+        if ($hash -ne ([string]$m.Installer.Sha256).ToUpperInvariant()) {
+            Write-RaLog "$name does not match its signed SHA-256 ($hash); $kept" -Level WARN
+            return $false
+        }
+        if (-not (Test-RaInstallerText ([Text.Encoding]::ASCII.GetString($bytes)))) {
+            Write-RaLog "$name is not a generated installer; $kept" -Level WARN
+            return $false
+        }
+        $script:RaReleaseInstallerBytes = $bytes
+        Write-RaLog "$name verified (SHA-256 $hash); Update CAPIE.bat uses it from the next run."
+        return $true
+    } catch {
+        Write-RaLog "$name not fetched: $($_.Exception.Message); $kept" -Level WARN
+        return $false
+    }
 }
 
 function ConvertTo-RaBatchValue {
@@ -178,9 +255,10 @@ function Install-RaUpdateBatch {
     .SYNOPSIS
         Refreshes the installer copy and Update CAPIE.bat after an install, update or rollback.
     .DESCRIPTION
-        Writes the running installer to <root>\setup\install.ps1 (when it is a generated
-        install.ps1, see Get-RaSelfScriptText) and then the batch file with that copy's SHA-256.
-        When the running script cannot be copied, an existing copy and batch file stay as they are.
+        Writes the verified installer of the newest release (Receive-RaReleaseInstaller, after
+        -Update) or else the running installer (when it is a generated install.ps1, see
+        Get-RaSelfScriptText) to <root>\setup\install.ps1, then the batch file with that copy's
+        SHA-256. When neither is available, an existing copy and batch file stay as they are.
         Never fails the run: a problem is logged as a warning. No-op without an installed version.
     .PARAMETER State
         State object (read only).
@@ -200,12 +278,15 @@ function Install-RaUpdateBatch {
         return $true
     }
     try {
-        $text = Get-RaSelfScriptText
-        if (-not $text) {
-            Write-RaLog "This run is not a generated install.ps1; $copy and $batch were left as they are." -Level WARN -NoConsole
-            return $false
+        $bytes = $script:RaReleaseInstallerBytes
+        if ($null -eq $bytes) {
+            $text = Get-RaSelfScriptText
+            if (-not $text) {
+                Write-RaLog "This run is not a generated install.ps1; $copy and $batch were left as they are." -Level WARN -NoConsole
+                return $false
+            }
+            $bytes = [Text.Encoding]::ASCII.GetBytes($text)
         }
-        $bytes = [Text.Encoding]::ASCII.GetBytes($text)
         $existing = if (Test-Path -LiteralPath $copy -PathType Leaf) { [IO.File]::ReadAllBytes($copy) } else { $null }
         if ($null -eq $existing -or -not (Test-RaBytesEqual $existing $bytes)) { Write-RaFileReplacing $copy $bytes }
         $hash = Get-RaSha256OfData $bytes

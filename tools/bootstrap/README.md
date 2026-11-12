@@ -52,6 +52,10 @@ through the `$script:RaOpenRead` adapter, which the tests replace to simulate a 
   `%LOCALAPPDATA%\RenameAnything\Update CAPIE.bat` and a copy of this script
   (`setup\install.ps1`). Double-clicking the batch file checks the copy's SHA-256 and runs it with
   `-Update` in Windows PowerShell 5.1, then waits for a key. Nothing starts it automatically.
+  `-Update` replaces the copy with the newest release's `install.ps1` once its SHA-256 matches
+  the signed manifest (field `installer`); the update itself runs with the current installer.
+  With `-Shortcut` an "Update CAPIE" shortcut goes next to the game shortcut and into the Start
+  menu.
 * Log: `%LOCALAPPDATA%\RenameAnything\bootstrap.log`.
 
 Websites: [Rename Anything](https://capie-mods.github.io/rename-anything/) and [CAPIE](https://capie-mods.github.io/capie/).

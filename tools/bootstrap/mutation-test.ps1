@@ -107,6 +107,14 @@ $script:Mutations = [ordered]@{
     'batch-percent-raw'          = @(, @("    return `$Value.Replace('%', '%%')", '    return $Value'))
     'batch-no-pause'             = @(, @("        'pause',`n", ''))
     'batch-not-on-update'        = @(, @("Remove-RaUnusedVersion `$state }`n        [void](Install-RaUpdateBatch `$state)", 'Remove-RaUnusedVersion $state }'))
+    'installer-hash-skip'        = @(, @('if ($hash -ne ([string]$m.Installer.Sha256).ToUpperInvariant()) {', 'if ($false) {'))
+    'installer-text-skip'        = @(, @('if (-not (Test-RaInstallerText ([Text.Encoding]::ASCII.GetString($bytes)))) {', 'if ($false) {'))
+    'installer-name-skip'        = @(, @('if ([string]$Manifest.Installer.Name -cne $script:RaInstallerAssetName) {', 'if ($false) {'))
+    'copy-ignores-release'       = @(, @('        $bytes = $script:RaReleaseInstallerBytes', '        $bytes = $null'))
+    'update-lnk-foreign-written' = @(
+        , @("-not (Test-RaOwnShortcut `$lnk)) {`n        Write-RaLog", "`$false) {`n        Write-RaLog")
+    )
+    'update-lnk-not-ours'        = @(, @(' -or $leaf -ieq $script:RaUpdateBatchName)', ')'))
     'batch-not-on-rollback'      = @(, @("Save-RaState `$state`n        [void](Install-RaUpdateBatch `$state)", 'Save-RaState $state'))
 }
 

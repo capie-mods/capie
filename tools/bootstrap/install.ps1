@@ -41,7 +41,8 @@
     Flag (default): requires -capie. Config: explicit persistent activation fallback.
 
 .PARAMETER Shortcut
-    Create the launcher shortcut; requires -LoadMethod Launcher (Desktop by default).
+    Create the launcher shortcut; requires -LoadMethod Launcher (Desktop by default). An "Update
+    CAPIE" shortcut to Update CAPIE.bat goes next to it and into the Start menu.
 
 .PARAMETER ShortcutPath
     Folder for the shortcut; implies -Shortcut.
@@ -94,6 +95,8 @@
     -SteamLaunchOption). Every install, update and rollback also writes
     %LOCALAPPDATA%\RenameAnything\Update CAPIE.bat: double-clicking it runs a local copy of this
     script (setup\install.ps1, its SHA-256 checked first) with -Update. Nothing runs on its own.
+    -Update keeps the newest release's install.ps1 as that copy once it matches the SHA-256 in the
+    signed manifest; the update itself always runs with the installer that is running.
 
 .PARAMETER ListVersions
     List the signed releases on GitHub (one request) with API level, game version, date and changes.
@@ -275,12 +278,15 @@ $script:RaGameUserModRelPath = 'Paradox Interactive\Hearts of Iron IV\mod'
 # local copy is not installed (the local copy is also named differently: "CAPIE (local copy)").
 $script:RaWorkshopModDescriptor = 'ugc_3819929471.mod'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
+$script:RaUpdateShortcutFileName = 'Update CAPIE.lnk'   # points at Update CAPIE.bat (ADR-0038)
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'
 # Click-to-update (ADR-0038): a batch file in the root folder runs the local installer copy with -Update.
 $script:RaUpdateBatchName = 'Update CAPIE.bat'
 $script:RaSetupCopyDirName = 'setup'
 $script:RaSetupCopyFileName = 'install.ps1'
+# Release asset of the installer; a 1.7.0+ manifest lists its SHA-256 (field installer).
+$script:RaInstallerAssetName = 'install.ps1'
 # Text every generated install.ps1 carries (build-install.ps1); a script without it is never copied.
 $script:RaGeneratedScriptMarker = '# GENERATED FILE: edit tools/bootstrap/src/* and run tools/bootstrap/build-install.ps1.'
 # Windows PowerShell 5.1, always present; the batch file never depends on PATH or on pwsh.
@@ -517,6 +523,8 @@ $script:RaGetRegistryValue = {
 $script:RaNow = { Get-Date }
 # DesktopPath() -> folder
 $script:RaDesktopPath = { [Environment]::GetFolderPath('Desktop') }
+# StartMenuPath() -> the user's Start menu Programs folder (the Update CAPIE shortcut goes there)
+$script:RaStartMenuPath = { [Environment]::GetFolderPath('Programs') }
 # DocumentsPath() -> folder (the game's user folder lives under it)
 $script:RaDocumentsPath = { [Environment]::GetFolderPath('MyDocuments') }
 # FolderPicker(DefaultFolder) -> folder or $null. $null adapter = real FolderBrowserDialog.
@@ -757,6 +765,7 @@ $script:RaMessages = @{
     Done                       = 'Done.'
     DryRunNote                 = 'DRY RUN: nothing will be written.'
     ShortcutComment            = 'HOI4 with CAPIE, the native extension used by Rename Anything. Not declared multiplayer-compatible.'
+    UpdateShortcutComment      = 'Update CAPIE: runs the local CAPIE setup with -Update (signed releases only).'
     NotInstalled               = 'The launcher is not installed yet. Run with -Install first.'
     UninstallDone              = 'Uninstalled. Workshop mods and saves were not touched. The log was kept: {0}'
     Failed                     = 'FAILED: {0}'
@@ -1743,7 +1752,9 @@ function Test-RaManifest {
         Checks version, ZIP name, ZIP hash (a placeholder means "no release yet"),
         every file path (no absolute paths, no . or .. segments) and hash, that the
         launcher is included, and the supported game hashes. Adds an empty
-        SupportedGameSha256 list when it is missing.
+        SupportedGameSha256 list when it is missing. The optional Installer entry (CAPIE 1.7.0+:
+        the release's install.ps1 asset) must be named install.ps1 with a valid SHA-256; it is set
+        to $null when missing, so older manifests stay valid.
     .PARAMETER Manifest
         Manifest dictionary.
     .OUTPUTS
@@ -1768,6 +1779,11 @@ function Test-RaManifest {
     if (-not $Manifest.Contains('SupportedGameSha256')) { $Manifest['SupportedGameSha256'] = @() }
     foreach ($h in @($Manifest.SupportedGameSha256 | Where-Object { $_ })) {
         if (-not (Test-RaSha256Text $h)) { throw 'Release manifest: bad game hash.' }
+    }
+    if (-not $Manifest.Contains('Installer')) { $Manifest['Installer'] = $null }
+    if ($null -ne $Manifest.Installer) {
+        if ([string]$Manifest.Installer.Name -cne $script:RaInstallerAssetName) { throw 'Release manifest: invalid installer name.' }
+        if (-not (Test-RaSha256Text $Manifest.Installer.Sha256)) { throw 'Release manifest: bad installer hash.' }
     }
     if (-not $Manifest.Contains('Proxy')) { $Manifest['Proxy'] = $null }
     $proxy = $Manifest.Proxy
@@ -1982,6 +1998,9 @@ function ConvertTo-RaManifestJson {
     if ($Manifest.Contains('ApiLevel') -and $Manifest.ApiLevel) { $data['capie_api_level'] = [int]$Manifest.ApiLevel }
     if ($Manifest.Contains('GameVersion') -and $Manifest.GameVersion) { $data['game_version'] = [string]$Manifest.GameVersion }
     if ($Manifest.Contains('ChangelogSummary') -and @($Manifest.ChangelogSummary).Count -gt 0) { $data['changelog_summary'] = @($Manifest.ChangelogSummary) }
+    if ($Manifest.Contains('Installer') -and $Manifest.Installer) {
+        $data['installer'] = [pscustomobject][ordered]@{ name = $Manifest.Installer.Name; sha256 = $Manifest.Installer.Sha256 }
+    }
     if ($Manifest.Contains('Proxy') -and $Manifest.Proxy) {
         $data['proxy'] = [pscustomobject][ordered]@{
             zipName = $Manifest.Proxy.ZipName; zipSha256 = $Manifest.Proxy.ZipSha256; files = [pscustomobject]$Manifest.Proxy.Files
@@ -2018,6 +2037,13 @@ function ConvertFrom-RaManifestJson {
     $m['ApiLevel'] = if ($j.PSObject.Properties['capie_api_level']) { [int]$j.capie_api_level } else { $null }
     $m['GameVersion'] = if ($j.PSObject.Properties['game_version']) { [string]$j.game_version } else { $null }
     $m['ChangelogSummary'] = if ($j.PSObject.Properties['changelog_summary']) { @($j.changelog_summary | ForEach-Object { [string]$_ }) } else { @() }
+    # Signed installer asset (CAPIE 1.7.0+); older manifests do not list it.
+    $m['Installer'] = $null
+    if ($j.PSObject.Properties['installer'] -and $j.installer) {
+        $installerName = if ($j.installer.PSObject.Properties['name']) { [string]$j.installer.name } else { '' }
+        $installerSha = if ($j.installer.PSObject.Properties['sha256']) { [string]$j.installer.sha256 } else { '' }
+        $m['Installer'] = [ordered]@{ Name = $installerName; Sha256 = $installerSha }
+    }
     # Separate proxy asset (CAPIE 1.6.1+); older manifests list proxy/version.dll under files.
     $m['Proxy'] = $null
     if ($j.PSObject.Properties['proxy'] -and $j.proxy) {
@@ -4917,6 +4943,7 @@ function Install-RaLatest {
         [Parameter(Position = 2)][AllowEmptyString()][AllowNull()][string]$LocalZip
     )
     $remote = Get-RaRemoteRelease $LocalManifestPath
+    [void](Receive-RaReleaseInstaller $remote)
     $m = $remote.Manifest
     [void](Install-RaVersion -Manifest $m -LocalZip $LocalZip -ZipUrl $remote.ZipUrl)
     Set-RaActiveVersion $State $m.Version
@@ -5010,10 +5037,12 @@ function Get-RaRemoteRelease {
         GitHub API request plus the two small manifest assets, only on explicit user
         request. The signature must verify with the pinned key, the tag must match the
         manifest version and every asset URL must be under this repository's releases.
+        InstallerSource names the release's install.ps1 (asset URL, or install.ps1 next to an
+        offline manifest) when the signed manifest lists it; it is not downloaded here.
     .PARAMETER LocalManifestPath
         Signed release-manifest.json for offline use, or empty.
     .OUTPUTS
-        System.Management.Automation.PSCustomObject (Manifest, ZipUrl)
+        System.Management.Automation.PSCustomObject (Manifest, ZipUrl, InstallerSource)
     .EXAMPLE
         Get-RaRemoteRelease $null
     #>
@@ -5023,7 +5052,10 @@ function Get-RaRemoteRelease {
     if ($LocalManifestPath) {
         $bytes = [IO.File]::ReadAllBytes($LocalManifestPath)
         $sig = [IO.File]::ReadAllText("$LocalManifestPath$($script:RaSignatureFileSuffix)")
-        return [pscustomobject]@{ Manifest = (Assert-RaSignedManifest $bytes $sig); ZipUrl = $null }
+        $offline = Assert-RaSignedManifest $bytes $sig
+        $nextTo = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($LocalManifestPath))) $script:RaInstallerAssetName
+        $source = if ($offline.Installer -and (Test-Path -LiteralPath $nextTo -PathType Leaf)) { $nextTo } else { $null }
+        return [pscustomobject]@{ Manifest = $offline; ZipUrl = $null; InstallerSource = $source }
     }
     if ($script:RaGitHubRepo -match $script:RaRepoPlaceholderMarker) {
         throw 'Update channel is not configured yet (repository placeholder). Use -ManifestPath and -PackagePath for an offline update.'
@@ -5046,7 +5078,11 @@ function Get-RaRemoteRelease {
     }
     $zipUrl = $assets[$m.ZipName]
     if (-not (Test-RaReleaseAssetUrl $zipUrl)) { throw "Release has no valid $($m.ZipName) asset." }
-    return [pscustomobject]@{ Manifest = $m; ZipUrl = $zipUrl }
+    $installerUrl = $null
+    if ($m.Installer -and $assets.ContainsKey($script:RaInstallerAssetName) -and (Test-RaReleaseAssetUrl $assets[$script:RaInstallerAssetName])) {
+        $installerUrl = $assets[$script:RaInstallerAssetName]
+    }
+    return [pscustomobject]@{ Manifest = $m; ZipUrl = $zipUrl; InstallerSource = $installerUrl }
 }
 
 function Invoke-RaCheckUpdate {
@@ -5100,6 +5136,9 @@ function Invoke-RaUpdate {
     .SYNOPSIS
         Installs the newest signed release and activates it.
     .DESCRIPTION
+        Whatever the outcome, the release's signed install.ps1 (when its manifest lists one) is
+        fetched and verified for the local installer copy (Receive-RaReleaseInstaller); the
+        update itself always runs with the installer that is running now.
         Returns $false when already up to date and the installed files verify; a
         failed verification triggers a reinstall of the same version. Also returns $false
         (and sets $script:RaUpdateHeldBack) when the installed version supports the installed
@@ -5127,6 +5166,7 @@ function Invoke-RaUpdate {
         [Parameter(Position = 3)][AllowEmptyString()][AllowNull()][string]$LocalZip
     )
     $check = Invoke-RaCheckUpdate -State $State -GameDir $GameDir -LocalManifestPath $LocalManifestPath
+    [void](Receive-RaReleaseInstaller $check.Remote)
     $m = $check.Remote.Manifest
     if ($check.Newer -and $check.InstalledSupportsGame -and -not $check.LatestSupportsGame) {
         if (-not $script:RaForce) {
@@ -5564,8 +5604,8 @@ function Test-RaOwnShortcut {
     .SYNOPSIS
         Tests whether a shortcut was created by us.
     .DESCRIPTION
-        True only for an existing file whose target is RenameAnythingLauncher.exe inside
-        the root folder. Unreadable files are not ours.
+        True only for an existing file whose target is RenameAnythingLauncher.exe or
+        Update CAPIE.bat inside the root folder. Unreadable files are not ours.
     .PARAMETER Path
         Shortcut file.
     .OUTPUTS
@@ -5580,7 +5620,8 @@ function Test-RaOwnShortcut {
     try { $t = (Get-RaShortcutInfo $Path).TargetPath } catch { return $false }
     if (-not $t) { return $false }
     $rootFull = [IO.Path]::GetFullPath($script:RaRoot).TrimEnd('\') + '\'
-    return ([IO.Path]::GetFileName($t) -ieq $script:RaLauncherExeName -and
+    $leaf = [IO.Path]::GetFileName($t)
+    return (($leaf -ieq $script:RaLauncherExeName -or $leaf -ieq $script:RaUpdateBatchName) -and
         [IO.Path]::GetFullPath($t).StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase))
 }
 
@@ -5743,10 +5784,64 @@ function New-RaShortcut {
     return $lnk
 }
 
+function New-RaUpdateShortcut {
+    <#
+    .SYNOPSIS
+        Creates the "Update CAPIE" shortcut to Update CAPIE.bat in a folder.
+    .DESCRIPTION
+        Made together with the game shortcut (next to it, and in the Start menu) when the player
+        chooses shortcuts. Never overwrites a file it did not create; the path is recorded in
+        state.json so -Uninstall removes it. A missing folder or batch file is a warning only.
+    .PARAMETER State
+        State object (modified; the caller saves it).
+    .PARAMETER Folder
+        Folder for the shortcut.
+    .OUTPUTS
+        System.String (the shortcut path, or $null when none was made)
+    .EXAMPLE
+        New-RaUpdateShortcut $state (& $script:RaStartMenuPath)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$Folder
+    )
+    $batch = Get-RaUpdateBatchPath
+    if (-not $Folder -or -not (Test-Path -LiteralPath $Folder -PathType Container)) {
+        Write-RaLog "No folder for the Update CAPIE shortcut: $Folder" -Level WARN
+        return $null
+    }
+    $lnk = Join-Path ((Resolve-Path -LiteralPath $Folder).ProviderPath) $script:RaUpdateShortcutFileName
+    if ((Test-Path -LiteralPath $lnk) -and -not (Test-RaOwnShortcut $lnk)) {
+        Write-RaLog "A different file already exists and was left untouched: $lnk" -Level WARN
+        return $null
+    }
+    if ($script:RaDry) {
+        Write-RaLog "[dry-run] would create $lnk -> `"$batch`"" -Level PLAN
+        return $lnk
+    }
+    if (-not (Test-Path -LiteralPath $batch -PathType Leaf)) {
+        Write-RaLog "$batch is missing; no Update CAPIE shortcut." -Level WARN
+        return $null
+    }
+    $spec = [pscustomobject]@{
+        TargetPath       = $batch
+        Arguments        = ''
+        WorkingDirectory = $script:RaRoot
+        IconLocation     = (Get-RaLauncherPath) + $script:RaIconIndexSuffix
+        Description      = Get-RaText 'UpdateShortcutComment'
+    }
+    & $script:RaWriteShortcut $lnk $spec
+    $State.Shortcuts = @(@($State.Shortcuts | Where-Object { $_ -ne $lnk }) + $lnk)
+    Write-RaLog "Shortcut created: $lnk"
+    return $lnk
+}
+
 function Remove-RaOwnShortcut {
     <#
     .SYNOPSIS
-        Deletes our shortcuts (recorded ones and the Desktop default).
+        Deletes our shortcuts (recorded ones, the Desktop defaults and the Start menu Update CAPIE).
     .DESCRIPTION
         A shortcut that no longer points to our launcher is left untouched and logged.
         Clears the recorded list.
@@ -5760,7 +5855,9 @@ function Remove-RaOwnShortcut {
     [CmdletBinding()]
     [OutputType([void])]
     param([Parameter(Mandatory, Position = 0)][psobject]$State)
-    $candidates = @($State.Shortcuts) + @(Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName)
+    $desktop = & $script:RaDesktopPath
+    $candidates = @($State.Shortcuts) + @(Join-Path $desktop $script:RaShortcutFileName) + @(Join-Path $desktop $script:RaUpdateShortcutFileName)
+    $candidates += @(Join-Path (& $script:RaStartMenuPath) $script:RaUpdateShortcutFileName)
     foreach ($p in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
         if (-not (Test-Path -LiteralPath $p)) { continue }
         if (Test-RaOwnShortcut $p) {
@@ -5771,7 +5868,7 @@ function Remove-RaOwnShortcut {
             Remove-Item -LiteralPath $p -Force
             Write-RaLog "Shortcut deleted: $p"
         } else {
-            Write-RaLog "Shortcut no longer points to our launcher, left untouched: $p" -Level WARN
+            Write-RaLog "Shortcut no longer points to our launcher or Update CAPIE.bat, left untouched: $p" -Level WARN
         }
     }
     $State.Shortcuts = @()
@@ -6015,7 +6112,11 @@ function Remove-RaPlaysetMod {
 # this installer in <root>\setup\install.ps1 and writes <root>\Update CAPIE.bat, which runs that
 # copy with -Update when the player double-clicks it. Nothing runs on its own: the batch file
 # makes the same signed-manifest and SHA-256 checked -Update a player can type, one click away.
+# The copy is the running installer, or, after -Update, the newest release's install.ps1 when its
+# signed manifest lists that file's SHA-256 (it is then used from the next click on).
 # ---------------------------------------------------------------------------
+
+$script:RaReleaseInstallerBytes = $null   # verified install.ps1 of the newest release, this run only
 
 function Get-RaUpdateBatchPath {
     <#
@@ -6072,9 +6173,82 @@ function Get-RaSelfScriptText {
     $ast = ${function:Get-RaSelfScriptText}.Ast
     while ($ast.Parent) { $ast = $ast.Parent }
     $text = $ast.Extent.Text
-    if (-not $text -or -not $text.Contains($script:RaGeneratedScriptMarker) -or -not $text.Contains('function Invoke-RaMain')) { return $null }
-    foreach ($ch in $text.ToCharArray()) { if ([int]$ch -gt 127) { return $null } }
+    if (-not (Test-RaInstallerText $text)) { return $null }
     return $text
+}
+
+function Test-RaInstallerText {
+    <#
+    .SYNOPSIS
+        Tests whether a text is a generated install.ps1.
+    .DESCRIPTION
+        Pure ASCII, the generated-file marker and the entry point. A signed hash says the bytes
+        are the release's; this check keeps anything else (an HTML error page, a truncated
+        file) out of the copy that Update CAPIE.bat runs.
+    .PARAMETER Text
+        Script text.
+    .OUTPUTS
+        System.Boolean
+    .EXAMPLE
+        Test-RaInstallerText $text
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Position = 0)][AllowEmptyString()][AllowNull()][string]$Text)
+    if (-not $Text -or -not $Text.Contains($script:RaGeneratedScriptMarker) -or -not $Text.Contains('function Invoke-RaMain')) { return $false }
+    foreach ($ch in $Text.ToCharArray()) { if ([int]$ch -gt 127) { return $false } }
+    return $true
+}
+
+function Receive-RaReleaseInstaller {
+    <#
+    .SYNOPSIS
+        Fetches and verifies the newest release's install.ps1 for the local installer copy.
+    .DESCRIPTION
+        Only when the signed manifest lists the installer (name and SHA-256, CAPIE 1.7.0+): the
+        asset (or install.ps1 next to an offline manifest) is read, its SHA-256 must equal the
+        signed one and it must be a generated install.ps1. Then its bytes are kept for
+        Install-RaUpdateBatch, which writes them as setup\install.ps1 at the end of this run. The
+        downloaded installer is never run in this run. Any problem is a warning and keeps the
+        running installer as the copy; it never fails the update.
+    .PARAMETER Remote
+        Result of Get-RaRemoteRelease.
+    .OUTPUTS
+        System.Boolean ($true when a verified installer is kept for the copy)
+    .EXAMPLE
+        [void](Receive-RaReleaseInstaller $remote)
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param([Parameter(Mandatory, Position = 0)][psobject]$Remote)
+    $script:RaReleaseInstallerBytes = $null
+    $m = $Remote.Manifest
+    if (-not $m.Contains('Installer') -or -not $m.Installer) { return $false }
+    $name = "$($script:RaInstallerAssetName) of CAPIE $($m.Version)"
+    $kept = 'the installer copy is kept.'
+    $source = if ($Remote.PSObject.Properties['InstallerSource']) { [string]$Remote.InstallerSource } else { '' }
+    if (-not $source) {
+        Write-RaLog "The signed manifest lists $name, but the release has no such asset; $kept" -Level WARN
+        return $false
+    }
+    try {
+        $bytes = if ($source -match $script:RaHttpsPrefixPattern) { Get-RaHttpContent $source } else { [IO.File]::ReadAllBytes($source) }
+        $hash = Get-RaSha256OfData $bytes
+        if ($hash -ne ([string]$m.Installer.Sha256).ToUpperInvariant()) {
+            Write-RaLog "$name does not match its signed SHA-256 ($hash); $kept" -Level WARN
+            return $false
+        }
+        if (-not (Test-RaInstallerText ([Text.Encoding]::ASCII.GetString($bytes)))) {
+            Write-RaLog "$name is not a generated installer; $kept" -Level WARN
+            return $false
+        }
+        $script:RaReleaseInstallerBytes = $bytes
+        Write-RaLog "$name verified (SHA-256 $hash); Update CAPIE.bat uses it from the next run."
+        return $true
+    } catch {
+        Write-RaLog "$name not fetched: $($_.Exception.Message); $kept" -Level WARN
+        return $false
+    }
 }
 
 function ConvertTo-RaBatchValue {
@@ -6190,9 +6364,10 @@ function Install-RaUpdateBatch {
     .SYNOPSIS
         Refreshes the installer copy and Update CAPIE.bat after an install, update or rollback.
     .DESCRIPTION
-        Writes the running installer to <root>\setup\install.ps1 (when it is a generated
-        install.ps1, see Get-RaSelfScriptText) and then the batch file with that copy's SHA-256.
-        When the running script cannot be copied, an existing copy and batch file stay as they are.
+        Writes the verified installer of the newest release (Receive-RaReleaseInstaller, after
+        -Update) or else the running installer (when it is a generated install.ps1, see
+        Get-RaSelfScriptText) to <root>\setup\install.ps1, then the batch file with that copy's
+        SHA-256. When neither is available, an existing copy and batch file stay as they are.
         Never fails the run: a problem is logged as a warning. No-op without an installed version.
     .PARAMETER State
         State object (read only).
@@ -6212,12 +6387,15 @@ function Install-RaUpdateBatch {
         return $true
     }
     try {
-        $text = Get-RaSelfScriptText
-        if (-not $text) {
-            Write-RaLog "This run is not a generated install.ps1; $copy and $batch were left as they are." -Level WARN -NoConsole
-            return $false
+        $bytes = $script:RaReleaseInstallerBytes
+        if ($null -eq $bytes) {
+            $text = Get-RaSelfScriptText
+            if (-not $text) {
+                Write-RaLog "This run is not a generated install.ps1; $copy and $batch were left as they are." -Level WARN -NoConsole
+                return $false
+            }
+            $bytes = [Text.Encoding]::ASCII.GetBytes($text)
         }
-        $bytes = [Text.Encoding]::ASCII.GetBytes($text)
         $existing = if (Test-Path -LiteralPath $copy -PathType Leaf) { [IO.File]::ReadAllBytes($copy) } else { $null }
         if ($null -eq $existing -or -not (Test-RaBytesEqual $existing $bytes)) { Write-RaFileReplacing $copy $bytes }
         $hash = Get-RaSha256OfData $bytes
@@ -6868,6 +7046,7 @@ function Initialize-RaRun {
     $script:RaSteamClosedByUs = $false
     $script:RaSteamRestartExe = $null
     $script:RaReleaseCache = $null
+    $script:RaReleaseInstallerBytes = $null
     $script:RaMpWarningShown = $false
     $script:RaForce = [bool]$Options['Force']
     $script:RaUpdateHeldBack = $false
@@ -7087,6 +7266,11 @@ function Invoke-RaSetupAction {
         $gameDir = if ($SteamRootPath) { Get-RaGameDir $SteamRootPath } else { $null }
         [void](New-RaShortcut -State $State -Folder $plan.ShortcutFolder -LauncherPath $launcher -GameDir $gameDir)
         Save-RaState $State
+        # "Update CAPIE" next to the game shortcut and in the Start menu (ADR-0038); never fails the run.
+        if (Install-RaUpdateBatch $State) {
+            foreach ($folder in @($plan.ShortcutFolder, (& $script:RaStartMenuPath))) { [void](New-RaUpdateShortcut $State $folder) }
+            Save-RaState $State
+        }
     }
     if ($plan.Install) {
         Remove-RaUnusedVersion $State

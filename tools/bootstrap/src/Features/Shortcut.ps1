@@ -26,8 +26,8 @@ function Test-RaOwnShortcut {
     .SYNOPSIS
         Tests whether a shortcut was created by us.
     .DESCRIPTION
-        True only for an existing file whose target is RenameAnythingLauncher.exe inside
-        the root folder. Unreadable files are not ours.
+        True only for an existing file whose target is RenameAnythingLauncher.exe or
+        Update CAPIE.bat inside the root folder. Unreadable files are not ours.
     .PARAMETER Path
         Shortcut file.
     .OUTPUTS
@@ -42,7 +42,8 @@ function Test-RaOwnShortcut {
     try { $t = (Get-RaShortcutInfo $Path).TargetPath } catch { return $false }
     if (-not $t) { return $false }
     $rootFull = [IO.Path]::GetFullPath($script:RaRoot).TrimEnd('\') + '\'
-    return ([IO.Path]::GetFileName($t) -ieq $script:RaLauncherExeName -and
+    $leaf = [IO.Path]::GetFileName($t)
+    return (($leaf -ieq $script:RaLauncherExeName -or $leaf -ieq $script:RaUpdateBatchName) -and
         [IO.Path]::GetFullPath($t).StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase))
 }
 
@@ -205,10 +206,64 @@ function New-RaShortcut {
     return $lnk
 }
 
+function New-RaUpdateShortcut {
+    <#
+    .SYNOPSIS
+        Creates the "Update CAPIE" shortcut to Update CAPIE.bat in a folder.
+    .DESCRIPTION
+        Made together with the game shortcut (next to it, and in the Start menu) when the player
+        chooses shortcuts. Never overwrites a file it did not create; the path is recorded in
+        state.json so -Uninstall removes it. A missing folder or batch file is a warning only.
+    .PARAMETER State
+        State object (modified; the caller saves it).
+    .PARAMETER Folder
+        Folder for the shortcut.
+    .OUTPUTS
+        System.String (the shortcut path, or $null when none was made)
+    .EXAMPLE
+        New-RaUpdateShortcut $state (& $script:RaStartMenuPath)
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory, Position = 0)][psobject]$State,
+        [Parameter(Position = 1)][AllowEmptyString()][AllowNull()][string]$Folder
+    )
+    $batch = Get-RaUpdateBatchPath
+    if (-not $Folder -or -not (Test-Path -LiteralPath $Folder -PathType Container)) {
+        Write-RaLog "No folder for the Update CAPIE shortcut: $Folder" -Level WARN
+        return $null
+    }
+    $lnk = Join-Path ((Resolve-Path -LiteralPath $Folder).ProviderPath) $script:RaUpdateShortcutFileName
+    if ((Test-Path -LiteralPath $lnk) -and -not (Test-RaOwnShortcut $lnk)) {
+        Write-RaLog "A different file already exists and was left untouched: $lnk" -Level WARN
+        return $null
+    }
+    if ($script:RaDry) {
+        Write-RaLog "[dry-run] would create $lnk -> `"$batch`"" -Level PLAN
+        return $lnk
+    }
+    if (-not (Test-Path -LiteralPath $batch -PathType Leaf)) {
+        Write-RaLog "$batch is missing; no Update CAPIE shortcut." -Level WARN
+        return $null
+    }
+    $spec = [pscustomobject]@{
+        TargetPath       = $batch
+        Arguments        = ''
+        WorkingDirectory = $script:RaRoot
+        IconLocation     = (Get-RaLauncherPath) + $script:RaIconIndexSuffix
+        Description      = Get-RaText 'UpdateShortcutComment'
+    }
+    & $script:RaWriteShortcut $lnk $spec
+    $State.Shortcuts = @(@($State.Shortcuts | Where-Object { $_ -ne $lnk }) + $lnk)
+    Write-RaLog "Shortcut created: $lnk"
+    return $lnk
+}
+
 function Remove-RaOwnShortcut {
     <#
     .SYNOPSIS
-        Deletes our shortcuts (recorded ones and the Desktop default).
+        Deletes our shortcuts (recorded ones, the Desktop defaults and the Start menu Update CAPIE).
     .DESCRIPTION
         A shortcut that no longer points to our launcher is left untouched and logged.
         Clears the recorded list.
@@ -222,7 +277,9 @@ function Remove-RaOwnShortcut {
     [CmdletBinding()]
     [OutputType([void])]
     param([Parameter(Mandatory, Position = 0)][psobject]$State)
-    $candidates = @($State.Shortcuts) + @(Join-Path (& $script:RaDesktopPath) $script:RaShortcutFileName)
+    $desktop = & $script:RaDesktopPath
+    $candidates = @($State.Shortcuts) + @(Join-Path $desktop $script:RaShortcutFileName) + @(Join-Path $desktop $script:RaUpdateShortcutFileName)
+    $candidates += @(Join-Path (& $script:RaStartMenuPath) $script:RaUpdateShortcutFileName)
     foreach ($p in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
         if (-not (Test-Path -LiteralPath $p)) { continue }
         if (Test-RaOwnShortcut $p) {
@@ -233,7 +290,7 @@ function Remove-RaOwnShortcut {
             Remove-Item -LiteralPath $p -Force
             Write-RaLog "Shortcut deleted: $p"
         } else {
-            Write-RaLog "Shortcut no longer points to our launcher, left untouched: $p" -Level WARN
+            Write-RaLog "Shortcut no longer points to our launcher or Update CAPIE.bat, left untouched: $p" -Level WARN
         }
     }
     $State.Shortcuts = @()

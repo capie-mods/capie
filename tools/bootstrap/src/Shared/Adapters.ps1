@@ -80,6 +80,8 @@ $script:RaGetRegistryValue = {
 $script:RaNow = { Get-Date }
 # DesktopPath() -> folder
 $script:RaDesktopPath = { [Environment]::GetFolderPath('Desktop') }
+# StartMenuPath() -> the user's Start menu Programs folder (the Update CAPIE shortcut goes there)
+$script:RaStartMenuPath = { [Environment]::GetFolderPath('Programs') }
 # DocumentsPath() -> folder (the game's user folder lives under it)
 $script:RaDocumentsPath = { [Environment]::GetFolderPath('MyDocuments') }
 # FolderPicker(DefaultFolder) -> folder or $null. $null adapter = real FolderBrowserDialog.

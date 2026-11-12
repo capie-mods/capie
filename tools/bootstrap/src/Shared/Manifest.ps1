@@ -31,7 +31,9 @@ function Test-RaManifest {
         Checks version, ZIP name, ZIP hash (a placeholder means "no release yet"),
         every file path (no absolute paths, no . or .. segments) and hash, that the
         launcher is included, and the supported game hashes. Adds an empty
-        SupportedGameSha256 list when it is missing.
+        SupportedGameSha256 list when it is missing. The optional Installer entry (CAPIE 1.7.0+:
+        the release's install.ps1 asset) must be named install.ps1 with a valid SHA-256; it is set
+        to $null when missing, so older manifests stay valid.
     .PARAMETER Manifest
         Manifest dictionary.
     .OUTPUTS
@@ -56,6 +58,11 @@ function Test-RaManifest {
     if (-not $Manifest.Contains('SupportedGameSha256')) { $Manifest['SupportedGameSha256'] = @() }
     foreach ($h in @($Manifest.SupportedGameSha256 | Where-Object { $_ })) {
         if (-not (Test-RaSha256Text $h)) { throw 'Release manifest: bad game hash.' }
+    }
+    if (-not $Manifest.Contains('Installer')) { $Manifest['Installer'] = $null }
+    if ($null -ne $Manifest.Installer) {
+        if ([string]$Manifest.Installer.Name -cne $script:RaInstallerAssetName) { throw 'Release manifest: invalid installer name.' }
+        if (-not (Test-RaSha256Text $Manifest.Installer.Sha256)) { throw 'Release manifest: bad installer hash.' }
     }
     if (-not $Manifest.Contains('Proxy')) { $Manifest['Proxy'] = $null }
     $proxy = $Manifest.Proxy
@@ -270,6 +277,9 @@ function ConvertTo-RaManifestJson {
     if ($Manifest.Contains('ApiLevel') -and $Manifest.ApiLevel) { $data['capie_api_level'] = [int]$Manifest.ApiLevel }
     if ($Manifest.Contains('GameVersion') -and $Manifest.GameVersion) { $data['game_version'] = [string]$Manifest.GameVersion }
     if ($Manifest.Contains('ChangelogSummary') -and @($Manifest.ChangelogSummary).Count -gt 0) { $data['changelog_summary'] = @($Manifest.ChangelogSummary) }
+    if ($Manifest.Contains('Installer') -and $Manifest.Installer) {
+        $data['installer'] = [pscustomobject][ordered]@{ name = $Manifest.Installer.Name; sha256 = $Manifest.Installer.Sha256 }
+    }
     if ($Manifest.Contains('Proxy') -and $Manifest.Proxy) {
         $data['proxy'] = [pscustomobject][ordered]@{
             zipName = $Manifest.Proxy.ZipName; zipSha256 = $Manifest.Proxy.ZipSha256; files = [pscustomobject]$Manifest.Proxy.Files
@@ -306,6 +316,13 @@ function ConvertFrom-RaManifestJson {
     $m['ApiLevel'] = if ($j.PSObject.Properties['capie_api_level']) { [int]$j.capie_api_level } else { $null }
     $m['GameVersion'] = if ($j.PSObject.Properties['game_version']) { [string]$j.game_version } else { $null }
     $m['ChangelogSummary'] = if ($j.PSObject.Properties['changelog_summary']) { @($j.changelog_summary | ForEach-Object { [string]$_ }) } else { @() }
+    # Signed installer asset (CAPIE 1.7.0+); older manifests do not list it.
+    $m['Installer'] = $null
+    if ($j.PSObject.Properties['installer'] -and $j.installer) {
+        $installerName = if ($j.installer.PSObject.Properties['name']) { [string]$j.installer.name } else { '' }
+        $installerSha = if ($j.installer.PSObject.Properties['sha256']) { [string]$j.installer.sha256 } else { '' }
+        $m['Installer'] = [ordered]@{ Name = $installerName; Sha256 = $installerSha }
+    }
     # Separate proxy asset (CAPIE 1.6.1+); older manifests list proxy/version.dll under files.
     $m['Proxy'] = $null
     if ($j.PSObject.Properties['proxy'] -and $j.proxy) {

@@ -83,10 +83,12 @@ function Get-RaRemoteRelease {
         GitHub API request plus the two small manifest assets, only on explicit user
         request. The signature must verify with the pinned key, the tag must match the
         manifest version and every asset URL must be under this repository's releases.
+        InstallerSource names the release's install.ps1 (asset URL, or install.ps1 next to an
+        offline manifest) when the signed manifest lists it; it is not downloaded here.
     .PARAMETER LocalManifestPath
         Signed release-manifest.json for offline use, or empty.
     .OUTPUTS
-        System.Management.Automation.PSCustomObject (Manifest, ZipUrl)
+        System.Management.Automation.PSCustomObject (Manifest, ZipUrl, InstallerSource)
     .EXAMPLE
         Get-RaRemoteRelease $null
     #>
@@ -96,7 +98,10 @@ function Get-RaRemoteRelease {
     if ($LocalManifestPath) {
         $bytes = [IO.File]::ReadAllBytes($LocalManifestPath)
         $sig = [IO.File]::ReadAllText("$LocalManifestPath$($script:RaSignatureFileSuffix)")
-        return [pscustomobject]@{ Manifest = (Assert-RaSignedManifest $bytes $sig); ZipUrl = $null }
+        $offline = Assert-RaSignedManifest $bytes $sig
+        $nextTo = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($LocalManifestPath))) $script:RaInstallerAssetName
+        $source = if ($offline.Installer -and (Test-Path -LiteralPath $nextTo -PathType Leaf)) { $nextTo } else { $null }
+        return [pscustomobject]@{ Manifest = $offline; ZipUrl = $null; InstallerSource = $source }
     }
     if ($script:RaGitHubRepo -match $script:RaRepoPlaceholderMarker) {
         throw 'Update channel is not configured yet (repository placeholder). Use -ManifestPath and -PackagePath for an offline update.'
@@ -119,7 +124,11 @@ function Get-RaRemoteRelease {
     }
     $zipUrl = $assets[$m.ZipName]
     if (-not (Test-RaReleaseAssetUrl $zipUrl)) { throw "Release has no valid $($m.ZipName) asset." }
-    return [pscustomobject]@{ Manifest = $m; ZipUrl = $zipUrl }
+    $installerUrl = $null
+    if ($m.Installer -and $assets.ContainsKey($script:RaInstallerAssetName) -and (Test-RaReleaseAssetUrl $assets[$script:RaInstallerAssetName])) {
+        $installerUrl = $assets[$script:RaInstallerAssetName]
+    }
+    return [pscustomobject]@{ Manifest = $m; ZipUrl = $zipUrl; InstallerSource = $installerUrl }
 }
 
 function Invoke-RaCheckUpdate {
@@ -173,6 +182,9 @@ function Invoke-RaUpdate {
     .SYNOPSIS
         Installs the newest signed release and activates it.
     .DESCRIPTION
+        Whatever the outcome, the release's signed install.ps1 (when its manifest lists one) is
+        fetched and verified for the local installer copy (Receive-RaReleaseInstaller); the
+        update itself always runs with the installer that is running now.
         Returns $false when already up to date and the installed files verify; a
         failed verification triggers a reinstall of the same version. Also returns $false
         (and sets $script:RaUpdateHeldBack) when the installed version supports the installed
@@ -200,6 +212,7 @@ function Invoke-RaUpdate {
         [Parameter(Position = 3)][AllowEmptyString()][AllowNull()][string]$LocalZip
     )
     $check = Invoke-RaCheckUpdate -State $State -GameDir $GameDir -LocalManifestPath $LocalManifestPath
+    [void](Receive-RaReleaseInstaller $check.Remote)
     $m = $check.Remote.Manifest
     if ($check.Newer -and $check.InstalledSupportsGame -and -not $check.LatestSupportsGame) {
         if (-not $script:RaForce) {

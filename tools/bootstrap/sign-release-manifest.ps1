@@ -12,6 +12,9 @@
                      schema-1 manifest JSON to -OutPath. With -ProxyZipPath the separate proxy
                      asset (CAPIE-x.y.z-proxy-win64.zip, only proxy/version.dll) is listed in the
                      optional "proxy" field, so the default Launcher install never downloads it.
+                     With -InstallerPath the release's install.ps1 (the asset uploaded with it) is
+                     listed in the optional "installer" field (name and SHA-256), so -Update can
+                     refresh the local installer copy behind Update CAPIE.bat (ADR-0038).
       -Sign          signs the exact bytes of -ManifestPath (RSA PKCS#1 v1.5, SHA-256) and
                      writes <manifest>.sig (Base64).
     Keep the private key OUTSIDE the repository (ideally on removable/encrypted storage).
@@ -34,6 +37,10 @@
 .PARAMETER ProxyZipPath
     Separate proxy ZIP for -MakeManifest (optional; must hold proxy/version.dll, which then must not
     be in -ZipPath).
+
+.PARAMETER InstallerPath
+    The install.ps1 uploaded with the release, for -MakeManifest (optional; the file must be named
+    install.ps1). Hash it exactly as uploaded.
 
 .PARAMETER Version
     Release version for -MakeManifest (x.y.z).
@@ -84,6 +91,7 @@ param(
     [string]$PrivateKeyPath,
     [string]$ZipPath,
     [string]$ProxyZipPath,
+    [string]$InstallerPath,
     [string]$Version,
     [string[]]$SupportedGameSha256 = @(),
     [ValidateRange(0, 1000)][int]$CapieApiLevel = 0,
@@ -101,6 +109,7 @@ $script:SignJsonDepth = 5
 $script:SignHashAlgorithm = 'SHA256'
 $script:SignSignatureSuffix = '.sig'
 $script:SignProxyEntry = 'proxy/version.dll'
+$script:SignInstallerName = 'install.ps1'   # release asset name of the installer
 $script:SignUtf8 = New-Object System.Text.UTF8Encoding($false)
 
 function Assert-SignArgument {
@@ -215,6 +224,8 @@ function ConvertTo-SignManifestJson {
         Short change lines; none leaves changelog_summary out.
     .PARAMETER ProxyPath
         Separate proxy ZIP; empty leaves the proxy field out (older layout).
+    .PARAMETER Installer
+        The release's install.ps1; empty leaves the installer field out (older layout).
     .OUTPUTS
         System.String
     .EXAMPLE
@@ -229,7 +240,8 @@ function ConvertTo-SignManifestJson {
         [int]$ApiLevel = 0,
         [AllowEmptyString()][string]$GameVersionText = '',
         [AllowEmptyCollection()][string[]]$Summary = @(),
-        [AllowEmptyString()][string]$ProxyPath = ''
+        [AllowEmptyString()][string]$ProxyPath = '',
+        [AllowEmptyString()][string]$Installer = ''
     )
     $files = Get-SignZipEntryHash -Path $Path
     $manifest = [ordered]@{
@@ -252,6 +264,13 @@ function ConvertTo-SignManifestJson {
             zipName   = [IO.Path]::GetFileName($ProxyPath)
             zipSha256 = (Get-FileHash -LiteralPath $ProxyPath -Algorithm SHA256).Hash
             files     = [pscustomobject]$proxyFiles
+        }
+    }
+    if ($Installer) {
+        if ([IO.Path]::GetFileName($Installer) -cne $script:SignInstallerName) { throw "$Installer is not named $($script:SignInstallerName)." }
+        $manifest['installer'] = [pscustomobject][ordered]@{
+            name   = $script:SignInstallerName
+            sha256 = (Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash
         }
     }
     return ([pscustomobject]$manifest | ConvertTo-Json -Depth $script:SignJsonDepth)
@@ -305,7 +324,7 @@ if ($MakeManifest) {
         $summary = @([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ChangelogSummaryBase64)) | ConvertFrom-Json)
     }
     $json = ConvertTo-SignManifestJson -Path $ZipPath -ReleaseVersion $Version -GameSha256 $SupportedGameSha256 `
-        -ApiLevel $CapieApiLevel -GameVersionText $GameVersion -Summary $summary -ProxyPath $ProxyZipPath
+        -ApiLevel $CapieApiLevel -GameVersionText $GameVersion -Summary $summary -ProxyPath $ProxyZipPath -Installer $InstallerPath
     [IO.File]::WriteAllText($OutPath, $json, $script:SignUtf8)
     Write-Output "Wrote $OutPath"
     return

@@ -41,7 +41,8 @@
     Flag (default): requires -capie. Config: explicit persistent activation fallback.
 
 .PARAMETER Shortcut
-    Create the launcher shortcut; requires -LoadMethod Launcher (Desktop by default).
+    Create the launcher shortcut; requires -LoadMethod Launcher (Desktop by default). An "Update
+    CAPIE" shortcut to Update CAPIE.bat goes next to it and into the Start menu.
 
 .PARAMETER ShortcutPath
     Folder for the shortcut; implies -Shortcut.
@@ -94,6 +95,8 @@
     -SteamLaunchOption). Every install, update and rollback also writes
     %LOCALAPPDATA%\RenameAnything\Update CAPIE.bat: double-clicking it runs a local copy of this
     script (setup\install.ps1, its SHA-256 checked first) with -Update. Nothing runs on its own.
+    -Update keeps the newest release's install.ps1 as that copy once it matches the SHA-256 in the
+    signed manifest; the update itself always runs with the installer that is running.
 
 .PARAMETER ListVersions
     List the signed releases on GitHub (one request) with API level, game version, date and changes.

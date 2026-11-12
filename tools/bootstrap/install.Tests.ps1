@@ -383,6 +383,10 @@ function Reset-Env {
     $desk = Join-Path $dir 'Desktop'
     New-Item -ItemType Directory -Force -Path $desk | Out-Null
     $script:RaDesktopPath = [scriptblock]::Create("'$desk'")
+    $startMenu = Join-Path $dir 'StartMenu'
+    New-Item -ItemType Directory -Force -Path $startMenu | Out-Null
+    $script:RaStartMenuPath = [scriptblock]::Create("'$startMenu'")
+    $script:RaReleaseInstallerBytes = $null
     $docs = Join-Path $dir 'Documents'
     New-Item -ItemType Directory -Force -Path (Join-Path $docs 'Paradox Interactive\Hearts of Iron IV\mod') | Out-Null
     $script:RaDocumentsPath = [scriptblock]::Create("'$docs'")
@@ -893,8 +897,11 @@ function New-SignedRelease {
         published_at of the listed release.
     .PARAMETER SeparateProxy
         Ship a proxy as its own asset (sign-release-manifest.ps1 -ProxyZipPath), like CAPIE 1.6.1+.
+    .PARAMETER InstallerText
+        Text of the release's install.ps1: written next to the manifest, listed in it
+        (-InstallerPath, like CAPIE 1.7.0+) and served as the install.ps1 asset. Empty: none.
     .OUTPUTS
-        System.Collections.Hashtable (Zip, ManifestPath, Base, ZipName, ProxyZipName)
+        System.Collections.Hashtable (Zip, ManifestPath, Base, ZipName, ProxyZipName, InstallerPath)
     .EXAMPLE
         New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
     #>
@@ -911,7 +918,8 @@ function New-SignedRelease {
         [int]$ApiLevel = 0,
         [string]$Notes = '',
         [string]$Date = '2026-10-01T12:00:00Z',
-        [switch]$SeparateProxy
+        [switch]$SeparateProxy,
+        [string]$InstallerText = ''
     )
     $pkg = New-TestPackage (Join-Path $Dir "rel-$Version") -Version $Version -WithMod:$WithMod -SeparateProxy:$SeparateProxy
     $mPath = Join-Path $Dir "rel-$Version\release-manifest.json"
@@ -924,6 +932,12 @@ function New-SignedRelease {
         }
     }
     if ($SeparateProxy) { $extra['ProxyZipPath'] = $pkg.ProxyZip }
+    $installerPath = $null
+    if ($InstallerText) {
+        $installerPath = Join-Path $Dir "rel-$Version\install.ps1"
+        [IO.File]::WriteAllBytes($installerPath, [Text.Encoding]::ASCII.GetBytes($InstallerText))
+        $extra['InstallerPath'] = $installerPath
+    }
     [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version $Version -SupportedGameSha256 $GameSha -OutPath $mPath @extra)
     [void](& $signScript -Sign -ManifestPath $mPath -PrivateKeyPath $KeyPath)
     if (-not $Tag) { $Tag = "v$Version" }
@@ -950,7 +964,15 @@ function New-SignedRelease {
         $script:fakeWeb[$fakeGitHubListUrl] = $utf8.GetBytes((ConvertTo-Json -InputObject @($script:fakeReleases.ToArray()) -Depth 6))
         $script:fakeWeb["$base/$proxyZipName"] = [IO.File]::ReadAllBytes($pkg.ProxyZip)
     }
-    return @{ Zip = $pkg.Zip; ManifestPath = $mPath; Base = $base; ZipName = $zipName; ProxyZipName = $proxyZipName }
+    if ($installerPath) {
+        $rel.assets += [pscustomobject]@{ name = 'install.ps1'; browser_download_url = "$base/install.ps1" }
+        $script:fakeWeb[$fakeGitHubApiUrl] = $utf8.GetBytes(($rel | ConvertTo-Json -Depth 5))
+        $script:fakeWeb["$base/install.ps1"] = [IO.File]::ReadAllBytes($installerPath)
+    }
+    return @{
+        Zip = $pkg.Zip; ManifestPath = $mPath; Base = $base; ZipName = $zipName; ProxyZipName = $proxyZipName
+        InstallerPath = $installerPath
+    }
 }
 
 function Initialize-UpdateEnv {
@@ -3229,5 +3251,154 @@ Describe 'Click-to-update (Update CAPIE.bat runs the local installer copy with -
             Test-Path -LiteralPath $bat | Should Be $false
             Install-RaUpdateBatch (New-RaState) | Should Be $false
         }
+    }
+}
+
+function Get-ReleaseInstallerText {
+    <#
+    .SYNOPSIS
+        A generated-looking installer text that differs from the running one.
+    .DESCRIPTION
+        The real install.ps1 text plus a marker comment, so the copy can be told apart.
+    .PARAMETER Tag
+        Marker text.
+    .OUTPUTS
+        System.String
+    .EXAMPLE
+        Get-ReleaseInstallerText '0.2.0'
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param([Parameter(Mandatory, Position = 0)][string]$Tag)
+    return ([IO.File]::ReadAllText($scriptPath) + "`n# release installer $Tag`n")
+}
+
+Describe 'Signed installer in the release manifest (Update CAPIE.bat refreshes its installer copy)' {
+    It 'sign-release-manifest -InstallerPath lists install.ps1; the field is optional both ways and validated' {
+        $dir = Reset-Env 'inst-manifest'
+        $pkg = New-TestPackage (Join-Path $dir 'p') -Version '0.2.0'
+        $inst = Join-Path $dir 'install.ps1'
+        [IO.File]::WriteAllText($inst, 'x')
+        $out = Join-Path $dir 'm.json'
+        [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version '0.2.0' -InstallerPath $inst -OutPath $out)
+        $m = ConvertFrom-RaManifestJson ([IO.File]::ReadAllText($out))
+        $m.Installer.Name | Should BeExactly 'install.ps1'
+        $m.Installer.Sha256 | Should Be (Get-FileHash -LiteralPath $inst).Hash
+        $back = ConvertFrom-RaManifestJson (ConvertTo-RaManifestJson $m)
+        $back.Installer.Sha256 | Should Be $m.Installer.Sha256
+        # Without the field (older releases) the manifest stays valid and Installer is $null.
+        [void](& $signScript -MakeManifest -ZipPath $pkg.Zip -Version '0.2.0' -OutPath $out)
+        $null -eq (ConvertFrom-RaManifestJson ([IO.File]::ReadAllText($out))).Installer | Should Be $true
+        # Older installers read only the fields they know: the schema number does not change.
+        ([IO.File]::ReadAllText($out) | ConvertFrom-Json).schema | Should Be 1
+        $other = Join-Path $dir 'setup.ps1'
+        [IO.File]::WriteAllText($other, 'x')
+        Assert-RaThrow { & $signScript -MakeManifest -ZipPath $pkg.Zip -Version '0.2.0' -InstallerPath $other -OutPath $out } 'is not named install.ps1'
+        $bad = $pkg.Manifest
+        $bad['Installer'] = [ordered]@{ Name = 'evil.ps1'; Sha256 = ('A' * 64) }
+        Assert-RaThrow { Test-RaManifest $bad } 'invalid installer name'
+        $bad['Installer'] = [ordered]@{ Name = 'install.ps1'; Sha256 = 'nope' }
+        Assert-RaThrow { Test-RaManifest $bad } 'bad installer hash'
+    }
+    It '-Update installs with the running installer and keeps the verified release installer as the copy' {
+        $e = Initialize-UpdateEnv 'inst-update'
+        $text = Get-ReleaseInstallerText '0.2.0'
+        $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -InstallerText $text
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        $copy = Get-RaSetupCopyPath
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($copy)) ([IO.File]::ReadAllBytes($r.InstallerPath)) | Should Be $true
+        [IO.File]::ReadAllText((Get-RaUpdateBatchPath)) | Should Match ('CAPIE_SETUP_SHA256=' + (Get-FileHash -LiteralPath $copy).Hash)
+        @($script:requested | Where-Object { $_ -eq "$($r.Base)/install.ps1" }).Count | Should Be 1
+        # Already up to date: the copy is refreshed from the signed release again.
+        [IO.File]::WriteAllText($copy, 'stale')
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($copy)) ([IO.File]::ReadAllBytes($r.InstallerPath)) | Should Be $true
+        # -CheckUpdate never downloads the installer.
+        $script:requested.Clear()
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; CheckUpdate = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        @($script:requested | Where-Object { $_ -like '*/install.ps1' }).Count | Should Be 0
+    }
+    It 'a served installer that differs from its signed hash, or is not an installer, is never used; the update still succeeds' {
+        $e = Initialize-UpdateEnv 'inst-tampered'
+        $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -InstallerText (Get-ReleaseInstallerText '0.2.0')
+        $script:fakeWeb["$($r.Base)/install.ps1"] = $utf8.GetBytes((Get-ReleaseInstallerText 'tampered'))
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes((Get-RaSetupCopyPath))) ([IO.File]::ReadAllBytes($scriptPath)) | Should Be $true
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'does not match its signed SHA-256'
+        # Signed, but not a generated installer.
+        $null = New-SignedRelease -Dir $e.Dir -Version '0.3.0' -KeyPath $e.Key -InstallerText '<html>not found</html>'
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.3.0'
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes((Get-RaSetupCopyPath))) ([IO.File]::ReadAllBytes($scriptPath)) | Should Be $true
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match 'is not a generated installer'
+    }
+    It 'a release without the installer field keeps the running installer as the copy and requests nothing more' {
+        $e = Initialize-UpdateEnv 'inst-old-release'
+        $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes((Get-RaSetupCopyPath))) ([IO.File]::ReadAllBytes($scriptPath)) | Should Be $true
+        @($script:requested | Where-Object { $_ -like '*/install.ps1' }).Count | Should Be 0
+        $null = $r
+    }
+    It 'offline -Update takes install.ps1 next to the signed manifest; no network' {
+        $e = Initialize-UpdateEnv 'inst-offline'
+        $r = New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key -InstallerText (Get-ReleaseInstallerText 'offline')
+        $script:fakeWeb = @{}
+        $script:requested.Clear()
+        $options = @{ LoadMethod = 'Launcher'; Update = $true; ManifestPath = $r.ManifestPath; PackagePath = $r.Zip; Yes = $true; SteamRoot = $e.Steam }
+        (Invoke-RaMain $options) | Should Be 0
+        $script:requested.Count | Should Be 0
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes((Get-RaSetupCopyPath))) ([IO.File]::ReadAllBytes($r.InstallerPath)) | Should Be $true
+    }
+}
+
+Describe 'Update CAPIE shortcut (with the game shortcut, and in the Start menu)' {
+    It 'install with a shortcut adds Update CAPIE next to it and in the Start menu; uninstall removes both' {
+        $e = Initialize-UpdateEnv 'upd-lnk'
+        $bat = Get-RaUpdateBatchPath
+        $desk = Join-Path (& $script:RaDesktopPath) 'Update CAPIE.lnk'
+        $start = Join-Path (& $script:RaStartMenuPath) 'Update CAPIE.lnk'
+        foreach ($lnk in $desk, $start) {
+            (Get-RaShortcutInfo $lnk).TargetPath | Should Be $bat
+            Test-RaOwnShortcut $lnk | Should Be $true
+        }
+        $st = Read-RaState
+        @($st.Shortcuts) -contains $desk | Should Be $true
+        @($st.Shortcuts) -contains $start | Should Be $true
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Test-Path -LiteralPath $desk | Should Be $false
+        Test-Path -LiteralPath $start | Should Be $false
+    }
+    It 'a foreign Update CAPIE shortcut is left untouched by install and uninstall; the install still succeeds' {
+        $dir = Reset-Env 'upd-lnk-foreign'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        $foreign = Join-Path (& $script:RaStartMenuPath) 'Update CAPIE.lnk'
+        $elsewhere = Join-Path $dir 'other.bat'
+        [IO.File]::WriteAllText($elsewhere, '@echo off')
+        $spec = [pscustomobject]@{ TargetPath = $elsewhere; Arguments = ''; WorkingDirectory = $dir; IconLocation = ($elsewhere + ',0'); Description = 'x' }
+        & $script:RaWriteShortcut $foreign $spec
+        Test-RaOwnShortcut $foreign | Should Be $false
+        $before = [IO.File]::ReadAllBytes($foreign)
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Shortcut = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam }) | Should Be 0
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($foreign)) $before | Should Be $true
+        Test-Path -LiteralPath (Join-Path (& $script:RaDesktopPath) 'Update CAPIE.lnk') | Should Be $true
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $steam }) | Should Be 0
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($foreign)) $before | Should Be $true
+    }
+    It 'install without a shortcut creates no Update CAPIE shortcut' {
+        $dir = Reset-Env 'upd-lnk-none'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Install = $true; Yes = $true; PackagePath = $pkg.Zip; SteamRoot = $steam }) | Should Be 0
+        Test-Path -LiteralPath (Get-RaUpdateBatchPath) | Should Be $true
+        @(Get-ChildItem -LiteralPath (& $script:RaStartMenuPath)).Count | Should Be 0
+        @(Get-ChildItem -LiteralPath (& $script:RaDesktopPath) -Filter 'Update CAPIE.lnk').Count | Should Be 0
     }
 }
