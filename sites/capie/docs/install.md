@@ -255,8 +255,9 @@ CAPIE 1.6.2 works only with Hearts of Iron IV 1.19.5.0 from Steam (CAPIE 1.6.1 o
 including a beta branch, the game starts without CAPIE and shows a short notice. In Steam,
 open Properties, **Betas**, and choose "None". A yellow "not supported" warning in the Paradox
 Launcher's mod list only compares a mod's `supported_version` with your game and blocks
-nothing; CAPIE goes by the `hoi4.exe` build, which the main menu shows. See
-[Game updates](game-updates.md) for what happens after a patch.
+nothing; CAPIE goes by the `hoi4.exe` build, which the main menu shows. After a game
+patch, update CAPIE by double-clicking `Update CAPIE.bat` in `%LOCALAPPDATA%\RenameAnything`
+(see [Updates](#updates)). See [Game updates](game-updates.md) for what happens after a patch.
 
 ### Proxy method { #proxy }
 
@@ -307,8 +308,12 @@ files. See [Multiplayer](multiplayer.md).
 
 ## Updates
 
-CAPIE never checks for updates in the background. To update, run the one-line command again
-and choose **Install or update**. The setup accepts a release only when its manifest carries
+CAPIE never checks for updates in the background. The easiest way to update is to double-click
+**`Update CAPIE.bat`** in `%LOCALAPPDATA%\RenameAnything` (paste that folder into the address bar
+of File Explorer). Every install and update writes it. It runs the local copy of the setup
+(`setup\install.ps1`, checked against its SHA-256 first) with `-Update` in a window that stays
+open until you press a key. Close the game and the Paradox Launcher first. Alternatively, run
+the one-line command again and choose **Install or update**. The setup accepts a release only when its manifest carries
 the signature of the key built into the script, its tag matches the manifest, and every file
 matches the SHA-256 in the manifest. If you already have the newest version, it repairs the
 installation instead. Steam points at the `current` folder link, so an update does not change

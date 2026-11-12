@@ -15,7 +15,9 @@ checks the hash first and starts the game without CAPIE, with a message that say
 
 For players with a mod built on CAPIE, nothing breaks: states, cities and characters still rename
 through scripts, a custom country name shows as the original, and indicators say "CAPIE missing".
-The names come back when a CAPIE release supports the new build.
+The names come back when a CAPIE release supports the new build. To install it, close the game
+and double-click `Update CAPIE.bat` in `%LOCALAPPDATA%\RenameAnything` (or run the one-line
+setup command again); the launcher's notice says the same. CAPIE never updates itself.
 
 ## Opt-in verification on unknown builds <span class="st st-planned">Planned</span>
 

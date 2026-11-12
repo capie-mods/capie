@@ -38,6 +38,14 @@ country name shows as the original until a CAPIE release supports the new build.
 opt-in mode can switch CAPIE on for an unknown build, but only if every check passes. See
 [Game updates](game-updates.md).
 
+## How do I update CAPIE?
+
+Close the game and double-click `Update CAPIE.bat` in `%LOCALAPPDATA%\RenameAnything` (paste that
+folder into the address bar of File Explorer). It runs the setup's update with the same signature
+and SHA-256 checks as the one-line command, and keeps a version that supports your game if the
+newest does not. CAPIE never updates itself in the background. See
+[Install, Updates](install.md#updates).
+
 ## Does it work in multiplayer?
 
 No. It has never been tested with two players. Switch CAPIE off before you play multiplayer. The plan for multiplayer is on the [Multiplayer](multiplayer.md) page.

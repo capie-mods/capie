@@ -31,7 +31,9 @@ The CAPIE runtime and proxy open no network connections. The launcher does nothi
 the background.
 
 The only part that goes online is the installer script, and only when you run it with
-`-Install`, `-CheckUpdate` or `-Update`. It sends no identifiers and no telemetry. A planned
+`-Install`, `-CheckUpdate` or `-Update`. Double-clicking `Update CAPIE.bat` in
+`%LOCALAPPDATA%\RenameAnything` is the same `-Update`, started by you; nothing starts it on its
+own, and CAPIE has no automatic or background update. It sends no identifiers and no telemetry. A planned
 multiplayer check would travel inside ordinary game commands, never over a connection CAPIE
 opens itself.
 

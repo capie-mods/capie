@@ -53,6 +53,7 @@ Status values: **Proposed**, **Accepted**, **Amended** (partly changed by a late
 | [0035](0035-local-release-script.md) | Releases are built and published locally for now | Accepted | 2026-10-14 |
 | [0036](0036-leader-portrait-and-feature-switches.md) | Leader portrait choice and a host switch for every feature | Accepted, not implemented | 2026-10-14 |
 | [0037](0037-installer-closes-steam-on-request.md) | The installer closes Steam on request (`steam.exe -shutdown`), never by force | Accepted | 2026-10-15 |
+| [0038](0038-click-to-update-batch-file.md) | Updates are started by the player through `Update CAPIE.bat`, never automatically | Accepted | 2026-11-12 |
 
 ## Writing a new record
 

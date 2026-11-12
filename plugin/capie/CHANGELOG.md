@@ -84,6 +84,19 @@ unchanged. Runs on HOI4 1.19.4.2 only.
 - The launcher's `last-status.txt` says `capie-editor-failed` when the core was loaded but the
   editor was refused (it said `game-without-capie`). The `version.dll` loader writes the same
   file now, so a failed editor start shows outside `proxy.log` too.
+### Added
+
+- `Update CAPIE.bat` in `%LOCALAPPDATA%\RenameAnything`: double-click it to update CAPIE (for
+  example after a game patch). Every install, update and rollback writes it together with a copy
+  of the installer (`setup\install.ps1`); the batch file checks the copy's SHA-256 and runs it
+  with `-Update`, with the same signature and SHA-256 checks as the one-line command, and waits
+  for a key at the end. It runs only when you start it: CAPIE still never updates itself or goes
+  online in the background (ADR-0038). `-Uninstall` removes it.
+
+### Changed
+
+- The launcher's "CAPIE needs an update for this Hearts of Iron IV version" notice names
+  `Update CAPIE.bat` as the easiest way to update.
 
 ## [1.6.1] - 2026-11-05
 
