@@ -2528,15 +2528,21 @@ function Get-RaGameDir {
     [OutputType([string])]
     param([Parameter(Mandatory, Position = 0)][ValidateNotNullOrEmpty()][string]$SteamRootPath)
     foreach ($lib in (Get-RaSteamLibrary $SteamRootPath)) {
-        $acf = Join-Path $lib ($script:RaSteamAppManifestRelPathFormat -f $script:RaAppId)
-        if (-not (Test-Path -LiteralPath $acf)) { continue }
+        # [IO.Path]/[IO.File], not Join-Path/Test-Path: Join-Path throws DriveNotFound for a library
+        # on a drive that no longer exists (a stale entry in libraryfolders.vdf), which stopped the search.
         try {
+            if (-not [IO.Directory]::Exists($lib)) {
+                Write-RaLog "Steam library skipped (folder or drive not found): $lib" -Level WARN -NoConsole
+                continue
+            }
+            $acf = [IO.Path]::Combine($lib, ($script:RaSteamAppManifestRelPathFormat -f $script:RaAppId))
+            if (-not [IO.File]::Exists($acf)) { continue }
             $root = ConvertFrom-RaVdf (Read-RaTextFile $acf).Text
             $dir = @(Find-RaVdfPath $root $script:RaAppManifestInstallDirPath)
             if ($dir.Count -ne 1) { continue }
-            $game = Join-Path $lib (Join-Path $script:RaSteamCommonRelPath $dir[0].Value)
-            if (Test-Path -LiteralPath (Join-Path $game $script:RaGameExeName) -PathType Leaf) { return $game }
-        } catch { Write-Verbose "appmanifest unreadable in ${lib}: $($_.Exception.Message)" }
+            $game = [IO.Path]::Combine($lib, $script:RaSteamCommonRelPath, $dir[0].Value)
+            if ([IO.File]::Exists([IO.Path]::Combine($game, $script:RaGameExeName))) { return $game }
+        } catch { Write-Verbose "Steam library unusable (${lib}): $($_.Exception.Message)" }
     }
     return $null
 }

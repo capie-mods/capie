@@ -9,6 +9,12 @@ release notes, so write it for players and mod authors. Format:
 
 ## [Unreleased]
 
+### Fixed
+
+- The installer no longer stops with "Cannot find drive" when Steam still lists a library on a
+  drive that is gone (for example an old USB or broken disk). It skips that library and keeps
+  looking for the game (issue #2).
+
 ## [1.6.2] - 2026-11-12
 
 Hotfix for Hearts of Iron IV 1.19.5.0 (the update of 12 November). Nothing else changed: the

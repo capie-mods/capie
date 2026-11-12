@@ -1407,6 +1407,27 @@ Describe 'Extracted functions' {
         $libs.Count | Should Be 2
         $libs[1] | Should Be 'D:\Games\Steam'
     }
+    It 'Get-RaGameDir skips a Steam library on a drive that no longer exists (issue #2)' {
+        # Steam folder without the game, then a library on a missing drive, then the library with
+        # the game: the reported setup (Steam on C:, a dead E: entry, the game on D:).
+        $dir = Reset-Env 'missingdrive'
+        $steam = Join-Path $dir 'Steam'
+        $library = Join-Path $dir 'Library'
+        $missing = $null
+        foreach ($letter in [char[]]'QRSTUVWXYZ') {
+            if (-not [IO.Directory]::Exists("${letter}:\")) { $missing = "${letter}:\SteamLibrary"; break }
+        }
+        if ($null -eq $missing) { Set-TestInconclusive 'no free drive letter'; return }
+        New-Item -ItemType Directory -Force -Path (Join-Path $steam 'steamapps') | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $library 'steamapps\common\Hearts of Iron IV') | Out-Null
+        Write-Utf8 (Join-Path $library 'steamapps\common\Hearts of Iron IV\hoi4.exe') 'x'
+        Write-Utf8 (Join-Path $library 'steamapps\appmanifest_394360.acf') "`"AppState`"`n{`n`t`"installdir`"`t`t`"Hearts of Iron IV`"`n}`n"
+        $vdf = "`"libraryfolders`"`n{`n`t`"0`"`n`t{`n`t`t`"path`"`t`t`"$($steam.Replace('\', '\\'))`"`n`t}`n`t`"1`"`n`t{`n`t`t`"path`"`t`t`"$($missing.Replace('\', '\\'))`"`n`t}`n`t`"2`"`n`t{`n`t`t`"path`"`t`t`"$($library.Replace('\', '\\'))`"`n`t}`n}`n"
+        Write-Utf8 (Join-Path $steam 'steamapps\libraryfolders.vdf') $vdf
+        @(Get-RaSteamLibrary $steam) -contains $missing | Should Be $true
+        $game = Get-RaGameDir $steam -ErrorAction Stop
+        $game | Should Be (Join-Path $library 'steamapps\common\Hearts of Iron IV')
+    }
     It 'Compare-RaVersion compares numerically and ignores suffixes' {
         Compare-RaVersion '0.10.0' '0.9.9' | Should Be 1
         Compare-RaVersion '1.0.0-beta' '1.0.0' | Should Be 0
