@@ -14,7 +14,7 @@
  * - the ruling-leader chain of the `set_country_leader_portrait` effect: politics
  *   +0xF90, ruling party +0xD0, first leader role (+0x70, count +0x7C), role +0x8 character,
  *   and its civilian large write (type 0, size 1).
- * None of the ranges overlaps a DIR64 relocation (checked by tools/port/gen_tables.py on the 1.19.4.2 file).
+ * None of the ranges overlaps a DIR64 relocation (checked by tools/port/gen_tables.py on the 1.19.5.0 file).
  *
  * The portrait layer needs the name layer's UpdateNames and set_variable hooks (its cache is
  * filled there), so it is activated only when the name-layer pins matched too. A failed pin

@@ -481,7 +481,7 @@ void payload_tests() {
     check(dispatch_originals == before + 1 && !captured.empty(), "Apply dispatched once");
     check(count_of("user_key") == 1 && value_of("user_key") == 7, "non-reserved original kept");
     check(count_of("capie_cap") == 1 && value_of("capie_cap") == 8, "capie_cap = 8 (spoof removed)");
-    check(count_of("capie_ver") == 1 && value_of("capie_ver") == 10601, "capie_ver = 10601");
+    check(count_of("capie_ver") == 1 && value_of("capie_ver") == 10602, "capie_ver = 10602");
     check(count_of("capie_flag") == 1 && value_of("capie_flag") == 0,
           "capie_flag = 0 without an initialized capie_core.dll (API level 6)");
     check(count_of("capie_epoch") == 1 && value_of("capie_epoch") == 3, "capie_epoch from the carrier");
@@ -579,7 +579,7 @@ void sentinel_tests() {
     // Apply before the first Tick of the window: registered at Dispatch, not ready -> -1.
     auto& late = make_window("capie_v1_ed__mymod__late", 0b1, "5");
     click(late, apply_of(late));
-    check(value_of("capie_epoch") == -1 && value_of("capie_cap") == 8 && value_of("capie_ver") == 10601 &&
+    check(value_of("capie_epoch") == -1 && value_of("capie_cap") == 8 && value_of("capie_ver") == 10602 &&
               count_of("capie_nf") == 0 && capie_records() == 3,
           "stale sentinel -1 with cap and ver only");
 

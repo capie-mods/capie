@@ -9,8 +9,8 @@ CAPIE started as the native part of the HOI4 mod "Rename Anything". Stage 2 rebu
 accepted binaries `rename_anything_country.dll` (country capability 18841A6D…) and the generated
 caption-refresh bridge rev7 (3864532C…), with the same behaviour; see
 [monorepo archive: docs/evidence/session-20261011/claude-stage2/report.txt](https://github.com/SirCypkowskyy/hoi4-rename-anything/blob/monorepo-before-split-20261014/docs/evidence/session-20261011/claude-stage2/report.txt). It supports one game build:
-`hoi4.exe` 1.19.4.2, SHA-256 `BCCC6290…7A8037` (since CAPIE 1.6.1; 1.6.0 and 1.5.2 pinned 1.19.4.1, 1.5.1 pinned 1.19.4.0, 1.5.0 pinned 1.19.3.0,
-`7DC947BE…A031D5`). The ports are documented in `docs/research/port-1.19.4.0.md`, `docs/research/port-1.19.4.1.md` and `docs/research/port-1.19.4.2.md`.
+`hoi4.exe` 1.19.5.0, SHA-256 `709F916A…FCE148` (since CAPIE 1.6.2; 1.6.1 pinned 1.19.4.2, 1.6.0 and 1.5.2 pinned 1.19.4.1, 1.5.1 pinned 1.19.4.0, 1.5.0 pinned 1.19.3.0,
+`7DC947BE…A031D5`). The ports are documented in `docs/research/port-1.19.4.0.md`, `docs/research/port-1.19.4.1.md`, `docs/research/port-1.19.4.2.md` and `docs/research/port-1.19.5.0.md`.
 
 For development, CAPIE loads by default through the opt-in `version.dll` proxy. Prepare the
 reviewed stage-2 DLLs, build with `build_proxy.ps1`, then read

@@ -3,9 +3,9 @@
  * @brief Pins of the host probe (`host_probe.hpp`), checked once at editor start in the debug flavor.
  *
  * "report" below is the host-detect report (session 2026-10-14); the current values are in
- * docs/research/port-1.19.4.2.md. `GetMachineId` keeps one leading padding byte so its pattern
+ * docs/research/port-1.19.4.2.md (unchanged on 1.19.5.0). `GetMachineId` keeps one leading padding byte so its pattern
  * is unique (`CC8B8184000000C3`). None of the pinned ranges overlaps a DIR64 relocation
- * (checked on the 1.19.4.2 file by tools/port/gen_tables.py).
+ * (checked on the 1.19.5.0 file by tools/port/gen_tables.py).
  *
  * A failed pin turns the probe off (one log line naming the pin); the editor keeps working.
  */

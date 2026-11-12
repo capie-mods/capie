@@ -8,7 +8,7 @@
  * the first mismatch, with the code of the group (20, 21 or 22).
  *
  * `tests/check_signature_table.py` compares every entry with the accepted table of the pinned
- * build (`tools/port/accepted-1.19.4.2.json`) and fails on any difference in RVA, length or
+ * build (`tools/port/accepted-1.19.5.0.json`) and fails on any difference in RVA, length or
  * bytes; `signature_exe_test.exe` checks every entry against the EXE file.
  *
  * Evidence rules (RE findings 1.1 and 6.1): each run starts and ends on an instruction

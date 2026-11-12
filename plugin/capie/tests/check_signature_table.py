@@ -1,8 +1,8 @@
-"""Compare the CAPIE signature table with the accepted 1.19.4.2 table.
+"""Compare the CAPIE signature table with the accepted 1.19.5.0 table.
 
-The accepted table is ``tools/port/accepted-1.19.4.2.json``, pinned by SHA-256 (201A9BD5...).
-It was generated from ``hoi4.exe`` 1.19.4.2 (SHA-256 BCCC6290...) by ``tools/port/gen_tables.py``
-during the port documented in ``docs/research/port-1.19.4.2.md`` (method: ``port-1.19.4.0.md``):
+The accepted table is ``tools/port/accepted-1.19.5.0.json``, pinned by SHA-256 (797A4A72...).
+It was generated from ``hoi4.exe`` 1.19.5.0 (SHA-256 709F916A...) by ``tools/port/gen_tables.py``
+during the port documented in ``docs/research/port-1.19.5.0.md`` (method: ``port-1.19.4.0.md``):
 whole instructions, the same RIP/rel32 fields masked as in the 1.19.3.0 table, unique in ``.text``
 and free of DIR64 relocations. Every entry's id, RVA,
 length, bytes and wildcard positions are compared with
@@ -32,13 +32,13 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 """Repository root."""
 
-ACCEPTED = "tools/port/accepted-1.19.4.2.json"
+ACCEPTED = "tools/port/accepted-1.19.5.0.json"
 """Accepted table, repository-relative."""
 
-ACCEPTED_SHA256 = "201a9bd5fd8be2ddcad3d946d70e49815b92b71519067a5890af7dcbd0fd5706"
+ACCEPTED_SHA256 = "797a4a7255c6bd7746bc58b51055964118cf21b3466bb656827d8c715a3f6a4a"
 """Pinned SHA-256 of the accepted table."""
 
-GAME_EXE_SHA256 = "bccc62909b6a1ec2c1d5a46ef18608e4d0c7cdc89ad341b7402a23c40f7a8037"
+GAME_EXE_SHA256 = "709f916afbebcfe64a26678702691aeb40945d206074c2a80de8e9d601fce148"
 """The executable the accepted table was generated from (must match game_build.hpp)."""
 
 TABLE = REPO / "plugin/capie/src/core/signature_table.hpp"

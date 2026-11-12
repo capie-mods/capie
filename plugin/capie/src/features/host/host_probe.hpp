@@ -11,7 +11,7 @@
  * `get_host_username`; is_host = both equal. Names are compared as the SAME element of the human
  * list (machine id), so two players with the same display name never make a client the host.
  *
- * Engine chain (pinned build; see docs/research/port-1.19.4.2.md):
+ * Engine chain (pinned build; see docs/research/port-1.19.4.2.md, unchanged on 1.19.5.0):
  *   app      = [image + 0x33DDB08]                 getter GetApplication; GetLocalHuman loads it and calls vslot 0x88;
  *              vtable CGameApplication 2796308
  *   session  = [app + 0x380]                       CGameApplication::GetSession 17F880 (vslot 0x88)
