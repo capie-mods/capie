@@ -11,9 +11,14 @@ This item is the switch. It has no game content and changes no game file: it is 
 [/list]
 Load order does not matter. Keep only one mod called CAPIE: with a local copy of the same name, the game skips this Workshop item. The installer's own local copy is called CAPIE (local copy) and is not installed when you subscribe here.
 
-[b]Pre-release.[/b] Current version: CAPIE 1.6.1 (script API level 8), tested in single player on HOI4 1.19.4.2.
+[b]Pre-release.[/b] Current version: CAPIE 1.6.2 (script API level 8), tested in single player on HOI4 1.19.5.0.
 
-[h2]What's new in 1.6.1[/h2]
+[h2]What's new in 1.6.2[/h2]
+[list]
+[*]Supports HOI4 1.19.5.0 (the update of 12 November). CAPIE 1.6.1 stays off on it: run the install line below again and choose [i]Install or update[/i].
+[/list]
+
+[h2]1.6.1[/h2]
 [list]
 [*]Supports HOI4 1.19.4.2 (the update of 5 November). CAPIE 1.6.0 stays off on it: run the install line below again and choose [i]Install or update[/i].
 [*]Updating no longer fails when Windows Defender flags version.dll (a false positive). That optional Proxy loader is now a separate download, so the default install never touches it.
@@ -32,7 +37,7 @@ To check that CAPIE runs, open a Rename Anything editor in a game: it shows "CAP
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-requirements.png[/img]
 [h2]Requirements[/h2]
 [list]
-[*]Hearts of Iron IV 1.19.4.2 on Windows.
+[*]Hearts of Iron IV 1.19.5.0 on Windows.
 [*]The CAPIE launcher, set up by the installer. Without it this item does nothing.
 [/list]
 
@@ -44,7 +49,7 @@ CAPIE installs with a small setup tool. Close Steam, or let the tool close it fo
 [code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
 A menu opens: choose [i]Install or update[/i].
 [*][b]Download from GitHub.[/b] Get the ZIP, install.ps1 and the two release-manifest files from [url=https://github.com/capie-mods/capie/releases/latest]the latest release[/url] into one folder, then in PowerShell in that folder run:
-[code].\install.ps1 -Install -PackagePath .\CAPIE-1.6.1-win64.zip[/code]
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.6.2-win64.zip[/code]
 [/list]
 Both ways check the signed release manifest and every file's SHA-256, install into your user folder (never the game folder) and add the CAPIE launcher to the HOI4 launch options in Steam. The same tool updates, installs an older version, switches CAPIE off or uninstalls it.
 
