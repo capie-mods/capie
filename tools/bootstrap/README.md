@@ -48,6 +48,10 @@ through the `$script:RaOpenRead` adapter, which the tests replace to simulate a 
 * The DLL never talks to the network. The launcher does nothing in the background.
   The only network access is this script, and only when you run `-Install` (download)
   or ask for `-CheckUpdate` / `-Update`. It sends no identifiers and no telemetry.
+* Click-to-update (ADR-0038): every install, update and rollback writes
+  `%LOCALAPPDATA%\RenameAnything\Update CAPIE.bat` and a copy of this script
+  (`setup\install.ps1`). Double-clicking the batch file checks the copy's SHA-256 and runs it with
+  `-Update` in Windows PowerShell 5.1, then waits for a key. Nothing starts it automatically.
 * Log: `%LOCALAPPDATA%\RenameAnything\bootstrap.log`.
 
 Websites: [Rename Anything](https://capie-mods.github.io/rename-anything/) and [CAPIE](https://capie-mods.github.io/capie/).

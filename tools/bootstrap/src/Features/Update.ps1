@@ -263,7 +263,7 @@ function Write-RaGameSupportNotice {
         return $true
     }
     $installer = $script:RaGitHubLatestInstallerFormat -f $script:RaGitHubRepo
-    Write-RaLog (Get-RaText 'InstalledGameUnsupported' @($version, $gameSha.Substring(0, $script:RaGameHashDisplayLength), $page, $installer)) -Level WARN
+    Write-RaLog (Get-RaText 'InstalledGameUnsupported' @($version, $gameSha.Substring(0, $script:RaGameHashDisplayLength), $page, $installer, (Get-RaUpdateBatchPath))) -Level WARN
     return $false
 }
 

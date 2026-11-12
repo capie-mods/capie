@@ -23,6 +23,9 @@
 .PARAMETER PesterManifest
     Path of Pester.psd1 (default: Pester 3.4.0 bundled with Windows).
 
+.PARAMETER Only
+    Run only these mutants (after the baseline; names or one comma-separated string); default: all.
+
 .OUTPUTS
     System.String. One line per mutant: "<name> : KILLED|SURVIVED|PATTERN NOT FOUND (...)".
 
@@ -34,7 +37,8 @@
 param(
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$WorkRoot,
     [ValidateSet('pwsh', 'powershell')][string]$PowerShellExe = 'pwsh',
-    [ValidateNotNullOrEmpty()][string]$PesterManifest = 'C:\Program Files\WindowsPowerShell\Modules\Pester\3.4.0\Pester.psd1'
+    [ValidateNotNullOrEmpty()][string]$PesterManifest = 'C:\Program Files\WindowsPowerShell\Modules\Pester\3.4.0\Pester.psd1',
+    [string[]]$Only = @()
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -99,6 +103,11 @@ $script:Mutations = [ordered]@{
     'launcher-unpacks-proxy'     = @(, @('Where-Object { $script:RaProxyWanted -or $_ -ne $script:RaProxyBundlePath }', 'Where-Object { $true }'))
     'proxy-zip-hash-skip'        = @(, @('if ($hash -ne $source.ZipSha256.ToUpperInvariant()) {', 'if ($false) {'))
     'antivirus-raw-error'        = @(, @('throw (Get-RaAntivirusText -Path $Path', 'throw; $null = (Get-RaAntivirusText -Path $Path'))
+    'batch-hash-skip'            = @(, @('"if (`$h -ne `$env:CAPIE_SETUP_SHA256) {', '"if (`$false) {'))
+    'batch-percent-raw'          = @(, @("    return `$Value.Replace('%', '%%')", '    return $Value'))
+    'batch-no-pause'             = @(, @("        'pause',`n", ''))
+    'batch-not-on-update'        = @(, @("        if (`$updated) { Remove-RaUnusedVersion `$state }`n        [void](Install-RaUpdateBatch `$state)", '        if ($updated) { Remove-RaUnusedVersion $state }'))
+    'batch-not-on-rollback'      = @(, @("        Save-RaState `$state`n        [void](Install-RaUpdateBatch `$state)`n        [void](Write-RaGameSupportNotice `$state (& `$gameDir))", "        Save-RaState `$state`n        [void](Write-RaGameSupportNotice `$state (& `$gameDir))"))
 }
 
 function Invoke-MutationRun {
@@ -159,7 +168,10 @@ $baseline = Invoke-MutationRun -Name $script:MutationBaselineName -Replacements 
 Write-Output ('{0} : failed={1} passed={2}' -f $baseline.Name, $baseline.Failed, $baseline.Passed)
 if ($baseline.Failed -ne 0) { throw 'The unmutated suite fails; fix it before running mutations.' }
 $allKilled = $true
-foreach ($name in $script:Mutations.Keys) {
+# pwsh -File passes "a,b" as one string.
+$Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+foreach ($unknown in @($Only | Where-Object { -not $script:Mutations.Contains($_) })) { throw "Unknown mutant: $unknown" }
+foreach ($name in @($script:Mutations.Keys | Where-Object { $Only.Count -eq 0 -or $Only -contains $_ })) {
     $r = Invoke-MutationRun -Name $name -Replacements $script:Mutations[$name] -Interpreter $PowerShellExe -Pester $PesterManifest
     $verdict = if ($r.PatternNotFound) { 'PATTERN NOT FOUND' } elseif ($r.Failed -gt 0) { 'KILLED' } else { 'SURVIVED' }
     if ($verdict -ne 'KILLED') { $allKilled = $false }

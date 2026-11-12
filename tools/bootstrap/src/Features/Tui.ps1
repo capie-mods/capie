@@ -253,7 +253,8 @@ function Get-RaTuiSummaryRow {
         Rows of the summary after an action.
     .DESCRIPTION
         What is installed now, what Steam does, that the game folder is unchanged in launcher
-        mode, how to switch CAPIE on and off, how to undo, and where the log is.
+        mode, how to switch CAPIE on and off, how to undo, how to update (Update CAPIE.bat) and
+        where the log is.
     .PARAMETER Action
         Action that ran.
     .PARAMETER ExitCode
@@ -290,6 +291,9 @@ function Get-RaTuiSummaryRow {
         if ($modFiles.Count -gt 0) { $rows += , @((Get-RaText 'TuiRowMod'), (Join-Path (Get-RaPlaysetModRoot) 'capie')) }
         if ($state.InstalledVersion) { $rows += , @((Get-RaText 'TuiRowSwitch'), (Get-RaText 'TuiSwitchValue')) }
         if ($state.InstalledVersion) { $rows += , @((Get-RaText 'TuiRowUndo'), (Get-RaText 'TuiUndoValue')) }
+        if ($state.InstalledVersion -and (Test-Path -LiteralPath (Get-RaUpdateBatchPath) -PathType Leaf)) {
+            $rows += , @((Get-RaText 'TuiRowUpdate'), (Get-RaUpdateBatchPath))
+        }
     }
     if (-not $Purged) { $rows += , @((Get-RaText 'TuiRowLog'), (Get-RaLogPath)) }
     return , $rows

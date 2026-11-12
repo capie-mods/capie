@@ -4,6 +4,8 @@
 #   <root>\current              junction to the active version
 #   <root>\manifests\<v>.json   manifest of each installed version
 #   <root>\state.json           installed/previous version, our shortcuts and Steam edits
+#   <root>\setup\install.ps1    copy of the installer that ran last (Update CAPIE.bat runs it)
+#   <root>\Update CAPIE.bat     click-to-update (ADR-0038)
 #   <root>\bootstrap.log
 # ---------------------------------------------------------------------------
 

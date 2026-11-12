@@ -58,6 +58,15 @@ $script:RaWorkshopModDescriptor = 'ugc_3819929471.mod'
 $script:RaShortcutFileName = 'Hearts of Iron IV + Rename Anything.lnk'
 $script:RaLogFileName = 'bootstrap.log'
 $script:RaStateFileName = 'state.json'
+# Click-to-update (ADR-0038): a batch file in the root folder runs the local installer copy with -Update.
+$script:RaUpdateBatchName = 'Update CAPIE.bat'
+$script:RaSetupCopyDirName = 'setup'
+$script:RaSetupCopyFileName = 'install.ps1'
+# Text every generated install.ps1 carries (build-install.ps1); a script without it is never copied.
+$script:RaGeneratedScriptMarker = '# GENERATED FILE: edit tools/bootstrap/src/* and run tools/bootstrap/build-install.ps1.'
+# Windows PowerShell 5.1, always present; the batch file never depends on PATH or on pwsh.
+$script:RaBatchPowerShell = '%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe'
+$script:RaBatchCopyMissingExit = 3        # batch file: installer copy missing or changed, nothing ran
 $script:RaCurrentLinkName = 'current'
 $script:RaManifestStoreDirName = 'manifests'
 $script:RaBackupInfix = '.renameanything-backup-'

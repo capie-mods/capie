@@ -91,7 +91,9 @@
     Install or update: when CAPIE is not installed, install it (the newest signed release when the
     update channel is configured); otherwise install the newest signed release and switch to it. When
     it is already the newest, repair instead (switch mod, and the Steam launch option with
-    -SteamLaunchOption).
+    -SteamLaunchOption). Every install, update and rollback also writes
+    %LOCALAPPDATA%\RenameAnything\Update CAPIE.bat: double-clicking it runs a local copy of this
+    script (setup\install.ps1, its SHA-256 checked first) with -Update. Nothing runs on its own.
 
 .PARAMETER ListVersions
     List the signed releases on GitHub (one request) with API level, game version, date and changes.

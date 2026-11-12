@@ -69,6 +69,7 @@ $script:BuildFragments = @(
     'Features/Versions.ps1',
     'Features/Shortcut.ps1',
     'Features/PlaysetMod.ps1',
+    'Features/UpdateBatch.ps1',
     'Features/Uninstall.ps1',
     'Features/Tui.ps1',
     'Main.ps1'

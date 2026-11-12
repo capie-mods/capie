@@ -210,7 +210,7 @@ function Invoke-RaSetupAction {
     .SYNOPSIS
         Runs the install / Steam launch option / shortcut flow.
     .DESCRIPTION
-        Steps run in order install, Steam, shortcut, prune. A failed Steam step is
+        Steps run in order install, Steam, shortcut, prune, Update CAPIE.bat. A failed Steam step is
         logged and makes the exit code 1 but does not stop the shortcut step.
     .PARAMETER Options
         Normalized option table.
@@ -275,6 +275,7 @@ function Invoke-RaSetupAction {
     }
     if ($plan.Install) {
         Remove-RaUnusedVersion $State
+        [void](Install-RaUpdateBatch $State)
         [void](Write-RaGameSupportNotice $State (Get-RaGameDirOrNull $SteamRootPath))
     }
     if ($steamStepFailed) { return $script:RaExitFailure }
@@ -353,6 +354,7 @@ function Invoke-RaAction {
         Save-RaState $state
         Install-RaPlaysetMod $state
         Save-RaState $state
+        [void](Install-RaUpdateBatch $state)
         [void](Write-RaGameSupportNotice $state (& $gameDir))
         Write-RaDone
         return $script:RaExitSuccess
@@ -373,6 +375,7 @@ function Invoke-RaAction {
             $steamOk = Invoke-RaSteamStep -State $state -SteamRootPath $steamRootPath -AccountSelector $Options.SteamAccount -LoadMethod $method
         }
         if ($updated) { Remove-RaUnusedVersion $state }
+        [void](Install-RaUpdateBatch $state)
         [void](Write-RaGameSupportNotice $state (& $gameDir))
         if (-not $steamOk) { return $script:RaExitFailure }
         Write-RaDone

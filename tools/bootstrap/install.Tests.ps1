@@ -3075,3 +3075,158 @@ Describe 'Antivirus false positives (proxy version.dll as a separate asset, Laun
         $null -eq (Get-RaManifestProxySha256 $none.Manifest) | Should Be $true
     }
 }
+
+function Invoke-UpdateBatch {
+    <#
+    .SYNOPSIS
+        Runs a batch file through cmd.exe with stdin from NUL (pause returns at once) from another folder.
+    .DESCRIPTION
+        Proves that the batch file does not depend on the working folder. Returns the exit code.
+    .PARAMETER Path
+        Batch file.
+    .PARAMETER WorkingDirectory
+        Folder cmd.exe starts in.
+    .OUTPUTS
+        System.Int32
+    .EXAMPLE
+        Invoke-UpdateBatch $bat $dir
+    #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    param([Parameter(Mandatory, Position = 0)][string]$Path, [Parameter(Mandatory, Position = 1)][string]$WorkingDirectory)
+    $start = New-Object System.Diagnostics.ProcessStartInfo
+    $start.FileName = Join-Path $env:SystemRoot 'System32\cmd.exe'
+    $start.Arguments = '/d /s /c ""' + $Path + '" <NUL"'
+    $start.WorkingDirectory = $WorkingDirectory
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    $child = [Diagnostics.Process]::Start($start)
+    try {
+        [void]$child.StandardOutput.ReadToEnd()
+        if (-not $child.WaitForExit(60000)) { throw 'batch file did not end' }
+        return $child.ExitCode
+    } finally { $child.Dispose() }
+}
+
+Describe 'Click-to-update (Update CAPIE.bat runs the local installer copy with -Update)' {
+    It 'install writes the installer copy and the batch file: absolute paths, its SHA-256, Windows PowerShell 5.1, -Update, pause' {
+        $e = Initialize-UpdateEnv 'bat-install'
+        $bat = Get-RaUpdateBatchPath
+        $copy = Get-RaSetupCopyPath
+        $bat | Should Be (Join-Path $script:RaRoot 'Update CAPIE.bat')
+        $copy | Should Be (Join-Path $script:RaRoot 'setup\install.ps1')
+        Test-RaBytesEqual ([IO.File]::ReadAllBytes($copy)) ([IO.File]::ReadAllBytes($scriptPath)) | Should Be $true
+        $bytes = [IO.File]::ReadAllBytes($bat)
+        @($bytes | Where-Object { $_ -gt 127 }).Count | Should Be 0
+        $text = [Text.Encoding]::ASCII.GetString($bytes)
+        $text.Replace("`r`n", '').Contains("`n") | Should Be $false
+        $lines = $text.TrimEnd("`r", "`n") -split "`r`n"
+        $lines[0] | Should Be '@echo off'
+        $lines -contains 'setlocal DisableDelayedExpansion' | Should Be $true
+        $lines -contains ('set "CAPIE_SETUP_SCRIPT=' + $copy + '"') | Should Be $true
+        $lines -contains ('set "CAPIE_SETUP_SHA256=' + (Get-FileHash -LiteralPath $copy).Hash + '"') | Should Be $true
+        $run = @($lines | Where-Object { $_.StartsWith('"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "') })
+        $run.Count | Should Be 1
+        $run[0].EndsWith(' -Update"') | Should Be $true
+        # Inside the quoted -Command nothing else may be quoted or expanded by cmd.exe.
+        $inner = $run[0].Substring($run[0].IndexOf('-Command "') + 10).TrimEnd('"')
+        $inner.Contains('"') | Should Be $false
+        $inner.Contains('%') | Should Be $false
+        $lines -contains 'pause' | Should Be $true
+        $lines[-1] | Should Be 'exit /b %CAPIE_EXIT%'
+        $text.Contains('%~dp0') | Should Be $false
+        $text | Should Not Match 'pwsh'
+        [IO.File]::ReadAllText((Get-RaLogPath)) | Should Match ([regex]::Escape("double-click $bat"))
+    }
+    It 'batch values: % is doubled, a double quote or line break is refused' {
+        ConvertTo-RaBatchValue 'C:\Users\A %B% & C^D\x' | Should BeExactly 'C:\Users\A %%B%% & C^D\x'
+        Assert-RaThrow { ConvertTo-RaBatchValue 'C:\a"b' } 'cannot be written'
+        Assert-RaThrow { ConvertTo-RaBatchValue "C:\a`r`nb" } 'cannot be written'
+        Assert-RaThrow { New-RaUpdateBatchText 'C:\x\install.ps1' 'not-a-hash' }
+    }
+    It 'the batch file really runs the copy with -Update from any folder, also with spaces, % and & in the path' {
+        $dir = Reset-Env 'bat-run'
+        $odd = Join-Path $dir 'Test User 100%TEMP% & co'
+        $batDir = Join-Path $dir 'Local App Data & Co'
+        New-Item -ItemType Directory -Force -Path $odd, $batDir | Out-Null
+        $fakeCopy = Join-Path $odd 'install.ps1'
+        $mark = Join-Path $dir 'ran.txt'
+        $body = "param([switch]`$Update)`r`n[IO.File]::WriteAllText('$mark', ('update=' + [bool]`$Update + ';ps=' + `$PSVersionTable.PSVersion.Major))`r`n"
+        [IO.File]::WriteAllBytes($fakeCopy, [Text.Encoding]::ASCII.GetBytes($body))
+        # cmd.exe /c (also Explorer's double-click) expands %NAME% in the batch file's own path, so the
+        # odd characters go into the copy's path, which the batch file itself carries.
+        $bat = Join-Path $batDir 'Update CAPIE.bat'
+        [IO.File]::WriteAllBytes($bat, [Text.Encoding]::ASCII.GetBytes((New-RaUpdateBatchText $fakeCopy (Get-FileHash -LiteralPath $fakeCopy).Hash)))
+        $elsewhere = Join-Path $dir 'elsewhere'
+        New-Item -ItemType Directory -Force -Path $elsewhere | Out-Null
+        Invoke-UpdateBatch $bat $elsewhere | Should Be 0
+        [IO.File]::ReadAllText($mark) | Should Be 'update=True;ps=5'
+        # A changed copy runs nothing.
+        Remove-Item -LiteralPath $mark
+        [IO.File]::AppendAllText($fakeCopy, "[IO.File]::WriteAllText('$mark', 'tampered')`r`n")
+        Invoke-UpdateBatch $bat $elsewhere | Should Be $script:RaBatchCopyMissingExit
+        Test-Path -LiteralPath $mark | Should Be $false
+        # A missing copy runs nothing either.
+        Remove-Item -LiteralPath $fakeCopy
+        Invoke-UpdateBatch $bat $elsewhere | Should Be $script:RaBatchCopyMissingExit
+        Test-Path -LiteralPath $mark | Should Be $false
+    }
+    It 'update, rollback and repair rewrite the batch file for the one copy; uninstall removes both' {
+        $e = Initialize-UpdateEnv 'bat-update'
+        $bat = Get-RaUpdateBatchPath
+        $copy = Get-RaSetupCopyPath
+        [IO.File]::WriteAllText($bat, 'stale')
+        [void](New-SignedRelease -Dir $e.Dir -Version '0.2.0' -KeyPath $e.Key)
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.2.0'
+        $fresh = [IO.File]::ReadAllText($bat)
+        $fresh | Should Match ([regex]::Escape('set "CAPIE_SETUP_SCRIPT=' + $copy + '"'))
+        [IO.File]::WriteAllText($bat, 'stale')
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Rollback = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Get-CurrentTargetName | Should Be '0.1.0'
+        [IO.File]::ReadAllText($bat) | Should Be $fresh
+        # Repair (already the newest) writes it too.
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Remove-Item -LiteralPath $bat
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Update = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        [IO.File]::ReadAllText($bat) | Should Be $fresh
+        (Invoke-RaMain @{ LoadMethod = 'Launcher'; Uninstall = $true; Yes = $true; SteamRoot = $e.Steam }) | Should Be 0
+        Test-Path -LiteralPath $bat | Should Be $false
+        Test-Path -LiteralPath (Split-Path -Parent $copy) | Should Be $false
+    }
+    It 'the running installer text is found and checked: generated marker, entry point, ASCII' {
+        $text = Get-RaSelfScriptText
+        $text | Should Not BeNullOrEmpty
+        $text.Contains('function Invoke-RaMain') | Should Be $true
+        $text.Length | Should Be ([IO.File]::ReadAllText($scriptPath)).Length
+    }
+    It 'the unsupported-build notice names the batch file next to the irm line' {
+        $dir = Reset-Env 'bat-notice'
+        $steam = Join-Path $dir 'Steam'
+        New-FakeSteam $steam @{ '111' = (New-LocalConfigText (New-AppBlock $null)) }
+        $pkg = New-TestPackage (Join-Path $dir 'pkg')
+        $script:RaPinnedRelease = $pkg.Manifest
+        (Invoke-RaMain (New-InstallOption $pkg $steam)) | Should Be 0
+        $log = [IO.File]::ReadAllText((Get-RaLogPath))
+        $log | Should Match ([regex]::Escape('or double-click ' + (Get-RaUpdateBatchPath)))
+        Test-Path -LiteralPath (Get-RaUpdateBatchPath) | Should Be $true
+    }
+    Context 'running script that is not a generated install.ps1' {
+        It 'a run that is not a generated install.ps1 leaves the copy and the batch file alone; dry run writes nothing' {
+            $e = Initialize-UpdateEnv 'bat-keep'
+            $bat = Get-RaUpdateBatchPath
+            $before = [IO.File]::ReadAllBytes($bat)
+            $copyBefore = [IO.File]::ReadAllBytes((Get-RaSetupCopyPath))
+            Mock Get-RaSelfScriptText { $null }
+            Install-RaUpdateBatch (Read-RaState) | Should Be $false
+            Test-RaBytesEqual ([IO.File]::ReadAllBytes($bat)) $before | Should Be $true
+            Test-RaBytesEqual ([IO.File]::ReadAllBytes((Get-RaSetupCopyPath))) $copyBefore | Should Be $true
+            Remove-Item -LiteralPath $bat
+            $script:RaDry = $true
+            try { Install-RaUpdateBatch (Read-RaState) | Should Be $true } finally { $script:RaDry = $false }
+            Test-Path -LiteralPath $bat | Should Be $false
+            Install-RaUpdateBatch (New-RaState) | Should Be $false
+        }
+    }
+}

@@ -88,6 +88,7 @@ $script:RaMessages = @{
         "NOTE: CAPIE {0} does NOT support your Hearts of Iron IV build (hoi4.exe SHA-256 {1}...). The game still `n",
         "starts, but without CAPIE. Get a CAPIE version made for your game build:`n",
         "  open    {2}`n",
+        "  or double-click {4}`n",
         "  or run  & ([scriptblock]::Create((irm {3}))) -Update`n",
         'If that already is the newest release, CAPIE has not been updated for this game build yet; check the page again later.'
     ) -join ''
@@ -191,6 +192,8 @@ $script:RaMessages = @{
     TuiRowSwitch               = 'Switch'
     TuiRowUndo                 = 'Undo'
     TuiRowLog                  = 'Log'
+    TuiRowUpdate               = 'Update'
+    UpdateBatchReady           = 'To update CAPIE later, double-click {0} (it runs the local installer copy with -Update).'
     TuiRowMod                  = 'CAPIE mod'
     TuiRowResult               = 'Result'
     TuiGameUnchanged           = 'unchanged'
