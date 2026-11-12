@@ -29,6 +29,7 @@ from releasekit.package import (
     contains_string,
     entry_problems,
     identity_problems,
+    installer_problem,
     local_inner_descriptor,
     switch_mod_descriptor,
     write_zip,
@@ -508,6 +509,59 @@ def test_release_refuses_an_existing_tag_or_unpushed_commit(harness: Harness) ->
     assert harness.run("release") == 1
     assert "push it first" in harness.output
     assert harness.runner.mutating() == []
+
+
+def test_manifest_lists_the_installer_written_with_the_pins(harness: Harness) -> None:
+    """The signed manifest names install.ps1 with its SHA-256, taken after the pins were written.
+
+    Args:
+        harness: Test harness.
+    """
+    installer = harness.root / "tools/bootstrap/install.ps1"
+
+    def rebuild(call: tuple[str, ...]) -> None:
+        """Let the fake build-install.ps1 write a new install.ps1.
+
+        Args:
+            call: Command line the fake runner answers.
+        """
+        if any("build-install.ps1" in part for part in call):
+            installer.write_text("# installer with the new pins\n", encoding="ascii", newline="\n")
+
+    harness.runner.on_run = rebuild
+    assert _build(harness, "--write-pins") == 0, harness.output
+    manifest = json.loads((harness.out / "release-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["installer"] == {
+        "name": "install.ps1",
+        "sha256": hashlib.sha256(installer.read_bytes()).hexdigest().upper(),
+    }
+    joined = [" ".join(c) for c in harness.runner.calls]
+    rebuilt = next(i for i, c in enumerate(joined) if "build-install.ps1" in c)
+    made = next(i for i, c in enumerate(joined) if "-MakeManifest" in c)
+    assert rebuilt < made
+    assert "-InstallerPath" in harness.runner.calls[made]
+
+
+def test_installer_problem_compares_name_and_hash() -> None:
+    """The optional manifest field must match the uploaded install.ps1 exactly."""
+    sha = "A" * 64
+    assert not installer_problem(None, None)
+    assert installer_problem({"name": "install.ps1", "sha256": sha}, None)
+    assert installer_problem(None, sha)
+    assert installer_problem({"name": "setup.ps1", "sha256": sha}, sha)
+    assert installer_problem({"name": "install.ps1", "sha256": "B" * 64}, sha)
+    assert not installer_problem({"name": "install.ps1", "sha256": sha.lower()}, sha)
+
+
+def test_release_refuses_an_installer_changed_after_the_build(harness: Harness) -> None:
+    """install.ps1 rewritten after signing would refresh no copy: it is never uploaded.
+
+    Args:
+        harness: Test harness.
+    """
+    assert _build(harness) == 0
+    (harness.root / "tools/bootstrap/install.ps1").write_text("# edited\n", encoding="ascii")
+    _release_refused(harness, "does not list the SHA-256 of install.ps1")
 
 
 def _release_refused(harness: Harness, reason: str) -> None:

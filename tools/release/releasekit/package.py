@@ -21,10 +21,14 @@ and this step). A fresh build therefore never matches the pins. The step:
    ``proxy/version.dll``) go into a separate ZIP (``proxy_zip_name``) that the signed manifest
    lists under ``proxy``: the default Launcher install never downloads it, so an antivirus false
    positive on the proxy cannot block a normal install or update.
-5. ``sign-release-manifest.ps1 -MakeManifest`` and ``-Sign`` (key path from the command
-   line, refused inside the repository), then re-checks the manifest and the signature.
-6. Writes ``SHA256SUMS.txt``, ``build-info.json`` and the installer pin block
-   (``--write-pins`` puts it into ``Configuration.ps1`` and rebuilds ``install.ps1``).
+5. Writes the installer pin block (``--write-pins`` puts it into ``Configuration.ps1`` and
+   rebuilds ``install.ps1``). The pins name only the ZIPs, so this comes before the manifest.
+6. ``sign-release-manifest.ps1 -MakeManifest`` (with ``-InstallerPath``: the manifest lists the
+   SHA-256 of the ``install.ps1`` uploaded with the release, field ``installer``, so ``-Update``
+   can refresh the installer copy behind ``Update CAPIE.bat``, ADR-0038) and ``-Sign`` (key
+   path from the command line, refused inside the repository), then re-checks the manifest,
+   its installer entry and the signature.
+7. Writes ``SHA256SUMS.txt`` and ``build-info.json``.
 """
 
 from __future__ import annotations
@@ -79,6 +83,9 @@ BUILD_INFO_NAME = "build-info.json"
 
 PINS_NAME = "installer-pins.ps1.txt"
 """Rendered installer pin block (not uploaded)."""
+
+INSTALLER_NAME = "install.ps1"
+"""Installer asset name; the manifest lists its SHA-256 (field ``installer``, ADR-0038)."""
 
 ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 """Timestamp of every ZIP entry, so equal inputs give an equal ZIP."""
@@ -752,7 +759,26 @@ def _proxy_manifest_problems(
     return []
 
 
-def check_manifest(  # noqa: PLR0913 - the main ZIP, its entries and the proxy ZIP
+def installer_problem(listed: object, installer_sha: str | None) -> bool:
+    """Whether the manifest's ``installer`` field disagrees with the release's ``install.ps1``.
+
+    Args:
+        listed: The manifest's ``installer`` value (``None`` when absent).
+        installer_sha: Upper-case SHA-256 of the uploaded ``install.ps1``, or ``None``.
+
+    Returns:
+        True on a mismatch (a missing or extra field, another name or hash).
+    """
+    if installer_sha is None:
+        return listed is not None
+    if not isinstance(listed, dict):
+        return True
+    name = str(listed.get("name", ""))
+    sha = str(listed.get("sha256", "")).upper()
+    return name != INSTALLER_NAME or sha != installer_sha.upper()
+
+
+def check_manifest(  # noqa: PLR0913 - the main ZIP, its entries, the proxy ZIP and the installer
     ctx: Context,
     manifest: bytes,
     zip_name: str,
@@ -760,6 +786,7 @@ def check_manifest(  # noqa: PLR0913 - the main ZIP, its entries and the proxy Z
     entries: Sequence[BundleEntry],
     *,
     proxy: tuple[str, str, Sequence[BundleEntry]] | None = None,
+    installer_sha: str | None = None,
 ) -> bool:
     """Compare the generated manifest with what was packed.
 
@@ -770,9 +797,12 @@ def check_manifest(  # noqa: PLR0913 - the main ZIP, its entries and the proxy Z
         zip_sha: ZIP SHA-256.
         entries: ZIP entries.
         proxy: Name, SHA-256 and entries of the separate proxy ZIP, or ``None``.
+        installer_sha: SHA-256 of the ``install.ps1`` uploaded with the release, or ``None`` when
+            the manifest must not list one.
 
     Returns:
-        True when version, ZIP name and hash, every file hash and the game hash agree.
+        True when version, ZIP name and hash, every file hash, the game hash and the installer
+        entry agree.
     """
     data = json.loads(manifest.decode("utf-8"))
     files = {str(k): str(v).upper() for k, v in dict(data.get("files", {})).items()}
@@ -792,6 +822,8 @@ def check_manifest(  # noqa: PLR0913 - the main ZIP, its entries and the proxy Z
         problems.append("game_version")
     if list(data.get("changelog_summary", [])) != changelog_summary(ctx):
         problems.append("changelog_summary")
+    if installer_problem(data.get("installer"), installer_sha):
+        problems.append("installer")
     if problems:
         ctx.reporter.record(
             STEP, Status.FAIL, f"manifest disagrees with the ZIP: {', '.join(problems)}"
@@ -929,6 +961,8 @@ def plan(
                 "-ZipPath",
                 str(out / zip_name),
                 *(("-ProxyZipPath", str(out / proxy_zip_name(ctx))) if proxy else ()),
+                "-InstallerPath",
+                str(ctx.config.resolve(ctx.config.signing.installer_script)),
                 "-Version",
                 ctx.version,
                 "-SupportedGameSha256",
@@ -961,8 +995,9 @@ def plan(
     )
     ctx.reporter.line(
         Status.PLAN,
-        f"write {SUMS_NAME}, {BUILD_INFO_NAME}, {PINS_NAME}"
-        + (" and the installer pins" if ctx.options.write_pins else ""),
+        f"write {PINS_NAME}"
+        + (" and the installer pins" if ctx.options.write_pins else "")
+        + f" before the manifest, then {SUMS_NAME} and {BUILD_INFO_NAME}",
     )
 
 
@@ -1040,6 +1075,22 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
             f"{proxy_name} {proxy_sha} ({len(proxy_entries)} files; only -LoadMethod Proxy "
             "downloads it)",
         )
+    # The pins name only the ZIPs, so they go into install.ps1 first; the manifest then lists the
+    # SHA-256 of that final install.ps1, the asset uploaded with the release (ADR-0038).
+    write_pins(
+        ctx,
+        PinnedRelease(
+            ctx.version,
+            zip_name,
+            zip_sha,
+            tuple((e.name, e.sha256) for e in entries),
+            (ctx.capie.game_sha256,),
+            None
+            if proxy_path is None
+            else ProxyPin(proxy_name, proxy_sha, tuple((e.name, e.sha256) for e in proxy_entries)),
+        ),
+    )
+    installer = ctx.config.resolve(ctx.config.signing.installer_script)
     sign = ctx.config.signing.sign_script
     manifest_path = out / MANIFEST_NAME
     made = _run_checked(
@@ -1052,6 +1103,8 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
             "-ZipPath",
             str(zip_path),
             *(("-ProxyZipPath", str(proxy_path)) if proxy_path is not None else ()),
+            "-InstallerPath",
+            str(installer),
             "-Version",
             ctx.version,
             "-SupportedGameSha256",
@@ -1078,7 +1131,13 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
     signature = (out / SIGNATURE_NAME).read_text(encoding="utf-8")
     proxy_check = (proxy_name, proxy_sha, proxy_entries) if proxy_path is not None else None
     if not check_manifest(
-        ctx, manifest, zip_name, zip_sha, entries, proxy=proxy_check
+        ctx,
+        manifest,
+        zip_name,
+        zip_sha,
+        entries,
+        proxy=proxy_check,
+        installer_sha=sha256_bytes(installer.read_bytes()),
     ) or not check_signature(ctx, manifest, signature, key):
         return False
     assets = [zip_path, *((proxy_path,) if proxy_path is not None else ()), manifest_path]
@@ -1102,19 +1161,6 @@ def _package(ctx: Context, entries: Sequence[BundleEntry], zip_name: str, key: P
         }
     (out / BUILD_INFO_NAME).write_text(
         json.dumps(info, indent=2) + "\n", encoding="utf-8", newline="\n"
-    )
-    write_pins(
-        ctx,
-        PinnedRelease(
-            ctx.version,
-            zip_name,
-            zip_sha,
-            tuple((e.name, e.sha256) for e in entries),
-            (ctx.capie.game_sha256,),
-            None
-            if proxy_path is None
-            else ProxyPin(proxy_name, proxy_sha, tuple((e.name, e.sha256) for e in proxy_entries)),
-        ),
     )
     ctx.reporter.record(STEP, Status.OK, f"release files in {out}")
     return not ctx.reporter.failed(STEP)

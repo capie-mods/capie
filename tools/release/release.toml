@@ -156,6 +156,9 @@ descriptor_name = "CAPIE (local copy)"
 sign_script = "tools/bootstrap/sign-release-manifest.ps1"
 installer_configuration = "tools/bootstrap/src/Shared/Configuration.ps1"
 installer_build_script = "tools/bootstrap/build-install.ps1"
+# Uploaded as the install.ps1 asset; the build writes the pins into it first and then lists its
+# SHA-256 in the signed manifest (field installer), so -Update can refresh the installer copy
+# behind Update CAPIE.bat (ADR-0038). The release step refuses an install.ps1 changed since.
 installer_script = "tools/bootstrap/install.ps1"
 
 # --- Step 3: GitHub release ------------------------------------------------------

@@ -403,6 +403,7 @@ def manifest_json(  # noqa: PLR0913 - mirrors the script's parameters
     game_version: str = "",
     summary_b64: str = "",
     proxy_zip: Path | None = None,
+    installer: Path | None = None,
 ) -> str:
     """What ``sign-release-manifest.ps1 -MakeManifest`` writes.
 
@@ -414,6 +415,7 @@ def manifest_json(  # noqa: PLR0913 - mirrors the script's parameters
         game_version: ``-GameVersion`` (empty = field left out).
         summary_b64: ``-ChangelogSummaryBase64`` (empty = field left out).
         proxy_zip: ``-ProxyZipPath`` (``None`` = field left out).
+        installer: ``-InstallerPath`` (``None`` = field left out).
 
     Returns:
         Manifest JSON.
@@ -439,6 +441,11 @@ def manifest_json(  # noqa: PLR0913 - mirrors the script's parameters
             "zipName": proxy_zip.name,
             "zipSha256": hashlib.sha256(proxy_zip.read_bytes()).hexdigest().upper(),
             "files": _zip_hashes(proxy_zip),
+        }
+    if installer is not None:
+        data["installer"] = {
+            "name": installer.name,
+            "sha256": hashlib.sha256(installer.read_bytes()).hexdigest().upper(),
         }
     return json.dumps(data, indent=2)
 
@@ -561,6 +568,7 @@ class FakeRunner:
                 game_version=_arg(call, "-GameVersion"),
                 summary_b64=_arg(call, "-ChangelogSummaryBase64"),
                 proxy_zip=Path(_arg(call, "-ProxyZipPath")) if "-ProxyZipPath" in call else None,
+                installer=Path(_arg(call, "-InstallerPath")) if "-InstallerPath" in call else None,
             )
             Path(_arg(call, "-OutPath")).write_text(text, encoding="utf-8")
             return 0, "Wrote manifest"

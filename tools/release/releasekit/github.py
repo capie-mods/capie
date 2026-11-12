@@ -7,7 +7,8 @@ for (supported game build, multiplayer statement, SmartScreen, VirusTotal, check
 A draft does not create the tag; GitHub creates it when the release is published.
 
 Before anything is uploaded the step checks the files again, failing closed: the ZIP is
-re-hashed against the manifest (``zipName``, ``zipSha256`` and every file inside), every line
+re-hashed against the manifest (``zipName``, ``zipSha256`` and every file inside), the
+``install.ps1`` asset against the manifest's ``installer`` entry, every line
 of ``SHA256SUMS.txt`` against the files, and the manifest signature against the public key
 the installer pins (``Configuration.ps1``). So a re-run that wrote a new ZIP next to an old
 manifest can never be published.
@@ -29,6 +30,7 @@ from releasekit.package import (
     MANIFEST_NAME,
     SIGNATURE_NAME,
     SUMS_NAME,
+    installer_problem,
     installer_public_key,
     proxy_asset,
     proxy_zip_name,
@@ -236,6 +238,11 @@ def asset_problems(ctx: Context) -> list[str]:
         sums[name] = digest
     if sums != expected:
         problems.append(f"{SUMS_NAME} does not list exactly the current {', '.join(expected)}")
+    installer = ctx.config.resolve(ctx.config.signing.installer_script)
+    if installer_problem(data.get("installer"), sha256_bytes(installer.read_bytes())):
+        problems.append(
+            f"{MANIFEST_NAME} does not list the SHA-256 of {installer.name} as it will be uploaded"
+        )
     key = installer_public_key(ctx)
     signature = (out / SIGNATURE_NAME).read_text(encoding="utf-8")
     if key is None:
