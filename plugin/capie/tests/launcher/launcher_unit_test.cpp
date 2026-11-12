@@ -457,6 +457,9 @@ void log_and_notices(const std::wstring& dir) {
         check(text.find(cl::update_command) != std::wstring_view::npos &&
                   text.find(L"Install or update") != std::wstring_view::npos,
               "unsupported build notice names the update line and the installer option");
+        check(text.find(cl::update_batch_name) != std::wstring_view::npos &&
+                  text.find(L"%LOCALAPPDATA%\\RenameAnything") != std::wstring_view::npos,
+              "unsupported build notice names Update CAPIE.bat and its folder");
         check(cl::notice_text(cl::Notice::bundle_invalid, polish).find(cl::update_command) != std::wstring_view::npos,
               "broken bundle notice names the repair line");
         check(text.find(L"-CheckUpdate") == std::wstring_view::npos,

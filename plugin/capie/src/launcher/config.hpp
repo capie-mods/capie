@@ -71,6 +71,13 @@ inline constexpr wchar_t status_file_name[] = L"last-status.txt";
 inline constexpr wchar_t inject_sentinel_name[] = L"capie-inject.pending";
 /// @brief Release page named in the player notices about an unsupported game build.
 inline constexpr wchar_t release_page_url[] = L"https://github.com/capie-mods/capie/releases/latest";
+/**
+ * @brief Click-to-update batch file in the app data folder, named in the unsupported-build notice.
+ *
+ * The installer writes it (ADR-0038); double-clicking it runs the installer's -Update. The
+ * launcher only names it and never runs it.
+ */
+inline constexpr wchar_t update_batch_name[] = L"Update CAPIE.bat";
 /// @brief PowerShell line that installs, updates or repairs CAPIE (named in the player notices).
 inline constexpr wchar_t update_command[] =
     L"irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex";
