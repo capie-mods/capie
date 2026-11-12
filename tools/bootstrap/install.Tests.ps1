@@ -3111,7 +3111,7 @@ function Invoke-UpdateBatch {
 
 Describe 'Click-to-update (Update CAPIE.bat runs the local installer copy with -Update)' {
     It 'install writes the installer copy and the batch file: absolute paths, its SHA-256, Windows PowerShell 5.1, -Update, pause' {
-        $e = Initialize-UpdateEnv 'bat-install'
+        $null = Initialize-UpdateEnv 'bat-install'
         $bat = Get-RaUpdateBatchPath
         $copy = Get-RaSetupCopyPath
         $bat | Should Be (Join-Path $script:RaRoot 'Update CAPIE.bat')
@@ -3126,7 +3126,8 @@ Describe 'Click-to-update (Update CAPIE.bat runs the local installer copy with -
         $lines -contains 'setlocal DisableDelayedExpansion' | Should Be $true
         $lines -contains ('set "CAPIE_SETUP_SCRIPT=' + $copy + '"') | Should Be $true
         $lines -contains ('set "CAPIE_SETUP_SHA256=' + (Get-FileHash -LiteralPath $copy).Hash + '"') | Should Be $true
-        $run = @($lines | Where-Object { $_.StartsWith('"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "') })
+        $start = '"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "'
+        $run = @($lines | Where-Object { $_.StartsWith($start) })
         $run.Count | Should Be 1
         $run[0].EndsWith(' -Update"') | Should Be $true
         # Inside the quoted -Command nothing else may be quoted or expanded by cmd.exe.
@@ -3214,7 +3215,7 @@ Describe 'Click-to-update (Update CAPIE.bat runs the local installer copy with -
     }
     Context 'running script that is not a generated install.ps1' {
         It 'a run that is not a generated install.ps1 leaves the copy and the batch file alone; dry run writes nothing' {
-            $e = Initialize-UpdateEnv 'bat-keep'
+            $null = Initialize-UpdateEnv 'bat-keep'
             $bat = Get-RaUpdateBatchPath
             $before = [IO.File]::ReadAllBytes($bat)
             $copyBefore = [IO.File]::ReadAllBytes((Get-RaSetupCopyPath))

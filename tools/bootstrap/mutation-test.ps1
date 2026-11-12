@@ -106,8 +106,8 @@ $script:Mutations = [ordered]@{
     'batch-hash-skip'            = @(, @('"if (`$h -ne `$env:CAPIE_SETUP_SHA256) {', '"if (`$false) {'))
     'batch-percent-raw'          = @(, @("    return `$Value.Replace('%', '%%')", '    return $Value'))
     'batch-no-pause'             = @(, @("        'pause',`n", ''))
-    'batch-not-on-update'        = @(, @("        if (`$updated) { Remove-RaUnusedVersion `$state }`n        [void](Install-RaUpdateBatch `$state)", '        if ($updated) { Remove-RaUnusedVersion $state }'))
-    'batch-not-on-rollback'      = @(, @("        Save-RaState `$state`n        [void](Install-RaUpdateBatch `$state)`n        [void](Write-RaGameSupportNotice `$state (& `$gameDir))", "        Save-RaState `$state`n        [void](Write-RaGameSupportNotice `$state (& `$gameDir))"))
+    'batch-not-on-update'        = @(, @("Remove-RaUnusedVersion `$state }`n        [void](Install-RaUpdateBatch `$state)", 'Remove-RaUnusedVersion $state }'))
+    'batch-not-on-rollback'      = @(, @("Save-RaState `$state`n        [void](Install-RaUpdateBatch `$state)", 'Save-RaState $state'))
 }
 
 function Invoke-MutationRun {

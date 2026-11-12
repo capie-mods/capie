@@ -5190,7 +5190,8 @@ function Write-RaGameSupportNotice {
         return $true
     }
     $installer = $script:RaGitHubLatestInstallerFormat -f $script:RaGitHubRepo
-    Write-RaLog (Get-RaText 'InstalledGameUnsupported' @($version, $gameSha.Substring(0, $script:RaGameHashDisplayLength), $page, $installer, (Get-RaUpdateBatchPath))) -Level WARN
+    $shortSha = $gameSha.Substring(0, $script:RaGameHashDisplayLength)
+    Write-RaLog (Get-RaText 'InstalledGameUnsupported' @($version, $shortSha, $page, $installer, (Get-RaUpdateBatchPath))) -Level WARN
     return $false
 }
 
@@ -6127,14 +6128,15 @@ function New-RaUpdateBatchText {
     )
     $url = $script:RaGitHubLatestInstallerFormat -f $script:RaGitHubRepo
     $missing = $script:RaBatchCopyMissingExit
+    $refuse = "Nothing was run. Download the installer again: ' + `$env:CAPIE_SETUP_URL); exit $missing }"
     # One line, no double quote and no percent sign: it sits inside "..." on the cmd.exe line.
     $command = @(
         "`$ErrorActionPreference = 'Stop'",
         '$p = $env:CAPIE_SETUP_SCRIPT',
-        "if (-not (Test-Path -LiteralPath `$p -PathType Leaf)) { Write-Host ('The local CAPIE installer ' + `$p + ' is missing. Nothing was run. Download the installer again: ' + `$env:CAPIE_SETUP_URL); exit $missing }",
+        "if (-not (Test-Path -LiteralPath `$p -PathType Leaf)) { Write-Host ('The local CAPIE installer ' + `$p + ' is missing. $refuse",
         '$b = [IO.File]::ReadAllBytes($p)',
         "`$h = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash(`$b)).Replace('-', '')",
-        "if (`$h -ne `$env:CAPIE_SETUP_SHA256) { Write-Host ('The local CAPIE installer ' + `$p + ' was changed or is damaged. Nothing was run. Download the installer again: ' + `$env:CAPIE_SETUP_URL); exit $missing }",
+        "if (`$h -ne `$env:CAPIE_SETUP_SHA256) { Write-Host ('The local CAPIE installer ' + `$p + ' was changed or is damaged. $refuse",
         '& ([scriptblock]::Create([Text.Encoding]::ASCII.GetString($b))) -Update'
     ) -join '; '
     $lines = @(
