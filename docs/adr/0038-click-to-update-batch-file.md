@@ -1,6 +1,6 @@
 # ADR-0038: Updates are started by the player through Update CAPIE.bat, never automatically
 
-- Status: Accepted
+- Status: Accepted; amended the same day (signed installer in the manifest, Update CAPIE shortcut)
 - Date: 2026-11-12
 - Source: maintainer request for CAPIE 1.7.0 (easier updates after a game patch)
 
@@ -61,12 +61,37 @@ the same start. It was rejected for safety before it was implemented:
 - Privacy is unchanged: the network requests are those of `-Update` (GitHub API, manifest,
   signature, ZIP), without identifiers, and only when the player double-clicks the file.
 
+## Amendment: the installer copy follows the signed releases
+
+- From CAPIE 1.7.0 the signed `release-manifest.json` lists the release's `install.ps1` asset in
+  the optional field `installer` (`name`, `sha256`). The schema number stays 1: older installers
+  read only the fields they know, and newer installers accept a manifest without the field.
+  `tools/release` writes the installer pins first, then lists the SHA-256 of that final
+  `install.ps1` (`sign-release-manifest.ps1 -InstallerPath`), and the release step refuses to
+  upload an `install.ps1` that changed since.
+- `-Update` (and so `Update CAPIE.bat`) and `-Install -Latest` download that asset (or take
+  `install.ps1` next to an offline `-ManifestPath`), require its SHA-256 to equal the signed one
+  and require a generated installer (ASCII, marker, entry point), then keep it as
+  `setup\install.ps1` and write the batch file with its hash. A mismatch, a missing asset or a
+  download error is a warning: the running installer stays the copy and the update goes on.
+  `-CheckUpdate` and `-Version` never fetch it.
+- Chosen: the update always finishes with the installer that is running, and the verified newer
+  installer is used from the next click on. Re-running the update in the same run with the
+  downloaded installer was rejected: it would run freshly downloaded code inside the run that
+  fetched it, hand state (Steam closed by us, answers already given) between two installer
+  versions and need a loop guard, all to gain one click. The cost: a fix in the newer
+  installer's `-Update` applies one update later, and if a future manifest format were
+  unreadable by the old copy, that copy could not refresh itself and the player would need the
+  one-line command once. The schema stays compatible to avoid exactly that.
+- When the player chooses shortcuts, "Update CAPIE" (to the batch file) is created next to the
+  game shortcut (the Desktop by default) and in the Start menu. Both are recorded in state.json,
+  count as ours only while they point at `Update CAPIE.bat` inside the root folder, are never
+  written over a foreign file, and are removed by `-Uninstall`.
+
 ## Consequences
 
-- Updating after a patch is one double-click once the player knows the folder; the notice says
-  where it is.
-- The copy is the installer the player ran last. An update started from the batch file keeps that
-  installer; a newer installer arrives the next time the player runs the one-line command (its
-  copy then replaces the old one). Releases stay readable by older installers as long as the
-  manifest format and signing key stay compatible.
-- A desktop or Start-menu shortcut to the batch file is not created (open question).
+- Updating after a patch is one double-click once the player knows the folder (or the Start
+  menu entry); the notice says where it is.
+- Known limit: cmd.exe expands `%NAME%` in the batch file's own path when it is started, so a
+  Windows user folder whose name contains a `%...%` pair breaks the double-click; run the
+  one-line command instead.

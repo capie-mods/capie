@@ -312,8 +312,12 @@ CAPIE never checks for updates in the background. The easiest way to update is t
 **`Update CAPIE.bat`** in `%LOCALAPPDATA%\RenameAnything` (paste that folder into the address bar
 of File Explorer). Every install and update writes it. It runs the local copy of the setup
 (`setup\install.ps1`, checked against its SHA-256 first) with `-Update` in a window that stays
-open until you press a key. Close the game and the Paradox Launcher first. Alternatively, run
-the one-line command again and choose **Install or update**. The setup accepts a release only when its manifest carries
+open until you press a key. Close the game and the Paradox Launcher first. If you chose a
+shortcut during setup, **Update CAPIE** in the Start menu (and next to the game shortcut) starts
+the same file. The update also refreshes that local setup copy with the newest signed one, used
+from the next update on. Alternatively, run the one-line command again and choose **Install or
+update**. (If your Windows user folder name contains a `%...%` pair, double-clicking does not
+work; use the one-line command.) The setup accepts a release only when its manifest carries
 the signature of the key built into the script, its tag matches the manifest, and every file
 matches the SHA-256 in the manifest. If you already have the newest version, it repairs the
 installation instead. Steam points at the `current` folder link, so an update does not change

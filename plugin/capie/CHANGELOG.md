@@ -92,6 +92,11 @@ unchanged. Runs on HOI4 1.19.4.2 only.
   with `-Update`, with the same signature and SHA-256 checks as the one-line command, and waits
   for a key at the end. It runs only when you start it: CAPIE still never updates itself or goes
   online in the background (ADR-0038). `-Uninstall` removes it.
+- When you choose a shortcut, setup also adds **Update CAPIE** (to that batch file) next to the
+  game shortcut and in the Start menu.
+- The signed `release-manifest.json` lists the release's `install.ps1` with its SHA-256 (optional
+  field `installer`; older installers ignore it). An update keeps that verified installer as the
+  local copy, so the next update runs the newest setup.
 
 ### Changed
 

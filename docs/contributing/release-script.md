@@ -64,13 +64,22 @@ identity of `game_build.hpp` (see below), and writes:
 | --- | --- |
 | `CAPIE-<version>-win64.zip` | `RenameAnythingLauncher.exe`, `LICENSE.MinHook.txt`, `runtime/` (core, editor, injector), `mod/capie.mod` and `mod/capie/` |
 | `CAPIE-<version>-proxy-win64.zip` | only `proxy/version.dll` (`asset = "proxy"` in `release.toml`, when the proxy was built); listed in the manifest's `proxy` field and downloaded only for `-LoadMethod Proxy`, so an antivirus false positive on the proxy cannot block the default install |
-| `release-manifest.json`, `.sig` | from `sign-release-manifest.ps1 -MakeManifest` (with `-ProxyZipPath`) and `-Sign`, then checked again: every file hash, both ZIP hashes, the supported game hash, the signature |
+| `release-manifest.json`, `.sig` | from `sign-release-manifest.ps1 -MakeManifest` (with `-ProxyZipPath` and `-InstallerPath`) and `-Sign`, then checked again: every file hash, both ZIP hashes, the supported game hash, the `installer` entry (name and SHA-256 of `tools/bootstrap/install.ps1`, the asset uploaded with the release), the signature |
 | `SHA256SUMS.txt` | checksums of the ZIP, the proxy ZIP, manifest and signature |
 | `build-info.json` | version, commit, file hashes (not uploaded) |
 | `installer-pins.ps1.txt` | the `$script:RaPinnedRelease` block for the installer (not uploaded) |
 
 The ZIP is reproducible: the same inputs give the same bytes. `--write-pins` writes the pin
 block into `Configuration.ps1` and rebuilds `install.ps1`; commit both before `release`.
+
+The pins name only the ZIPs, so they are written before the manifest, and the manifest lists
+the SHA-256 of that final `install.ps1` (field `installer`, CAPIE 1.7.0+, optional: older
+installers ignore it and newer installers accept manifests without it). `install.ps1 -Update`
+and `Update CAPIE.bat` download that asset, check it against the signed hash and keep it as
+the local installer copy for the next update (ADR-0038). So never change `install.ps1` between
+`build` and `release`: the release step re-hashes it and refuses a mismatch ("run 'build'
+again"). A checkout that turns its LF into CRLF changes the hash too; build again from that
+checkout.
 
 MSVC builds are not bit-reproducible, and the launcher and proxy compile in the reviewed DLL
 hashes, so `build` never recompiles the CAPIE DLLs silently. `--rebuild-capie --minhook-dir ...`
@@ -139,6 +148,7 @@ local commit (`--target <sha>`), with `--draft --prerelease`, the assets (ZIP, m
 signature, checksums, `install.ps1`) and notes made from `plugin/capie/CHANGELOG.md` plus the
 supported game build, the multiplayer statement, SmartScreen guidance, the VirusTotal links and
 the checksums. Before that it checks that the tree is clean, the installer pins name this ZIP,
+`install.ps1` still has the SHA-256 the signed manifest lists,
 the release does not exist yet and the commit is on GitHub. `--publish` and `--stable` each ask
 for a typed word. Note: `install.ps1 -Update` reads `releases/latest`, which ignores drafts and
 pre-releases, so players only get a release that is published and stable.
