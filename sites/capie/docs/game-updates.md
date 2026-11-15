@@ -87,7 +87,7 @@ never copied from the previous one.
 
 3. Build every binary and run the offline tests.
 4. Run a smoke test in the game of about 30 minutes: start with CAPIE, rename a country, leader
-   and party, check Enter and the 32-character limit, save, load, restart, and start once
+   and party, check Enter and the 64-character limit, save, load, restart, and start once
    without CAPIE.
 5. Scan locally with Windows Defender.
 6. Upload the final release files to VirusTotal, with the maintainer's consent each time, and link

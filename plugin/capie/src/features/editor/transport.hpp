@@ -5,7 +5,7 @@
  * HOI4 script cannot read an edit box, so on an own Apply click the bridge snapshots the
  * fields, converts each to the alphabet codes of `input_codes.hpp` and appends records to
  * a copy of the click's temp-variable vector:
- *   per field `rn_native(b)_ok`, `_len`, `_0.._31` (slot 31 becomes `_err` = InputError
+ *   per field `rn_native(b)_ok`, `_len`, `_0.._63` (slot 63 becomes `_err` = InputError
  *   when the field is invalid), then `rn_ip_cmd_epoch` (opening epoch) and, for the
  *   country, `rn_native_cap = 1`.
  * Reserved keys already present in the original vector are removed first, so neither the
@@ -324,7 +324,7 @@ inline bool public_reserved_key(const char* key) noexcept {
 /**
  * @brief Whether a record key is reserved for the bridge (removed from incoming vectors).
  * @param key Key.
- * @return `true` for headers, error slots, epoch, capability and `rn_native(b)_0..31`.
+ * @return `true` for headers, error slots, epoch, capability and `rn_native(b)_0..63`.
  */
 inline bool reserved_key(const char* key) noexcept {
     if (std::strcmp(key, key_a_ok) == 0 || std::strcmp(key, key_a_len) == 0 || std::strcmp(key, key_b_ok) == 0 ||

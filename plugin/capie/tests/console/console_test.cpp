@@ -95,8 +95,8 @@ void line_tests() {
     check(split_text("a b c d e f g") == "!too many arguments@13", "seven arguments");
     check(split_text("a b c d e f") == "a|b|c|d|e|f", "six arguments");
     const std::string long_word(line::max_argument_bytes + 1, 'x');
-    check(split_text(long_word) == "!argument longer than 128 bytes@129", "argument too long");
-    check(split_text(std::string(line::max_argument_bytes, 'x')).size() == line::max_argument_bytes, "128 bytes fit");
+    check(split_text(long_word) == "!argument longer than 256 bytes@257", "argument too long");
+    check(split_text(std::string(line::max_argument_bytes, 'x')).size() == line::max_argument_bytes, "256 bytes fit");
 
     const std::vector<std::string_view> tokens{"GER", "\"Neues", "Reich\"", "", "x"};
     line::Line joined{};
@@ -140,9 +140,16 @@ void text_tests() {
     const auto alien = text::check_country_text("Ζεύς");
     check(alien.error == text::TextError::outside_alphabet && alien.position == 1, "Greek outside the alphabet");
     check(text::check_country_text(std::string(32, 'a')).error == text::TextError::none, "32 characters");
-    const auto long_name = text::check_country_text(std::string(33, 'a'));
-    check(long_name.error == text::TextError::too_long && long_name.position == 33, "33 characters");
-    check(text::check_country_text(std::string(40, 'a')).error == text::TextError::too_long, "40 characters");
+    check(text::check_country_text(std::string(64, 'a')).error == text::TextError::none, "64 characters");
+    std::string polish64;
+    for (int i = 0; i < 64; ++i) {
+        polish64 += "\xC5\xBB";  // U+017B, two bytes
+    }
+    check(text::check_country_text(polish64).error == text::TextError::none, "64 two-byte characters (128 bytes)");
+    const auto long_name = text::check_country_text(std::string(65, 'a'));
+    check(long_name.error == text::TextError::too_long && long_name.position == 65, "65 characters");
+    check(text::check_country_text(polish64 + "\xC5\xBB").error == text::TextError::too_long, "65 two-byte characters");
+    check(text::check_country_text(std::string(80, 'a')).error == text::TextError::too_long, "80 characters");
     check(text::check_country_text("\xC3").error == text::TextError::invalid_utf8, "truncated UTF-8");
     check(text::check_country_text("\xC0\x80").error == text::TextError::invalid_utf8, "invalid lead byte");
     check(text::check_country_text("\xE0\x81\x81").error == text::TextError::invalid_utf8, "overlong 'A' rejected");
@@ -445,11 +452,11 @@ void plan_tests() {
     check(plan.delegate == Delegate::none, "mod id only");
     plan = plan_typed(CommandId::mod_command, "demo echo a \"x{y\"");
     check(plan.message.view() == "CAPIE: argument 2: markup character at character 2", "argument error message");
-    const std::string full = "demo echo " + std::string(32, 'z') + " " + std::string(32, 'z') + " " +
-                             std::string(32, 'z') + " " + std::string(32, 'z');
+    const std::string full = "demo echo " + std::string(64, 'z') + " " + std::string(64, 'z') + " " +
+                             std::string(64, 'z') + " " + std::string(64, 'z');
     plan = plan_typed(CommandId::mod_command, full);
     check(plan.delegate == Delegate::eval_effect && !plan.tokens[0].overflow &&
-              plan.tokens[0].view().find("capie_f4_31 = 26 }") != std::string_view::npos,
+              plan.tokens[0].view().find("capie_f4_63 = 26 }") != std::string_view::npos,
           "four full arguments fit");
 }
 

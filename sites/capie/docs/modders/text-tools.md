@@ -11,14 +11,14 @@ description: The CAPIE SDK's text tools in plain script. Work buffer, trim, vali
     The SDK's demo mod ran them in the game on CAPIE 1.1; the other in-game checks are open.
 
 HOI4 script has no string type and cannot split or compare text. The SDK works around that with
-character codes: a field arrives as up to 32 numbers, the SDK keeps them in temporary variables
+character codes: a field arrives as up to 64 numbers (the SDK package of CAPIE 1.6 keeps the first 32, see below), the SDK keeps them in temporary variables
 (the work buffer), and scripted localisation turns stored codes back into letters.
 
 ## The work buffer
 
 | Temporary variable | Meaning |
 |---|---|
-| `capie_len` | number of characters, 0 to 32 |
+| `capie_len` | number of characters, 0 to 32 in the SDK package of CAPIE 1.6 (CAPIE sends up to 64) |
 | `capie_c0` .. `capie_c31` | character codes ([alphabet](contract.md#alphabet)) |
 
 `capie_v1_field_load` fills it from field `capie_field` of the current Apply command and checks

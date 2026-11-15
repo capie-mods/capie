@@ -72,8 +72,9 @@ inline constexpr unsigned console_api_level = core::capie_api_level;
 inline constexpr unsigned console_source = 2;
 /// @brief Most text arguments of a mod command (same as editor fields).
 inline constexpr std::size_t max_mod_arguments = 4;
-/// @brief Longest delegate token in bytes (the inline effect of `capie_cmd`).
-inline constexpr std::size_t max_delegate_bytes = 8192;
+/// @brief Longest delegate token in bytes (the inline effect of `capie_cmd`; four 64-character arguments need
+/// roughly twelve thousand bytes).
+inline constexpr std::size_t max_delegate_bytes = 16384;
 /// @brief Most delegate tokens.
 inline constexpr std::size_t max_delegate_tokens = 2;
 /// @brief Longest console message in bytes.

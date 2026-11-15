@@ -8,7 +8,7 @@
  * three forms and nothing else; other systems that probe cosmetic-tag prefixes (for
  * example decision titles) get `nullopt` and keep their vanilla text.
  *
- * Validation (`valid_text`): 1..32 Unicode scalars of well-formed UTF-8, at most 128
+ * Validation (`valid_text`): 1..64 Unicode scalars of well-formed UTF-8, at most 256
  * bytes, no control characters and none of the delimiters or markup characters `|"\[]${}#@`.
  * The scripted GUI already restricts input to its alphabet; this is the native guard.
  *
@@ -30,10 +30,10 @@ inline constexpr char field_delimiter = '|';
 inline constexpr std::string_view definite_suffix = "_DEF";
 /// @brief Suffix of the adjective form.
 inline constexpr std::string_view adjective_suffix = "_ADJ";
-/// @brief Largest field in bytes (32 code points of up to 4 bytes).
-inline constexpr std::size_t max_field_bytes = 128;
+/// @brief Largest field in bytes (64 code points of up to 4 bytes).
+inline constexpr std::size_t max_field_bytes = 256;
 /// @brief Largest field in Unicode code points.
-inline constexpr std::size_t max_field_codepoints = 32;
+inline constexpr std::size_t max_field_codepoints = 64;
 
 /// @brief Decoded key: both texts and which form was asked for.
 struct CountryText {
@@ -45,7 +45,7 @@ struct CountryText {
 /**
  * @brief Checks one field of the payload.
  * @param s Field bytes.
- * @return `true` for 1..32 code points of valid UTF-8 without controls or delimiters.
+ * @return `true` for 1..64 code points of valid UTF-8 without controls or delimiters.
  * @note The numeric literals below are the UTF-8 encoding table (RFC 3629, section 4) and
  *       ASCII controls; naming each byte class would hide the table, so the magic-number
  *       check is suppressed for this function only.

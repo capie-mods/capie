@@ -44,8 +44,8 @@ Four variables on the country that has the name:
 
 | Variable | Value |
 |---|---|
-| `capie_cn_n` | array of the name's character codes, 1 to 32 elements ([alphabet](contract.md#alphabet)) |
-| `capie_cn_a` | array of the adjective's character codes, 1 to 32 elements |
+| `capie_cn_n` | array of the name's character codes, 1 to 64 elements ([alphabet](contract.md#alphabet)) |
+| `capie_cn_a` | array of the adjective's character codes, 1 to 64 elements |
 | `capie_cn_ver` | `1` while the layer is set; absent means no layer |
 | `capie_cn_rev` | set by every change, as the last statement; the value is not used |
 
@@ -81,7 +81,7 @@ names on load and whenever the cosmetic tag, the ideology, the popularities or a
 change, and the layer applies there too. CAPIE writes no variable, no cosmetic tag and no country
 field.
 
-A layer is treated as absent when `capie_cn_ver` is not exactly 1, a count is outside 1 to 32,
+A layer is treated as absent when `capie_cn_ver` is not exactly 1, a count is outside 1 to 64,
 an element is missing, not whole or outside 1 to 264, or the text fails CAPIE's input checks.
 
 If the game code CAPIE hooks for the layer does not match after a patch, the layer switches off
@@ -104,7 +104,7 @@ The same idea for factions, stored on the faction leader:
 
 | Variable | Value |
 |---|---|
-| `capie_fn_n` | array of the name's character codes, 1 to 32 elements |
+| `capie_fn_n` | array of the name's character codes, 1 to 64 elements |
 | `capie_fn_ver` | `1` while the layer is set |
 | `capie_fn_rev` | set last by every change |
 

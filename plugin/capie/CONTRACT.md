@@ -134,16 +134,26 @@ a presence signal, not a permission (section 9).
 | `capie_nf` | number of fields that follow, `0..4` |
 | `capie_f<n>_err` | `0` valid, otherwise the field error (5.3) |
 | `capie_f<n>_at` | 1-based position of the first rejected character, `0` when none |
-| `capie_f<n>_len` | number of characters, `0..32` (`0` when the field is invalid) |
-| `capie_f<n>_0` .. `capie_f<n>_31` | character codes (section 7); `0` past the length and for an invalid field |
-| `capie_pf1_err`, `capie_pf1_at`, `capie_pf1_len`, `capie_pf1_0` .. `capie_pf1_31` | API level 5: the text prefill carrier 1 (`capie_v1_pf__<mod>__<editor>__1`) showed when this opening began, encoded like a field (same error codes; a character outside the alphabet gives `err = 6`). Sent only when the editor has that carrier, field 1 exists and the carrier text was readable at the opening; absent otherwise |
+| `capie_f<n>_len` | number of characters, `0..64` (`0` when the field is invalid; up to 32 before the 64-character change) |
+| `capie_f<n>_0` .. `capie_f<n>_63` | character codes (section 7); `0` past the length and for an invalid field |
+| `capie_pf1_err`, `capie_pf1_at`, `capie_pf1_len`, `capie_pf1_0` .. `capie_pf1_63` | API level 5: the text prefill carrier 1 (`capie_v1_pf__<mod>__<editor>__1`) showed when this opening began, encoded like a field (same error codes; a character outside the alphabet gives `err = 6`). Sent only when the editor has that carrier, field 1 exists and the carrier text was readable at the opening; absent otherwise |
 
-`n` runs from 1 to `capie_nf`. One field is 35 records; the opening text adds 35 more and
+`n` runs from 1 to `capie_nf`. One field is 67 records (3 headers and 64 codes); the opening text adds 67 more and
 `capie_flag`, `capie_portrait`, `capie_colour` and `capie_catalog` one each, so the largest Apply
-adds 8 + 4 × 35 + 35 = 183 records (144 before API level 5, 179 in API level 5, 180 in API level 6,
-181 in API level 7, 182 in API level 8). Every name fits the game's
+adds 8 + 4 × 67 + 67 = 343 records (183 with the 32-character limit of CAPIE 1.6 and earlier, which
+had 144 before API level 5, 179 in API level 5, 180 in API level 6, 181 in API level 7, 182 in API level 8). Every name fits the game's
 15-byte short-string layout, which CAPIE builds directly (the longest, `capie_portrait`, has 14
 bytes).
+
+**Field length: 64 characters.** Every field (name, adjective, leader name, faction name and the grammar
+editors' text fields) holds 1 to 64 Unicode code points; the limit was 32 up to CAPIE 1.6.2. The
+longest vanilla country name has about 60 characters. The API level is unchanged. A mod that
+reads a fixed number of codes (for example 32) must read `capie_f<n>_len` codes up to 63 or refuse
+an Apply whose `capie_f<n>_len` is above its own buffer; CAPIE with the 32-character limit never
+sent more than 32. Rename Anything's own country, leader and party editors send the same records
+(`rn_native(b)_0..63`, `rn_native(b)_err` replaces slot 63 for an invalid field). The Apply command
+is larger (134 records for the country editor instead of 70) and in multiplayer it crosses the
+network; that has not been tried in a running game.
 
 `capie_pf1_*` is what the player saw before the change: with `[ROOT.GetName]` (or
 `[This.GetFactionName]`) in the carrier it is the name on screen at the opening (player-given
@@ -194,7 +204,7 @@ The values are the native `InputError` codes, shared with Rename Anything:
 |---|---|
 | 0 | valid |
 | 1 | empty |
-| 2 | more than 32 characters |
+| 2 | more than 64 characters |
 | 3 | invalid Unicode scalar (surrogate or above U+10FFFF) |
 | 4 | control character |
 | 5 | markup or delimiter character: `" [ ] \| $ § £ \ { } # @` |
@@ -298,9 +308,9 @@ outputs are temporary variables. Trim, validation, storing and the setters do no
 | Effect | Inputs | Outputs |
 |---|---|---|
 | `capie_v1_begin` | `capie_open_epoch` (the value the epoch carrier shows), `capie_min_api` (default 2) | `capie_err` |
-| `capie_v1_field_load` | `capie_field` (1..4) | work buffer `capie_c0..capie_c31`, `capie_len` |
+| `capie_v1_field_load` | `capie_field` (1..4) | work buffer `capie_c0..capie_c31`, `capie_len` (the SDK package of CAPIE 1.6 loads the first 32 codes only) |
 | `capie_v1_text_trim` | work buffer | work buffer without leading and trailing spaces |
-| `capie_v1_text_validate` | `capie_min_len` (default 1), `capie_max_len` (default 32) | `capie_err` 31..34 |
+| `capie_v1_text_validate` | `capie_min_len` (default 1), `capie_max_len` (default 32 in the SDK package of CAPIE 1.6; CAPIE itself accepts up to 64) | `capie_err` 31..34 |
 | `capie_v1_text_store` / `_load` / `_clear` | `capie_slot` (1..4) | array `capie_v1_txt<slot>` and `capie_v1_txt<slot>_len` on ROOT |
 | `capie_v1_text_equals_slot` | `capie_slot` | `capie_eq` (0 or 1) |
 | `capie_v1_set_country_name` | slots 1 (name) and 2 (adjective) of ROOT; called in the scope of the country | the country name layer (section 14) |
@@ -384,7 +394,8 @@ serialisation is a hypothesis until the two-machine test (`docs/contributing/mul
 |---|---|
 | Grammar editor end to end: prefill, Apply, sentinel, registry limit message | new native path; only fake-memory tests so far |
 | Records with 39..51-byte model and selector names reach the effect | longer names than Rename Anything's; bounded reads are tested offline |
-| `capie_nf` and 4-field editors (144 records) | larger command than Rename Anything's 70 records |
+| `capie_nf` and 4-field editors (268 field records) | larger command than Rename Anything's 134 records; the Apply command crosses the network in multiplayer |
+| Names of 33 to 64 characters: prefill, Apply, display, save and load, multiplayer | the limit was 32 before; only fake-memory tests so far |
 | Typing and drawing the Latin Extended letters and the 8 punctuation marks | keyboard layouts, dead keys, `set_cosmetic_tag` / `set_state_name` with those characters |
 | `CAPIE_STATUS`, `CAPIE_API`, `CAPIE_BUILD` drawn in a campaign | new keys on an accepted mechanism |
 | SDK text slots, trim and validation in the game's script engine | plain script, never parsed by the game yet; reading an array element into a temporary variable (`set_temp_variable = { capie_c0 = capie_v1_txt1^0 }`) and comparing it with one is not used by Rename Anything |
@@ -421,8 +432,8 @@ current cosmetic tag again, not the base name.
 
 | Variable | Value |
 |---|---|
-| `capie_cn_n` | array of the name's character codes, 1..32 elements, codes of section 7 (1..264) |
-| `capie_cn_a` | array of the adjective's character codes, 1..32 elements |
+| `capie_cn_n` | array of the name's character codes, 1..64 elements, codes of section 7 (1..264) |
+| `capie_cn_a` | array of the adjective's character codes, 1..64 elements |
 | `capie_cn_ver` | `1` while the layer is set (format 1); absent = no layer |
 | `capie_cn_rev` | set by every change, as the **last** statement; the value is not used |
 
@@ -462,7 +473,7 @@ The game also recomputes names on load and whenever the cosmetic tag, the ideolo
 popularities or a subject relation change; the layer is applied there too.
 
 The layer is invalid, and treated as absent, when `capie_cn_ver` is not exactly 1, when a count
-is outside 1..32 or not whole, when an element is missing, not whole or outside 1..264, or when
+is outside 1..64 or not whole, when an element is missing, not whole or outside 1..264, or when
 the text fails the RN1 guard. CAPIE writes no variable, no cosmetic tag and no country field;
 it only changes what the game's name caches hold. Its pins are checked separately from the
 localisation hooks: if they do not match, the layer is off (logged in `capie_core.log`) and
@@ -501,7 +512,7 @@ gets another leader, the layer stays with the old leader and the faction shows t
 
 | Variable | Value |
 |---|---|
-| `capie_fn_n` | array of the name's character codes, 1..32 elements (section 7) |
+| `capie_fn_n` | array of the name's character codes, 1..64 elements (section 7) |
 | `capie_fn_ver` | `1` while the layer is set; absent = no layer |
 | `capie_fn_rev` | set by every change, as the **last** statement; the value is not used |
 

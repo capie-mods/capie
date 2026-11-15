@@ -27,8 +27,8 @@ namespace capie::console::line {
 inline constexpr std::size_t max_line_bytes = 1024;
 /// @brief Most arguments after the command name (`capie_cmd <mod> <command>` plus 4).
 inline constexpr std::size_t max_arguments = 6;
-/// @brief Longest argument in bytes: 32 code points of up to 4 UTF-8 bytes each.
-inline constexpr std::size_t max_argument_bytes = 128;
+/// @brief Longest argument in bytes: 64 code points of up to 4 UTF-8 bytes each.
+inline constexpr std::size_t max_argument_bytes = 256;
 /// @brief Separator the game splits on and CAPIE joins with.
 inline constexpr char space = ' ';
 /// @brief Quote character.
@@ -188,7 +188,7 @@ constexpr std::string_view describe(LineError error) noexcept {
         case LineError::too_many_arguments:
             return "too many arguments";
         case LineError::argument_too_long:
-            return "argument longer than 128 bytes";
+            return "argument longer than 256 bytes";
         case LineError::unterminated_quote:
             return "unterminated quote";
         case LineError::stray_quote:

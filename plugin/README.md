@@ -23,7 +23,8 @@ and supplies them to the game's localisation lookups. The game then updates its 
 and map labels; the DLL writes no `CCountry` field and no localisation file. Only the exact base
 key, `_DEF` and `_ADJ` are answered; ideology-specific lookups fall back to these through the
 game's own resolver, and every other suffix (decision titles and descriptions among them) goes to
-the original localisation. The parser accepts up to 32 Unicode code points per field, validates
+the original localisation. The parser accepts up to 32 Unicode code points per field (CAPIE's own parser accepts 64; this
+reference DLL keeps its original limit), validates
 UTF-8 and rejects delimiters, control characters and script markup.
 
 Only `hoi4.exe` 1.19.3.0 with SHA-256

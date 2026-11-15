@@ -17,8 +17,15 @@ int main() {
     assert(!rn::decode_country_key("RN1|Polska|polski|_ADJ|extra"));
     assert(!rn::valid_text("[ROOT.GetName]"));
     assert(!rn::valid_text("a\n"));
-    assert(!rn::valid_text(std::string(33, 'a')));
+    assert(!rn::valid_text(std::string(65, 'a')));
+    assert(rn::valid_text(std::string(64, 'a')));
     assert(rn::valid_text(std::string(32, 'a')));
+    // 64 four-byte code points are 256 bytes and valid; 65 are not.
+    assert(rn::valid_text([] { std::string s; for (int i = 0; i < 64; ++i) s += "\xF0\x9F\x98\x80"; return s; }()));
+    assert(!rn::valid_text([] { std::string s; for (int i = 0; i < 65; ++i) s += "\xF0\x9F\x98\x80"; return s; }()));
+    // 64 Polish letters (2 bytes each).
+    assert(rn::valid_text([] { std::string s; for (int i = 0; i < 64; ++i) s += "\xC5\xBB"; return s; }()));
+    assert(!rn::valid_text([] { std::string s; for (int i = 0; i < 65; ++i) s += "\xC5\xBB"; return s; }()));
     assert(!rn::decode_country_key("RN1|Polska|polski"));
     assert(!rn::valid_text("\xc0\xaf"));
     assert(!rn::valid_text("\xed\xa0\x80"));

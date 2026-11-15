@@ -5,7 +5,7 @@
  * Grammar editors (see `public_names.hpp`) receive these temporary records in their Apply
  * command, as `plugin/capie/CONTRACT.md` section 5 defines them:
  *   `capie_cap`, `capie_ver`, `capie_epoch`, `capie_nf`, and per field n = 1..4
- *   `capie_f<n>_err`, `capie_f<n>_at`, `capie_f<n>_len`, `capie_f<n>_0 .. _31`.
+ *   `capie_f<n>_err`, `capie_f<n>_at`, `capie_f<n>_len`, `capie_f<n>_0 .. _63`.
  * Every name fits the 15-byte short-string layout the transport builds directly. Any
  * incoming record whose name starts with `capie_` is removed before CAPIE adds its own.
  *
@@ -66,9 +66,9 @@ inline constexpr char public_suffix_len[] = "len";
 inline constexpr std::size_t public_header_records = 8;
 /// @brief Records of a sentinel Apply: cap, ver, epoch.
 inline constexpr std::size_t public_sentinel_records = 3;
-/// @brief Records per field: err, at, len and 32 codes.
+/// @brief Records per field: err, at, len and 64 codes.
 inline constexpr std::size_t public_records_per_field = 3 + code_slots;
-/// @brief Most records one public Apply adds (183: 144 of API level 2, 35 `capie_pf1_*`, `capie_flag`,
+/// @brief Most records one public Apply adds (343: 268 of API level 2, 67 `capie_pf1_*`, `capie_flag`,
 /// `capie_portrait`, `capie_colour`, `capie_catalog`).
 inline constexpr std::size_t max_public_records =
     public_header_records + ((grammar::max_fields + public_previous_fields) * public_records_per_field);
@@ -76,6 +76,8 @@ inline constexpr std::size_t max_public_records =
 inline constexpr std::size_t max_frame_records =
     max_public_records > max_transport_records ? max_public_records : max_transport_records;
 
+static_assert(max_public_records == 8 + (5 * 67) && max_frame_records == max_public_records,
+              "four fields and the opening text, 64 codes each, fit the frame");
 /// @brief Longest record name the public transport builds (`capie_portrait`).
 inline constexpr std::size_t max_public_key = 14;
 static_assert(sizeof(public_key_epoch) - 1 <= max_public_key && max_public_key <= max_record_key);

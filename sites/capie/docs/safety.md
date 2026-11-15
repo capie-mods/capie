@@ -60,7 +60,7 @@ bundle, and keeps those files open read-only while it uses them.
 When something is wrong, CAPIE does nothing and the game keeps its own behaviour:
 
 - An unknown game build or a pattern that does not match: CAPIE stays off.
-- Text that is empty, longer than 32 characters, or contains characters the game cannot show:
+- Text that is empty, longer than 64 characters, or contains characters the game cannot show:
   rejected with an error line, never shortened or "fixed". Nothing changes.
 - Any lookup CAPIE does not recognise exactly goes to the game unchanged.
 

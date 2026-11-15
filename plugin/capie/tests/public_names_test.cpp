@@ -164,10 +164,12 @@ void alphabet_tests() {
     check(!tab.value && tab.error == InputError::control_character, "control character");
     const auto empty = encode_field(U"", Alphabet::extended);
     check(!empty.value && empty.error == InputError::empty, "empty field");
-    const auto too_long = encode_field(std::u32string(33, U'é'), Alphabet::extended);
-    check(!too_long.value && too_long.error == InputError::too_long && too_long.error_index == 32, "33 characters");
-    const auto full = encode_field(std::u32string(32, U'ſ'), Alphabet::extended);
-    check(full.value && full.value->length == 32 && full.value->codes[31] == 264, "32 characters of the last code");
+    const auto too_long = encode_field(std::u32string(65, U'é'), Alphabet::extended);
+    check(!too_long.value && too_long.error == InputError::too_long && too_long.error_index == 64, "65 characters");
+    const auto full = encode_field(std::u32string(64, U'ſ'), Alphabet::extended);
+    check(full.value && full.value->length == 64 && full.value->codes[63] == 264, "64 characters of the last code");
+    const auto old_limit = encode_field(std::u32string(33, U'é'), Alphabet::extended);
+    check(old_limit.value && old_limit.value->length == 33, "33 characters pass since the limit is 64");
 }
 
 }  // namespace

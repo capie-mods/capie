@@ -381,8 +381,8 @@ public:
     }
 
 private:
-    /// @brief Longest cosmetic tag CAPIE reads (an RN1 tag is at most 4 + 128 + 1 + 128 + 1 bytes).
-    static constexpr std::size_t max_cosmetic_bytes = 512;
+    /// @brief Longest cosmetic tag CAPIE reads (an RN1 tag is at most 4 + 256 + 1 + 256 + 1 bytes).
+    static constexpr std::size_t max_cosmetic_bytes = 1024;
     /// @brief Storage of a country tag object written by the tag parser (the game uses at most 8 bytes).
     static constexpr std::size_t tag_object_bytes = 16;
     /// @brief A cosmetic tag copied out of the country.

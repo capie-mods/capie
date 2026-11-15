@@ -59,8 +59,10 @@ containerWindowType = {
 }
 ```
 
-A 356-pixel field in `hoi_18` holds 32 of the widest characters. Keep the field at least that
-wide, or players cannot see the end of a long name.
+A 356-pixel field in `hoi_18` holds 32 of the widest characters; a field accepts up to 64. Names
+of ordinary text are narrower than the widest letters, but a 64-character name can be wider than
+the field. Make the field as wide as your window allows, or test how the edit box behaves with a
+long name, because players cannot see the part that is scrolled out of the field.
 
 ## 3. The scripted GUI
 
@@ -153,7 +155,7 @@ l_english:
 ## What is not there yet
 
 CAPIE prefills the fields once per opening, never over a field that has keyboard focus. It does
-not focus the first field on open, select its text, stop typing at 32 characters, handle Escape
+not focus the first field on open, select its text, stop typing at 64 characters, handle Escape
 or release focus when your window hides. Those need evidence from the game first.
 
 <span class="st st-progress">needs in-game test</span> for the whole page: the demo has not run

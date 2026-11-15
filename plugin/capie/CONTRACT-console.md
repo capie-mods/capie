@@ -76,7 +76,7 @@ FROM = {
     set_temp_variable = { capie_nf = <n> }               # 0..4 arguments
     set_temp_variable = { capie_f<i>_err = 0 }           # for i = 1..n
     set_temp_variable = { capie_f<i>_at = 0 }
-    set_temp_variable = { capie_f<i>_len = <length> }    # 0..32 characters
+    set_temp_variable = { capie_f<i>_len = <length> }    # 0..64 characters
     set_temp_variable = { capie_f<i>_<k> = <code> }      # k = 0..length-1, alphabet codes
     capie_v1_cmd__<mod>__<command> = yes
 }
@@ -86,7 +86,7 @@ FROM = {
 |---|---|
 | Argument type | Text only, as character codes of the CAPIE alphabet (`CONTRACT.md` section 7, codes 1..264). Numbers are text too (`"12"` arrives as codes 54, 55) |
 | Argument count | 0 to 4 |
-| Argument length | 0 to 32 characters. `""` is a valid empty argument (`len = 0`) |
+| Argument length | 0 to 64 characters. `""` is a valid empty argument (`len = 0`) |
 | Rejected before anything runs | Characters outside the alphabet, controls, markup (`" [ ] \| $ § £ \ { } # @`), leading or trailing spaces, two spaces in a row, invalid UTF-8, more than 4 arguments, a bad or quoted id |
 | `capie_f<i>_err`, `_at` | Always 0: invalid text never reaches the effect |
 | Codes past the length | Not set; HOI4 reads an unset temporary variable as 0 |

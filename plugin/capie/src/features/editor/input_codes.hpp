@@ -11,7 +11,7 @@
  * `, ! ? ( ) & : /` (85..92), the Latin-1 Supplement letters (93..152) and Latin
  * Extended-A (153..264), as defined once in `sdk/capie-script-sdk/tools/capie_charset.py`
  * (`tests/check_alphabet.py` compares the two lists).
- * A field is 1..32 code points; anything outside the chosen table is an `InputError`
+ * A field is 1..64 code points; anything outside the chosen table is an `InputError`
  * with the index of the first offending code point.
  *
  * It only converts an explicit-size view. It does not read game memory, post commands,
@@ -26,8 +26,8 @@
 
 namespace capie::editor {
 
-/// @brief Largest field in code points.
-inline constexpr std::size_t max_field_length = 32;
+/// @brief Largest field in code points (32 before the 64 change; the longest vanilla country name has about 60).
+inline constexpr std::size_t max_field_length = 64;
 
 /// @brief Logical codes of one field (not engine fixed-point values; the transport scales them).
 struct FieldCodes {
@@ -39,7 +39,7 @@ struct FieldCodes {
 enum class InputError {
     none,                   ///< 0: valid.
     empty,                  ///< 1: no characters.
-    too_long,               ///< 2: more than 32 code points.
+    too_long,               ///< 2: more than 64 code points.
     invalid_scalar,         ///< 3: surrogate or > U+10FFFF.
     control_character,      ///< 4: C0/C1 control.
     render_delimiter,       ///< 5: HOI4 markup/delimiter character.
@@ -50,7 +50,7 @@ enum class InputError {
 struct InputResult {
     std::optional<FieldCodes> value;     ///< Codes on success.
     InputError error{InputError::none};  ///< Error kind.
-    std::size_t error_index{};           ///< Index of the first bad code point (32 for too_long), npos on success.
+    std::size_t error_index{};           ///< Index of the first bad code point (64 for too_long), npos on success.
 };
 
 /// @brief The legacy alphabet (API level 1) in code order (index + 1 = code).

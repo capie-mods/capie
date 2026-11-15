@@ -440,16 +440,16 @@ int main() {
     put(le_context, 0x470, TempVector{spoofed_err.data(), 2, 2, nullptr});
     {
         Origin current{}; current.context = le_context; current.model = 0; current.epoch = 7;
-        InputSnapshot inputs[2]{}; inputs[0].size = 33;
-        for (std::size_t i = 0; i < 33; ++i) inputs[0].points[i] = 0x61;
+        InputSnapshot inputs[2]{}; inputs[0].size = 65;
+        for (std::size_t i = 0; i < 65; ++i) inputs[0].points[i] = 0x61;
         check(prepare_transport(current, inputs), "transport built for invalid leader");
         captured.clear();
         for (int i = 0; i < current.view.count; ++i) {
             char key[129]{}; record_key(current.view.data[i], key); captured.push_back({key, current.view.data[i].raw_value});
         }
         check(captured_count("rn_native_err") == 1 && captured_raw("rn_native_err") == 200000, "too_long -> rn_native_err=2");
-        check(captured_count("rn_native_31") == 0 && captured_count("rn_native_ok") == 1 && captured_raw("rn_native_ok") == 0, "slot 31 replaced, ok=0");
-        check(current.view.count == 35 && captured_count("rn_nativeb_err") == 0, "leader 34 field records + epoch (unchanged), spoof removed");
+        check(captured_count("rn_native_63") == 0 && captured_count("rn_native_31") == 1 && captured_count("rn_native_ok") == 1 && captured_raw("rn_native_ok") == 0, "slot 63 replaced, ok=0");
+        check(current.view.count == 67 && captured_count("rn_nativeb_err") == 0, "leader 66 field records + epoch, spoof removed");
         Origin empty{}; empty.context = le_context; empty.model = 0; empty.epoch = 7;
         InputSnapshot none[2]{};
         check(prepare_transport(empty, none), "transport built for empty leader");
@@ -465,9 +465,9 @@ int main() {
         bool has_err = false, has_31 = false;
         for (int i = 0; i < valid.view.count; ++i) {
             char key[129]{}; record_key(valid.view.data[i], key);
-            has_err |= std::strcmp(key, "rn_native_err") == 0; has_31 |= std::strcmp(key, "rn_native_31") == 0;
+            has_err |= std::strcmp(key, "rn_native_err") == 0; has_31 |= std::strcmp(key, "rn_native_63") == 0;
         }
-        check(!has_err && has_31, "valid field: no error record, slot 31 present");
+        check(!has_err && has_31, "valid field: no error record, slot 63 present");
     }
     put(le_context, 0x470, TempVector{});
 

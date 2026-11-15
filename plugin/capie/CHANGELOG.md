@@ -14,6 +14,21 @@ release notes, so write it for players and mod authors. Format:
 - The installer no longer stops with "Cannot find drive" when Steam still lists a library on a
   drive that is gone (for example an old USB or broken disk). It skips that library and keeps
   looking for the game (issue #2).
+### Changed
+
+- Names can be up to 64 characters long instead of 32. This applies to every text field CAPIE
+  reads from an edit box and sends to script: country name and adjective, leader name, party
+  names, faction name and the text fields of grammar editors, and to the arguments of console
+  mod commands. Some vanilla country names (the Polish "BBWR" name, for one) have more than 32
+  characters, so renaming such a country failed with "up to 32 characters". The API level is
+  unchanged.
+- For mod authors: `capie_f<n>_len` is now 0 to 64 and the codes are `capie_f<n>_0` to
+  `capie_f<n>_63` (likewise `capie_pf1_*`); the name layer accepts 1 to 64 codes per array. An
+  Apply is larger: 134 records for Rename Anything's country editor (70 before) and up to 342
+  for a grammar editor with four fields (182 before). A script that reads only 32 codes must
+  refuse a longer field. Rename Anything's own editors use `rn_native(b)_0` to `_63`.
+- Rename Anything older than the version that raises its limit refuses a name longer than 32
+  characters with its usual "text not accepted" message; it never shortens it.
 
 ## [1.6.2] - 2026-11-12
 

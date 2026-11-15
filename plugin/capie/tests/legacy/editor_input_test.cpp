@@ -73,19 +73,21 @@ int main(int argc, char** argv) {
     expect_codes(U" a ", {63, 1, 63}, "leading and trailing spaces are preserved");
     expect_codes(U"  ", {63, 63}, "nonempty spaces remain explicit user input");
 
-    const auto maximum_ascii = rn::editor::encode_field(std::u32string(32, U'z'));
-    check(maximum_ascii.value && maximum_ascii.value->length == 32, "32 ASCII codepoints accepted");
+    const auto maximum_ascii = rn::editor::encode_field(std::u32string(64, U'z'));
+    check(maximum_ascii.value && maximum_ascii.value->length == 64, "64 ASCII codepoints accepted");
     if (maximum_ascii.value) {
         for (const auto code : maximum_ascii.value->codes) check(code == 26, "last ASCII code is retained");
     }
-    const auto maximum_polish = rn::editor::encode_field(std::u32string(32, U'Ż'));
-    check(maximum_polish.value && maximum_polish.value->length == 32, "32 Polish codepoints accepted");
+    const auto maximum_polish = rn::editor::encode_field(std::u32string(64, U'Ż'));
+    check(maximum_polish.value && maximum_polish.value->length == 64, "64 Polish codepoints accepted");
     if (maximum_polish.value) {
         for (const auto code : maximum_polish.value->codes) check(code == 84, "last Polish code is retained");
     }
-    expect_error(std::u32string(33, U'a'), InputError::too_long, 32, "33 codepoints are rejected, not truncated");
-    expect_error(std::u32string(33, U'ą'), InputError::too_long, 32, "Unicode length counts codepoints");
-    expect_error(std::u32string(128, U'z'), InputError::too_long, 32, "oversized text is rejected");
+    check(rn::editor::encode_field(std::u32string(33, U'a')).value.has_value(), "33 codepoints are accepted since the limit is 64");
+    check(rn::editor::encode_field(std::u32string(32, U'a')).value.has_value(), "the old limit of 32 still passes");
+    expect_error(std::u32string(65, U'a'), InputError::too_long, 64, "65 codepoints are rejected, not truncated");
+    expect_error(std::u32string(65, U'ą'), InputError::too_long, 64, "Unicode length counts codepoints");
+    expect_error(std::u32string(128, U'z'), InputError::too_long, 64, "oversized text is rejected");
 
     // Explicit-size views preserve embedded NUL; C-string construction would
     // hide that suffix and silently change the command's intended text.

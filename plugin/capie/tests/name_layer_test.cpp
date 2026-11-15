@@ -379,6 +379,13 @@ void decode_tests() {
           "extended Latin letters");
     result = layer_of(layer_variables(U"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef", U"x"));
     check(result.status == layer::Status::valid && result.name_points == 32, "32 code points");
+    result = layer_of(layer_variables(std::u32string(64, U'Ż'), std::u32string(64, U'ą')));
+    check(result.status == layer::Status::valid && result.name_points == 64 && result.key_size == 4 + (64 * 2) + 1 + (64 * 2) + 1,
+          "64 code points in name and adjective");
+    result = layer_of(layer_variables(std::u32string(65, U'a'), U"x"));
+    check(result.status != layer::Status::valid, "65 code points: no layer");
+    result = layer_of(layer_variables(U"x", std::u32string(65, U'a')));
+    check(result.status != layer::Status::valid, "65 code points in the adjective: no layer");
     result = layer_of(layer_variables(U"Kanadia", U"kanadyjski"), 1023);
     check(result.status == layer::Status::valid, "large table");
 

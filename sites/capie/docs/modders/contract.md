@@ -109,7 +109,7 @@ When the window is not visible, CAPIE drops the click.
 | `capie_f<n>_err` | Meaning |
 |---|---|
 | 1 | empty |
-| 2 | more than 32 characters |
+| 2 | more than 64 characters |
 | 3 | invalid Unicode |
 | 4 | control character |
 | 5 | a character with meaning in the game's text: `" [ ] \| $ § £ \ { } # @` |

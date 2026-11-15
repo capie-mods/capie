@@ -497,13 +497,13 @@ void payload_tests() {
               value_of("capie_f1_len") == 16,
           "field header");
     check(value_of("capie_f1_0") == 31 && value_of("capie_f1_7") == 63 && value_of("capie_f1_15") == 5 &&
-              value_of("capie_f1_16") == 0 && value_of("capie_f1_31") == 0 && count_of("capie_f1_0") == 1,
+              value_of("capie_f1_16") == 0 && value_of("capie_f1_63") == 0 && count_of("capie_f1_0") == 1,
           "field codes (E, space, e, padding)");
-    check(captured.size() == 1 + public_header_records + (2 * public_records_per_field) && capie_records() == 78,
-          "1 original + 8 header + 35 field records + 35 opening-text records");
+    check(captured.size() == 1 + public_header_records + (2 * public_records_per_field) && capie_records() == 8 + (2 * 67),
+          "1 original + 8 header + 67 field records + 67 opening-text records");
     check(value_of("capie_pf1_err") == 0 && value_of("capie_pf1_at") == 0 && value_of("capie_pf1_len") == 6 &&
               value_of("capie_pf1_0") == 27 && value_of("capie_pf1_5") == 19 && value_of("capie_pf1_6") == 0 &&
-              value_of("capie_pf1_31") == 0 && count_of("capie_pf1_0") == 1,
+              value_of("capie_pf1_63") == 0 && count_of("capie_pf1_0") == 1,
           "capie_pf1_*: the carrier text at the opening (Allies), not the typed text");
     check(count_of("capie_pf2_len") == 0, "only carrier 1 is sent");
 
@@ -553,8 +553,8 @@ void second_mod_tests() {
     type_text(motto.edits[1], U"Égalité, fraternité!");
     click(motto, apply_of(motto));
     check(value_of("capie_nf") == 2 && value_of("capie_f1_len") == 7 && value_of("capie_f2_len") == 20 &&
-              value_of("capie_f2_err") == 0 && capie_records() == 8 + (2 * 35) && count_of("capie_pf1_len") == 0,
-          "two fields, 78 records, no prefill carrier so no capie_pf1_*");
+              value_of("capie_f2_err") == 0 && capie_records() == 8 + (2 * 67) && count_of("capie_pf1_len") == 0,
+          "two fields, 142 records, no prefill carrier so no capie_pf1_*");
 
     auto& hello = make_window("capie_v1_ed__capie__hello", 0, "1");
     tick_observed(hello.window.data(), 0);

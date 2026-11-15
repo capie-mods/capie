@@ -5,8 +5,8 @@
  * A mod stores the name a player gave a country in that country's own variables, with plain
  * script effects, so the game saves and synchronises it like any other variable:
  *
- *     capie_cn_n    array of character codes of the name       (1..32 codes, CONTRACT section 7)
- *     capie_cn_a    array of character codes of the adjective  (1..32 codes)
+ *     capie_cn_n    array of character codes of the name       (1..64 codes, CONTRACT section 7)
+ *     capie_cn_a    array of character codes of the adjective  (1..64 codes)
  *     capie_cn_ver  1 = the layer is set (format 1); absent = no layer
  *     capie_cn_rev  set last by every change; tells CAPIE to refresh the names (value unused)
  *
@@ -29,7 +29,7 @@
  * Arrays are ordinary variables named `name^0`, `name^1`, ... and `name^num` (seen in saves).
  *
  * Fail-closed: anything unreadable or out of range (a missing element, a fraction, a code
- * outside 1..264, a length outside 1..32, a text the RN1 guard refuses) means "no layer"; the
+ * outside 1..264, a length outside 1..64, a text the RN1 guard refuses) means "no layer"; the
  * game then shows the cosmetic tag or the base name, as without CAPIE. Nothing here writes,
  * allocates or calls the game. Templated over the memory policy so offline tests use fakes.
  */
@@ -83,7 +83,7 @@ inline constexpr std::int64_t max_mask = 0xFFFFFF;
 inline constexpr std::uint64_t max_key_capacity = 1048576;
 /// @brief Longest variable name CAPIE looks up (`capie_cn_n^num` is 14).
 inline constexpr std::size_t max_variable_name = 32;
-/// @brief Longest key `RN1|` + 128 + `|` + 128 + `|`.
+/// @brief Longest key `RN1|` + 256 + `|` + 256 + `|`.
 inline constexpr std::size_t max_key_size = protocol_prefix.size() + (2 * max_field_bytes) + 2;
 /// @brief FNV-1a offset basis (variable find).
 inline constexpr std::uint32_t fnv_basis = 0x811C9DC5U;

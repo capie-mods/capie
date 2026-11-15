@@ -122,14 +122,17 @@ inline constexpr DebugAction debug_actions[] = {
 inline constexpr std::int64_t fixed_point = 100000;
 /// @brief Largest original record vector accepted from the window context.
 inline constexpr std::size_t max_original_records = 256;
-/// @brief Most records the bridge appends for one Apply (country: 2*34 + epoch + capability).
-inline constexpr std::size_t max_transport_records = 70;
-/// @brief Records per field: ok, len and 32 slots.
-inline constexpr std::size_t records_per_field = 34;
-/// @brief Code slots per field (`rn_native_0..31`).
-inline constexpr unsigned code_slots = 32;
+/// @brief Most records the bridge appends for one Apply (country: 2*66 + epoch + capability).
+inline constexpr std::size_t max_transport_records = 134;
+/// @brief Records per field: ok, len and 64 slots.
+inline constexpr std::size_t records_per_field = 66;
+/// @brief Code slots per field (`rn_native_0..63`).
+inline constexpr unsigned code_slots = 64;
+static_assert(records_per_field == code_slots + 2, "ok, len and one record per code slot");
 /// @brief Slot that carries the InputError instead of a code when the field is invalid.
-inline constexpr unsigned error_slot_index = 31;
+inline constexpr unsigned error_slot_index = 63;
+/// @brief The country Apply (two fields, epoch, capability) must fit the transport budget.
+static_assert((2 * records_per_field) + 2 == max_transport_records);
 /// @brief Longest key the SSO record builder accepts (15 bytes).
 inline constexpr std::size_t max_record_key = 15;
 /// @brief Size of a record-key formatting buffer.

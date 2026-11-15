@@ -47,7 +47,7 @@ The player types `capie_cmd mymod hello "first" "second"`.
   not call SDK effects that read ROOT (`capie_v1_begin`, `capie_v1_actor_ok`,
   `capie_v1_may_edit_country`, the text slot effects).
 - Arguments arrive like editor fields: `capie_nf` (0 to 4), then for each argument
-  `capie_f<n>_len` (0 to 32) and the character codes `capie_f<n>_0` and up. Load one with
+  `capie_f<n>_len` (0 to 64) and the character codes `capie_f<n>_0` and up. Load one with
   `capie_v1_field_load`, then trim and validate it with the SDK text tools if you need to.
 - CAPIE rejects bad text before your effect runs: characters outside the alphabet, markup
   characters, leading, trailing or double spaces, more than 4 arguments.

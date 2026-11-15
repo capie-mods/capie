@@ -5,7 +5,7 @@
  * A name typed in the console must satisfy exactly what an editor field must satisfy, so
  * the same text reaches the same setter either way:
  *
- * - UTF-8 that decodes to 1..32 Unicode scalars (the console edit box is assumed to give
+ * - UTF-8 that decodes to 1..64 Unicode scalars (the console edit box is assumed to give
  *   UTF-8, like every `CEditBox` CAPIE reads; open item O3);
  * - every code point in the CAPIE alphabet (API level 2 extended table, codes 1..264),
  *   checked by `editor::encode_field`, which also rejects controls and markup;
@@ -39,7 +39,7 @@ inline constexpr std::size_t max_points = editor::max_field_length;
 enum class TextError : unsigned {
     none = 0,                   ///< Valid.
     empty = 1,                  ///< No characters.
-    too_long = 2,               ///< More than 32 code points.
+    too_long = 2,               ///< More than 64 code points.
     invalid_scalar = 3,         ///< Surrogate or > U+10FFFF.
     control_character = 4,      ///< C0/C1 control.
     markup_character = 5,       ///< HOI4 markup or delimiter character.
@@ -241,7 +241,7 @@ constexpr std::string_view describe(TextError error) noexcept {
         case TextError::empty:
             return "empty";
         case TextError::too_long:
-            return "more than 32 characters";
+            return "more than 64 characters";
         case TextError::invalid_scalar:
             return "invalid Unicode character";
         case TextError::control_character:
