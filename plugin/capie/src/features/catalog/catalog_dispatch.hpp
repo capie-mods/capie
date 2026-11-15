@@ -436,6 +436,39 @@ inline std::int64_t clicked_slot(void* context) noexcept {
 }
 
 /**
+ * @brief The window view of a catalog click.
+ *
+ * A window button's click carries the window's own embedded context. A dynamic list entry's click
+ * (`pick`) may carry a copy of it (with the entry's temporary variables), which is not embedded in the
+ * window; the window is then found through the context's back-pointer and checked afresh. The
+ * difference is logged, because it is only known from the game, not yet from a trace.
+ * @param context Click context.
+ * @param model Model object.
+ * @param view Receives the root.
+ * @param entry The click comes from a dynamic list entry.
+ * @return `visible`, `hidden` or `invalid`.
+ */
+inline editor::ViewResult click_view(void* context, void* model, editor::View& view, bool entry) noexcept {
+    const auto direct = editor::public_view(context, model, view);
+    if (direct == editor::ViewResult::visible || !entry) {
+        return direct;
+    }
+    void* window = nullptr;
+    if (!core::member(context, core::off::context_window, window) || window == nullptr) {
+        note("CAPIE_CATALOG pick: the context has no window back-pointer (context=%llx)",
+             static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(context)));
+        return direct;
+    }
+    const auto fresh = editor::inspect_chain(window, model, view);
+    note("CAPIE_CATALOG pick: context %llx is not embedded in its window %llx (embedded %llx); direct=%d fresh=%d",
+         static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(context)),
+         static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(window)),
+         static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(window) + core::off::window_context),
+         static_cast<int>(direct), static_cast<int>(fresh));
+    return fresh;
+}
+
+/**
  * @brief Dispatch hook entry for catalog views.
  * @param context Window context.
  * @param opaque_selector Selector.
@@ -476,7 +509,7 @@ inline bool dispatch(void* context, void* opaque_selector) {
     bool picker_action = false;
     pick::List picked{};
     const std::int64_t clicked = *action == Action::pick ? clicked_slot(context) : -1;  // before sanitising
-    if (editor::public_view(context, model, window) != editor::ViewResult::visible) {
+    if (click_view(context, model, window, *action == Action::pick) != editor::ViewResult::visible) {
         list = records::sentinel(records::Sentinel::window);
     } else if (!registered) {
         list = records::sentinel(records::Sentinel::registry_full);
