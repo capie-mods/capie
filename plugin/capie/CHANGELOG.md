@@ -7,15 +7,67 @@ release notes, so write it for players and mod authors. Format:
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the version is `capie_release` in
 `src/core/game_build.hpp`.
 
-## [Unreleased]
+## [1.7.0] - 2026-11-15
 
-### Fixed
+Runtime catalogs, first part: mods can read what the running game has instead of shipping
+generated lists. Script API level 9 (`capie_cap = 9`); mods built for CAPIE 1.6 keep working
+unchanged. Runs on HOI4 1.19.5.0 only (the build of 12 November; the same code as 1.19.4.2).
 
-- The installer no longer stops with "Cannot find drive" when Steam still lists a library on a
-  drive that is gone (for example an old USB or broken disk). It skips that library and keeps
-  looking for the game (issue #2).
+### Added
+
+- Leader portraits from texture files (CONTRACT section 18, format 2): `capie_pt_ver = 2` stores
+  the large and small portrait as a sprite name or a `gfx/...` `.dds`/`.png`/`.tga` path of up to
+  126 characters (packing B, CONTRACT 21.3), so the portraits of total conversions that use image
+  files (KaiserreduX's runtime leaders) can be chosen. CAPIE builds the entry with the game's own
+  loader; a file that does not load shows the game's portrait. Format 1 is unchanged. The console
+  command `change_leader_portrait` accepts a path.
+- State/VP view (CONTRACT section 21): a scripted GUI named `capie_v1_cat__<mod>__<view>` gets,
+  on its `…__vp_click`, the scope state's id and its victory-point provinces (`capie_st`,
+  `capie_vp_<k>`, `capie_vpv_<k>`), and the keys `CAPIE_V1_T__<MOD>__<VIEW>__<k>` show each
+  province's name as the game shows it (a renamed city's new name within half a second). This
+  works for any map, also a total conversion's.
+- Flag and portrait pickers (CONTRACT 21.7, pending the in-game spikes): a catalog view lists
+  every flag file and every leader portrait (sprites and image files) of the running game, also
+  of a total conversion, page by page, and a pick sends the chosen file's name to the mod.
+- Every Apply also reports `capie_catalog` (1 when the catalog views work in this game).
+- `Update CAPIE.bat` in `%LOCALAPPDATA%\RenameAnything`: double-click it to update CAPIE (for
+  example after a game patch). Every install, update and rollback writes it together with a copy
+  of the installer (`setup\install.ps1`); the batch file checks the copy's SHA-256 and runs it
+  with `-Update`, with the same signature and SHA-256 checks as the one-line command, and waits
+  for a key at the end. It runs only when you start it: CAPIE still never updates itself or goes
+  online in the background (ADR-0038). `-Uninstall` removes it.
+- When you choose a shortcut, setup also adds **Update CAPIE** (to that batch file) next to the
+  game shortcut and in the Start menu.
+- The signed `release-manifest.json` lists the release's `install.ps1` with its SHA-256 (optional
+  field `installer`; older installers ignore it). An update keeps that verified installer as the
+  local copy, so the next update runs the newest setup.
+
 ### Changed
 
+- Status text "CAPIE 1.7 loaded"; `CAPIE_API` answers `9`, `CAPIE_BUILD` answers `1.7.0`.
+- Launcher: the notice "CAPIE needs an update for this Hearts of Iron IV version" (and the one
+  about broken CAPIE files) names `Update CAPIE.bat` as the easiest way to update, and shows the
+  PowerShell line to paste (the same one as for the install) and the installer option to choose
+  ("Install or update"). Ctrl+C copies the notice.
+- An editor that cannot work for the rest of the session no longer says "out of date, open it
+  again". After a fault inside a call into the game (CAPIE then stops calling the game until it
+  restarts), and for the country editor when `capie_core.dll` is missing or has no name layers,
+  an Apply now carries the new sentinel `-4`, "CAPIE stopped" (`capie_epoch` for script-API
+  editors, `rn_ip_cmd_epoch` for Rename Anything's own). Mods written before it read `-4` as a
+  stale opening and keep working; Rename Anything 0.5 says "CAPIE stopped after an error. Save,
+  then restart the game." No new API level (CONTRACT 5.2, 10).
+- The status keys no longer say "loaded" when only half of CAPIE runs: while the editor DLL has
+  not started, failed to start or stopped after a fault, `CAPIE_STATUS` reads
+  "CAPIE 1.x: editor off" and Rename Anything's status line "CAPIE 1.x: editor off, restart the
+  game" (CONTRACT 8). `capie_editor.dll` reports its start to `capie_core.dll`
+  (`RNEditorReport`).
+- The fault latch is no longer silent: the first fault (which call, exception code, thread) and
+  the first refused call are written once to `capie_core.log` or `capie_editor.log`.
+- `capie_editor.log` now records every failed start, also an unsupported game or a signature
+  mismatch (the log used to open only after those checks).
+- The launcher's `last-status.txt` says `capie-editor-failed` when the core was loaded but the
+  editor was refused (it said `game-without-capie`). The `version.dll` loader writes the same
+  file now, so a failed editor start shows outside `proxy.log` too.
 - Names can be up to 64 characters long instead of 32. This applies to every text field CAPIE
   reads from an edit box and sends to script: country name and adjective, leader name, party
   names, faction name and the text fields of grammar editors, and to the arguments of console
@@ -24,11 +76,17 @@ release notes, so write it for players and mod authors. Format:
   unchanged.
 - For mod authors: `capie_f<n>_len` is now 0 to 64 and the codes are `capie_f<n>_0` to
   `capie_f<n>_63` (likewise `capie_pf1_*`); the name layer accepts 1 to 64 codes per array. An
-  Apply is larger: 134 records for Rename Anything's country editor (70 before) and up to 342
-  for a grammar editor with four fields (182 before). A script that reads only 32 codes must
+  Apply is larger: 134 records for Rename Anything's country editor (70 before) and up to 343
+  for a grammar editor with four fields (183 before). A script that reads only 32 codes must
   refuse a longer field. Rename Anything's own editors use `rn_native(b)_0` to `_63`.
 - Rename Anything older than the version that raises its limit refuses a name longer than 32
   characters with its usual "text not accepted" message; it never shortens it.
+
+### Fixed
+
+- The installer no longer stops with "Cannot find drive" when Steam still lists a library on a
+  drive that is gone (for example an old USB or broken disk). It skips that library and keeps
+  looking for the game (issue #2).
 
 ## [1.6.2] - 2026-11-12
 
@@ -49,74 +107,6 @@ CAPIE 1.5) works without changes.
 ### Fixed
 
 - CAPIE no longer refuses to start after the 1.19.5.0 game update.
-## [1.7.0] - unreleased
-
-Runtime catalogs, first part: mods can read what the running game has instead of shipping
-generated lists. Script API level 9 (`capie_cap = 9`); mods built for CAPIE 1.6 keep working
-unchanged. Runs on HOI4 1.19.4.2 only.
-
-### Added
-
-- Leader portraits from texture files (CONTRACT section 18, format 2): `capie_pt_ver = 2` stores
-  the large and small portrait as a sprite name or a `gfx/...` `.dds`/`.png`/`.tga` path of up to
-  126 characters (packing B, CONTRACT 21.3), so the portraits of total conversions that use image
-  files (KaiserreduX's runtime leaders) can be chosen. CAPIE builds the entry with the game's own
-  loader; a file that does not load shows the game's portrait. Format 1 is unchanged. The console
-  command `change_leader_portrait` accepts a path.
-- State/VP view (CONTRACT section 21): a scripted GUI named `capie_v1_cat__<mod>__<view>` gets,
-  on its `…__vp_click`, the scope state's id and its victory-point provinces (`capie_st`,
-  `capie_vp_<k>`, `capie_vpv_<k>`), and the keys `CAPIE_V1_T__<MOD>__<VIEW>__<k>` show each
-  province's name as the game shows it (a renamed city's new name within half a second). This
-  works for any map, also a total conversion's.
-- Flag and portrait pickers (CONTRACT 21.7, pending the in-game spikes): a catalog view lists
-  every flag file and every leader portrait (sprites and image files) of the running game, also
-  of a total conversion, page by page, and a pick sends the chosen file's name to the mod.
-- Every Apply also reports `capie_catalog` (1 when the catalog views work in this game).
-
-### Changed
-
-- Status text "CAPIE 1.7 loaded"; `CAPIE_API` answers `9`, `CAPIE_BUILD` answers `1.7.0`.
-- Launcher: the notice "CAPIE needs an update for this Hearts of Iron IV version" (and the one
-  about broken CAPIE files) now shows the PowerShell line to paste, the same one as for the
-  install, and the installer option to choose ("Install or update"). Ctrl+C copies the notice.
-
-- An editor that cannot work for the rest of the session no longer says "out of date, open it
-  again". After a fault inside a call into the game (CAPIE then stops calling the game until it
-  restarts), and for the country editor when `capie_core.dll` is missing or has no name layers,
-  an Apply now carries the new sentinel `-4`, "CAPIE stopped" (`capie_epoch` for script-API
-  editors, `rn_ip_cmd_epoch` for Rename Anything's own). Mods written before it read `-4` as a
-  stale opening and keep working; Rename Anything 0.5 says "CAPIE stopped after an error. Save,
-  then restart the game." No new API level (CONTRACT 5.2, 10).
-- The status keys no longer say "loaded" when only half of CAPIE runs: while the editor DLL has
-  not started, failed to start or stopped after a fault, `CAPIE_STATUS` reads
-  "CAPIE 1.x: editor off" and Rename Anything's status line "CAPIE 1.x: editor off, restart the
-  game" (CONTRACT 8). `capie_editor.dll` reports its start to `capie_core.dll`
-  (`RNEditorReport`).
-- The fault latch is no longer silent: the first fault (which call, exception code, thread) and
-  the first refused call are written once to `capie_core.log` or `capie_editor.log`.
-- `capie_editor.log` now records every failed start, also an unsupported game or a signature
-  mismatch (the log used to open only after those checks).
-- The launcher's `last-status.txt` says `capie-editor-failed` when the core was loaded but the
-  editor was refused (it said `game-without-capie`). The `version.dll` loader writes the same
-  file now, so a failed editor start shows outside `proxy.log` too.
-### Added
-
-- `Update CAPIE.bat` in `%LOCALAPPDATA%\RenameAnything`: double-click it to update CAPIE (for
-  example after a game patch). Every install, update and rollback writes it together with a copy
-  of the installer (`setup\install.ps1`); the batch file checks the copy's SHA-256 and runs it
-  with `-Update`, with the same signature and SHA-256 checks as the one-line command, and waits
-  for a key at the end. It runs only when you start it: CAPIE still never updates itself or goes
-  online in the background (ADR-0038). `-Uninstall` removes it.
-- When you choose a shortcut, setup also adds **Update CAPIE** (to that batch file) next to the
-  game shortcut and in the Start menu.
-- The signed `release-manifest.json` lists the release's `install.ps1` with its SHA-256 (optional
-  field `installer`; older installers ignore it). An update keeps that verified installer as the
-  local copy, so the next update runs the newest setup.
-
-### Changed
-
-- The launcher's "CAPIE needs an update for this Hearts of Iron IV version" notice names
-  `Update CAPIE.bat` as the easiest way to update.
 
 ## [1.6.1] - 2026-11-05
 
