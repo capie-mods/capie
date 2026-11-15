@@ -26,15 +26,15 @@ $script:RaUpdatePublicKeyXml = '<RSAKeyValue><Modulus>21/rZrMx9hLPYwh/QMiCnXaOUe
 # "does NOT support your Hearts of Iron IV build" notice (and the release page and update
 # command), never a silent success. CAPIE 1.5.1 replaces them when it is released.
 $script:RaPinnedRelease = [ordered]@{
-    Version             = '1.6.2'
-    ZipName             = 'CAPIE-1.6.2-win64.zip'
-    ZipSha256           = '6085C17447A4803D7A97249A6367D9F4CF9306693222A3BEEAC358C82333E6A6'
+    Version             = '1.7.0'
+    ZipName             = 'CAPIE-1.7.0-win64.zip'
+    ZipSha256           = '3052AEFAC1DD29957993D0297B1E4CD4ED796DCC46C903B86B18967FA7522589'
     Files               = [ordered]@{
-        'RenameAnythingLauncher.exe' = 'EC8440B8ACCABF89D24F71CAF78EC3307308ADA7A3A0171B698C0F5855183656'
+        'RenameAnythingLauncher.exe' = 'B2C5BBAC1C750AB1418E2BFFDEEFDE41C1C136AAB9D2F35511FFC103C2BF754E'
         'LICENSE.MinHook.txt'        = '4F21F857550D7BE854DA6EA5F2DA4E6775CA4E3FBB535E4F3D961C47D0BF3335'
-        'runtime/capie_core.dll'     = '11E162547A7CA49F1AB9074DB1B729239126BDF940F0F0092A17D4A92DDBCCCC'
-        'runtime/capie_editor.dll'   = 'D58B7EBC23E10BE1E91455A59818F2C5B98BF9E5C042202BA3C1D4AABAAE52AC'
-        'runtime/capie_injector.exe' = '94902DCFDCAF8CE8DFF849F3346320B10CF9068541ABCD18669E16865B08BE47'
+        'runtime/capie_core.dll'     = '995E6FFD6E51F0D29CE97DC5D484A707495116AA10BC63060633CE1F28BCF6F5'
+        'runtime/capie_editor.dll'   = '1DE7B7E12122B425B43DB62591B36D2397C71BE90D2A55F2033DAF573CEC7983'
+        'runtime/capie_injector.exe' = '5FC1F341025D2AE287EF0882243B6EAF4F5F5498556B2ADE8ACB8DFCD3036FD4'
         'mod/capie.mod'              = 'FABB7645BBC6FE9D95CF4B95D591889BC5E8C068356EBFA67ACD4D0A03F629BC'
         'mod/capie/descriptor.mod'   = 'D828206E6E0D083C5E137112EF0242C212EEF388117FA0E8B83E4B82B399DCF2'
         'mod/capie/thumbnail.png'    = 'D4BB22A36F572D354E49DCFB54DCF03F03BF844517F261FF2B9BC2D94CFD66FE'
@@ -43,8 +43,8 @@ $script:RaPinnedRelease = [ordered]@{
     SupportedGameSha256 = @('709F916AFBEBCFE64A26678702691AEB40945D206074C2A80DE8E9D601FCE148')
     # Separate proxy asset: downloaded only for -LoadMethod Proxy (the default Launcher install never reads it).
     Proxy               = [ordered]@{
-        ZipName   = 'CAPIE-1.6.2-proxy-win64.zip'
-        ZipSha256 = '0DAAC7C72468F468747B566BACC3678FAF01065C5C0C9F6A2DE9B224911022A7'
-        Files     = [ordered]@{ 'proxy/version.dll' = 'F21EC5799388B1182BF0F4D2F4BB3704E0E7D702C86880BEDE5BCF19758942CC' }
+        ZipName   = 'CAPIE-1.7.0-proxy-win64.zip'
+        ZipSha256 = '6CFB93D397C269901DFE0341EB1A59907AEC94000D753007C7278F28AB6D9560'
+        Files     = [ordered]@{ 'proxy/version.dll' = '91B867513E863B74C5FFB0F4BFF42066D87F9F03A9338AEB7BB6413DA03AC3A6' }
     }
 }
