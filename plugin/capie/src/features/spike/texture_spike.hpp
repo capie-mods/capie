@@ -216,7 +216,7 @@ inline bool resolve(const char* name, Slot& slot) noexcept {
     void* found = nullptr;
     __try {
         found = state.find(reinterpret_cast<void*>(db), &argument);
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::spike)) {
         return false;
     }
     const auto sprite = reinterpret_cast<uptr>(found);
@@ -257,7 +257,7 @@ inline void release_now(uptr texmgr, int id) noexcept {
     }
     __try {
         state.release(reinterpret_cast<void*>(texmgr), id);
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::spike)) {
         note("CAPIE_SPIKE ReleaseTexture faulted id=%d; game calls off", id);
         return;
     }
@@ -303,7 +303,7 @@ inline bool repoint(const char* name, const char* path) noexcept {
     const auto texmgr = reinterpret_cast<void*>(slot.texmgr);
     __try {
         id = state.add(texmgr, &argument, &options, true);
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::spike)) {
         note("CAPIE_SPIKE AddTexture faulted; game calls off");
         return false;
     }
@@ -316,7 +316,7 @@ inline bool repoint(const char* name, const char* path) noexcept {
                 size = {got[0], got[1]};
             }
         }
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::spike)) {
         note("CAPIE_SPIKE GetTexture/TextureSize faulted; game calls off");
         return false;
     }

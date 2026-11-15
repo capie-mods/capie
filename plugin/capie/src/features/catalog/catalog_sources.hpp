@@ -107,7 +107,7 @@ inline bool call_get_files(GetFilesFn get_files, const char* dir, FileArray* arr
     __try {
         get_files(dir, array, ends_with, nullptr, depth);
         return true;
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::catalog_files)) {
         return false;
     }
 }

@@ -166,6 +166,15 @@ enum class GameCall : unsigned {
     string_copy,      ///< The game's string copy (portrait and faction layers).
     update_names,     ///< UpdateNames trampoline (name layer commit).
     refresh_colour,   ///< RefreshCountryColor (colour layer).
+    path_portrait,    ///< MakeIconEntry (portrait layer, format 2).
+    province_name,    ///< ProvinceName (state/VP catalog).
+    string_release,   ///< The game's string release (catalog).
+    catalog_files,    ///< GetFiles (flag and portrait catalog).
+    texture_find,     ///< Texture lookup by name (catalog sprites).
+    texture_release,  ///< Texture release (catalog sprites).
+    texture_add,      ///< Texture add (catalog sprites).
+    texture_read,     ///< Texture get and size (catalog sprites).
+    spike,            ///< Spike code (not shipped behaviour).
 };
 
 /**
@@ -193,6 +202,24 @@ constexpr const char* game_call_name(GameCall call) noexcept {
             return "UpdateNames";
         case GameCall::refresh_colour:
             return "RefreshCountryColor";
+        case GameCall::path_portrait:
+            return "MakeIconEntry";
+        case GameCall::province_name:
+            return "ProvinceName";
+        case GameCall::string_release:
+            return "StringRelease";
+        case GameCall::catalog_files:
+            return "GetFiles";
+        case GameCall::texture_find:
+            return "TextureFind";
+        case GameCall::texture_release:
+            return "TextureRelease";
+        case GameCall::texture_add:
+            return "TextureAdd";
+        case GameCall::texture_read:
+            return "TextureRead";
+        case GameCall::spike:
+            return "Spike";
     }
     return "unknown";
 }
@@ -578,7 +605,7 @@ inline bool guarded_path_portrait_entry(PathPortraitEntry build, void* out, cons
     __try {
         static_cast<void>(build(out, path, false, false));
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::path_portrait)) {
         return false;
     }
 }
@@ -601,7 +628,7 @@ inline bool guarded_province_name(ProvinceName name, std::uintptr_t province, Ms
     __try {
         static_cast<void>(name(province, out, &is_vp));
         return true;
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::province_name)) {
         return false;
     }
 }
@@ -649,7 +676,7 @@ inline bool guarded_string_release(GameDelete free_block, MsvcString* value) noe
     }
     __try {
         free_block(reinterpret_cast<void*>(block), static_cast<std::size_t>(bytes));
-    } __except (game_call_exception(GetExceptionInformation())) {
+    } __except (game_call_exception(GetExceptionInformation(), GameCall::string_release)) {
         return false;
     }
     *value = MsvcString{};

@@ -144,7 +144,7 @@ inline bool resolve(const std::string& name, Slot& slot) noexcept {
     void* found = nullptr;
     __try {
         found = calls.find(reinterpret_cast<void*>(db), &argument);
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::texture_find)) {
         return false;
     }
     const auto sprite = reinterpret_cast<uptr>(found);
@@ -202,7 +202,7 @@ inline void release_now(uptr texmgr, int id) noexcept {
     }
     __try {
         calls.release(reinterpret_cast<void*>(texmgr), id);
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::texture_release)) {
         return;
     }
     --outstanding;
@@ -272,7 +272,7 @@ inline Repoint repoint(const std::string& name, const std::string& path) noexcep
     std::array<std::int32_t, 2> size{};
     __try {
         id = calls.add(texmgr, &argument, &options, true);
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::texture_add)) {
         return Repoint::failed;
     }
     ++outstanding;
@@ -284,7 +284,7 @@ inline Repoint repoint(const std::string& name, const std::string& path) noexcep
                 size = {got[0], got[1]};
             }
         }
-    } __except (engine::game_call_exception(GetExceptionInformation())) {
+    } __except (engine::game_call_exception(GetExceptionInformation(), engine::GameCall::texture_read)) {
         return Repoint::failed;
     }
     if (texture == nullptr) {

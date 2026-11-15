@@ -16,7 +16,7 @@
  *     the language through `$RN_PLUGIN_STATUS_EN$` / `$RN_PLUGIN_STATUS_PL$`, R5-MINOR-2);
  *     while the editor is off (`editor_running`: `capie_editor.dll` did not report a successful
  *     start, or the shared fault latch is set) they say "editor off, restart the game" instead,
- *     and `CAPIE_STATUS` returns "CAPIE 1.6: editor off" (CAPIE 1.7);
+ *     and `CAPIE_STATUS` returns "CAPIE 1.7: editor off" (CAPIE 1.7);
  *   - the public keys of the script contract (CONTRACT.md section 8): `CAPIE_STATUS`
  *     returns "CAPIE 1.7", `CAPIE_API` the API level ("9"), `CAPIE_BUILD` the release
  *     ("1.7.0"); the SDK localisation holds their fallbacks;
@@ -91,13 +91,13 @@ inline std::atomic<bool> active = false;
 inline std::atomic<std::uint32_t> editor_state{editor_unreported};
 
 /// @brief English status text while the editor is off.
-inline constexpr char status_off_en[] = "CAPIE 1.6: editor off, restart the game";
+inline constexpr char status_off_en[] = "CAPIE 1.7: editor off, restart the game";
 /// @brief Polish status text while the editor is off, UTF-8 ("wyłączony, uruchom grę ponownie").
 inline constexpr char status_off_pl[] =
-    "CAPIE 1.6: edytor wy\xC5\x82\xC4\x85"
+    "CAPIE 1.7: edytor wy\xC5\x82\xC4\x85"
     "czony, uruchom gr\xC4\x99 ponownie";
 /// @brief Text of `CAPIE_STATUS` while the editor is off.
-inline constexpr char public_status_off_text[] = "CAPIE 1.6: editor off";
+inline constexpr char public_status_off_text[] = "CAPIE 1.7: editor off";
 static_assert(std::string_view(status_off_en).starts_with(public_status_off_text) &&
                   std::string_view(status_off_pl).starts_with(public_status_text) &&
                   std::string_view(public_status_off_text).starts_with(public_status_text),
