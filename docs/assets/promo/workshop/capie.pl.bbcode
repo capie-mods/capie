@@ -11,9 +11,17 @@ Ten przedmiot to przełącznik. Nie ma treści gry i nie zmienia żadnego pliku 
 [/list]
 Kolejność ładowania nie ma znaczenia. Trzymaj tylko jeden mod o nazwie CAPIE: przy lokalnej kopii o tej samej nazwie gra pomija ten przedmiot z Workshopu. Lokalna kopia instalatora nazywa się CAPIE (local copy) i nie jest instalowana, gdy subskrybujesz ten przedmiot.
 
-[b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.6.2 (poziom API skryptów 8), sprawdzona w grze jednoosobowej na HOI4 1.19.5.0.
+[b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.7.0 (poziom API skryptów 9), sprawdzona w grze jednoosobowej na HOI4 1.19.5.0.
 
-[h2]Co nowego w 1.6.2[/h2]
+[h2]Co nowego w 1.7.0[/h2]
+[list]
+[*]Nazwy mogą mieć do 64 znaków zamiast 32. Część wanilowych nazw krajów jest dłuższa niż 32 znaki, więc zmiana ich nazwy się nie udawała. Nowa wersja Rename Anything korzysta z tego limitu.
+[*]Mody mogą odczytać flagi, portrety przywódców, prowincje i punkty zwycięstwa działającej gry, więc działają z totalnymi konwersjami bez wygenerowanej listy (poziom API skryptów 9). Portrety przywódców mogą pochodzić z plików graficznych.
+[*]Gdy CAPIE po błędzie nie może już działać, edytor mówi o tym wprost ("CAPIE zatrzymało się po błędzie, zapisz grę i uruchom ją ponownie") zamiast "nieaktualny, otwórz ponownie". Linia statusu pokazuje "edytor wyłączony", gdy działa tylko połowa CAPIE.
+[*]Update CAPIE.bat: instalator zapisuje plik o tej nazwie obok launchera. Kliknij go dwukrotnie po aktualizacji gry, żeby zaktualizować CAPIE. Uruchamia się tylko wtedy, gdy go sam uruchomisz.
+[/list]
+
+[h2]1.6.2[/h2]
 [list]
 [*]Obsługa HOI4 1.19.5.0 (aktualizacja z 12 listopada). CAPIE 1.6.1 się na niej nie włącza: uruchom ponownie linię instalacji poniżej i wybierz [i]Install or update[/i].
 [/list]
@@ -32,7 +40,7 @@ Kolejność ładowania nie ma znaczenia. Trzymaj tylko jeden mod o nazwie CAPIE:
 
 [h2]Działa z modami totalnej konwersji[/h2]
 Od wersji przełącznika 1.1.2 w menu głównym nie ma już znaku CAPIE. Znak wymagał kopii pliku menu głównego gry, a ta kopia zastępowała menu główne modów totalnej konwersji, takich jak Kaiserreich, KaiserreduX, The New Order, Millennium Dawn i Old World Blues: znikały ich logo, banery i numer wersji. Przełącznik nie zawiera teraz żadnego pliku interfejsu, więc każdy mod zachowuje swoje menu główne.
-Czy CAPIE działa, sprawdzisz w grze: edytor Rename Anything pokazuje "CAPIE 1.6 załadowane". CAPIE ładuje się około 20 sekund po pojawieniu się menu głównego.
+Czy CAPIE działa, sprawdzisz w grze: edytor Rename Anything pokazuje "CAPIE 1.7 załadowane". CAPIE ładuje się około 20 sekund po pojawieniu się menu głównego.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-requirements-pl.png[/img]
 [h2]Wymagania[/h2]
@@ -49,7 +57,7 @@ CAPIE instaluje się małym narzędziem. Zamknij Steam albo pozwól, żeby narz�
 [code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
 Otworzy się menu: wybierz [i]Install or update[/i].
 [*][b]Pobranie z GitHuba.[/b] Pobierz ZIP, install.ps1 i dwa pliki release-manifest z [url=https://github.com/capie-mods/capie/releases/latest]najnowszego wydania[/url] do jednego folderu, a potem w PowerShell w tym folderze uruchom:
-[code].\install.ps1 -Install -PackagePath .\CAPIE-1.6.2-win64.zip[/code]
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.7.0-win64.zip[/code]
 [/list]
 Oba sposoby sprawdzają podpisany manifest wydania i SHA-256 każdego pliku, instalują do folderu użytkownika (nigdy do folderu gry) i dodają launcher CAPIE do opcji uruchamiania HOI4 w Steamie. To samo narzędzie aktualizuje, instaluje starszą wersję, wyłącza CAPIE albo je odinstalowuje.
 

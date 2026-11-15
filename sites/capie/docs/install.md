@@ -20,7 +20,7 @@ only the parts that need no native code, and usually says that CAPIE is missing.
 
 - Windows 10 or 11. CAPIE runs only on Windows.
 - Hearts of Iron IV 1.19.5.0 from Steam. The main menu shows the version in its bottom left
-  corner. CAPIE 1.6.2 supports only this build (CAPIE 1.6.1 supported only 1.19.4.2). On any other build the game starts without
+  corner. CAPIE 1.6.2 and 1.7.0 support only this build (CAPIE 1.6.1 supported only 1.19.4.2). On any other build the game starts without
   CAPIE. Copies from other stores have a different `hoi4.exe` and are not supported.
 - Windows PowerShell 5.1, which comes with Windows, or PowerShell 7. You do not need
   administrator rights.
@@ -139,7 +139,7 @@ mod and the next start is the plain game.
 1. Open `%LOCALAPPDATA%\RenameAnything\launcher.log`. The line
    `CAPIE loaded into pid=...` from the last start means CAPIE runs.
 2. Mods built on CAPIE usually show their own status. Rename Anything, for example, shows
-   "CAPIE 1.6 loaded" in its editors.
+   "CAPIE 1.7 loaded" in its editors.
 
 The CAPIE mod shows nothing in the main menu. Up to version 1.1.1 it added a CAPIE mark there,
 but the mark needed a copy of the game's main menu file, and that copy replaced the main menu of
@@ -251,7 +251,7 @@ antivirus off; allowing that one file is enough.
 
 ### Wrong game version { #wrong-version }
 
-CAPIE 1.6.2 works only with Hearts of Iron IV 1.19.5.0 from Steam (CAPIE 1.6.1 only with 1.19.4.2, CAPIE 1.6.0 and 1.5.2 only with 1.19.4.1, CAPIE 1.5.1 only with 1.19.4.0, CAPIE 1.5.0 only with 1.19.3.0). On any other build,
+CAPIE 1.6.2 and 1.7.0 work only with Hearts of Iron IV 1.19.5.0 from Steam (CAPIE 1.6.1 only with 1.19.4.2, CAPIE 1.6.0 and 1.5.2 only with 1.19.4.1, CAPIE 1.5.1 only with 1.19.4.0, CAPIE 1.5.0 only with 1.19.3.0). On any other build,
 including a beta branch, the game starts without CAPIE and shows a short notice. In Steam,
 open Properties, **Betas**, and choose "None". A yellow "not supported" warning in the Paradox
 Launcher's mod list only compares a mod's `supported_version` with your game and blocks

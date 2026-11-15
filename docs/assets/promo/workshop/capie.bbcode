@@ -11,9 +11,17 @@ This item is the switch. It has no game content and changes no game file: it is 
 [/list]
 Load order does not matter. Keep only one mod called CAPIE: with a local copy of the same name, the game skips this Workshop item. The installer's own local copy is called CAPIE (local copy) and is not installed when you subscribe here.
 
-[b]Pre-release.[/b] Current version: CAPIE 1.6.2 (script API level 8), tested in single player on HOI4 1.19.5.0.
+[b]Pre-release.[/b] Current version: CAPIE 1.7.0 (script API level 9), tested in single player on HOI4 1.19.5.0.
 
-[h2]What's new in 1.6.2[/h2]
+[h2]What's new in 1.7.0[/h2]
+[list]
+[*]Names can be up to 64 characters instead of 32. Some vanilla country names are longer than 32, so renaming those countries failed. Rename Anything's next version uses the new limit.
+[*]Mods can read the flags, leader portraits, states and victory points of the running game, so they work with total conversions without a generated list (script API level 9). Leader portraits can come from image files.
+[*]When CAPIE cannot work any more after an error, the editor now says so ("CAPIE stopped after an error, save and restart the game") instead of "out of date, open it again". The status line says "editor off" when only half of CAPIE is running.
+[*]Update CAPIE.bat: the installer puts a file with this name next to the launcher. Double-click it after a game patch to update CAPIE. It runs only when you start it.
+[/list]
+
+[h2]1.6.2[/h2]
 [list]
 [*]Supports HOI4 1.19.5.0 (the update of 12 November). CAPIE 1.6.1 stays off on it: run the install line below again and choose [i]Install or update[/i].
 [/list]
@@ -32,7 +40,7 @@ Load order does not matter. Keep only one mod called CAPIE: with a local copy of
 
 [h2]Works with total conversions[/h2]
 Since switch 1.1.2 there is no CAPIE mark in the main menu any more. The mark needed a copy of the game's main menu file, and that copy replaced the main menu of total conversions such as Kaiserreich, KaiserreduX, The New Order, Millennium Dawn and Old World Blues: their logo, banners and version label were lost. The switch now ships no interface file at all, so every mod keeps its own main menu.
-To check that CAPIE runs, open a Rename Anything editor in a game: it shows "CAPIE 1.6 loaded". CAPIE loads about 20 seconds after the main menu appears.
+To check that CAPIE runs, open a Rename Anything editor in a game: it shows "CAPIE 1.7 loaded". CAPIE loads about 20 seconds after the main menu appears.
 
 [img]https://raw.githubusercontent.com/capie-mods/.github/main/workshop/capie/h-requirements.png[/img]
 [h2]Requirements[/h2]
@@ -49,7 +57,7 @@ CAPIE installs with a small setup tool. Close Steam, or let the tool close it fo
 [code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
 A menu opens: choose [i]Install or update[/i].
 [*][b]Download from GitHub.[/b] Get the ZIP, install.ps1 and the two release-manifest files from [url=https://github.com/capie-mods/capie/releases/latest]the latest release[/url] into one folder, then in PowerShell in that folder run:
-[code].\install.ps1 -Install -PackagePath .\CAPIE-1.6.2-win64.zip[/code]
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.7.0-win64.zip[/code]
 [/list]
 Both ways check the signed release manifest and every file's SHA-256, install into your user folder (never the game folder) and add the CAPIE launcher to the HOI4 launch options in Steam. The same tool updates, installs an older version, switches CAPIE off or uninstalls it.
 
