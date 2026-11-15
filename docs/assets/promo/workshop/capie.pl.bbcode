@@ -11,9 +11,14 @@ Ten przedmiot to przełącznik. Nie ma treści gry i nie zmienia żadnego pliku 
 [/list]
 Kolejność ładowania nie ma znaczenia. Trzymaj tylko jeden mod o nazwie CAPIE: przy lokalnej kopii o tej samej nazwie gra pomija ten przedmiot z Workshopu. Lokalna kopia instalatora nazywa się CAPIE (local copy) i nie jest instalowana, gdy subskrybujesz ten przedmiot.
 
-[b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.7.0 (poziom API skryptów 9), sprawdzona w grze jednoosobowej na HOI4 1.19.5.0.
+[b]Wersja przedpremierowa.[/b] Obecna wersja: CAPIE 1.7.1 (poziom API skryptów 9), sprawdzona w grze jednoosobowej na HOI4 1.19.5.0.
 
-[h2]Co nowego w 1.7.0[/h2]
+[h2]Co nowego w 1.7.1[/h2]
+[list]
+[*]Naprawia wybór flagi i portretu przywódcy w pickerach, z których korzysta następna wersja Rename Anything: kliknięcie nic nie robiło.
+[/list]
+
+[h2]1.7.0[/h2]
 [list]
 [*]Nazwy mogą mieć do 64 znaków zamiast 32. Część wanilowych nazw krajów jest dłuższa niż 32 znaki, więc zmiana ich nazwy się nie udawała. Nowa wersja Rename Anything korzysta z tego limitu.
 [*]Mody mogą odczytać flagi, portrety przywódców, prowincje i punkty zwycięstwa działającej gry, więc działają z totalnymi konwersjami bez wygenerowanej listy (poziom API skryptów 9). Portrety przywódców mogą pochodzić z plików graficznych.
@@ -57,7 +62,7 @@ CAPIE instaluje się małym narzędziem. Zamknij Steam albo pozwól, żeby narz�
 [code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
 Otworzy się menu: wybierz [i]Install or update[/i].
 [*][b]Pobranie z GitHuba.[/b] Pobierz ZIP, install.ps1 i dwa pliki release-manifest z [url=https://github.com/capie-mods/capie/releases/latest]najnowszego wydania[/url] do jednego folderu, a potem w PowerShell w tym folderze uruchom:
-[code].\install.ps1 -Install -PackagePath .\CAPIE-1.7.0-win64.zip[/code]
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.7.1-win64.zip[/code]
 [/list]
 Oba sposoby sprawdzają podpisany manifest wydania i SHA-256 każdego pliku, instalują do folderu użytkownika (nigdy do folderu gry) i dodają launcher CAPIE do opcji uruchamiania HOI4 w Steamie. To samo narzędzie aktualizuje, instaluje starszą wersję, wyłącza CAPIE albo je odinstalowuje.
 

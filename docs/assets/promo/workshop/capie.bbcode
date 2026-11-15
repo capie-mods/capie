@@ -11,9 +11,14 @@ This item is the switch. It has no game content and changes no game file: it is 
 [/list]
 Load order does not matter. Keep only one mod called CAPIE: with a local copy of the same name, the game skips this Workshop item. The installer's own local copy is called CAPIE (local copy) and is not installed when you subscribe here.
 
-[b]Pre-release.[/b] Current version: CAPIE 1.7.0 (script API level 9), tested in single player on HOI4 1.19.5.0.
+[b]Pre-release.[/b] Current version: CAPIE 1.7.1 (script API level 9), tested in single player on HOI4 1.19.5.0.
 
-[h2]What's new in 1.7.0[/h2]
+[h2]What's new in 1.7.1[/h2]
+[list]
+[*]Fixes picking a flag or a leader portrait in the pickers that Rename Anything's next version uses: the click did nothing.
+[/list]
+
+[h2]1.7.0[/h2]
 [list]
 [*]Names can be up to 64 characters instead of 32. Some vanilla country names are longer than 32, so renaming those countries failed. Rename Anything's next version uses the new limit.
 [*]Mods can read the flags, leader portraits, states and victory points of the running game, so they work with total conversions without a generated list (script API level 9). Leader portraits can come from image files.
@@ -57,7 +62,7 @@ CAPIE installs with a small setup tool. Close Steam, or let the tool close it fo
 [code]irm https://github.com/capie-mods/capie/releases/latest/download/install.ps1 | iex[/code]
 A menu opens: choose [i]Install or update[/i].
 [*][b]Download from GitHub.[/b] Get the ZIP, install.ps1 and the two release-manifest files from [url=https://github.com/capie-mods/capie/releases/latest]the latest release[/url] into one folder, then in PowerShell in that folder run:
-[code].\install.ps1 -Install -PackagePath .\CAPIE-1.7.0-win64.zip[/code]
+[code].\install.ps1 -Install -PackagePath .\CAPIE-1.7.1-win64.zip[/code]
 [/list]
 Both ways check the signed release manifest and every file's SHA-256, install into your user folder (never the game folder) and add the CAPIE launcher to the HOI4 launch options in Steam. The same tool updates, installs an older version, switches CAPIE off or uninstalls it.
 
