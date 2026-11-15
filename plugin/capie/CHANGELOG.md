@@ -7,6 +7,20 @@ release notes, so write it for players and mod authors. Format:
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the version is `capie_release` in
 `src/core/game_build.hpp`.
 
+## [1.7.1] - 2026-11-15
+
+Fix for the flag and portrait pickers of script API level 9. Nothing else changed: the API level is
+still 9, and every mod that works with CAPIE 1.7.0 works unchanged.
+
+### Fixed
+
+- Picking a flag or a leader portrait in a catalog picker did nothing. The game sends the click on a
+  list entry with a copy of the window's context, which CAPIE did not accept as its own, so every
+  `pick` answered `capie_catalog = -1`. CAPIE now finds the window through the copy and checks it
+  afresh. The paging buttons were not affected. Mods that use the pickers (Rename Anything 0.5)
+  need CAPIE 1.7.1.
+- `CAPIE_BUILD` answers `1.7.1`; the build number sent as `capie_ver` is `10701`.
+
 ## [1.7.0] - 2026-11-15
 
 Runtime catalogs, first part: mods can read what the running game has instead of shipping

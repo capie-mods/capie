@@ -460,6 +460,10 @@ inline editor::ViewResult click_view(void* context, void* model, editor::View& v
         return direct;
     }
     const auto fresh = editor::inspect_chain(window, model, view);
+    static std::atomic<unsigned> logged{0};
+    if (logged.fetch_add(1) >= 4) {  // the first clicks show the difference; later ones are the same
+        return fresh;
+    }
     note("CAPIE_CATALOG pick: context %llx is not embedded in its window %llx (embedded %llx); direct=%d fresh=%d",
          static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(context)),
          static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(window)),

@@ -27,13 +27,13 @@ inline constexpr std::uintptr_t game_preferred_base = 0x140000000;
 /// @brief CAPIE product version shown to players ("CAPIE 1.7 loaded").
 inline constexpr char capie_version[] = "1.7";
 /// @brief Full release version, answered for the `CAPIE_BUILD` localisation key.
-inline constexpr char capie_release[] = "1.7.0";
+inline constexpr char capie_release[] = "1.7.1";
 /// @brief Script API level (CONTRACT.md section 1): sent as `capie_cap`, answered for `CAPIE_API`.
 inline constexpr unsigned capie_api_level = 9;
 /// @brief Text of `capie_api_level` for the `CAPIE_API` localisation key.
 inline constexpr char capie_api_text[] = "9";
 /// @brief Release as one integer, major * 10000 + minor * 100 + patch; sent as `capie_ver`.
-inline constexpr unsigned capie_build_number = 10700;
+inline constexpr unsigned capie_build_number = 10701;
 
 /// @brief File name of the country/localisation DLL.
 inline constexpr wchar_t core_dll_name[] = L"capie_core.dll";

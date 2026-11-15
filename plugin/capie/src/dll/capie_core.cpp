@@ -5,7 +5,7 @@
  * This DLL hooks the three localisation lookups of the pinned `hoi4.exe` so that RN1 keys
  * show a country name and adjective, and so that the mod's status line reads "CAPIE 1.7
  * loaded" / "CAPIE 1.7 załadowane", and the public keys `CAPIE_STATUS`, `CAPIE_API`,
- * `CAPIE_BUILD` answer "CAPIE 1.7", "9" and "1.7.0" (`features/country/country_names.hpp`).
+ * `CAPIE_BUILD` answer "CAPIE 1.7", "9" and "1.7.1" (`features/country/country_names.hpp`).
  *
  * Name layers (API levels 4 and 5, `features/country/name_layer*.hpp`): four more hooks
  * (`UpdateNames`, `BuildNameKey`, `SetVariable::Execute`, `CFaction::GetName`) show a country
