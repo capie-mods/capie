@@ -48,19 +48,21 @@ files = [
 ]
 
 
-def fmt_hex(h: str, *, upper: bool, indent: int) -> str:
+def fmt_hex(h: str, *, upper: bool, indent: int, wrap: bool = True) -> str:
     """Format a hex pattern as one or more quoted C string literals.
 
     Args:
         h: Hex digits, with ``??`` for wildcard bytes.
         upper: Whether to write the digits in upper case.
         indent: Spaces to indent the continuation lines by.
+        wrap: Split a long pattern; False keeps one literal (the entry was a single literal, which
+            ``check_signature_table.py`` reads as one string).
 
     Returns:
         The quoted literal, split into pieces of ``HEX_LINE_DIGITS`` digits when it is long.
     """
     h = h.upper().replace("??", "??") if upper else h.lower()
-    if len(h) <= HEX_LINE_DIGITS:
+    if not wrap or len(h) <= HEX_LINE_DIGITS:
         return f'"{h}"'
     parts = [h[k : k + HEX_LINE_DIGITS] for k in range(0, len(h), HEX_LINE_DIGITS)]
     return ("\n" + " " * indent).join(f'"{p}"' for p in parts)
@@ -110,7 +112,14 @@ def rewrite_entry(m: re.Match[str], f: pathlib.Path) -> str:
         else:
             indent = DEFAULT_PATTERN_INDENT
         body = (
-            body[: pat.start()] + fmt_hex(t["hex"], upper=upper, indent=indent) + body[pat.end() :]
+            body[: pat.start()]
+            + fmt_hex(
+                t["hex"],
+                upper=upper,
+                indent=indent,
+                wrap=len(re.findall(r'"[0-9A-Fa-f?]+"', pat.group(0))) > 1,
+            )
+            + body[pat.end() :]
         )
         rm = re.search(r",\s*(0x[0-9A-Fa-f]{4,8})\s*,", body)
         if rm:

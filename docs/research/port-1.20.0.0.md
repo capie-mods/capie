@@ -143,7 +143,7 @@ and jump; the two block lists aligned with `difflib.SequenceMatcher`):
   catalog and portrait-path pins added in 1.7.0 that the identity map of 1.19.5.0 did not need.
 - `apply` rewrote the pin tables and constants; its output was kept after three fixes by hand: it wraps
   patterns longer than 96 digits into several literals (the signature checker reads one literal per
-  entry, so the originally single-line patterns were joined again) and it cut `colour.map_colors`,
+  entry, so the originally single-line patterns were joined again; `apply.py` now keeps a single-literal pattern on one line) and it cut `colour.map_colors`,
   `colour.refresh` and `sprite.release_nolock` at the last whole instruction (their patterns end in a partial
   instruction on purpose; the old byte count was kept). `rebuild_mode_table`, the session getter of the idler
   and the three `rebuild.case_*` patterns were set by hand.
