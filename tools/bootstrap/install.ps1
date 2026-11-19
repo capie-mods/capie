@@ -195,26 +195,26 @@ $script:RaUpdatePublicKeyXml = '<RSAKeyValue><Modulus>21/rZrMx9hLPYwh/QMiCnXaOUe
 # "does NOT support your Hearts of Iron IV build" notice (and the release page and update
 # command), never a silent success. CAPIE 1.5.1 replaces them when it is released.
 $script:RaPinnedRelease = [ordered]@{
-    Version             = '1.7.1'
-    ZipName             = 'CAPIE-1.7.1-win64.zip'
-    ZipSha256           = '36D3886D515191E2208EED77474472A566F1DC94265F3A1714A040B5565334C8'
+    Version             = '1.7.2'
+    ZipName             = 'CAPIE-1.7.2-win64.zip'
+    ZipSha256           = '86D881DAC1F15500664011A46E18FAAF76904E65F38ABB755B4BC8162D577130'
     Files               = [ordered]@{
-        'RenameAnythingLauncher.exe' = '4DFB6477075BA610825705930AF1BCBF2838936D20B6E6B1F5C71AA8C566FADF'
+        'RenameAnythingLauncher.exe' = 'CF25FCD67209D8D844176E414EB78933363BF56CDB46405CFEE44BE163F2F0DA'
         'LICENSE.MinHook.txt'        = '4F21F857550D7BE854DA6EA5F2DA4E6775CA4E3FBB535E4F3D961C47D0BF3335'
-        'runtime/capie_core.dll'     = '5260BFF23191B4C5E1B9617FA8A0EB0A7880E04415EC6739AFAFB7869D61A470'
-        'runtime/capie_editor.dll'   = '4ACB87FA26B5FAEA4E2A2F48708D2915CAEB28587E9784D73753A65F29BE87CD'
-        'runtime/capie_injector.exe' = '14396FB885EC1182F3E89D6F91B98A8A3B8D781F8F0AE24866812424BA9DD496'
-        'mod/capie.mod'              = 'FABB7645BBC6FE9D95CF4B95D591889BC5E8C068356EBFA67ACD4D0A03F629BC'
-        'mod/capie/descriptor.mod'   = 'D828206E6E0D083C5E137112EF0242C212EEF388117FA0E8B83E4B82B399DCF2'
+        'runtime/capie_core.dll'     = '118A2D83A1AC944D18DE9C73B55F8DA2D93CED776DC01DAABE80945727099985'
+        'runtime/capie_editor.dll'   = '34421B65C2320FA461C8D7DC04C4DF12A49E45C3261A40A35D9E0E4A9DD35AA2'
+        'runtime/capie_injector.exe' = '427995D5A2E31C9757F5A83A0FFE3DDB5295BE2C59FD9993109FFEECAF10FF51'
+        'mod/capie.mod'              = '4B4E52AFA2F4A5865F962E3A7CACD996B9766235689798B17600A1AE815DF967'
+        'mod/capie/descriptor.mod'   = '4F3669535A65DF48E581504649BEDA21EC5587DBDFE9435B05DC60D0B5F7218A'
         'mod/capie/thumbnail.png'    = 'D4BB22A36F572D354E49DCFB54DCF03F03BF844517F261FF2B9BC2D94CFD66FE'
     }
     # hoi4.exe builds this release's DLLs support (install notice, -Update, -CheckUpdate; the launcher enforces it).
-    SupportedGameSha256 = @('709F916AFBEBCFE64A26678702691AEB40945D206074C2A80DE8E9D601FCE148')
+    SupportedGameSha256 = @('1BEB2A38FE2D747E5B7ADB9B9648E350B0B851845DD228FFB87D2D2AC1B63A9F')
     # Separate proxy asset: downloaded only for -LoadMethod Proxy (the default Launcher install never reads it).
     Proxy               = [ordered]@{
-        ZipName   = 'CAPIE-1.7.1-proxy-win64.zip'
-        ZipSha256 = '2E289CDF1103B68D781348D72E70D42B7646D073140F36ADD59C81A4451C32C6'
-        Files     = [ordered]@{ 'proxy/version.dll' = '21EBE28B58E61FB12CD46B275925BF6382D0D649114B29813131DCADF6A856BA' }
+        ZipName   = 'CAPIE-1.7.2-proxy-win64.zip'
+        ZipSha256 = 'E1668F14762EE47AF46DE700D616FB69192884A0624BDCA3A37D1E505F72C80B'
+        Files     = [ordered]@{ 'proxy/version.dll' = 'BEDB1B7A3AF2C5F9FBCFBF1A08FCD606566E9DF3994D1E236938951F2051D991' }
     }
 }
 #endregion Shared/Configuration.ps1
