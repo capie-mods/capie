@@ -69,6 +69,22 @@ It scans every pin of the sources in the installed `hoi4.exe` and writes `out/tr
 Post the triage result before promising players a date: a pure move takes an evening, a layout
 change in the GUI or edit box takes a day.
 
+## Function diff (when the old executable is at hand)
+
+```powershell
+uv run --no-project --with-requirements tools/port/requirements.txt python -I tools/port/funcdiff.py index <old exe> old.pkl
+uv run --no-project --with-requirements tools/port/requirements.txt python -I tools/port/funcdiff.py index <new exe> new.pkl   # a few minutes each
+uv run --no-project --with-requirements tools/port/requirements.txt python -I tools/port/funcdiff.py stats old.pkl new.pkl
+uv run --no-project --with-requirements tools/port/requirements.txt python -I tools/port/funcdiff.py map <old exe> <new exe> old.pkl new.pkl <old RVA> ...
+```
+
+It hashes every function with the RIP/rel32 fields masked and aligns the two lists, so an old RVA is
+moved by function and offset instead of by a global pattern hit (1.20.0.0: 97.5 % of the functions
+were identical, and the pin tables followed from it). Use it for short pins and for every pin that a
+triage hit cannot place. Confirm any pin in a run of identical blocks (token registrations) by the
+string or token it is about: alignment can be off by one block there
+(`docs/research/port-1.20.0.0.md`).
+
 ## Analysis: find each item by meaning
 
 Use the evidence type that survives a rebuild, in this order:
