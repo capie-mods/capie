@@ -562,7 +562,7 @@
  {
   "name": "bridge-no-stale-sentinel",
   "file": "src/dll/capie_editor.cpp",
-  "find": "        if (stale_eligible(context, model) &&\n            dispatch_stale(current, opaque_selector,\n                           caption_ok ? static_cast<unsigned>(StaleCode::stale) : caption_code)) {\n            return;\n        }\n",
+  "find": "        if (stale_eligible(context, model) && dispatch_stale(current, opaque_selector, code)) {\n            return;\n        }\n",
   "replace": "",
   "suite": "tests/legacy/editor_integration_test.cpp",
   "summary": "caption refresh bridge integration:"
@@ -570,8 +570,8 @@
  {
   "name": "bridge-sentinel-code-ignored",
   "file": "src/dll/capie_editor.cpp",
-  "find": "caption_ok ? static_cast<unsigned>(StaleCode::stale) : caption_code)",
-  "replace": "static_cast<unsigned>(StaleCode::stale))",
+  "find": "unsigned code = caption_ok ? static_cast<unsigned>(StaleCode::stale) : caption_code;",
+  "replace": "unsigned code = static_cast<unsigned>(StaleCode::stale);",
   "suite": "tests/legacy/editor_integration_test.cpp",
   "summary": "caption refresh bridge integration:"
  },
@@ -1466,7 +1466,7 @@
  {
   "name": "own-prepare-fail-dropped",
   "file": "src/dll/capie_editor.cpp",
-  "find": "        if (original_ctor != nullptr && stale_eligible(context, model) &&\n            dispatch_stale(current, opaque_selector, static_cast<unsigned>(StaleCode::stale))) {\n            return;\n        }\n",
+  "find": "        if (original_ctor != nullptr && stale_eligible(context, model) && dispatch_stale(current, opaque_selector, code)) {\n            return;\n        }\n",
   "replace": "",
   "suite": "tests/legacy/editor_integration_test.cpp",
   "summary": "caption refresh bridge integration:"
@@ -2238,6 +2238,8 @@
   "replace": "out.add(\"capie_sel_fmt\", format_173);",
   "suite": "tests/catalog_build_test.cpp",
   "summary": "catalog build tests:"
+ },
+ {
   "name": "own-stopped-as-stale",
   "file": "src/dll/capie_editor.cpp",
   "find": "        if (own_apply_stopped(model)) {\n            code = static_cast<unsigned>(StaleCode::stopped);",

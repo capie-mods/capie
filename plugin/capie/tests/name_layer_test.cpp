@@ -452,6 +452,7 @@ struct Game {
     bool fault_update{};                    ///< UpdateNames faults after its three keys.
     bool fault_copy{};                      ///< The string copy faults.
     bool throw_update{};                    ///< UpdateNames throws a C++ exception after its three keys.
+    uptr nested_country{};                  ///< Not 0: UpdateNames runs UpdateNames of this country once, then asks one more key.
 };
 Game game;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables): fake game state
 /// @brief Null, read through a volatile so the compiler keeps the faulting access.
@@ -487,6 +488,13 @@ void* fake_build(void* out, const void* tag, void* /*a3*/, void* /*a4*/, void* /
 std::uint64_t fake_update(uptr country) {
     game.updated.push_back(country);
     for (int key = 0; key < 3; ++key) {
+        static_cast<void>(
+            game.layer->build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 1));
+    }
+    if (game.nested_country != 0) {
+        const uptr inner = game.nested_country;
+        game.nested_country = 0;
+        static_cast<void>(game.layer->update_names(inner));  // a nested UpdateNames of the game
         static_cast<void>(
             game.layer->build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 1));
     }
@@ -645,6 +653,18 @@ void hook_tests() {
     static_cast<void>(
         name_layer.build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 0));
     check(game.tags.size() == 1 && game.tags[0] == "CAN_dominion", "N6: the frame was restored after the exception");
+
+    // A nested UpdateNames (the game's UpdateNames runs UpdateNames) gives the outer frame back: the key
+    // the outer call asks for after the inner call is still the outer country's layered key.
+    game.tags.clear();
+    game.nested_country = country_a;
+    static_cast<void>(name_layer.update_names(country_a));
+    check(game.tags.size() == 7 && game.tags[3] == "RN1|Kanadia|kanadyjski|" && game.tags[6] == "RN1|Kanadia|kanadyjski|",
+          "nested UpdateNames: the outer frame is back after the inner call");
+    game.tags.clear();
+    static_cast<void>(
+        name_layer.build_name_key(nullptr, &game.cosmetic, nullptr, nullptr, nullptr, nullptr, nullptr, 0));
+    check(game.tags.size() == 1 && game.tags[0] == "CAN_dominion", "nested UpdateNames: no frame left behind");
 
     // Commit: A already shows its layer, B and C show none -> nothing to refresh.
     game.updated.clear();
