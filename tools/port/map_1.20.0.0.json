@@ -1,0 +1,703 @@
+{
+  "_doc": "Old (1.19.5.0) -> new (1.20.0.0) RVA of every pinned item, by pin id. Evidence: docs/research/port-1.20.0.0.md. 1.20.0.0 is a rebuild of the 1.19.5.0 code with a different layout: every function CAPIE pins has the same instructions (relocation fields aside) and moved; sections grew, so .rdata/.data items moved by different amounts. Values come from the function-level old/new diff (not from global pattern hits), the anchors of locate.json and the RTTI lookups; the rebuild.case_* entries are the jump-table slots of the moved rebuild_mode_table. Keys are the 1.7.1 ids; the structure offsets did not change (off is empty).",
+  "signatures": {
+    "country.lookup_n": "0x2422910",
+    "country.lookup_z": "0x2422830",
+    "country.exists": "0x2420BE0",
+    "editor.bind": "0xBDAC90",
+    "editor.tick": "0xBDD2C0",
+    "editor.key": "0x2371E00",
+    "editor.find_edit": "0x2336D20",
+    "editor.find_instant": "0x23388A0",
+    "editor.set_text": "0x23736C0",
+    "editor.refresh_edit": "0x2375D90",
+    "editor.wrapper": "0x2375340",
+    "editor.dispatch": "0xBDB140",
+    "editor.ctor": "0x11D1F70",
+    "editor.execute": "0x11E3FC0",
+    "caption.E3A9A0": "0xE3E070",
+    "caption.BC1700": "0xBC3450",
+    "caption.12C4270": "0x12C7AC0",
+    "caption.12C42A0": "0x12C7AF0",
+    "caption.12C4F10": "0x12C8760",
+    "caption.12C4EE0": "0x12C8730",
+    "caption.12C3BC0": "0x12C7410",
+    "caption.12C4B40": "0x12C8390",
+    "caption.12C4BBB": "0x12C840B",
+    "caption.12C4D4F": "0x12C859F",
+    "caption.BB60F5": "0xBB7E45",
+    "caption.BBC182": "0xBBDED2",
+    "caption.BDB80E": "0xBDD55E",
+    "caption.BDB747": "0xBDD497",
+    "caption.BD8F66": "0xBDACB6",
+    "caption.BD8F70": "0xBDACC0",
+    "caption.BDCE20": "0xBDEB70",
+    "caption.BD9034": "0xBDAD84",
+    "caption.BD9019": "0xBDAD69",
+    "caption.BD90BE": "0xBDAE0E",
+    "caption.BD9111": "0xBDAE61",
+    "caption.BDD136": "0xBDEE86",
+    "caption.F8915": "0xF896C",
+    "caption.F7B47": "0xF7B9E",
+    "focus.BDB5CE": "0xBDD31E",
+    "focus.BDB67B": "0xBDD3CB",
+    "focus.BDB71F": "0xBDD46F",
+    "flag.atlas_update": "0x12D1870",
+    "flag.load_country_flag": "0x12D1230",
+    "flag.build_candidates": "0x151C8C0",
+    "name.update_names": "0x75F850",
+    "name.build_name_key": "0x735D50",
+    "name.set_variable_execute": "0x37DAF0",
+    "name.variable_find": "0xC1C060",
+    "name.variable_get": "0xC1F580",
+    "faction.get_name": "0xDF9AB0",
+    "faction.string_copy": "0x11F800",
+    "portrait.resolve": "0x143D800",
+    "portrait.valid": "0x143CAC0",
+    "host.get_local_human": "0x1F1BE0",
+    "host.get_session": "0x17F910",
+    "host.get_machine_id": "0x14910BF",
+    "host.session_init": "0x22C72C0",
+    "host.is_from_host": "0x22DC6A0",
+    "console.add_or_replace": "0x253AB60",
+    "console.string_assign": "0x12B450",
+    "console.singleton_create": "0x253AE80",
+    "console.dispatch": "0x253AFA0",
+    "console.lookup": "0x253B700",
+    "console.set_cosmetic_tag": "0x29A170",
+    "console.drop_cosmetic_tag": "0x26AD90",
+    "console.eval_effect": "0x27AF70",
+    "console.tag_parse": "0x116C330",
+    "console.country_of": "0xC093E0",
+    "console.country_set_cosmetic": "0x75A560",
+    "console.restore_device_objects": "0x2BA3B0",
+    "console.sprite_find": "0x22A46E0",
+    "colour.map_colors": "0x735CD0",
+    "colour.refresh": "0xAB9CD0",
+    "caption.163BBED": "0x163F29D",
+    "focus.22BD4A0": "0x22C0C40",
+    "focus.2371E00": "0x23755A0",
+    "focus.2371E80": "0x2375620",
+    "focus.2379F30": "0x237D6D0",
+    "focus.22BD530": "0x22C0CD0",
+    "vp.province_name": "0xEF2680",
+    "sprite.release": "0x248EDD0",
+    "files.get_files": "0x25643B0",
+    "portrait.path_entry": "0x143CC90"
+  },
+  "instruction_pins": {
+    "atlas.cosmetic_keys": "0x12D1E10",
+    "atlas.cosmetic_key_qword": "0x12D1E17",
+    "atlas.cosmetic_count": "0x12D1ADA",
+    "atlas.country_list": "0x12D1C02",
+    "atlas.slot_is_list_index": "0x12D1C09",
+    "load.cosmetic_argument": "0x12D129D",
+    "tag.index_is_int": "0xC0A4F3",
+    "country.variables": "0x58ACBB",
+    "country.variables2": "0x58AF82",
+    "scoped_variable.name_size": "0x58D693",
+    "scoped_variable.name_data": "0x58D699",
+    "scoped_variable.name_capacity": "0x58D69D",
+    "set_variable.scoped_variable": "0x37DB05",
+    "update_names.tag_argument": "0x75FC07",
+    "gamestate.countries": "0x1AF57B",
+    "gamestate.country_count": "0x1AF582",
+    "country_of.countries": "0xC094F7",
+    "faction.leader_first_member": "0x4CA798",
+    "faction.member_count": "0xCBCE1F",
+    "ui.size_small_is_zero": "0xB98247",
+    "ui.character_argument": "0xB98288",
+    "ui.out_buffer": "0xB98298",
+    "resolve.character_argument": "0x143D88D",
+    "resolve.character_id": "0x143D8A9",
+    "valid.flag_byte": "0x143CAC6",
+    "valid.kind": "0x143CACF",
+    "valid.name": "0x143CAED",
+    "character.write_portraits": "0x102E105",
+    "character.write_variables": "0x102E38B",
+    "character.read_variables_token": "0x102CC2B",
+    "character.read_variables": "0x102CD46",
+    "leader.politics": "0x718560",
+    "leader.ruling_party": "0x2FE2E7",
+    "leader.first_role": "0x1233DC0",
+    "leader.deref": "0x1B6C10",
+    "leader.character": "0x2C1AC0",
+    "effect.civilian_large": "0x2FE364",
+    "session.is_server": "0x22C72F4",
+    "session.mode": "0x22C72FA",
+    "session.machine_id_1": "0x22C7302",
+    "session.backend": "0x22C7316",
+    "lobby.session_is_server": "0x1D6709F",
+    "gamestate.human_count": "0x1F1C01",
+    "gamestate.humans": "0x1F1C0F",
+    "human.machine_id": "0x1F1C1C",
+    "human.stride": "0x1F1C2D",
+    "human.name": "0x1A44DBB",
+    "human.ctor_machine_id": "0xC11F93",
+    "entry.name": "0x253B749",
+    "entry.alias_count": "0x253B75D",
+    "entry.aliases": "0x253B762",
+    "entry.stride": "0x253B78D",
+    "console.entry_count": "0x253B727",
+    "entry.flag": "0x253B0A1",
+    "entry.action_present": "0x253B0C1",
+    "entry.action": "0x253B1CA",
+    "entry.context": "0x253B1CF",
+    "argv.count": "0x253B0DF",
+    "result.message": "0x253B1E4",
+    "console.gate_a": "0x253AFF7",
+    "console.gate_c": "0x253B00E",
+    "console.gate_b": "0x253B028",
+    "entry.alias_count_assign": "0x253AD13",
+    "entry.description": "0x253AD0F",
+    "entry.action_assign": "0x253AD55",
+    "entry.context_assign": "0x253AD6A",
+    "entry.arg_name_count": "0x253AD71",
+    "entry.arg_name_slots": "0x253AD59",
+    "console.allocator": "0x253AC24",
+    "entry.size": "0x253AC47",
+    "country.cosmetic_tag": "0x75A579",
+    "set_cosmetic_tag.argc": "0x29A1B0",
+    "drop_cosmetic_tag.argc": "0x26ADE4",
+    "tick.window_desired": "0xBDD5A4",
+    "window_ctor.idler": "0xBDDC6A",
+    "window_ctor.model": "0xBDDC71",
+    "window_ctor.manager": "0xBDDC78",
+    "window_ctor.root_zero": "0xBDDC7F",
+    "window_ctor.parent_zero": "0xBDDC88",
+    "window_ctor.parent_sg_zero": "0xBDDC8F",
+    "window_ctor.context": "0xBDDC96",
+    "window_ctor.parent_seen": "0xBDDCAC",
+    "getter.block_offset": "0x735D28",
+    "colors.layout": "0x75A530",
+    "cosmetic.idler_slot": "0x75A6FE",
+    "cosmetic.tag_argument": "0x75A70D",
+    "refresh.map_manager": "0xAB9CD6",
+    "refresh.faction_copy": "0xAB9D41",
+    "mark.modes": "0xE8A360",
+    "mark.mode0_dirty": "0xE8A388",
+    "update.mode_dirty": "0xFC2D80",
+    "update.mode_count": "0xFC2DF9",
+    "define.ui_target": "0x753F49",
+    "define.map_target": "0x753F9B",
+    "rebuild.mode_bound": "0xFBB579",
+    "scope.state_id": "0xBE05B8",
+    "scope.set_state": "0x583B8F",
+    "state.count": "0x3E991D",
+    "state.array": "0x3E9928",
+    "state.province_count": "0xA2BF3A",
+    "state.provinces": "0xA2BF4B",
+    "province.vp_read": "0xA2BF57",
+    "province.vp_write": "0xEF5B56",
+    "province.id": "0xEF21BB",
+    "province.custom_name": "0xEF2698",
+    "province.custom_string": "0xEF269F",
+    "tls.thread_forbid": "0x143CB55",
+    "string.big_threshold": "0x143C45F",
+    "string.big_extra": "0x143C468",
+    "string.big_check": "0x143C477",
+    "sprite.lazy_flag": "0x22AB7A4",
+    "sprite.texture_id": "0x22AB7B0",
+    "sprite.path_length": "0x22AB7BD",
+    "sprite.database": "0x22AB7CA",
+    "sprite.texmgr": "0x22AB7CE",
+    "sprite.options": "0x22AB7D9",
+    "sprite.path": "0x22AB7ED",
+    "sprite.store_id": "0x22AB7F9",
+    "sprite.store_texture": "0x22AB809",
+    "sprite.store_size": "0x22AB859",
+    "sprite.release_nolock": "0x248EDFD",
+    "files.allocator_slot": "0x146898",
+    "files.array": "0x1468BE",
+    "files.depth": "0x1468B3",
+    "files.count": "0x1468CD",
+    "files.stride": "0x1468D5",
+    "files.clears": "0x2564405",
+    "map.thunk": "0x22A46E0",
+    "map.bucket_count": "0xA8AB1A",
+    "map.buckets": "0xA8AB1D",
+    "map.node_object": "0xA8AB40",
+    "map.sprite_name": "0xA8AB46",
+    "map.node_next": "0xA8AB74",
+    "scope.country_read": "0xBE1113",
+    "scope.country_write": "0x582B4A",
+    "tag.text_array": "0xC09F7A",
+    "idler.ingame_true": "0x188E20",
+    "idler.default_false": "0x11D5C0",
+    "rebuild.case_political": "0xFBB7CC",
+    "rebuild.case_claims": "0xFBB818",
+    "rebuild.case_continent": "0xFBB820",
+    "path.kind_one": "0x143CD1D",
+    "icon.stores_kind": "0x143C3A9",
+    "icon.kind_is_path": "0x143C3E1",
+    "icon.texmgr": "0x143C426",
+    "icon.stores_handle": "0x143C44B",
+    "valid.kind_path": "0x143CAD2",
+    "valid.handle": "0x143CAD7"
+  },
+  "rip_pins": {
+    "variable_get.find": [
+      "0xC1F59F",
+      "0xC1F5A3",
+      "variable_find"
+    ],
+    "update_names.build_name_key": [
+      "0x75FC13",
+      "0x75FC17",
+      "build_name_key"
+    ],
+    "scope.country_of": [
+      "0x58ACB7",
+      "0x58ACBB",
+      "country_of"
+    ],
+    "gamestate.global": [
+      "0x1AF577",
+      "0x1AF57B",
+      "gamestate_global"
+    ],
+    "country_of.gamestate": [
+      "0xC094DD",
+      "0xC094E1",
+      "gamestate_global"
+    ],
+    "faction.get_name_copy": [
+      "0xDF9AC9",
+      "0xDF9ACD",
+      "string_copy"
+    ],
+    "load.calls_candidates": [
+      "0x12D12AC",
+      "0x12D12B0",
+      "build_flag_candidates"
+    ],
+    "incremental.calls_load": [
+      "0x12D24C1",
+      "0x12D24C5",
+      "load_country_flag"
+    ],
+    "threaded.calls_load": [
+      "0x12CF13F",
+      "0x12CF143",
+      "load_country_flag"
+    ],
+    "ui.calls_resolve": [
+      "0xB982A1",
+      "0xB982A5",
+      "portrait_resolve"
+    ],
+    "ui.calls_valid": [
+      "0xB982AC",
+      "0xB982B0",
+      "portrait_valid"
+    ],
+    "leader.calls_politics": [
+      "0x2FE2E3",
+      "0x2FE2E7",
+      "country_politics_getter"
+    ],
+    "leader.calls_first_role": [
+      "0x2FE321",
+      "0x2FE325",
+      "party_first_leader_role"
+    ],
+    "leader.first_role_jumps": [
+      "0x1233DCE",
+      "0x1233DD2",
+      "pointer_load"
+    ],
+    "leader.calls_character": [
+      "0x2FE332",
+      "0x2FE336",
+      "role_character_getter"
+    ],
+    "effect.writes_portrait": [
+      "0x2FE370",
+      "0x2FE374",
+      "leader_portrait_write"
+    ],
+    "app.global": [
+      "0x19A9943",
+      "0x19A9947",
+      "app_global"
+    ],
+    "focus.manager_global": [
+      "0x237D6D6",
+      "0x237D6DA",
+      "manager_global"
+    ],
+    "console.singleton_store": [
+      "0x253AF27",
+      "0x253AF2B",
+      "console_slot_rva"
+    ],
+    "console.singleton_store2": [
+      "0x253AF3E",
+      "0x253AF42",
+      "console_slot_rva"
+    ],
+    "set_cosmetic_tag.assign": [
+      "0x29A215",
+      "0x29A219",
+      "string_assign_rva"
+    ],
+    "set_cosmetic_tag.tag_parse": [
+      "0x29A1BF",
+      "0x29A1C3",
+      "tag_parse_rva"
+    ],
+    "set_cosmetic_tag.setter": [
+      "0x29A1DF",
+      "0x29A1E3",
+      "country_set_cosmetic_rva"
+    ],
+    "dispatch.gate_message": [
+      "0x253B04F",
+      "0x253B053",
+      "gate_message_rva"
+    ],
+    "dispatch.lookup_after_gate": [
+      "0x253B091",
+      "0x253B095",
+      "lookup_rva"
+    ],
+    "restore_device_objects.add": [
+      "0x2BA58F",
+      "0x2BA593",
+      "add_or_replace_rva"
+    ],
+    "window_ctor.context_ctor_call": [
+      "0xBDDCA7",
+      "0xBDDCAB",
+      "window_context_ctor"
+    ],
+    "window_ctor.bind_call": [
+      "0xBDDCCE",
+      "0xBDDCD2",
+      "window_bind"
+    ],
+    "cosmetic.calls_map": [
+      "0x75A709",
+      "0x75A70D",
+      "0xAB9BF0"
+    ],
+    "cosmetic.calls_refresh": [
+      "0x75A715",
+      "0x75A719",
+      "refresh_country_color"
+    ],
+    "refresh.calls_getter": [
+      "0xAB9D3D",
+      "0xAB9D41",
+      "country_map_colors"
+    ],
+    "cosmetic.idler_global": [
+      "0x75A6F2",
+      "0x75A6F6",
+      "current_idler"
+    ],
+    "map.global": [
+      "0xAB9BF3",
+      "0xAB9BF7",
+      "map_singleton"
+    ],
+    "define.ui_value": [
+      "0x753F2B",
+      "0x753F2F",
+      "define_ui_color_value"
+    ],
+    "define.ui_saturation": [
+      "0x753F38",
+      "0x753F3C",
+      "define_ui_color_saturation"
+    ],
+    "define.ui_hue": [
+      "0x753F40",
+      "0x753F44",
+      "define_ui_color_hue"
+    ],
+    "define.value": [
+      "0x753F7D",
+      "0x753F81",
+      "define_color_value"
+    ],
+    "define.saturation": [
+      "0x753F8A",
+      "0x753F8E",
+      "define_color_saturation"
+    ],
+    "define.hue": [
+      "0x753F92",
+      "0x753F96",
+      "define_color_hue"
+    ],
+    "rebuild.political_builder": [
+      "0xFBB5A5",
+      "0xFBB5A9",
+      "0xFBB830"
+    ],
+    "rebuild.claims_builder": [
+      "0xFBB6DF",
+      "0xFBB6E3",
+      "0xFBE460"
+    ],
+    "rebuild.continent_builder": [
+      "0xFBB703",
+      "0xFBB707",
+      "0xFBD590"
+    ],
+    "political.calls_getter": [
+      "0xFBBD75",
+      "0xFBBD79",
+      "country_map_colors"
+    ],
+    "claims.calls_colour": [
+      "0xFBE68B",
+      "0xFBE68F",
+      "0xFB7D60"
+    ],
+    "claims_colour.calls_getter": [
+      "0xFB7EB9",
+      "0xFB7EBD",
+      "country_map_colors"
+    ],
+    "continent.log_format": [
+      "0xFBDA20",
+      "0xFBDA24",
+      "0x29FA938"
+    ],
+    "scope.calls_set_state": [
+      "0xBE05D1",
+      "0xBE05D5",
+      "scope_set_state"
+    ],
+    "tls.index": [
+      "0x143CB2F",
+      "0x143CB33",
+      "tls_index"
+    ],
+    "string.calls_delete": [
+      "0x143C481",
+      "0x143C485",
+      "game_delete"
+    ],
+    "sprite.calls_add_texture": [
+      "0x22AB7F5",
+      "0x22AB7F9",
+      "texture_add"
+    ],
+    "sprite.calls_get_texture": [
+      "0x22AB805",
+      "0x22AB809",
+      "texture_get"
+    ],
+    "sprite.calls_texture_size": [
+      "0x22AB823",
+      "0x22AB827",
+      "texture_size"
+    ],
+    "sprite.database_global": [
+      "0x143CAF4",
+      "0x143CAF8",
+      "sprite_database_global"
+    ],
+    "sprite.calls_find": [
+      "0x143CAF9",
+      "0x143CAFD",
+      "sprite_find"
+    ],
+    "sprite.set_file_releases": [
+      "0x22AB03D",
+      "0x22AB041",
+      "texture_release"
+    ],
+    "sprite.set_file_adds": [
+      "0x22AB060",
+      "0x22AB064",
+      "texture_add"
+    ],
+    "files.allocator": [
+      "0x146894",
+      "0x146898",
+      "gui_structural"
+    ],
+    "files.calls_get_files": [
+      "0x1468C4",
+      "0x1468C8",
+      "vfs_get_files"
+    ],
+    "map.thunk_jumps": [
+      "0x22A46E8",
+      "0x22A46EC",
+      "sprite_map_find"
+    ],
+    "scope.calls_set_country": [
+      "0xBE1125",
+      "0xBE1129",
+      "scope_set_country"
+    ],
+    "path.calls_make_icon": [
+      "0x143CD26",
+      "0x143CD2A",
+      "make_icon_entry"
+    ],
+    "icon.calls_add_texture": [
+      "0x143C43D",
+      "0x143C441",
+      "texture_add"
+    ],
+    "icon.calls_get_texture": [
+      "0x143C447",
+      "0x143C44B",
+      "texture_get"
+    ],
+    "portrait_valid.sprite_database": [
+      "0x143CAF4",
+      "0x143CAF8",
+      "sprite_database_rva"
+    ],
+    "portrait_valid.sprite_find": [
+      "0x143CAF9",
+      "0x143CAFD",
+      "sprite_find_rva"
+    ],
+    "set_cosmetic_tag.country_of": [
+      "0x29A1D3",
+      "0x29A1D7",
+      "country_of_rva"
+    ]
+  },
+  "rva": {
+    "loc_lookup_n": "0x2422910",
+    "loc_lookup_z": "0x2422830",
+    "loc_exists": "0x2420BE0",
+    "update_names": "0x75F850",
+    "build_name_key": "0x735D50",
+    "set_variable_execute": "0x37DAF0",
+    "variable_find": "0xC1C060",
+    "variable_get": "0xC1F580",
+    "country_of": "0xC093E0",
+    "gamestate_global": "0x33E3B30",
+    "faction_get_name": "0xDF9AB0",
+    "flag_atlas_update": "0x12D1870",
+    "load_country_flag": "0x12D1230",
+    "build_flag_candidates": "0x151C8C0",
+    "string_copy": "0x11F800",
+    "portrait_resolve": "0x143D800",
+    "portrait_valid": "0x143CAC0",
+    "sprite_find": "0x22A46E0",
+    "sprite_database_global": "0x3507360",
+    "vt_character": "0x29FFE20",
+    "country_politics_getter": "0x718560",
+    "party_first_leader_role": "0x1233DC0",
+    "pointer_load": "0x1B6C10",
+    "role_character_getter": "0x2C1AC0",
+    "leader_portrait_write": "0x143EA20",
+    "portrait_path_entry": "0x143CC90",
+    "make_icon_entry": "0x143C380",
+    "texture_add": "0x248C4B0",
+    "texture_get": "0x248CF50",
+    "game_delete": "0x25A39E8",
+    "texture_size": "0x248CD80",
+    "texture_release": "0x248EDD0",
+    "sprite_lazy_load": "0x22AB790",
+    "sprite_set_texture_file": "0x22AAFE0",
+    "vt_sprite_type": "0x2BB8F80",
+    "vfs_get_files": "0x25643B0",
+    "sprite_map_find": "0xA8AAF0",
+    "scope_set_country": "0x582B30",
+    "province_name": "0xEF2680",
+    "scope_set_state": "0x583B60",
+    "tls_index": "0x3699F28",
+    "vt_state": "0x29B9988",
+    "vt_province": "0x29F30A8",
+    "country_map_colors": "0x735CD0",
+    "refresh_country_color": "0xAB9CD0",
+    "map_singleton": "0x33EDC98",
+    "current_idler": "0x33E3F88",
+    "idler_in_game_true": "0x188E20",
+    "idler_in_game_false": "0x11D5C0",
+    "define_color_hue": "0x33EB664",
+    "define_color_saturation": "0x33EB70C",
+    "define_color_value": "0x33EB794",
+    "define_ui_color_hue": "0x33EB824",
+    "define_ui_color_saturation": "0x33EB8C8",
+    "define_ui_color_value": "0x33EB968",
+    "vt_country_colors": "0x27A35B0",
+    "vt_color": "0x279A228",
+    "vt_country": "0x28691D0",
+    "window_tick": "0xBDD2C0",
+    "window_bind": "0xBDAC90",
+    "window_manager_rebuild": "0xBDD870",
+    "window_context_ctor": "0xBD9B00",
+    "window_dispatch": "0xBDB140",
+    "effect_ctor": "0x11D1F70",
+    "effect_execute": "0x11E3FC0",
+    "edit_key_handler": "0x2371E00",
+    "edit_key_wrapper": "0x2375340",
+    "find_edit": "0x2336D20",
+    "find_instant": "0x23388A0",
+    "text_buffer_set": "0x23736C0",
+    "edit_refresh": "0x2375D90",
+    "request_view_refresh": "0xBC3450",
+    "observer_mark_dirty": "0x12C7AC0",
+    "observer_consume": "0x12C7AF0",
+    "idler_gui_getter": "0xE3E070",
+    "view_is_visible": "0x12C8760",
+    "view_get_root": "0x12C8730",
+    "observer_frame": "0x1621620",
+    "observer_refresh": "0x1624370",
+    "observer_bind": "0x12C7410",
+    "view_base_ctor": "0x12C8390",
+    "focus_switch": "0x22C0C40",
+    "edit_unfocus": "0x23755A0",
+    "edit_focus": "0x2374D70",
+    "receiver_release": "0x237D6D0",
+    "manager_release": "0x22C0CD0",
+    "focus_manager_rip_displacement": "0x237D6D6",
+    "focus_manager_rip_next": "0x237D6DA",
+    "vt_sg_model": "0x2A59878",
+    "vt_sg_manager": "0x29CFFC8",
+    "vt_sg_context": "0x29CFF70",
+    "vt_sg_root": "0x2BBFB60",
+    "vt_instant_text": "0x2BC10E8",
+    "vt_edit": "0x2BC4C08",
+    "vt_text_buffer": "0x2BC4EA8",
+    "vt_edit_definition": "0x2BCC518",
+    "vt_execute_effect": "0x2A18078",
+    "vt_politics_view": "0x2A579B0",
+    "vt_politics_observer": "0x2A57A60",
+    "vt_ingame_idler": "0x29EA628",
+    "manager_global": "0x3507450",
+    "token_politics_tab": "0x29CFCA0",
+    "token_player_context": "0x2B35E34",
+    "gui_structural": "0x3103000"
+  },
+  "host": {
+    "app_global": "0x33E3F88",
+    "vt_game_application": "0x279A328",
+    "vt_session": "0x2BBA0C8",
+    "vt_proxy_server": "0x2BD15C8",
+    "vt_network_server": "0x2BD0EB0",
+    "vt_dummy_server": "0x2BD0BC0",
+    "vt_human": "0x27A2E08",
+    "gamestate_global": "0x33E3B30",
+    "ingame_idler_session_slot_target": "0xB90150"
+  },
+  "console": {
+    "console_slot_rva": "0x36959D0",
+    "add_or_replace_rva": "0x253AB60",
+    "string_assign_rva": "0x12B450",
+    "set_cosmetic_tag_rva": "0x29A170",
+    "drop_cosmetic_tag_rva": "0x26AD90",
+    "eval_effect_rva": "0x27AF70",
+    "lookup_rva": "0x253B700",
+    "country_set_cosmetic_rva": "0x75A560",
+    "gate_message_rva": "0x2C09810",
+    "sprite_find_rva": "0x22A46E0",
+    "sprite_database_rva": "0x3507360",
+    "tag_parse_rva": "0x116C330",
+    "country_of_rva": "0xC093E0"
+  },
+  "off": {}
+}
