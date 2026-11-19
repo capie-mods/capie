@@ -6,7 +6,8 @@ of Iron IV 1.19.3.0 for Windows x64 (`hoi4.exe` SHA-256
 [port-1.19.4.0.md](port-1.19.4.0.md), which maps it to 1.19.4.0, and
 [port-1.19.4.1.md](port-1.19.4.1.md), which maps that to 1.19.4.1,
 [port-1.19.4.2.md](port-1.19.4.2.md), which maps that to 1.19.4.2, and
-[port-1.19.5.0.md](port-1.19.5.0.md), which checks that 1.19.5.0 changes none of it. Addresses are RVAs from
+[port-1.19.5.0.md](port-1.19.5.0.md), which checks that 1.19.5.0 changes none of it, and
+[port-1.20.0.0.md](port-1.20.0.0.md), which maps that to 1.20.0.0. Addresses are RVAs from
 image base `0x140000000`, and function names are analyst labels, not recovered symbols.
 
 | Document | Topic |
@@ -23,6 +24,7 @@ image base `0x140000000`, and function names are analyst labels, not recovered s
 | [port-1.19.4.1.md](port-1.19.4.1.md) | Hotfix port to HOI4 1.19.4.1: what moved, no layout change, how each hard pin was resolved |
 | [port-1.19.4.2.md](port-1.19.4.2.md) | Hotfix port to HOI4 1.19.4.2 (CAPIE 1.6.1): what moved, no layout change, how each pin was placed without the old executable |
 | [port-1.19.5.0.md](port-1.19.5.0.md) | Hotfix port to HOI4 1.19.5.0 (CAPIE 1.6.2): byte diff against 1.19.4.2, a rebuild of the same code, no pin moved |
+| [port-1.20.0.0.md](port-1.20.0.0.md) | Port to HOI4 1.20.0.0 (CAPIE 1.7.2): function-level diff against 1.19.5.0, the same code at new addresses, every pin moved |
 | [runtime-catalogs-2026-11.md](runtime-catalogs-2026-11.md) | API 9 research (1.19.4.1): what the game holds for flags, portraits, characters, states and VPs; how a scripted GUI can show it; the launcher and `dependencies` |
 
 Each document says what was observed statically, what was observed in the game, and what is still
