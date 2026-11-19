@@ -7,6 +7,26 @@ release notes, so write it for players and mod authors. Format:
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the version is `capie_release` in
 `src/core/game_build.hpp`.
 
+## [1.7.2] - 2026-11-19
+
+Update for Hearts of Iron IV 1.20.0.0 (Operation Postern). Nothing else changed: the script API is
+still level 9, and every mod that works with CAPIE 1.7.1 works without changes.
+
+### Changed
+
+- CAPIE now runs on HOI4 1.20.0.0 only (Steam, x64, `hoi4.exe` SHA-256 `1BEB2A38…B63A9F`). On
+  1.19.5.0 it stays off and the game starts without it, as on any other unsupported build. Steam
+  updates the game automatically, so update CAPIE to 1.7.2 (run the installer again, or double-click
+  `Update CAPIE.bat`).
+- Every address, byte signature, structure offset, vtable slot and token value was compared with
+  1.19.5.0: the game's code that CAPIE uses is the same, only at other addresses, so every CAPIE
+  feature works as in 1.7.1. The details are in `docs/research/port-1.20.0.0.md`.
+- `CAPIE_BUILD` answers `1.7.2`; the build number sent as `capie_ver` is `10702`.
+
+### Fixed
+
+- CAPIE no longer refuses to start after the 1.20.0.0 game update.
+
 ## [1.7.1] - 2026-11-15
 
 Fix for the flag and portrait pickers of script API level 9. Nothing else changed: the API level is

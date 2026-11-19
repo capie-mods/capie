@@ -33,7 +33,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'NativeBuild.psm1') 
 # --- Constants ---------------------------------------------------------------
 $script:LauncherExeName = 'RenameAnythingLauncher.exe'
 $script:LauncherTestExeName = 'launcher_test.exe'
-$script:GameSha256 = '709f916afbebcfe64a26678702691aeb40945d206074c2a80de8e9d601fce148'
+$script:GameSha256 = '1beb2a38fe2d747e5b7adb9b9648e350b0b851845dd228ffb87d2d2ac1b63a9f'
 $script:CliTimeoutMilliseconds = 10000
 $script:LauncherFlags = @(
     '/nologo', '/O2', '/MT', '/W4', '/WX', '/utf-8', '/std:c++20', '/EHsc', '/DWIN32_LEAN_AND_MEAN', '/DNOMINMAX', '/DUNICODE', '/D_UNICODE'
