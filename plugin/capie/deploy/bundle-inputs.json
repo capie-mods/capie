@@ -1,20 +1,20 @@
 [
   {
     "name": "capie_core.dll",
-    "source": "plugin/build/capie-1.7.1/capie_core.dll",
-    "sha256": "5260bff23191b4c5e1b9617fa8a0eb0a7880e04415ec6739afafb7869d61a470",
+    "source": "plugin/build/capie-1.7.2/capie_core.dll",
+    "sha256": "118a2d83a1ac944d18de9c73b55f8da2d93ced776dc01daabe80945727099985",
     "dll": true
   },
   {
     "name": "capie_editor.dll",
-    "source": "plugin/build/capie-1.7.1/capie_editor.dll",
-    "sha256": "4acb87fa26b5faea4e2a2f48708d2915caeb28587e9784d73753a65f29be87cd",
+    "source": "plugin/build/capie-1.7.2/capie_editor.dll",
+    "sha256": "34421b65c2320fa461c8d7dc04c4df12a49e45c3261a40a35d9e0e4a9dd35aa2",
     "dll": true
   },
   {
     "name": "capie_injector.exe",
-    "source": "plugin/build/capie-1.7.1/capie_injector.exe",
-    "sha256": "14396fb885ec1182f3e89d6f91b98a8a3b8d781f8f0ae24866812424ba9dd496",
+    "source": "plugin/build/capie-1.7.2/capie_injector.exe",
+    "sha256": "427995d5a2e31c9757f5a83a0ffe3ddb5295be2c59fd9993109ffeecaf10ff51",
     "dll": false
   }
 ]
