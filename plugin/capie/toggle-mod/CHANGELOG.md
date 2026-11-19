@@ -6,6 +6,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-11-20
+
+- Marked as made for Hearts of Iron IV 1.20, so the launcher shows no outdated warning.
+
 ## [1.1.2] - 2026-11-01
 
 - Works with total conversions: the CAPIE mark in the main menu is gone. It needed a copy of the

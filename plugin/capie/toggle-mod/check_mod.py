@@ -136,7 +136,7 @@ def check_descriptors(checks: Checks) -> None:
     outer = descriptor_fields(LOCAL_DESCRIPTOR.read_text(encoding="utf-8"))
     for name, fields in (("descriptor.mod", inner), ("capie.mod", outer)):
         checks.check(
-            f"{name}: supported_version 1.19.*", ok=fields.get("supported_version") == "1.19.*"
+            f"{name}: supported_version 1.20.*", ok=fields.get("supported_version") == "1.20.*"
         )
         checks.check(
             f"{name}: picture is thumbnail.png", ok=fields.get("picture") == "thumbnail.png"

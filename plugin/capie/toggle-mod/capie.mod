@@ -4,5 +4,5 @@ tags={
 }
 name="CAPIE (local copy)"
 picture="thumbnail.png"
-supported_version="1.19.*"
+supported_version="1.20.*"
 path="mod/capie"
