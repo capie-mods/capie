@@ -108,7 +108,7 @@ struct FakeWindow {
  */
 int main(int argc, char** argv) {
     static_cast<void>(std::setvbuf(stdout, nullptr, _IONBF, 0));
-    void* memory = VirtualAlloc(nullptr, 0x3502000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    void* memory = VirtualAlloc(nullptr, 0x3508000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     check(memory != nullptr, "fake image");
     image_base = reinterpret_cast<std::uintptr_t>(memory);
     log_file = CreateFileW(L"editor_hotpath_test.log", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr,

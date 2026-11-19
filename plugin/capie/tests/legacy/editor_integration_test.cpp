@@ -80,18 +80,18 @@ void build_world(World& w) {
     put(w.manager.data(), off::manager_idler, static_cast<void*>(w.idler.data()));
     for (std::size_t m = 0; m < rn::caption::model_count; ++m) {
         auto& o = w.own[m]; auto* win = o.window.data();
-        put(o.model.data(), 0, image_base + 0x2A54AD8);
+        put(o.model.data(), 0, image_base + 0x2A59878);
         put(o.model.data(), 8, borrowed_string(rn::caption::model_specs[m].name, std::strlen(rn::caption::model_specs[m].name)));
         put(o.model.data(), off::model_context_token, rn::caption::token_player_context_value);
         put(o.model.data(), off::model_parent_token, rn::caption::token_politics_tab_value);
         put(win, 0xE8, static_cast<void*>(o.model.data())); put(win, 0xF8, static_cast<void*>(o.root.data()));
-        put(win, 0x110, image_base + 0x29CB340); put(win, 0x120, static_cast<void*>(win));
+        put(win, 0x110, image_base + 0x29CFF70); put(win, 0x120, static_cast<void*>(win));
         put(win, 0x130, static_cast<void*>(o.model.data())); put(win, 0x138, static_cast<void*>(o.root.data()));
         put(win, off::window_idler, static_cast<void*>(w.idler.data())); put(win, off::window_manager, static_cast<void*>(w.manager.data()));
         put(win, off::window_parent, static_cast<void*>(w.politics_root.data()));
-        put(o.root.data(), 0, image_base + 0x2BBAE40);
+        put(o.root.data(), 0, image_base + 0x2BBFB60);
         put_empty_maps(o.root.data());
-        put(o.revision.data(), 0, image_base + 0x2BBC3C8);
+        put(o.revision.data(), 0, image_base + 0x2BC10E8);
     }
 }
 std::size_t own_index_of_root(void* root) {
@@ -135,15 +135,15 @@ void __fastcall fake_set_text(void* tb, const MsvcString* text) {
 void __fastcall fake_refresh_edit(void*) {}
 void prepare_leader_prefill(World& w) {
     auto* edit = w.leader_edit.data();
-    put(edit, 0, image_base + 0x2BBFEE8); put(edit, 0x80, image_base + 0x2BC0188);
+    put(edit, 0, image_base + 0x2BC4C08); put(edit, 0x80, image_base + 0x2BC4EA8);
     put(edit, 0x60, static_cast<void*>(w.leader_definition.data()));
-    put(w.leader_definition.data(), 0, image_base + 0x2BC77F8);
+    put(w.leader_definition.data(), 0, image_base + 0x2BCC518);
     put(w.leader_definition.data(), 0x28, borrowed_string("rn_ip_leader_edit", 17));
     put(edit, 0x75, static_cast<unsigned char>(8)); put(edit, 0x281, static_cast<unsigned char>(0));
     put(edit, 0xB0, static_cast<void*>(w.leader_text)); put(edit, 0xC0, std::uint64_t{0}); put(edit, 0xC8, std::uint64_t{64});
-    put(reinterpret_cast<void*>(image_base), 0x3500FC0, static_cast<void*>(w.focus_manager.data()));
-    put(w.leader_prefill.data(), 0, image_base + 0x2BBC3C8); put(w.leader_prefill.data(), 0x110, borrowed_string("Jan", 3));
-    put(w.leader_epoch.data(), 0, image_base + 0x2BBC3C8); put(w.leader_epoch.data(), 0x110, borrowed_string("7", 1));
+    put(reinterpret_cast<void*>(image_base), 0x3507450, static_cast<void*>(w.focus_manager.data()));
+    put(w.leader_prefill.data(), 0, image_base + 0x2BC10E8); put(w.leader_prefill.data(), 0x110, borrowed_string("Jan", 3));
+    put(w.leader_epoch.data(), 0, image_base + 0x2BC10E8); put(w.leader_epoch.data(), 0x110, borrowed_string("7", 1));
     set_text = fake_set_text; refresh_edit = fake_refresh_edit;
 }
 void __fastcall fake_tick(void*, char) { ++tick_originals; }
@@ -229,7 +229,7 @@ MsvcString selector(const char* name) { return borrowed_string(name, std::strlen
 
 int main() {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
-    void* memory = VirtualAlloc(nullptr, 0x3502000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    void* memory = VirtualAlloc(nullptr, 0x3508000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     check(memory != nullptr, "owned fake image");
     image_base = reinterpret_cast<std::uintptr_t>(memory);
     log_file = CreateFileW(L"caption_refresh_bridge_test.log", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,

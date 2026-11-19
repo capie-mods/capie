@@ -11,19 +11,19 @@
  * `get_host_username`; is_host = both equal. Names are compared as the SAME element of the human
  * list (machine id), so two players with the same display name never make a client the host.
  *
- * Engine chain (pinned build; see docs/research/port-1.19.4.2.md, unchanged on 1.19.5.0):
- *   app      = [image + 0x33DDB08]                 getter GetApplication; GetLocalHuman loads it and calls vslot 0x88;
- *              vtable CGameApplication 2796308
- *   session  = [app + 0x380]                       CGameApplication::GetSession 17F880 (vslot 0x88)
- *              vtable CSession 2BB53A8
- *   mode     = dword [session + 0x34]              CSession::Init 22C3B20: 0 client, 1 MP host, 2 local/SP
+ * Engine chain (pinned build; see docs/research/port-1.19.4.2.md, moved on 1.20.0.0):
+ *   app      = [image + app_global]                getter GetApplication; GetLocalHuman loads it and calls vslot 0x88;
+ *              vtable CGameApplication (`vt_game_application`)
+ *   session  = [app + 0x380]                       CGameApplication::GetSession (vslot 0x88)
+ *              vtable CSession (`vt_session`)
+ *   mode     = dword [session + 0x34]              CSession::Init: 0 client, 1 MP host, 2 local/SP
  *   server   = byte  [session + 0x3C]              Init: (mode-1) <= 1
- *   backend  = vtable of [session + 0x40]          CProxyServer 2BCC8A8 / CNetworkServer 2BCC190 / CDummyServer 2BCBEA0
+ *   backend  = vtable of [session + 0x40]          CProxyServer / CNetworkServer / CDummyServer (`vt_*_server`)
  *   my_id    = dword [session + 0x84]              GetMachineId; Init sets 1
- *   humans   = [gamestate + 0xF8], count [gamestate + 0x104], stride 0xA0, element vtable CHuman 279EDB8
- *              (GetLocalHuman 1F1A40 matches element+0x98 against my_id)
- *   name     = MSVC std::string at human + 0x20   (USER_NAME tooltip 1A4170B)
- *   host id  = 1                                   (host-only command check 22D8F00: cmd+0xC == 1)
+ *   humans   = [gamestate + 0xF8], count [gamestate + 0x104], stride 0xA0, element vtable CHuman (`vt_human`)
+ *              (GetLocalHuman matches element+0x98 against my_id)
+ *   name     = MSVC std::string at human + 0x20   (USER_NAME tooltip)
+ *   host id  = 1                                   (host-only command check: cmd+0xC == 1)
  *
  * Privacy: names are copied into fixed buffers inside the snapshot, compared and dropped. The
  * log line carries only lengths and "equal/different", never the text.
@@ -47,16 +47,16 @@ using core::uptr;
 
 /// @brief RVAs and offsets of the host chain (each one pinned in `host_pins.hpp`).
 namespace layout {
-inline constexpr uptr app_global = 0x33DDB08;           ///< CApplication* (RIP target of `app.global`).
-inline constexpr uptr vt_game_application = 0x2796308;  ///< CGameApplication primary vtable.
-inline constexpr uptr vt_session = 0x2BB53A8;           ///< CSession vtable.
-inline constexpr uptr vt_proxy_server = 0x2BCC8A8;      ///< Client backend.
-inline constexpr uptr vt_network_server = 0x2BCC190;    ///< MP host backend.
-inline constexpr uptr vt_dummy_server = 0x2BCBEA0;      ///< Local (single player) backend.
-inline constexpr uptr vt_human = 0x279EDB8;             ///< CHuman vtable.
+inline constexpr uptr app_global = 0x33E3F88;           ///< CApplication* (RIP target of `app.global`).
+inline constexpr uptr vt_game_application = 0x279A328;  ///< CGameApplication primary vtable.
+inline constexpr uptr vt_session = 0x2BBA0C8;           ///< CSession vtable.
+inline constexpr uptr vt_proxy_server = 0x2BD15C8;      ///< Client backend.
+inline constexpr uptr vt_network_server = 0x2BD0EB0;    ///< MP host backend.
+inline constexpr uptr vt_dummy_server = 0x2BD0BC0;      ///< Local (single player) backend.
+inline constexpr uptr vt_human = 0x27A2E08;             ///< CHuman vtable.
 inline constexpr uptr gamestate_global = core::rva::gamestate_global;  ///< CGameState* (pinned by the name layer).
-inline constexpr uptr get_session = 0x17F880;        ///< CGameApplication::GetSession (`host.get_session`).
-inline constexpr uptr idler_get_session = 0xB8E400;  ///< CInGameIdler session getter.
+inline constexpr uptr get_session = 0x17F910;        ///< CGameApplication::GetSession (`host.get_session`).
+inline constexpr uptr idler_get_session = 0xB90150;  ///< CInGameIdler session getter.
 inline constexpr uptr slot_get_session = 0x88;       ///< Vtable slot of both session getters.
 
 inline constexpr uptr app_session = 0x380;            ///< `host.get_session`: mov rax,[rcx+380].

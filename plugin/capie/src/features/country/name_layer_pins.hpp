@@ -64,28 +64,28 @@ inline constexpr core::Signature signatures[] = {
 
 /// @brief Offsets the layer reads, pinned in the game's own instructions.
 inline constexpr core::InstructionPin instruction_pins[] = {
-    {"country.variables", 0x589AFB, "488b9818020000"},                      // mov rbx,[rax+218] after country_of
-    {"country.variables2", 0x589DC2, "488b9818020000"},                     // second scope path, same offset
-    {"scoped_variable.name_size", 0x58C4D3, "8b8780000000"},                // mov eax,[rdi+80]
-    {"scoped_variable.name_data", 0x58C4D9, "488d5770"},                    // lea rdx,[rdi+70]
-    {"scoped_variable.name_capacity", 0x58C4DD, "4883bf880000000f"},        // cmp qword [rdi+88],0F
-    {"set_variable.scoped_variable", 0x37D245, "4883c158"},                 // add rcx,58 before the scope call
-    {"update_names.tag_argument", 0x75EA87, "488d9788140000"},              // lea rdx,[rdi+1488] = BuildNameKey tag
-    {"gamestate.countries", 0x1AF4EB, "488b9810030000"},                    // mov rbx,[rax+310]
-    {"gamestate.country_count", 0x1AF4F2, "4863801c030000"},                // movsxd rax,[rax+31C]
-    {"country_of.countries", 0xC077A7, "488b8710030000"},                   // mov rax,[rdi+310]
-    {"faction.leader_first_member", 0x4C95D8, "488b47588b13488b088b4108"},  // set_faction_leader: [[f+58]]+8 tag
-    {"faction.member_count", 0xCBB0CF, "4d637d64"},                         // movsxd r15,[r13+64]
+    {"country.variables", 0x58ACBB, "488b9818020000"},                      // mov rbx,[rax+218] after country_of
+    {"country.variables2", 0x58AF82, "488b9818020000"},                     // second scope path, same offset
+    {"scoped_variable.name_size", 0x58D693, "8b8780000000"},                // mov eax,[rdi+80]
+    {"scoped_variable.name_data", 0x58D699, "488d5770"},                    // lea rdx,[rdi+70]
+    {"scoped_variable.name_capacity", 0x58D69D, "4883bf880000000f"},        // cmp qword [rdi+88],0F
+    {"set_variable.scoped_variable", 0x37DB05, "4883c158"},                 // add rcx,58 before the scope call
+    {"update_names.tag_argument", 0x75FC07, "488d9788140000"},              // lea rdx,[rdi+1488] = BuildNameKey tag
+    {"gamestate.countries", 0x1AF57B, "488b9810030000"},                    // mov rbx,[rax+310]
+    {"gamestate.country_count", 0x1AF582, "4863801c030000"},                // movsxd rax,[rax+31C]
+    {"country_of.countries", 0xC094F7, "488b8710030000"},                   // mov rax,[rdi+310]
+    {"faction.leader_first_member", 0x4CA798, "488b47588b13488b088b4108"},  // set_faction_leader: [[f+58]]+8 tag
+    {"faction.member_count", 0xCBCE1F, "4d637d64"},                         // movsxd r15,[r13+64]
 };
 
 /// @brief RIP-relative and rel32 targets (displacement RVA, next instruction RVA, target RVA).
 inline constexpr core::RipPin target_pins[] = {
-    {"variable_get.find", 0xC1D84F, 0xC1D853, core::rva::variable_find},
-    {"update_names.build_name_key", 0x75EA93, 0x75EA97, core::rva::build_name_key},
-    {"scope.country_of", 0x589AF7, 0x589AFB, core::rva::country_of},
-    {"gamestate.global", 0x1AF4E7, 0x1AF4EB, core::rva::gamestate_global},
-    {"country_of.gamestate", 0xC0778D, 0xC07791, core::rva::gamestate_global},
-    {"faction.get_name_copy", 0xDF63F9, 0xDF63FD, core::rva::string_copy},
+    {"variable_get.find", 0xC1F59F, 0xC1F5A3, core::rva::variable_find},
+    {"update_names.build_name_key", 0x75FC13, 0x75FC17, core::rva::build_name_key},
+    {"scope.country_of", 0x58ACB7, 0x58ACBB, core::rva::country_of},
+    {"gamestate.global", 0x1AF577, 0x1AF57B, core::rva::gamestate_global},
+    {"country_of.gamestate", 0xC094DD, 0xC094E1, core::rva::gamestate_global},
+    {"faction.get_name_copy", 0xDF9AC9, 0xDF9ACD, core::rva::string_copy},
 };
 
 /// @brief Expected table sizes (report section 1).

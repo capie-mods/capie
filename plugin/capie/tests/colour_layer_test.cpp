@@ -433,7 +433,7 @@ struct Fixture {
         refresh_calls = 0;
         refresh_tags.clear();
         capie::engine::game_call_faulted.store(false);
-        mem.map(fake_image + 0x33DD000, 0xC000);  // gamestate, idler, defines and map globals
+        mem.map(fake_image + 0x33E3000, 0xC000);  // gamestate, idler, defines and map globals
         mem.put(fake_image + rva::gamestate_global, fake_state);
         mem.put(fake_image + rva::current_idler, fake_idler);
         mem.put(fake_image + rva::map_singleton, fake_map);
@@ -747,11 +747,11 @@ void detour_tests() {
     {
         // Defines unreadable at an update (activated before): nothing is shown (fail closed).
         Fixture f;
-        f.mem.regions.erase(fake_image + 0x33DD000);
-        f.mem.map(fake_image + 0x33DD000, 0x1000);  // game state and idler globals only
+        f.mem.regions.erase(fake_image + 0x33E3000);
+        f.mem.map(fake_image + 0x33E3000, 0x1000);  // game state and idler globals only
         f.mem.put(fake_image + rva::gamestate_global, fake_state);
         f.mem.put(fake_image + rva::current_idler, fake_idler);
-        f.mem.map(fake_image + 0x33E7000, 0x1000);  // map global
+        f.mem.map(fake_image + 0x33ED000, 0x1000);  // map global
         f.mem.put(fake_image + rva::map_singleton, fake_map);
         check(f.colour_layer.enabled() && !f.colour_layer.update(pol) && f.colour_layer.published(1) == nullptr &&
                   f.colour_layer.live() == 0 && refresh_calls == 0,
@@ -928,8 +928,8 @@ void refresh_tests() {
     }
     {
         Fixture f;
-        f.mem.regions.erase(fake_image + 0x33DD000);
-        f.mem.map(fake_image + 0x33DD000, 0x100);  // the define globals are gone
+        f.mem.regions.erase(fake_image + 0x33E3000);
+        f.mem.map(fake_image + 0x33E3000, 0x100);  // the define globals are gone
         colour::ColourLayer<Memory> fresh{f.policy};
         fresh.originals().map_colors = &fake_map_colors;
         fresh.originals().refresh = &fake_refresh;

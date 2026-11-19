@@ -14,7 +14,7 @@
  * - the ruling-leader chain of the `set_country_leader_portrait` effect: politics
  *   +0xF90, ruling party +0xD0, first leader role (+0x70, count +0x7C), role +0x8 character,
  *   and its civilian large write (type 0, size 1).
- * None of the ranges overlaps a DIR64 relocation (checked by tools/port/gen_tables.py on the 1.19.5.0 file).
+ * None of the ranges overlaps a DIR64 relocation (checked by tools/port/gen_tables.py on the 1.20.0.0 file).
  *
  * The portrait layer needs the name layer's UpdateNames and set_variable hooks (its cache is
  * filled there), so it is activated only when the name-layer pins matched too. A failed pin
@@ -45,35 +45,35 @@ inline constexpr core::Signature signatures[] = {
 
 /// @brief Argument layout, entry layout, character layout and leader chain, in the game's instructions.
 inline constexpr core::InstructionPin instruction_pins[] = {
-    {"ui.size_small_is_zero", 0xB964F7, "83bc249000000000"},         // cmp dword [rsp+90],0 (0 -> GFX_idea_unknown)
-    {"ui.character_argument", 0xB96538, "48897c2420"},               // mov [rsp+20],rdi: 5th argument = character
-    {"ui.out_buffer", 0xB96548, "488d542430"},                       // lea rdx,[rsp+30]: caller's entry buffer
-    {"resolve.character_argument", 0x143A03D, "488b5d77"},           // mov rbx,[rbp+77]: 5th argument
-    {"resolve.character_id", 0x143A059, "448b430c"},                 // mov r8d,[rbx+0C]: character id
-    {"valid.flag_byte", 0x1439276, "803900"},                        // cmp byte [rcx],0
-    {"valid.kind", 0x143927F, "8b4104"},                             // mov eax,[rcx+4]
-    {"valid.name", 0x143929D, "488d5108"},                           // lea rdx,[rcx+8]: sprite name
-    {"character.write_portraits", 0x102AB95, "4c8d4678ba294c0000"},  // lea r8,[rsi+78]; mov edx,4C29
-    {"character.write_variables", 0x102AE1B, "4c8d86d8000000ba4a2a0000"},         // lea r8,[rsi+D8]; mov edx,2A4A
-    {"character.read_variables_token", 0x10296BB, "4181f84a2a0000"},              // cmp r8d,2A4A
-    {"character.read_variables", 0x10297D6, "498d97d8000000"},                    // lea rdx,[r15+D8]
+    {"ui.size_small_is_zero", 0xB98247, "83bc249000000000"},         // cmp dword [rsp+90],0 (0 -> GFX_idea_unknown)
+    {"ui.character_argument", 0xB98288, "48897c2420"},               // mov [rsp+20],rdi: 5th argument = character
+    {"ui.out_buffer", 0xB98298, "488d542430"},                       // lea rdx,[rsp+30]: caller's entry buffer
+    {"resolve.character_argument", 0x143D88D, "488b5d77"},           // mov rbx,[rbp+77]: 5th argument
+    {"resolve.character_id", 0x143D8A9, "448b430c"},                 // mov r8d,[rbx+0C]: character id
+    {"valid.flag_byte", 0x143CAC6, "803900"},                        // cmp byte [rcx],0
+    {"valid.kind", 0x143CACF, "8b4104"},                             // mov eax,[rcx+4]
+    {"valid.name", 0x143CAED, "488d5108"},                           // lea rdx,[rcx+8]: sprite name
+    {"character.write_portraits", 0x102E105, "4c8d4678ba294c0000"},  // lea r8,[rsi+78]; mov edx,4C29
+    {"character.write_variables", 0x102E38B, "4c8d86d8000000ba4a2a0000"},         // lea r8,[rsi+D8]; mov edx,2A4A
+    {"character.read_variables_token", 0x102CC2B, "4181f84a2a0000"},              // cmp r8d,2A4A
+    {"character.read_variables", 0x102CD46, "498d97d8000000"},                    // lea rdx,[r15+D8]
     {"leader.politics", core::rva::country_politics_getter, "488b81900f0000c3"},  // mov rax,[rcx+F90]; ret
-    {"leader.ruling_party", 0x2FDCA7, "488b80d0000000"},                          // mov rax,[rax+D0]
+    {"leader.ruling_party", 0x2FE2E7, "488b80d0000000"},                          // mov rax,[rax+D0]
     {"leader.first_role", core::rva::party_first_leader_role, "83797c00750333c0c3488b4970"},  // count +7C, roles +70
     {"leader.deref", core::rva::pointer_load, "488b01c3"},                                    // mov rax,[rcx]; ret
     {"leader.character", core::rva::role_character_getter, "488b4108c3"},                     // mov rax,[rcx+8]; ret
-    {"effect.civilian_large", 0x2FDD24, "33d241b801000000"},                                  // type 0, size 1
+    {"effect.civilian_large", 0x2FE364, "33d241b801000000"},                                  // type 0, size 1
 };
 
 /// @brief Call targets (rel32 displacement RVA, next instruction RVA, target RVA).
 inline constexpr core::RipPin target_pins[] = {
-    {"ui.calls_resolve", 0xB96551, 0xB96555, core::rva::portrait_resolve},
-    {"ui.calls_valid", 0xB9655C, 0xB96560, core::rva::portrait_valid},
-    {"leader.calls_politics", 0x2FDCA3, 0x2FDCA7, core::rva::country_politics_getter},
-    {"leader.calls_first_role", 0x2FDCE1, 0x2FDCE5, core::rva::party_first_leader_role},
-    {"leader.first_role_jumps", 0x123057E, 0x1230582, core::rva::pointer_load},
-    {"leader.calls_character", 0x2FDCF2, 0x2FDCF6, core::rva::role_character_getter},
-    {"effect.writes_portrait", 0x2FDD30, 0x2FDD34, core::rva::leader_portrait_write},
+    {"ui.calls_resolve", 0xB982A1, 0xB982A5, core::rva::portrait_resolve},
+    {"ui.calls_valid", 0xB982AC, 0xB982B0, core::rva::portrait_valid},
+    {"leader.calls_politics", 0x2FE2E3, 0x2FE2E7, core::rva::country_politics_getter},
+    {"leader.calls_first_role", 0x2FE321, 0x2FE325, core::rva::party_first_leader_role},
+    {"leader.first_role_jumps", 0x1233DCE, 0x1233DD2, core::rva::pointer_load},
+    {"leader.calls_character", 0x2FE332, 0x2FE336, core::rva::role_character_getter},
+    {"effect.writes_portrait", 0x2FE370, 0x2FE374, core::rva::leader_portrait_write},
 };
 
 /// @brief Expected signatures.
@@ -95,20 +95,20 @@ inline constexpr core::Signature path_signatures[] = {
 
 /// @brief The builder makes kind 1 through MakeIconEntry, which loads the texture and stores the handle.
 inline constexpr core::InstructionPin path_instruction_pins[] = {
-    {"path.kind_one", 0x14394CD, "ba01000000"},           // mov edx,1: kind 1
-    {"icon.stores_kind", 0x1438B59, "895104"},            // mov [rcx+4],edx
-    {"icon.kind_is_path", 0x1438B91, "83fa01"},           // cmp edx,1: only kind 1 loads
-    {"icon.texmgr", 0x1438BD6, "488b9870010000"},         // mov rbx,[rax+170]: sprite db texture manager
-    {"icon.stores_handle", 0x1438BFB, "49894628"},        // mov [r14+28],rax: texture handle
-    {"valid.kind_path", 0x1439282, "83f801"},             // cmp eax,1
-    {"valid.handle", 0x1439287, "4883792800"},            // cmp qword [rcx+28],0: kind 1 valid iff handle
+    {"path.kind_one", 0x143CD1D, "ba01000000"},           // mov edx,1: kind 1
+    {"icon.stores_kind", 0x143C3A9, "895104"},            // mov [rcx+4],edx
+    {"icon.kind_is_path", 0x143C3E1, "83fa01"},           // cmp edx,1: only kind 1 loads
+    {"icon.texmgr", 0x143C426, "488b9870010000"},         // mov rbx,[rax+170]: sprite db texture manager
+    {"icon.stores_handle", 0x143C44B, "49894628"},        // mov [r14+28],rax: texture handle
+    {"valid.kind_path", 0x143CAD2, "83f801"},             // cmp eax,1
+    {"valid.handle", 0x143CAD7, "4883792800"},            // cmp qword [rcx+28],0: kind 1 valid iff handle
 };
 
 /// @brief Call targets of the path support.
 inline constexpr core::RipPin path_target_pins[] = {
-    {"path.calls_make_icon", 0x14394D6, 0x14394DA, core::rva::make_icon_entry},
-    {"icon.calls_add_texture", 0x1438BED, 0x1438BF1, core::rva::texture_add},
-    {"icon.calls_get_texture", 0x1438BF7, 0x1438BFB, core::rva::texture_get},
+    {"path.calls_make_icon", 0x143CD26, 0x143CD2A, core::rva::make_icon_entry},
+    {"icon.calls_add_texture", 0x143C43D, 0x143C441, core::rva::texture_add},
+    {"icon.calls_get_texture", 0x143C447, 0x143C44B, core::rva::texture_get},
 };
 
 /// @brief Expected path signatures.

@@ -154,17 +154,17 @@ void mode_tests(const std::vector<unsigned char>& image) {
     namespace colour = capie::country::colour;
     for (const std::uint8_t mode : colour::colour_map_modes) {
         const std::size_t builder = builder_of(image, mode);
-        check(builder == 0xFB82C0 || builder == 0xFBAEF0,
+        check(builder == 0xFBB830 || builder == 0xFBE460,
               "marked mode " + std::to_string(mode) + " rebuilds through a colour builder (" + std::to_string(builder) + ")");
         check(mode != capie::core::value::continent_map_mode, "marked mode " + std::to_string(mode) + " is not the continent mode");
     }
-    check(builder_of(image, capie::core::value::political_map_mode) == 0xFB82C0, "mode 0 -> the political builder");
-    check(builder_of(image, capie::core::value::claims_map_mode) == 0xFBAEF0, "mode 19 -> the claims builder");
-    check(builder_of(image, capie::core::value::continent_map_mode) == 0xFBA020, "mode 21 -> the continent builder");
+    check(builder_of(image, capie::core::value::political_map_mode) == 0xFBB830, "mode 0 -> the political builder");
+    check(builder_of(image, capie::core::value::claims_map_mode) == 0xFBE460, "mode 19 -> the claims builder");
+    check(builder_of(image, capie::core::value::continent_map_mode) == 0xFBD590, "mode 21 -> the continent builder");
     for (unsigned mode = 0; mode < capie::core::value::map_mode_count; ++mode) {
         const bool marked = std::find(colour::colour_map_modes.begin(), colour::colour_map_modes.end(), mode) !=
                             colour::colour_map_modes.end();
-        check(!marked || builder_of(image, mode) != 0xFBA020, "no marked mode reaches the continent builder");
+        check(!marked || builder_of(image, mode) != 0xFBD590, "no marked mode reaches the continent builder");
     }
 }
 
@@ -194,31 +194,31 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0x734B50 + 20, "colour.map_colors");    // +F88 of the subject walk
-    flip(0xAB7F80 + 9, "colour.refresh");        // map +8
-    flip(0x734BA8 + 3, "getter.block_offset");   // +0x350
-    flip(0x7593B0 + 3, "colors.layout");         // +0x20
-    flip(0x75957E + 2, "cosmetic.idler_slot");   // slot 0x2D8
-    flip(0xE86CB8 + 2, "mark.mode0_dirty");      // +0x48
-    flip(0xFBF889 + 2, "update.mode_count");     // 23
-    flip(0x188D90 + 1, "idler.ingame_true");     // mov al,1
-    flip(0x752DC9 + 3, "define.ui_target");      // +0x30
-    flip(0x759589, "cosmetic.calls_map");
-    flip(0x759595, "cosmetic.calls_refresh");
-    flip(0x752DAB, "define.ui_value");
-    flip(0x752E12, "define.hue");
-    flip(0x29E58D8 + 0x2D8, "idler.ingame_slot");
-    flip(0xFB8009 + 2, "rebuild.mode_bound");               // 22
-    flip(0xFB825C, "rebuild.case_political");               // table entry of mode 0
-    flip(0xFB825C + (4 * 19), "rebuild.case_claims");       // table entry of mode 19
-    flip(0xFB825C + (4 * 21), "rebuild.case_continent");    // table entry of mode 21
-    flip(0xFB8035, "rebuild.political_builder");
-    flip(0xFB816F, "rebuild.claims_builder");
-    flip(0xFB8193, "rebuild.continent_builder");
-    flip(0xFB8805, "political.calls_getter");
-    flip(0xFBB11B, "claims.calls_colour");
-    flip(0xFB4949, "claims_colour.calls_getter");
-    flip(0xFBA4B0, "continent.log_format");
+    flip(0x735CD0 + 20, "colour.map_colors");    // +F88 of the subject walk
+    flip(0xAB9CD0 + 9, "colour.refresh");        // map +8
+    flip(0x735D28 + 3, "getter.block_offset");   // +0x350
+    flip(0x75A530 + 3, "colors.layout");         // +0x20
+    flip(0x75A6FE + 2, "cosmetic.idler_slot");   // slot 0x2D8
+    flip(0xE8A388 + 2, "mark.mode0_dirty");      // +0x48
+    flip(0xFC2DF9 + 2, "update.mode_count");     // 23
+    flip(0x188E20 + 1, "idler.ingame_true");     // mov al,1
+    flip(0x753F49 + 3, "define.ui_target");      // +0x30
+    flip(0x75A709, "cosmetic.calls_map");
+    flip(0x75A715, "cosmetic.calls_refresh");
+    flip(0x753F2B, "define.ui_value");
+    flip(0x753F92, "define.hue");
+    flip(0x29EA628 + 0x2D8, "idler.ingame_slot");
+    flip(0xFBB579 + 2, "rebuild.mode_bound");               // 22
+    flip(0xFBB7CC, "rebuild.case_political");               // table entry of mode 0
+    flip(0xFBB7CC + (4 * 19), "rebuild.case_claims");       // table entry of mode 19
+    flip(0xFBB7CC + (4 * 21), "rebuild.case_continent");    // table entry of mode 21
+    flip(0xFBB5A5, "rebuild.political_builder");
+    flip(0xFBB6DF, "rebuild.claims_builder");
+    flip(0xFBB703, "rebuild.continent_builder");
+    flip(0xFBBD75, "political.calls_getter");
+    flip(0xFBE68B, "claims.calls_colour");
+    flip(0xFB7EB9, "claims_colour.calls_getter");
+    flip(0xFBDA20, "continent.log_format");
     check(pins::first_failed_pin(text, memory, base) == nullptr, "restored image passes again");
     mode_tests(image);
 }

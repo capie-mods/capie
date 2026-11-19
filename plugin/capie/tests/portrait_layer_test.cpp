@@ -683,8 +683,8 @@ void hook_tests() {
     map_country(mem, pol, char_a);
     map_country(mem, ger, char_b);
     map_country(mem, ita, char_c);
-    mem.map(fake_image + 0x33DD6B0, 8);
-    mem.put(fake_image + 0x33DD6B0, fake_state);
+    mem.map(fake_image + 0x33E3B30, 8);
+    mem.put(fake_image + 0x33E3B30, fake_state);
     mem.map(fake_state, 0x400);
     mem.put(fake_state + 0x310, fake_list);
     mem.put(fake_state + 0x31C, std::int32_t{4});
@@ -844,8 +844,8 @@ void path_hook_tests() {
     map_character(mem, char_b, 22, portrait_variables_b(missing, missing.c_str()), 0x3100'0000);
     map_country(mem, abk, char_a);
     map_country(mem, bul, char_b);
-    mem.map(fake_image + 0x33DD6B0, 8);
-    mem.put(fake_image + 0x33DD6B0, fake_state);
+    mem.map(fake_image + 0x33E3B30, 8);
+    mem.put(fake_image + 0x33E3B30, fake_state);
     mem.map(fake_state, 0x400);
     mem.put(fake_state + 0x310, fake_list);
     mem.put(fake_state + 0x31C, std::int32_t{3});

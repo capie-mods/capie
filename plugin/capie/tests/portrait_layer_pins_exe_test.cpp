@@ -121,25 +121,25 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0x1439FB0 + 5, "portrait.resolve");
-    flip(0x1439270 + 6, "portrait.valid");
-    flip(0xB964F7 + 4, "ui.size_small_is_zero");      // [rsp+0x90]
-    flip(0xB96538 + 4, "ui.character_argument");      // [rsp+0x20]
-    flip(0x143A059 + 3, "resolve.character_id");      // +0x0C
-    flip(0x143929D + 3, "valid.name");                // +0x08
-    flip(0x102AB95 + 3, "character.write_portraits");  // +0x78
-    flip(0x102AE1B + 3, "character.write_variables");  // +0xD8
-    flip(0x10297D6 + 3, "character.read_variables");   // +0xD8
-    flip(0x7173E0 + 3, "leader.politics");            // +0xF90
-    flip(0x2FDCA7 + 3, "leader.ruling_party");        // +0xD0
-    flip(0x1230570 + 2, "leader.first_role");         // +0x7C
-    flip(0x2C1480 + 3, "leader.character");           // +0x08
-    flip(0x2FDD24 + 4, "effect.civilian_large");      // size 1
-    flip(0xB96551, "ui.calls_resolve");
-    flip(0xB9655C, "ui.calls_valid");
-    flip(0x2FDCA3, "leader.calls_politics");
-    flip(0x123057E, "leader.first_role_jumps");
-    flip(0x2FDD30, "effect.writes_portrait");
+    flip(0x143D800 + 5, "portrait.resolve");
+    flip(0x143CAC0 + 6, "portrait.valid");
+    flip(0xB98247 + 4, "ui.size_small_is_zero");      // [rsp+0x90]
+    flip(0xB98288 + 4, "ui.character_argument");      // [rsp+0x20]
+    flip(0x143D8A9 + 3, "resolve.character_id");      // +0x0C
+    flip(0x143CAED + 3, "valid.name");                // +0x08
+    flip(0x102E105 + 3, "character.write_portraits");  // +0x78
+    flip(0x102E38B + 3, "character.write_variables");  // +0xD8
+    flip(0x102CD46 + 3, "character.read_variables");   // +0xD8
+    flip(0x718560 + 3, "leader.politics");            // +0xF90
+    flip(0x2FE2E7 + 3, "leader.ruling_party");        // +0xD0
+    flip(0x1233DC0 + 2, "leader.first_role");         // +0x7C
+    flip(0x2C1AC0 + 3, "leader.character");           // +0x08
+    flip(0x2FE364 + 4, "effect.civilian_large");      // size 1
+    flip(0xB982A1, "ui.calls_resolve");
+    flip(0xB982AC, "ui.calls_valid");
+    flip(0x2FE2E3, "leader.calls_politics");
+    flip(0x1233DCE, "leader.first_role_jumps");
+    flip(0x2FE370, "effect.writes_portrait");
     check(pins::first_failed_pin(text) == nullptr, "restored image passes again");
 
     // Format 2 path support (API level 9): its own switch.
@@ -152,17 +152,17 @@ void exe_tests(const char* path) {
               std::string("corrupt path byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip_path(0x1439440 + 5, "portrait.path_entry");
-    flip_path(0x14394CD + 1, "path.kind_one");          // kind 1
-    flip_path(0x1438B59 + 2, "icon.stores_kind");       // +0x04
-    flip_path(0x1438B91 + 2, "icon.kind_is_path");      // kind 1 loads
-    flip_path(0x1438BD6 + 3, "icon.texmgr");            // +0x170
-    flip_path(0x1438BFB + 3, "icon.stores_handle");     // +0x28
-    flip_path(0x1439282 + 2, "valid.kind_path");        // kind 1
-    flip_path(0x1439287 + 3, "valid.handle");           // +0x28
-    flip_path(0x14394D6, "path.calls_make_icon");
-    flip_path(0x1438BED, "icon.calls_add_texture");
-    flip_path(0x1438BF7, "icon.calls_get_texture");
+    flip_path(0x143CC90 + 5, "portrait.path_entry");
+    flip_path(0x143CD1D + 1, "path.kind_one");          // kind 1
+    flip_path(0x143C3A9 + 2, "icon.stores_kind");       // +0x04
+    flip_path(0x143C3E1 + 2, "icon.kind_is_path");      // kind 1 loads
+    flip_path(0x143C426 + 3, "icon.texmgr");            // +0x170
+    flip_path(0x143C44B + 3, "icon.stores_handle");     // +0x28
+    flip_path(0x143CAD2 + 2, "valid.kind_path");        // kind 1
+    flip_path(0x143CAD7 + 3, "valid.handle");           // +0x28
+    flip_path(0x143CD26, "path.calls_make_icon");
+    flip_path(0x143C43D, "icon.calls_add_texture");
+    flip_path(0x143C447, "icon.calls_get_texture");
     check(pins::first_failed_path_pin(text) == nullptr, "restored image passes the path pins again");
 }
 

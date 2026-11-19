@@ -140,24 +140,24 @@ void exe_tests(const char* path) {
               std::string("corrupt byte at ") + std::to_string(rva) + " -> " + (result ? result : "none"));
         image[rva] ^= 0x01U;
     };
-    flip(0x1F1A40 + 33 + 3, "host.get_local_human");  // displacement 0x104 inside the signature
-    flip(0x17F880 + 3, "host.get_session");           // displacement 0x380
-    flip(0x148DA1F + 3, "host.get_machine_id");        // displacement 0x84
-    flip(0x22C3B20 + 2, "host.session_init");
-    flip(0x22D8F00 + 3, "host.is_from_host");  // host machine id 1
-    flip(0x22C3B54 + 2, "session.is_server");
-    flip(0x22C3B5A + 3, "session.mode");
-    flip(0x22C3B62 + 6, "session.machine_id_1");
-    flip(0x22C3B76 + 3, "session.backend");
-    flip(0x1D6393F + 8, "lobby.session_is_server");
-    flip(0x1F1A6F + 3, "gamestate.humans");
-    flip(0x1F1A7C + 3, "human.machine_id");
-    flip(0x1F1A8D + 3, "human.stride");
-    flip(0x1A4170B + 3, "human.name");
-    flip(0xC10243 + 3, "human.ctor_machine_id");
-    flip(0x19A6293, "app.global");
-    flip(0x2796308 + 0x88, "app.get_session_slot");
-    flip(0x29E58D8 + 0x88, "ingame_idler.session_slot");
+    flip(0x1F1BE0 + 33 + 3, "host.get_local_human");  // displacement 0x104 inside the signature
+    flip(0x17F910 + 3, "host.get_session");           // displacement 0x380
+    flip(0x14910BF + 3, "host.get_machine_id");        // displacement 0x84
+    flip(0x22C72C0 + 2, "host.session_init");
+    flip(0x22DC6A0 + 3, "host.is_from_host");  // host machine id 1
+    flip(0x22C72F4 + 2, "session.is_server");
+    flip(0x22C72FA + 3, "session.mode");
+    flip(0x22C7302 + 6, "session.machine_id_1");
+    flip(0x22C7316 + 3, "session.backend");
+    flip(0x1D6709F + 8, "lobby.session_is_server");
+    flip(0x1F1C0F + 3, "gamestate.humans");
+    flip(0x1F1C1C + 3, "human.machine_id");
+    flip(0x1F1C2D + 3, "human.stride");
+    flip(0x1A44DBB + 3, "human.name");
+    flip(0xC11F93 + 3, "human.ctor_machine_id");
+    flip(0x19A9943, "app.global");
+    flip(0x279A328 + 0x88, "app.get_session_slot");
+    flip(0x29EA628 + 0x88, "ingame_idler.session_slot");
     check(pins::first_failed_pin(text, memory, base) == nullptr, "restored image passes again");
     // A second copy of GetMachineId's body exists (E56DDE): the plain body alone is not unique.
     capie::core::Pattern body{};
