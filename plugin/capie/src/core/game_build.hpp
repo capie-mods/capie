@@ -15,25 +15,25 @@
 
 namespace capie::core {
 
-/// @brief Lower-case SHA-256 of the only accepted `hoi4.exe` (HOI4 1.20.0.0, Steam, x64).
-inline constexpr char game_exe_sha256[] = "1beb2a38fe2d747e5b7adb9b9648e350b0b851845dd228ffb87d2d2ac1b63a9f";
+/// @brief Lower-case SHA-256 of the only accepted `hoi4.exe` (HOI4 1.20.1.0, Steam, x64).
+inline constexpr char game_exe_sha256[] = "b6eac19f0ebf966a2bf2025c0fd1baa187468e4078ad15bcfbb712a26f65e432";
 /// @brief File name of the game executable, compared case-insensitively by the tools.
 inline constexpr wchar_t game_exe_name[] = L"hoi4.exe";
 /// @brief Human-readable version of the accepted build, used in messages only.
-inline constexpr char game_version[] = "1.20.0.0";
+inline constexpr char game_version[] = "1.20.1.0";
 /// @brief Preferred image base of the accepted build; RVAs are relative to the real base.
 inline constexpr std::uintptr_t game_preferred_base = 0x140000000;
 
 /// @brief CAPIE product version shown to players ("CAPIE 1.7 loaded").
 inline constexpr char capie_version[] = "1.7";
 /// @brief Full release version, answered for the `CAPIE_BUILD` localisation key.
-inline constexpr char capie_release[] = "1.7.2";
+inline constexpr char capie_release[] = "1.7.3";
 /// @brief Script API level (CONTRACT.md section 1): sent as `capie_cap`, answered for `CAPIE_API`.
 inline constexpr unsigned capie_api_level = 9;
 /// @brief Text of `capie_api_level` for the `CAPIE_API` localisation key.
 inline constexpr char capie_api_text[] = "9";
 /// @brief Release as one integer, major * 10000 + minor * 100 + patch; sent as `capie_ver`.
-inline constexpr unsigned capie_build_number = 10702;
+inline constexpr unsigned capie_build_number = 10703;
 
 /// @brief File name of the country/localisation DLL.
 inline constexpr wchar_t core_dll_name[] = L"capie_core.dll";

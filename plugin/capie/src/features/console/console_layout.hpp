@@ -1,6 +1,6 @@
 /**
  * @file console_layout.hpp
- * @brief Byte layouts of the game's console objects (HOI4 1.20.0.0, SHA 1BEB2A38...; ported in docs/research/port-1.20.0.0.md).
+ * @brief Byte layouts of the game's console objects (HOI4 1.20.0.0 and 1.20.1.0; ported in docs/research/port-1.20.0.0.md and port-1.20.1.0.md).
  *
  * Every offset is proven by one instruction pin in `console_wiring.hpp` ("re-evidence.md" is the
  * console RE report of session 2026-10-11):

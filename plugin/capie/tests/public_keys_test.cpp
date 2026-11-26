@@ -99,12 +99,12 @@ int main() {
     capie::engine::game_call_faulted.store(false);
     check(is(override_value("CAPIE_STATUS"), "CAPIE 1.7"), "CAPIE_STATUS");
     check(is(override_value("CAPIE_API"), "9"), "CAPIE_API");
-    check(is(override_value("CAPIE_BUILD"), "1.7.2"), "CAPIE_BUILD");
+    check(is(override_value("CAPIE_BUILD"), "1.7.3"), "CAPIE_BUILD");
     forwarded = 0;
     check(is(lookup_z("CAPIE_STATUS"), "CAPIE 1.7") && is(lookup_z("CAPIE_API"), "9") &&
-              is(lookup_z("CAPIE_BUILD"), "1.7.2"),
+              is(lookup_z("CAPIE_BUILD"), "1.7.3"),
           "lookup_z answers the public keys");
-    check(is(lookup_n("CAPIE_BUILD", 11), "1.7.2") && is(lookup_n("CAPIE_STATUSXYZ", 12), "CAPIE 1.7"),
+    check(is(lookup_n("CAPIE_BUILD", 11), "1.7.3") && is(lookup_n("CAPIE_STATUSXYZ", 12), "CAPIE 1.7"),
           "lookup_n uses the explicit length");
     check(forwarded == 0, "answered keys never reach the game");
 
